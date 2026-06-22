@@ -12,6 +12,10 @@ import {
   getLidlStaples,
   getNutritionBrief,
   getCrossDomainAlerts,
+  logMeal,
+  deleteMeal,
+  logWeight,
+  lookupBarcode,
 } from '../api/client'
 
 function timeOfDay() {
@@ -117,6 +121,28 @@ function formatAlerts(data) {
   return data.alerts.join('\n')
 }
 
+function formatMealLog(data) {
+  const meals = data.meal_log || []
+  if (meals.length === 0) return 'No meals logged today.'
+  const lines = [`Today's meals (${meals.length}):`]
+  meals.forEach(meal => {
+    lines.push(`  ${meal.name} — ${meal.calories} kcal | ${meal.protein_g}g protein`)
+  })
+  lines.push(
+    `Total: ${data.logged.total_calories} kcal | ${data.logged.total_protein_g}g protein`,
+    `Remaining: ${data.remaining_calories} kcal | ${data.remaining_protein_g}g protein`,
+  )
+  return lines.join('\n')
+}
+
+function formatBarcode(data) {
+  return [
+    `${data.name} (${data.barcode})`,
+    `${data.calories} kcal | ${data.protein_g}g protein | ${data.fat_g}g fat | ${data.carbs_g}g carbs per 100g`,
+    `Source: ${data.source}`,
+  ].join('\n')
+}
+
 const UNREACHABLE = "I can't reach the server right now. Make sure the desktop is running."
 
 const UNKNOWN_INTENT =
@@ -124,6 +150,9 @@ const UNKNOWN_INTENT =
 
 function detectIntent(text) {
   const t = text.toLowerCase().trim()
+  if (/\b(meal log|log meal|calories today|today'?s meals|what i ate)\b/.test(t)) return 'meal_log'
+  if (/\b(log weight|weigh|weight today)\b/.test(t)) return 'log_weight'
+  if (/\bbarcode\s+\d+\b/.test(t)) return 'barcode'
   if (/\b(alerts|conflicts|crossdomain|cross domain|intelligence)\b/.test(t)) return 'alerts'
   if (/\b(portfolio|finance|summary|holdings)\b/.test(t)) return 'summary'
   if (/\b(recommendation|invest|weekly|buy)\b/.test(t)) return 'recommendation'
@@ -188,7 +217,18 @@ export function useJarvis() {
     setLoading(true)
     try {
       let response
-      if (intent === 'alerts') response = formatAlerts(await getCrossDomainAlerts())
+      if (intent === 'meal_log') response = formatMealLog(await getNutritionStatus())
+      else if (intent === 'log_weight') {
+        const match = text.match(/(\d+(?:[.,]\d+)?)\s*(?:kg)?/i)
+        response = match
+          ? `Weight logged: ${(await logWeight(Number(match[1].replace(',', '.')))).weight_kg} kg.`
+          : 'Tell me the weight in kilograms, for example: log weight 73.2 kg.'
+      }
+      else if (intent === 'barcode') {
+        const barcode = text.match(/\d+/)?.[0]
+        response = formatBarcode(await lookupBarcode(barcode))
+      }
+      else if (intent === 'alerts') response = formatAlerts(await getCrossDomainAlerts())
       else if (intent === 'summary') response = formatFinanceSummary(await getFinanceSummary())
       else if (intent === 'recommendation') response = formatRecommendation(await getFinanceRecommendation())
       else if (intent === 'calendar') response = formatCalendarSnapshot(await getCalendarSnapshot())
@@ -210,5 +250,35 @@ export function useJarvis() {
     }
   }, [addMessage])
 
-  return { messages, apiStatus, loading, greet, send }
+  const lookupBarcodeItem = useCallback(async (barcode) => {
+    setLoading(true)
+    try {
+      const product = await lookupBarcode(barcode)
+      setApiStatus('ok')
+      addMessage('jarvis', formatBarcode(product))
+      return product
+    } catch {
+      setApiStatus('error')
+      addMessage('jarvis', 'Barcode not found or the lookup service is unavailable.')
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }, [addMessage])
+
+  const logMealItem = useCallback((item) => logMeal(item), [])
+  const deleteMealItem = useCallback((mealId) => deleteMeal(mealId), [])
+  const recordWeight = useCallback((weightKg) => logWeight(weightKg), [])
+
+  return {
+    messages,
+    apiStatus,
+    loading,
+    greet,
+    send,
+    lookupBarcodeItem,
+    logMealItem,
+    deleteMealItem,
+    recordWeight,
+  }
 }

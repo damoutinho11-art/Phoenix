@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import Message from './Message'
 import StatusBar from './StatusBar'
+import BarcodeScanner from './BarcodeScanner'
 import { useJarvis } from '../hooks/useJarvis'
 
 export default function Chat() {
-  const { messages, apiStatus, loading, greet, send } = useJarvis()
+  const { messages, apiStatus, loading, greet, send, lookupBarcodeItem } = useJarvis()
   const [input, setInput] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
   const bottomRef = useRef(null)
   const greeted = useRef(false)
 
@@ -79,6 +81,16 @@ export default function Chat() {
         <div ref={bottomRef} />
       </div>
 
+      {scannerOpen && (
+        <BarcodeScanner
+          onDetected={barcode => {
+            setScannerOpen(false)
+            lookupBarcodeItem(barcode)
+          }}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
+
       <form
         onSubmit={handleSubmit}
         style={{
@@ -90,11 +102,28 @@ export default function Chat() {
           paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
+        <button
+          type="button"
+          aria-label="Scan barcode"
+          onClick={() => setScannerOpen(open => !open)}
+          disabled={loading}
+          style={{
+            background: scannerOpen ? '#2d2818' : '#151515',
+            border: '1px solid #2d2818',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            color: '#c9a84c',
+            fontSize: '16px',
+            cursor: loading ? 'default' : 'pointer',
+          }}
+        >
+          ▣
+        </button>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="portfolio · recommendation · brief · calendar · status"
+          placeholder="portfolio · meals · weight · barcode · status"
           disabled={loading}
           style={{
             flex: 1,

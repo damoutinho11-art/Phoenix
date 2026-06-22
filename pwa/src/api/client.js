@@ -1,7 +1,7 @@
 const BASE_URL = 'http://100.64.150.26:8000'
 
-async function apiFetch(path) {
-  const response = await fetch(`${BASE_URL}${path}`)
+async function apiFetch(path, options = {}) {
+  const response = await fetch(`${BASE_URL}${path}`, options)
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json()
 }
@@ -53,4 +53,28 @@ export async function getNutritionBrief() {
 
 export async function getCrossDomainAlerts() {
   return apiFetch('/cross-domain/alerts')
+}
+
+export async function logMeal(item) {
+  return apiFetch('/nutrition/log/meal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+  })
+}
+
+export async function deleteMeal(mealId) {
+  return apiFetch(`/nutrition/log/meal/${mealId}`, { method: 'DELETE' })
+}
+
+export async function logWeight(weightKg) {
+  return apiFetch('/nutrition/log/weight', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weight_kg: weightKg }),
+  })
+}
+
+export async function lookupBarcode(barcode) {
+  return apiFetch(`/barcode/lookup/${encodeURIComponent(barcode)}`)
 }

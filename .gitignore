@@ -4,6 +4,10 @@ __pycache__/
 *.egg-info/
 .eggs/
 
+# PWA generated dependencies and build output
+pwa/node_modules/
+pwa/dist/
+
 # Pytest
 .pytest_cache/
 
@@ -26,6 +30,11 @@ Thumbs.db
 
 # API keys - never commit
 .env
+
+# Local J.A.R.V.I.S. persistence
+jarvis/data/jarvis.db
+jarvis/data/jarvis.db-shm
+jarvis/data/jarvis.db-wal
 
 # Review zips
 *.zip
