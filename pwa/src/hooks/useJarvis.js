@@ -7,6 +7,10 @@ import {
   getFinanceBrief,
   getTrainingStatus,
   getTrainingBrief,
+  getNutritionStatus,
+  getRecipes,
+  getLidlStaples,
+  getNutritionBrief,
 } from '../api/client'
 
 function timeOfDay() {
@@ -75,6 +79,34 @@ function formatTraining(data) {
   return lines.join('\n')
 }
 
+function formatNutrition(data) {
+  const t = data.target
+  const lines = [
+    `${data.phase.toUpperCase()} — ${data.is_training_day ? 'Training day' : 'Rest day'}`,
+    `Target: ${t.calories} kcal | ${t.protein_g}g protein | ${t.carbs_g}g carbs | ${t.fat_g}g fat`,
+    `Logged: ${data.logged.total_calories} kcal | ${data.logged.total_protein_g}g protein`,
+    `Remaining: ${data.remaining_calories} kcal | ${data.remaining_protein_g}g protein`,
+  ]
+  if (data.suggested_recipes.length > 0) {
+    const names = data.suggested_recipes.map(r => r.name).join(', ')
+    lines.push(`Suggested: ${names}`)
+  }
+  return lines.join('\n')
+}
+
+function formatRecipes(data) {
+  if (!data.recipes || data.recipes.length === 0) return 'No recipes found.'
+  return data.recipes.slice(0, 5).map(r =>
+    `${r.name} — ${r.calories} kcal | ${r.protein_g}g protein`
+  ).join('\n')
+}
+
+function formatShopping(data) {
+  return data.staples.map(s =>
+    `${s.name} (${s.unit}) — €${s.price_eur.toFixed(2)} | P:${s.protein_g}g`
+  ).join('\n')
+}
+
 function formatHealth(data) {
   return `Status: ${data.status}. Domains online: ${data.domains.join(', ')}.`
 }
@@ -82,7 +114,7 @@ function formatHealth(data) {
 const UNREACHABLE = "I can't reach the server right now. Make sure the desktop is running."
 
 const UNKNOWN_INTENT =
-  "I don't understand that yet. Try: portfolio, recommendation, brief, training, calendar, status."
+  "I don't understand that yet. Try: portfolio, recommendation, brief, training, calendar, nutrition, recipes, shopping, status."
 
 function detectIntent(text) {
   const t = text.toLowerCase().trim()
@@ -90,15 +122,19 @@ function detectIntent(text) {
   if (/\b(recommendation|invest|weekly|buy)\b/.test(t)) return 'recommendation'
   if (/\b(calendar|schedule|rehearsal|plaan|opera)\b/.test(t)) return 'calendar'
   if (/\b(health|status|ping)\b/.test(t)) return 'health'
-  if (/\b(brief|explain|why|reasoning|analysis)\b/.test(t)) return 'brief'
-  if (/\b(training|workout|session|dunk|legs|jump|squat|cut)\b/.test(t)) return 'training'
   if (/training brief|workout brief|session brief/.test(t)) return 'training_brief'
+  if (/\b(brief|explain|why|reasoning|analysis)\b/.test(t)) return 'brief'
+  if (/\b(training|workout|session|dunk|legs|jump|squat)\b/.test(t)) return 'training'
+  if (/nutrition brief|food brief|macro brief/.test(t)) return 'nutrition_brief'
+  if (/\b(nutrition|macros|food|eat|diet|calories)\b/.test(t)) return 'nutrition'
+  if (/\b(recipes|recipe|meal|breakfast|lunch|dinner|cook)\b/.test(t)) return 'recipes'
+  if (/\b(shopping|lidl|groceries|staples)\b/.test(t)) return 'shopping'
   return null
 }
 
 export function useJarvis() {
   const [messages, setMessages] = useState([])
-  const [apiStatus, setApiStatus] = useState('unknown') // 'ok' | 'error' | 'unknown'
+  const [apiStatus, setApiStatus] = useState('unknown')
   const [loading, setLoading] = useState(false)
 
   const addMessage = useCallback((role, text) => {
@@ -108,10 +144,11 @@ export function useJarvis() {
   const greet = useCallback(async () => {
     setLoading(true)
     try {
-      const [summary, calendar, trainingData] = await Promise.all([
+      const [summary, calendar, trainingData, nutritionData] = await Promise.all([
         getFinanceSummary(),
         getCalendarSnapshot(),
         getTrainingStatus(),
+        getNutritionStatus(),
       ])
       setApiStatus('ok')
       const lines = [
@@ -119,6 +156,7 @@ export function useJarvis() {
         formatFinanceSummary(summary),
         formatCalendarSnapshot(calendar, { brief: true }),
         `Today: ${trainingData.today_session.session_type.toUpperCase()}. ${trainingData.dunk_goal.days_to_attempt} days to attempt.`,
+        `Nutrition: ${nutritionData.remaining_calories} kcal remaining | ${nutritionData.remaining_protein_g}g protein to hit target.`,
       ]
       addMessage('jarvis', lines.join('\n'))
     } catch {
@@ -146,6 +184,10 @@ export function useJarvis() {
       else if (intent === 'brief') response = (await getFinanceBrief()).brief
       else if (intent === 'training') response = formatTraining(await getTrainingStatus())
       else if (intent === 'training_brief') response = (await getTrainingBrief()).brief
+      else if (intent === 'nutrition') response = formatNutrition(await getNutritionStatus())
+      else if (intent === 'recipes') response = formatRecipes(await getRecipes())
+      else if (intent === 'nutrition_brief') response = (await getNutritionBrief()).brief
+      else if (intent === 'shopping') response = formatShopping(await getLidlStaples())
       setApiStatus('ok')
       addMessage('jarvis', response)
     } catch {

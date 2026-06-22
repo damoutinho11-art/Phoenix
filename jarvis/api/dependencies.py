@@ -5,6 +5,9 @@ them here — rather than inline in routers — means any test can override them
 via app.dependency_overrides without touching router code.
 """
 
+import json
+from pathlib import Path
+
 from fastapi import HTTPException
 
 from jarvis.domains.calendar import engine as calendar_engine
@@ -61,3 +64,12 @@ def get_training_constitution() -> dict:
         raise HTTPException(status_code=500, detail="Training constitution file missing")
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=f"Training constitution violation: {exc}")
+
+
+def get_nutrition_constitution() -> dict:
+    """Load the nutrition domain constitution."""
+    path = Path(__file__).parent.parent / "domains" / "nutrition" / "constitution.json"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="Nutrition constitution not found")
+    with open(path) as f:
+        return json.load(f)

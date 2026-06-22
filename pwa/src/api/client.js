@@ -33,3 +33,20 @@ export async function getTrainingStatus() {
 export async function getTrainingBrief() {
   return apiFetch('/training/brief')
 }
+
+export async function getNutritionStatus() {
+  return apiFetch('/nutrition/status')
+}
+
+export async function getRecipes(params = {}) {
+  const q = new URLSearchParams(params).toString()
+  return apiFetch(`/nutrition/recipes${q ? '?' + q : ''}`)
+}
+
+export async function getLidlStaples() {
+  return apiFetch('/nutrition/staples')
+}
+
+export async function getNutritionBrief() {
+  return apiFetch('/nutrition/brief')
+}

@@ -7,7 +7,7 @@ load_dotenv()  # loads .env from project root if present; no-op otherwise
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from jarvis.api.routers import calendar, finance, training
+from jarvis.api.routers import calendar, finance, nutrition, training
 
 app = FastAPI(title="J.A.R.V.I.S.", version="0")
 
@@ -29,8 +29,9 @@ app.add_middleware(
 app.include_router(finance.router, prefix="/finance", tags=["finance"])
 app.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 app.include_router(training.router, prefix="/training", tags=["training"])
+app.include_router(nutrition.router, prefix="/nutrition", tags=["nutrition"])
 
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
-    return {"status": "ok", "domains": ["finance", "calendar", "training"]}
+    return {"status": "ok", "domains": ["finance", "calendar", "training", "nutrition"]}
