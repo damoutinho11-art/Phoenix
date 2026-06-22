@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from jarvis.domains.calendar import engine as calendar_engine
 from jarvis.domains.finance import engine as finance_engine
+from jarvis.domains.training import engine as training_engine
 
 
 def get_finance_constitution() -> dict:
@@ -43,3 +44,20 @@ def get_calendar_constitution() -> dict:
         return constitution
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=f"Calendar constitution violation: {exc}")
+
+
+def get_training_constitution() -> dict:
+    """Load and validate the training constitution. HTTP 500 on violation."""
+    try:
+        import json
+        with open(training_engine.DEFAULT_CONSTITUTION_PATH) as f:
+            constitution = json.load(f)
+        if constitution.get("read_only") is not True:
+            raise ValueError("read_only must be true")
+        if constitution.get("manual_approval_required_for_any_external_action") is not True:
+            raise ValueError("manual_approval_required_for_any_external_action must be true")
+        return constitution
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="Training constitution file missing")
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=f"Training constitution violation: {exc}")

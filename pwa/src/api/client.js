@@ -25,3 +25,11 @@ export async function getCalendarSnapshot() {
 export async function getFinanceBrief() {
   return apiFetch('/finance/brief')
 }
+
+export async function getTrainingStatus() {
+  return apiFetch('/training/status')
+}
+
+export async function getTrainingBrief() {
+  return apiFetch('/training/brief')
+}

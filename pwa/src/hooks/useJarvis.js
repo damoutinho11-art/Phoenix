@@ -5,6 +5,8 @@ import {
   getFinanceRecommendation,
   getCalendarSnapshot,
   getFinanceBrief,
+  getTrainingStatus,
+  getTrainingBrief,
 } from '../api/client'
 
 function timeOfDay() {
@@ -60,6 +62,19 @@ function formatRecommendation(data) {
   return lines.join('\n')
 }
 
+function formatTraining(data) {
+  const g = data.dunk_goal
+  const c = data.cut_status
+  const lines = [
+    `Dunk goal: ${g.days_to_attempt} days to attempt window (${g.weeks_to_attempt.toFixed(1)} weeks). Phase: ${g.current_phase}, week ${g.current_mesocycle_week}.`,
+    `Today: ${data.today_session.session_type.toUpperCase()}.`,
+    `Cut: ${c.days_remaining} days remaining. Target: ${c.target_bf_pct}% BF.`,
+  ]
+  if (data.fatigue_warning) lines.push(`⚡ ${data.fatigue_warning}`)
+  if (data.has_hard_conflicts) lines.push(`⚠ CONFLICT: ${data.conflicts[0].detail}`)
+  return lines.join('\n')
+}
+
 function formatHealth(data) {
   return `Status: ${data.status}. Domains online: ${data.domains.join(', ')}.`
 }
@@ -67,7 +82,7 @@ function formatHealth(data) {
 const UNREACHABLE = "I can't reach the server right now. Make sure the desktop is running."
 
 const UNKNOWN_INTENT =
-  "I don't understand that yet. Try: portfolio, recommendation, calendar, status."
+  "I don't understand that yet. Try: portfolio, recommendation, brief, training, calendar, status."
 
 function detectIntent(text) {
   const t = text.toLowerCase().trim()
@@ -76,6 +91,8 @@ function detectIntent(text) {
   if (/\b(calendar|schedule|rehearsal|plaan|opera)\b/.test(t)) return 'calendar'
   if (/\b(health|status|ping)\b/.test(t)) return 'health'
   if (/\b(brief|explain|why|reasoning|analysis)\b/.test(t)) return 'brief'
+  if (/\b(training|workout|session|dunk|legs|jump|squat|cut)\b/.test(t)) return 'training'
+  if (/training brief|workout brief|session brief/.test(t)) return 'training_brief'
   return null
 }
 
@@ -91,15 +108,17 @@ export function useJarvis() {
   const greet = useCallback(async () => {
     setLoading(true)
     try {
-      const [summary, calendar] = await Promise.all([
+      const [summary, calendar, trainingData] = await Promise.all([
         getFinanceSummary(),
         getCalendarSnapshot(),
+        getTrainingStatus(),
       ])
       setApiStatus('ok')
       const lines = [
         `Good ${timeOfDay()}.`,
         formatFinanceSummary(summary),
         formatCalendarSnapshot(calendar, { brief: true }),
+        `Today: ${trainingData.today_session.session_type.toUpperCase()}. ${trainingData.dunk_goal.days_to_attempt} days to attempt.`,
       ]
       addMessage('jarvis', lines.join('\n'))
     } catch {
@@ -125,6 +144,8 @@ export function useJarvis() {
       else if (intent === 'calendar') response = formatCalendarSnapshot(await getCalendarSnapshot())
       else if (intent === 'health') response = formatHealth(await getHealth())
       else if (intent === 'brief') response = (await getFinanceBrief()).brief
+      else if (intent === 'training') response = formatTraining(await getTrainingStatus())
+      else if (intent === 'training_brief') response = (await getTrainingBrief()).brief
       setApiStatus('ok')
       addMessage('jarvis', response)
     } catch {
