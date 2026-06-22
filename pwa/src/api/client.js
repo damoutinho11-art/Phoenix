@@ -50,3 +50,7 @@ export async function getLidlStaples() {
 export async function getNutritionBrief() {
   return apiFetch('/nutrition/brief')
 }
+
+export async function getCrossDomainAlerts() {
+  return apiFetch('/cross-domain/alerts')
+}

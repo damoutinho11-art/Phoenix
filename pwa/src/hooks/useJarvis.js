@@ -11,6 +11,7 @@ import {
   getRecipes,
   getLidlStaples,
   getNutritionBrief,
+  getCrossDomainAlerts,
 } from '../api/client'
 
 function timeOfDay() {
@@ -111,6 +112,11 @@ function formatHealth(data) {
   return `Status: ${data.status}. Domains online: ${data.domains.join(', ')}.`
 }
 
+function formatAlerts(data) {
+  if (!data.alerts || data.alerts.length === 0) return 'No conflicts or alerts today.'
+  return data.alerts.join('\n')
+}
+
 const UNREACHABLE = "I can't reach the server right now. Make sure the desktop is running."
 
 const UNKNOWN_INTENT =
@@ -118,6 +124,7 @@ const UNKNOWN_INTENT =
 
 function detectIntent(text) {
   const t = text.toLowerCase().trim()
+  if (/\b(alerts|conflicts|crossdomain|cross domain|intelligence)\b/.test(t)) return 'alerts'
   if (/\b(portfolio|finance|summary|holdings)\b/.test(t)) return 'summary'
   if (/\b(recommendation|invest|weekly|buy)\b/.test(t)) return 'recommendation'
   if (/\b(calendar|schedule|rehearsal|plaan|opera)\b/.test(t)) return 'calendar'
@@ -144,20 +151,24 @@ export function useJarvis() {
   const greet = useCallback(async () => {
     setLoading(true)
     try {
-      const [summary, calendar, trainingData, nutritionData] = await Promise.all([
+      const [summary, calendar, trainingData, nutritionData, alerts] = await Promise.all([
         getFinanceSummary(),
         getCalendarSnapshot(),
         getTrainingStatus(),
         getNutritionStatus(),
+        getCrossDomainAlerts(),
       ])
       setApiStatus('ok')
-      const lines = [
-        `Good ${timeOfDay()}.`,
+      const lines = [`Good ${timeOfDay()}.`]
+      if (alerts.alerts && alerts.alerts.length > 0) {
+        lines.push(...alerts.alerts)
+      }
+      lines.push(
         formatFinanceSummary(summary),
         formatCalendarSnapshot(calendar, { brief: true }),
         `Today: ${trainingData.today_session.session_type.toUpperCase()}. ${trainingData.dunk_goal.days_to_attempt} days to attempt.`,
         `Nutrition: ${nutritionData.remaining_calories} kcal remaining | ${nutritionData.remaining_protein_g}g protein to hit target.`,
-      ]
+      )
       addMessage('jarvis', lines.join('\n'))
     } catch {
       setApiStatus('error')
@@ -177,7 +188,8 @@ export function useJarvis() {
     setLoading(true)
     try {
       let response
-      if (intent === 'summary') response = formatFinanceSummary(await getFinanceSummary())
+      if (intent === 'alerts') response = formatAlerts(await getCrossDomainAlerts())
+      else if (intent === 'summary') response = formatFinanceSummary(await getFinanceSummary())
       else if (intent === 'recommendation') response = formatRecommendation(await getFinanceRecommendation())
       else if (intent === 'calendar') response = formatCalendarSnapshot(await getCalendarSnapshot())
       else if (intent === 'health') response = formatHealth(await getHealth())

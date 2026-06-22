@@ -393,3 +393,74 @@ def check_training(
         has_hard_conflicts=has_hard_conflicts,
         fatigue_warning=get_fatigue_warning(week),
     )
+
+
+def get_cross_domain_alerts(
+    training_constitution: dict,
+    nutrition_constitution: dict,
+    opera_snapshot_raw: dict | None,
+    today: date | None = None,
+) -> list[str]:
+    """Surface training, nutrition, and calendar conflicts as plain strings.
+
+    This is a best-effort intelligence layer: malformed or unavailable domain
+    data never propagates an exception to its callers.
+    """
+    alerts: list[str] = []
+    try:
+        today = today or date.today()
+        tomorrow = today + timedelta(days=1)
+
+        week_start = today - timedelta(days=today.weekday())
+        sessions = plan_week_sessions(training_constitution, week_start)
+        conflicts = detect_conflicts(
+            training_constitution,
+            sessions,
+            opera_snapshot_raw,
+        )
+        for conflict in conflicts:
+            if conflict.severity != "hard":
+                continue
+            if conflict.training_date not in (today, tomorrow):
+                continue
+            alerts.append(
+                f"⚠ HARD CONFLICT: {conflict.session_type.value} session on "
+                f"{conflict.training_date.isoformat()} clashes with "
+                f"{conflict.opera_event_title}. Treat as rest day."
+            )
+
+        phase, week = get_current_phase(training_constitution, today)
+        if get_fatigue_warning(week) is not None:
+            alerts.append(
+                f"Week {week} fatigue building — jumps may feel worse. "
+                "Trust the process."
+            )
+
+        attempt_start = date.fromisoformat(
+            training_constitution["dunk_attempt_window_start"]
+        )
+        days_to_attempt = (attempt_start - today).days
+        alerts.append(
+            f"{days_to_attempt} days to attempt window. "
+            f"Phase: {phase.value}, week {week}."
+        )
+
+        cut_end = date.fromisoformat(
+            nutrition_constitution["phases"]["cut"]["end_date"]
+        )
+        if today <= cut_end:
+            alerts.append(
+                f"Cut active: {(cut_end - today).days} days remaining."
+            )
+
+        peak_start = date.fromisoformat(training_constitution["peak_week_start"])
+        days_to_peak = (peak_start - today).days
+        if 0 <= days_to_peak <= 7:
+            alerts.append(
+                f"Peak week in {days_to_peak} days — reduce volume, "
+                "prioritize sleep."
+            )
+    except Exception:
+        pass
+
+    return alerts
