@@ -22,4 +22,7 @@ jarvis/domains/finance/data/market_data.json
 .DS_Store
 Thumbs.db
 .vscode/
-.idea/
+.idea/.env
+
+# API keys - never commit
+.env
