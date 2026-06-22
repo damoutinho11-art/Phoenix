@@ -21,3 +21,7 @@ export async function getFinanceRecommendation() {
 export async function getCalendarSnapshot() {
   return apiFetch('/calendar/snapshot')
 }
+
+export async function getFinanceBrief() {
+  return apiFetch('/finance/brief')
+}

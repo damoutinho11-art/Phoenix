@@ -4,6 +4,7 @@ import {
   getFinanceSummary,
   getFinanceRecommendation,
   getCalendarSnapshot,
+  getFinanceBrief,
 } from '../api/client'
 
 function timeOfDay() {
@@ -74,6 +75,7 @@ function detectIntent(text) {
   if (/\b(recommendation|invest|weekly|buy)\b/.test(t)) return 'recommendation'
   if (/\b(calendar|schedule|rehearsal|plaan|opera)\b/.test(t)) return 'calendar'
   if (/\b(health|status|ping)\b/.test(t)) return 'health'
+  if (/\b(brief|explain|why|reasoning|analysis)\b/.test(t)) return 'brief'
   return null
 }
 
@@ -122,6 +124,7 @@ export function useJarvis() {
       else if (intent === 'recommendation') response = formatRecommendation(await getFinanceRecommendation())
       else if (intent === 'calendar') response = formatCalendarSnapshot(await getCalendarSnapshot())
       else if (intent === 'health') response = formatHealth(await getHealth())
+      else if (intent === 'brief') response = (await getFinanceBrief()).brief
       setApiStatus('ok')
       addMessage('jarvis', response)
     } catch {

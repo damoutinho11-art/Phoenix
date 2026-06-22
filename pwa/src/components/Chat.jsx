@@ -94,7 +94,7 @@ export default function Chat() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="portfolio · recommendation · calendar · status"
+          placeholder="portfolio · recommendation · brief · calendar · status"
           disabled={loading}
           style={{
             flex: 1,
