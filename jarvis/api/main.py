@@ -1,0 +1,28 @@
+"""J.A.R.V.I.S. FastAPI application entry point."""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from jarvis.api.routers import calendar, finance
+
+app = FastAPI(title="J.A.R.V.I.S.", version="0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
+app.include_router(finance.router, prefix="/finance", tags=["finance"])
+app.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
+
+
+@app.get("/health", tags=["meta"])
+def health() -> dict:
+    return {"status": "ok", "domains": ["finance", "calendar"]}
