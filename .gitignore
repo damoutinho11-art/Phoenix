@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Pytest
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Real financial data - NEVER commit (template: portfolio_state.example.json)
+jarvis/domains/finance/portfolio_state.json
+
+# Real market data (example committed instead)
+jarvis/domains/finance/data/market_data.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

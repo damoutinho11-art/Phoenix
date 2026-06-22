@@ -1,0 +1,103 @@
+{
+  "name": "J.A.R.V.I.S. Portfolio OS Constitution",
+  "version": "0",
+  "currency": "EUR",
+  "manual_approval_required": true,
+  "no_auto_trading": true,
+  "no_broker_connections": true,
+  "no_api_keys": true,
+  "no_network_calls": true,
+  "rules": {
+    "no_leverage": true,
+    "no_options": true,
+    "no_futures": true,
+    "no_staking_yet": true,
+    "no_use_of_emergency_fund": true,
+    "no_automatic_selling": true,
+    "no_random_new_assets": true,
+    "emergency_fund_excluded_from_allocation": true
+  },
+  "target_weights": {
+    "global_core_etf": 0.55,
+    "growth_nasdaq_etf": 0.15,
+    "quality_etf": 0.10,
+    "btc": 0.10,
+    "hype": 0.025,
+    "tao": 0.025,
+    "discovery": 0.025,
+    "tactical_reserve": 0.025
+  },
+  "sleeve_bands": {
+    "_comment": "Explicit min/max weight bands per sleeve, used for drift-band status (below_min / within_band / above_max). ETF sleeve bands are copied from etf_universe.json's allowed_band (the hand-tuned source of truth for those three). hype/tao max reflects crypto_risk_rules.hype_tao_combined_max (0.075) applied per-asset as a ceiling, not a target. Default band for any sleeve without an entry here is target +/- 5 percentage points, floor 0.",
+    "global_core_etf": {"min_weight": 0.45, "max_weight": 0.65},
+    "growth_nasdaq_etf": {"min_weight": 0.05, "max_weight": 0.25},
+    "quality_etf": {"min_weight": 0.05, "max_weight": 0.175},
+    "btc": {"min_weight": 0.05, "max_weight": 0.15},
+    "hype": {"min_weight": 0.0, "max_weight": 0.075},
+    "tao": {"min_weight": 0.0, "max_weight": 0.075},
+    "discovery": {"min_weight": 0.0, "max_weight": 0.025},
+    "tactical_reserve": {"min_weight": 0.0, "max_weight": 0.10}
+  },
+  "asset_routes": {
+    "global_core_etf": "lightyear",
+    "growth_nasdaq_etf": "lightyear",
+    "quality_etf": "lightyear",
+    "btc": "lhv_crypto",
+    "hype": "lhv_crypto",
+    "tao": "kraken",
+    "discovery": "manual_review",
+    "tactical_reserve": "cash"
+  },
+  "minimum_efficient_buys": {
+    "btc": 20.0,
+    "hype": 20.0,
+    "tao": 20.0,
+    "discovery": 20.0
+  },
+  "crypto_risk_rules": {
+    "btc_target": 0.10,
+    "btc_max": 0.15,
+    "total_crypto_hard_max": 0.225,
+    "hype_tao_combined_max": 0.075,
+    "max_btc_fallback_fraction_of_weekly_budget": 0.40,
+    "max_total_crypto_buy_fraction_of_weekly_budget": 0.50
+  },
+  "legacy_holding_policy": {
+    "lhv_growth_cash_pending_settlement": {
+      "classification": "legacy_cash",
+      "maps_to": "tactical_reserve",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_euro_bond": {
+      "classification": "legacy_unwanted_fee_sensitive",
+      "maps_to": "tactical_reserve",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_iemm": {
+      "classification": "legacy_acceptable",
+      "maps_to": "global_core_etf",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_sxr8": {
+      "classification": "legacy_acceptable",
+      "maps_to": "global_core_etf",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_world_equities": {
+      "classification": "legacy_acceptable",
+      "maps_to": "global_core_etf",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_xcha": {
+      "classification": "legacy_unwanted_fee_sensitive",
+      "maps_to": "discovery",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    }
+  }
+}

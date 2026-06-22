@@ -1,0 +1,35 @@
+{
+  "name": "J.A.R.V.I.S. Calendar Domain Constitution",
+  "version": "0",
+  "source": "Estonian National Opera — Plaan scheduling system",
+  "source_url_pattern": "https://plaan.opera.ee/v2/workspace/",
+  "access_mode": "read_only",
+  "no_mutations": true,
+  "no_form_submissions": true,
+  "no_clicks_that_change_state": true,
+  "manual_approval_required_for_any_external_action": true,
+  "rules": {
+    "never_click_submit_or_save": true,
+    "never_fill_forms": true,
+    "never_change_schedule": true,
+    "read_only_scrape_only": true,
+    "login_credentials_supplied_by_user_not_stored": true
+  },
+  "data_returned": {
+    "rehearsals": "date, time_start, time_end, title, location, role",
+    "performances": "date, time_start, time_end, title, location, role",
+    "calls": "date, time_start, time_end, description",
+    "travel_blocks": "date, time_start, time_end, description"
+  },
+  "conflict_detection": {
+    "heavy_leg_day_before_performance_hours": 18,
+    "late_rehearsal_cutoff_hour": 21,
+    "travel_block_buffer_hours": 2,
+    "performance_day_practice_allowed": true,
+    "performance_day_heavy_training_blocked": true
+  },
+  "staleness_policy": {
+    "max_age_hours": 24,
+    "warn_if_older_than_hours": 12
+  }
+}

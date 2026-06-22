@@ -1,0 +1,36 @@
+{
+  "global_core_etf": {
+    "role": "broad global equity core",
+    "preferred_candidate": "SPYI / IMIE",
+    "fallback_candidate": "VWCE",
+    "target": 0.55,
+    "allowed_band": [0.45, 0.65],
+    "momentum_score": 65,
+    "valuation_risk_score": 70,
+    "concentration_penalty": 20,
+    "fee_liquidity_score": 90,
+    "enabled": true
+  },
+  "growth_nasdaq_etf": {
+    "role": "aggressive growth / innovation / Nasdaq-style exposure",
+    "preferred_candidate": "Nasdaq-100 accumulating UCITS ETF",
+    "target": 0.15,
+    "allowed_band": [0.05, 0.25],
+    "momentum_score": 75,
+    "valuation_risk_score": 50,
+    "concentration_penalty": 65,
+    "fee_liquidity_score": 85,
+    "enabled": true
+  },
+  "quality_etf": {
+    "role": "profitable companies / quality factor / resilient equity sleeve",
+    "preferred_candidate": "MSCI World Quality Factor UCITS ETF",
+    "target": 0.10,
+    "allowed_band": [0.05, 0.175],
+    "momentum_score": 60,
+    "valuation_risk_score": 75,
+    "concentration_penalty": 25,
+    "fee_liquidity_score": 85,
+    "enabled": true
+  }
+}
