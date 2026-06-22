@@ -26,3 +26,6 @@ Thumbs.db
 
 # API keys - never commit
 .env
+
+# Review zips
+*.zip
