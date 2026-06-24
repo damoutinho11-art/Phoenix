@@ -6,7 +6,15 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173,
-      "cwd": "pwa"
+      "cwd": "pwa",
+      "autoPort": false
+    },
+    {
+      "name": "jarvis-api",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["run_server.py"],
+      "port": 8000,
+      "autoPort": false
     }
   ]
 }

@@ -172,6 +172,42 @@ def weight_history(days: int = Query(30, ge=1, le=3650)) -> dict:
     return {"days": days, "count": len(weights), "weights": weights}
 
 
+@router.get("/log/meals/history")
+def meal_history(
+    days: int = Query(14, ge=1, le=90),
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    phases = constitution.get("phases", {})
+    today_str = date.today().isoformat()
+    active_phase = {}
+    for p in phases.values():
+        start = p.get("start_date", "")
+        end = p.get("end_date", "9999-12-31")
+        if start <= today_str <= end:
+            active_phase = p
+            break
+    if not active_phase:
+        active_phase = next(iter(phases.values()), {})
+    training_cal = active_phase.get("training_day", {}).get("calories", 2400)
+    rest_cal = active_phase.get("rest_day", {}).get("calories", 2000)
+    target_cal = (training_cal + rest_cal) / 2
+    rows = database.get_meal_history(days=days, target_calories=float(target_cal))
+    days_with_data = [r for r in rows if r["has_data"]]
+    days_target_met = [r for r in days_with_data if r["target_met"]]
+    adherence_pct = round(len(days_target_met) / max(1, len(days_with_data)) * 100)
+    avg_protein = (
+        round(sum(r["total_protein_g"] for r in days_with_data) / len(days_with_data), 1)
+        if days_with_data else None
+    )
+    return {
+        "days": days,
+        "history": rows,
+        "adherence_pct": adherence_pct,
+        "avg_protein_g": avg_protein,
+        "target_calories": float(target_cal),
+    }
+
+
 @router.get("/recipes")
 def list_recipes(
     category: str | None = Query(None),

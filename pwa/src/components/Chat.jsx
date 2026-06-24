@@ -4,7 +4,7 @@ import StatusBar from './StatusBar'
 import BarcodeScanner from './BarcodeScanner'
 import { useJarvis } from '../hooks/useJarvis'
 
-export default function Chat() {
+export default function Chat({ prefill, onPrefillConsumed }) {
   const { messages, apiStatus, loading, greet, send, lookupBarcodeItem } = useJarvis()
   const [input, setInput] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
@@ -17,6 +17,13 @@ export default function Chat() {
       greet()
     }
   }, [greet])
+
+  useEffect(() => {
+    if (prefill && !loading) {
+      onPrefillConsumed?.()
+      send(prefill)
+    }
+  }, [prefill]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -40,7 +47,7 @@ export default function Chat() {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100dvh',
+      height: '100%',
       background: '#0a0a0a',
       fontFamily: 'Inter, sans-serif',
       maxWidth: '680px',

@@ -1,4 +1,4 @@
-const BASE_URL = 'http://100.64.150.26:8000'
+const BASE_URL = 'http://localhost:8000'
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(`${BASE_URL}${path}`, options)
@@ -79,10 +79,18 @@ export async function lookupBarcode(barcode) {
   return apiFetch(`/barcode/lookup/${encodeURIComponent(barcode)}`)
 }
 
+export async function getWeightHistory(days = 30) {
+  return apiFetch(`/nutrition/log/weight/history?days=${days}`)
+}
+
 export async function postJarvisChat({ message, domain = 'home', history = [] }) {
   return apiFetch('/jarvis/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, domain, history }),
   })
+}
+
+export async function getMealHistory(days = 14) {
+  return apiFetch(`/nutrition/log/meals/history?days=${days}`)
 }

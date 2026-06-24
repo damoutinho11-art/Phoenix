@@ -30,7 +30,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^http:\/\/100\.64\.150\.26:8000\/.*/i,
+            urlPattern: /^http:\/\/(localhost|127\.0\.0\.1):8000\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'jarvis-api-cache',
