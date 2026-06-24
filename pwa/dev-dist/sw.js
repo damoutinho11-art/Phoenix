@@ -81,13 +81,13 @@ define(['./workbox-b696421e'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.62nb3b96q3o"
+    "revision": "0.ss3viht1rvg"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
     allowlist: [/^\/$/]
   }));
-  workbox.registerRoute(/^http:\/\/100\.64\.150\.26:8000\/.*/i, new workbox.NetworkFirst({
+  workbox.registerRoute(/^http:\/\/(localhost|127\.0\.0\.1):8000\/.*/i, new workbox.NetworkFirst({
     "cacheName": "jarvis-api-cache",
     "networkTimeoutSeconds": 5,
     plugins: [new workbox.CacheableResponsePlugin({

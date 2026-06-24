@@ -1,13 +1,16 @@
 """Training API routes. Routers call engines; no business logic lives here."""
 
 from datetime import date
+from typing import Literal
 
 import anthropic
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 
 from jarvis.api.dependencies import get_training_constitution
+from jarvis.data import database
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
-from jarvis.domains.training import engine
+from jarvis.domains.training import engine, progression
 from jarvis.domains.training.data_contracts import (
     PlannedSession,
     TrainingConflict,
@@ -15,6 +18,34 @@ from jarvis.domains.training.data_contracts import (
 )
 
 router = APIRouter()
+
+
+class ExerciseSetLog(BaseModel):
+    reps: int = Field(ge=0)
+    weight_kg: float = Field(ge=0)
+    target_reps: int | None = Field(default=None, ge=1)
+
+
+class ExerciseLog(BaseModel):
+    name: str = Field(min_length=1)
+    sets: list[ExerciseSetLog] = Field(min_length=1)
+    target_reps: int | None = Field(default=None, ge=1)
+    body_region: Literal["upper", "lower"] | None = None
+
+
+class SessionLogRequest(BaseModel):
+    date: date
+    session_type: Literal["Push", "Pull", "Legs", "Upper", "Lower"]
+    week_number: int | None = Field(default=None, ge=1, le=10)
+    exercises: list[ExerciseLog] = Field(min_length=1)
+    notes: str | None = None
+
+
+class JumpLogRequest(BaseModel):
+    date: date
+    jump_type: Literal["approach", "standing"]
+    height_cm: float = Field(gt=0, le=200)
+    notes: str | None = None
 
 _TRAINING_BRIEF_SYSTEM = """\
 You are J.A.R.V.I.S., a personal training assistant following the Isiah Rivera Long Conjugate Sequence System. You are concise, direct, and motivating without being cheesy. Maximum 4 sentences. Always end with the session type for today. Never invent data.\
@@ -147,6 +178,48 @@ def training_status(
         opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
     )
     return _serialize_status(status)
+
+
+@router.post("/log/session")
+def create_session_log(request: SessionLogRequest) -> dict:
+    session_id = database.log_session(
+        session_date=request.date,
+        session_type=request.session_type,
+        week_number=request.week_number,
+        exercises=[exercise.model_dump(exclude_none=True) for exercise in request.exercises],
+        notes=request.notes,
+    )
+    return {
+        "status": "logged",
+        "session_id": session_id,
+        "date": request.date.isoformat(),
+    }
+
+
+@router.post("/log/jump")
+def create_jump_log(request: JumpLogRequest) -> dict:
+    jump_id = database.log_jump(
+        jump_date=request.date,
+        jump_type=request.jump_type,
+        height_cm=request.height_cm,
+        notes=request.notes,
+    )
+    return {
+        "status": "logged",
+        "jump_id": jump_id,
+        "date": request.date.isoformat(),
+    }
+
+
+@router.get("/history")
+def training_history() -> dict:
+    sessions = database.get_sessions()
+    jumps = database.get_jumps()
+    return {
+        "sessions": sessions,
+        "jump_progression": progression.build_jump_progression(jumps),
+        "next_week_suggestions": progression.get_next_week_suggestions(sessions),
+    }
 
 
 @router.get("/brief")
