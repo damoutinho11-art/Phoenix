@@ -9,7 +9,7 @@ load_dotenv()  # loads .env from project root if present; no-op otherwise
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from jarvis.api.routers import barcode, calendar, crossdomain, finance, nutrition, training
+from jarvis.api.routers import barcode, calendar, chat, crossdomain, finance, nutrition, training
 from jarvis.data.database import init_db
 
 
@@ -45,6 +45,7 @@ app.include_router(training.router, prefix="/training", tags=["training"])
 app.include_router(nutrition.router, prefix="/nutrition", tags=["nutrition"])
 app.include_router(crossdomain.router, prefix="/cross-domain", tags=["cross-domain"])
 app.include_router(barcode.router, prefix="/barcode", tags=["barcode"])
+app.include_router(chat.router, prefix="/jarvis", tags=["jarvis"])
 
 
 @app.get("/health", tags=["meta"])
@@ -52,6 +53,12 @@ def health() -> dict:
     return {
         "status": "ok",
         "domains": [
-            "finance", "calendar", "training", "nutrition", "cross-domain", "barcode"
+            "finance",
+            "calendar",
+            "training",
+            "nutrition",
+            "cross-domain",
+            "barcode",
+            "jarvis",
         ],
     }
