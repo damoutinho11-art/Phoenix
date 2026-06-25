@@ -114,3 +114,11 @@ export async function getFinanceHoldings() {
 export async function postFinanceRefreshPrices() {
   return apiFetch('/finance/refresh-prices', { method: 'POST' })
 }
+
+export async function getFinanceBriefHistory() {
+  return apiFetch('/finance/brief/history')
+}
+
+export async function postBriefAction(briefId, action) {
+  return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
+}

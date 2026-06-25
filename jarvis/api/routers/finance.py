@@ -1,14 +1,23 @@
 """Finance API routes. Routers call engines; no business logic lives here."""
 
 import json
+from datetime import date
 import anthropic
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from jarvis.api.dependencies import get_finance_constitution, get_portfolio_state
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.market_data import update_portfolio_state_prices
+from jarvis.data import database
 
 router = APIRouter()
+
+
+def _iso_week_label() -> str:
+    """Return e.g. 'W26 2026' for the current ISO week."""
+    today = date.today()
+    iso = today.isocalendar()
+    return f"W{iso[1]} {iso[0]}"
 
 _CRYPTO_ASSETS = {"btc", "hype", "tao"}
 
@@ -73,14 +82,44 @@ def finance_recommendation(
             f"Buy {stock['asset']} €{stock['amount']:.2f} (ETF lane)"
         )
 
-    return {
+    rationale = "; ".join(rationale_parts) or "No buys recommended this week."
+    response = {
         "week_budget": ticket["weekly_budget"],
         "recommendations": recommendations,
-        "rationale": "; ".join(rationale_parts) or "No buys recommended this week.",
+        "rationale": rationale,
         "portfolio_mode": result["portfolio_mode"]["mode"],
         "warnings": ticket["warnings"],
         "requires_approval": True,
     }
+
+    # Auto-save brief (once per ISO week — idempotent on repeated calls)
+    week_label = _iso_week_label()
+    brief_id: int | None = None
+    if not database.brief_exists_for_week(week_label, "finance"):
+        primary = recommendations[0] if recommendations else None
+        brief_id = database.save_brief(
+            week_label=week_label,
+            domain="finance",
+            action="BUY" if recommendations else "HOLD",
+            asset=primary["asset"] if primary else "portfolio",
+            amount_eur=sum(r["amount"] for r in recommendations) or None,
+            route=primary["route"] if primary else None,
+            thesis=rationale,
+            full_brief_json=json.dumps(response),
+        )
+    else:
+        # Brief already exists for this week — surface its id for the approval buttons
+        pending = database.get_pending_briefs()
+        match = next(
+            (b for b in pending if b["week_label"] == week_label and b["domain"] == "finance"),
+            None,
+        )
+        if match:
+            brief_id = match["id"]
+
+    response["brief_id"] = brief_id
+    response["week_label"] = week_label
+    return response
 
 
 _ASSET_DISPLAY_NAMES = {
@@ -266,3 +305,32 @@ def finance_refresh_prices() -> dict:
         "failed": meta["failed"],
         "requires_approval": False,
     }
+
+
+def _brief_action(brief_id: int, status: str, user_action: str) -> dict:
+    found = database.update_brief_status(brief_id, status, user_action)
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Brief {brief_id} not found")
+    week = _iso_week_label()
+    return {"status": status, "brief_id": brief_id, "week_label": week, "requires_approval": False}
+
+
+@router.post("/brief/{brief_id}/approve")
+def finance_brief_approve(brief_id: int) -> dict:
+    return _brief_action(brief_id, "approved", "approved")
+
+
+@router.post("/brief/{brief_id}/defer")
+def finance_brief_defer(brief_id: int) -> dict:
+    return _brief_action(brief_id, "deferred", "deferred")
+
+
+@router.post("/brief/{brief_id}/reject")
+def finance_brief_reject(brief_id: int) -> dict:
+    return _brief_action(brief_id, "rejected", "rejected")
+
+
+@router.get("/brief/history")
+def finance_brief_history() -> dict:
+    rows = database.get_brief_history(limit=50)
+    return {"history": rows, "count": len(rows)}

@@ -72,6 +72,27 @@ CREATE TABLE IF NOT EXISTS jump_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_jump_log_date ON jump_log(date);
+
+CREATE TABLE IF NOT EXISTS brief_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    week_label TEXT NOT NULL,
+    domain TEXT NOT NULL DEFAULT 'finance',
+    action TEXT NOT NULL,
+    asset TEXT,
+    amount_eur REAL,
+    route TEXT,
+    thesis TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    user_action TEXT,
+    user_action_at TEXT,
+    outcome_pct REAL,
+    outcome_note TEXT,
+    full_brief_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_brief_history_week ON brief_history(week_label);
+CREATE INDEX IF NOT EXISTS idx_brief_history_status ON brief_history(status);
 """
 
 
@@ -376,6 +397,92 @@ def delete_jump(jump_id: int) -> bool:
         cursor = connection.execute("DELETE FROM jump_log WHERE id = ?", (jump_id,))
         connection.commit()
         return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+def save_brief(
+    week_label: str,
+    domain: str,
+    action: str,
+    asset: str | None,
+    amount_eur: float | None,
+    route: str | None,
+    thesis: str | None,
+    full_brief_json: str | None,
+) -> int:
+    """Persist a new brief entry; returns the new row id."""
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO brief_history (
+                created_at, week_label, domain, action, asset,
+                amount_eur, route, thesis, status, full_brief_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            """,
+            (_utc_now(), week_label, domain, action, asset, amount_eur, route, thesis, full_brief_json),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def brief_exists_for_week(week_label: str, domain: str = "finance") -> bool:
+    """Return True if a brief for this week + domain has already been saved."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT 1 FROM brief_history WHERE week_label = ? AND domain = ? LIMIT 1",
+            (week_label, domain),
+        ).fetchone()
+        return row is not None
+    finally:
+        connection.close()
+
+
+def update_brief_status(brief_id: int, status: str, user_action: str) -> bool:
+    """Update a brief's status (approved / deferred / rejected). Returns True if found."""
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE brief_history
+            SET status = ?, user_action = ?, user_action_at = ?
+            WHERE id = ?
+            """,
+            (status, user_action, _utc_now(), brief_id),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+def get_brief_history(limit: int = 50) -> list[dict[str, Any]]:
+    """Return up to `limit` briefs, newest first."""
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT * FROM brief_history ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def get_pending_briefs() -> list[dict[str, Any]]:
+    """Return all briefs with status = 'pending', newest first."""
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT * FROM brief_history WHERE status = 'pending' ORDER BY created_at DESC",
+        ).fetchall()
+        return [dict(row) for row in rows]
     finally:
         connection.close()
 

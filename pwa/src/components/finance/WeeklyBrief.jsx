@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getFinanceRecommendation } from '../../api/client'
+import { getFinanceRecommendation, postBriefAction } from '../../api/client'
 
 const CYAN = '#20d8ec'
 
@@ -36,11 +36,11 @@ function Header({ onBack, mode }) {
   )
 }
 
-function ConfirmState({ action, onBack }) {
+function ConfirmState({ action, weekLabel, onBack }) {
   const cfg = {
-    approved: { icon: '✓', color: '#9dff6f', label: 'APPROVED', note: 'Logged. Execute manually in your broker app.' },
+    approved: { icon: '✓', color: '#9dff6f', label: 'APPROVED', note: 'Execute manually in your broker app.' },
     deferred:  { icon: '⏸', color: '#ffb347', label: 'DEFERRED', note: 'Deferred to next week.' },
-    rejected:  { icon: '✕', color: '#ff6b6b', label: 'REJECTED', note: 'Brief rejected and discarded.' },
+    rejected:  { icon: '✕', color: '#ff6b6b', label: 'REJECTED', note: 'Brief rejected.' },
   }[action]
 
   return (
@@ -49,7 +49,12 @@ function ConfirmState({ action, onBack }) {
       <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 28, color: cfg.color, letterSpacing: '0.1em' }}>
         {cfg.label}
       </div>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: '#555', marginTop: 8 }}>
+      {weekLabel && (
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#555', marginTop: 6 }}>
+          Logged — {weekLabel} {cfg.label}
+        </div>
+      )}
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: '#444', marginTop: 4 }}>
         {cfg.note}
       </div>
       <button onClick={onBack} style={{
@@ -84,12 +89,30 @@ export default function WeeklyBrief({ onBack }) {
   const [rec, setRec] = useState(null)
   const [loading, setLoading] = useState(true)
   const [action, setAction] = useState(null)
+  const [acting, setActing] = useState(false)
 
   useEffect(() => {
     getFinanceRecommendation()
       .then(r => { setRec(r); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
+
+  async function handleAction(actionName) {
+    if (!rec?.brief_id) {
+      // No brief_id yet (shouldn't happen) — optimistic UI only
+      setAction({ name: actionName, weekLabel: rec?.week_label })
+      return
+    }
+    setActing(true)
+    try {
+      await postBriefAction(rec.brief_id, actionName)
+      setAction({ name: actionName, weekLabel: rec.week_label })
+    } catch {
+      setAction({ name: actionName, weekLabel: rec?.week_label })
+    } finally {
+      setActing(false)
+    }
+  }
 
   const cryptoRec = rec?.recommendations.find(r => r.lane === 'crypto')
   const etfRec = rec?.recommendations.find(r => r.lane === 'etf')
@@ -99,7 +122,7 @@ export default function WeeklyBrief({ onBack }) {
       <Header onBack={onBack} mode={rec?.portfolio_mode} />
 
       {action ? (
-        <ConfirmState action={action} onBack={() => setAction(null)} />
+        <ConfirmState action={action.name} weekLabel={action.weekLabel} onBack={() => setAction(null)} />
       ) : loading ? (
         <div style={{ color: '#444', fontFamily: "'Share Tech Mono', monospace", textAlign: 'center', paddingTop: 60 }}>
           Loading…
@@ -147,20 +170,20 @@ export default function WeeklyBrief({ onBack }) {
 
           {/* Action buttons */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 4 }}>
-            <button onClick={() => setAction('approved')} style={{
+            <button onClick={() => handleAction('approved')} disabled={acting} style={{
               background: '#071a07', border: '1px solid #9dff6f55', borderRadius: 6,
-              padding: '14px 0', color: '#9dff6f', fontFamily: "'Oswald', sans-serif",
-              fontSize: 12, letterSpacing: '0.1em', cursor: 'pointer',
+              padding: '14px 0', color: acting ? '#444' : '#9dff6f', fontFamily: "'Oswald', sans-serif",
+              fontSize: 12, letterSpacing: '0.1em', cursor: acting ? 'default' : 'pointer',
             }}>APPROVE</button>
-            <button onClick={() => setAction('deferred')} style={{
+            <button onClick={() => handleAction('deferred')} disabled={acting} style={{
               background: '#1a1000', border: '1px solid #ffb34755', borderRadius: 6,
-              padding: '14px 0', color: '#ffb347', fontFamily: "'Oswald', sans-serif",
-              fontSize: 12, letterSpacing: '0.1em', cursor: 'pointer',
+              padding: '14px 0', color: acting ? '#444' : '#ffb347', fontFamily: "'Oswald', sans-serif",
+              fontSize: 12, letterSpacing: '0.1em', cursor: acting ? 'default' : 'pointer',
             }}>DEFER</button>
-            <button onClick={() => setAction('rejected')} style={{
+            <button onClick={() => handleAction('rejected')} disabled={acting} style={{
               background: '#1a0707', border: '1px solid #ff6b6b55', borderRadius: 6,
-              padding: '14px 0', color: '#ff6b6b', fontFamily: "'Oswald', sans-serif",
-              fontSize: 12, letterSpacing: '0.1em', cursor: 'pointer',
+              padding: '14px 0', color: acting ? '#444' : '#ff6b6b', fontFamily: "'Oswald', sans-serif",
+              fontSize: 12, letterSpacing: '0.1em', cursor: acting ? 'default' : 'pointer',
             }}>REJECT</button>
           </div>
         </>
