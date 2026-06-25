@@ -5,6 +5,7 @@ import NutritionDashboard from './components/nutrition/NutritionDashboard'
 import RecipeList from './components/nutrition/RecipeList'
 import LogMeal from './components/nutrition/LogMeal'
 import WeightHistory from './components/nutrition/WeightHistory'
+import TrainingMetrics from './components/training/TrainingMetrics'
 
 export default function App() {
   const [tab, setTab] = useState('chat')
@@ -23,6 +24,7 @@ export default function App() {
 
   function renderContent() {
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
+    if (tab === 'training') return <TrainingMetrics onQuickAsk={handleQuickAsk} />
     // nutrition screens
     switch (nutritionScreen) {
       case 'dashboard':

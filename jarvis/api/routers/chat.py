@@ -107,11 +107,22 @@ def _build_training_context() -> str:
         sess = status.today_session
         ww = sess.working_weights
 
+        _display = {
+            "high_intensity": "HIGH INTENSITY (Lower)",
+            "general": "UPPER BODY (General)",
+            "jump": "JUMP SESSION",
+            "iso_only": "ISO ONLY",
+            "rest": "REST",
+            "deload": "DELOAD",
+            "peak": "PEAK SESSION",
+            "attempt": "DUNK ATTEMPT",
+        }
+        session_label = _display.get(sess.session_type.value, sess.session_type.value.upper())
         lines = [
             f"TRAINING (as of {status.as_of.isoformat()}):",
             f"Phase: {g.current_phase.value}, mesocycle week {g.current_mesocycle_week}",
             f"Days to dunk attempt: {g.days_to_attempt} ({g.weeks_to_attempt:.1f} weeks)",
-            f"Today: {sess.session_type.value.upper()} session",
+            f"Today: {session_label}",
         ]
         if ww:
             lines += [

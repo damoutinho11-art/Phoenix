@@ -19,6 +19,17 @@ from jarvis.domains.training.data_contracts import (
 
 router = APIRouter()
 
+_SESSION_DISPLAY = {
+    "high_intensity": "HIGH INTENSITY (Lower)",
+    "general": "UPPER BODY (General)",
+    "jump": "JUMP SESSION",
+    "iso_only": "ISO ONLY",
+    "rest": "REST",
+    "deload": "DELOAD",
+    "peak": "PEAK SESSION",
+    "attempt": "DUNK ATTEMPT",
+}
+
 
 class ExerciseSetLog(BaseModel):
     reps: int = Field(ge=0)
@@ -52,6 +63,55 @@ You are J.A.R.V.I.S., a personal training assistant following the Isiah Rivera L
 """
 
 
+def _fmt(name: str) -> str:
+    """snake_case → Title Case display name."""
+    return name.replace("_", " ").title()
+
+
+def _resolve_exercises(session: dict, constitution: dict) -> list[dict]:
+    """Build a display-ready exercise list from a serialized session + constitution."""
+    stype = session.get("session_type", "")
+    ww = session.get("working_weights")
+    phase = session.get("phase", "month_1")
+    meso = constitution.get("mesocycle_progression", {}).get(phase, {})
+
+    if stype == "high_intensity" and ww:
+        sets = ww["sets"]
+        reps = ww["reps"]
+        return [
+            {"name": _fmt(ww["explosive_exercise"]),       "label": f'{ww["explosive_kg"]}kg',       "sets_reps": f'{sets}×{reps}'},
+            {"name": _fmt(ww["knee_extension_exercise"]),  "label": f'{ww["knee_extension_kg"]}kg',  "sets_reps": f'{sets}×{reps}'},
+            {"name": _fmt(ww["posterior_chain_exercise"]), "label": f'{ww["posterior_chain_kg"]}kg', "sets_reps": f'{sets}×{reps}'},
+            {"name": _fmt(ww["lower_leg_exercise"]),       "label": f'{ww["lower_leg_kg"]}kg',       "sets_reps": f'{sets}×{reps}'},
+        ]
+
+    if stype == "general":
+        iso = constitution.get("iso_protocol", {})
+        iso_label = f'{iso.get("sets","3-5")}×{iso.get("duration_seconds","30")}s'
+        return [
+            {"name": "Shoulder Rehab",                           "label": "Pre-hab",   "sets_reps": iso_label},
+            {"name": _fmt(meso.get("general_push", "bench_press")), "label": "Hypertrophy", "sets_reps": "3×10"},
+            {"name": _fmt(meso.get("general_pull", "lat_pulldown")), "label": "Hypertrophy", "sets_reps": "3×10"},
+            {"name": _fmt(meso.get("general_shoulder", "lateral_raise")), "label": "Hypertrophy", "sets_reps": "3×15"},
+        ]
+
+    if stype in ("iso_only", "peak", "attempt"):
+        iso = constitution.get("iso_protocol", {})
+        iso_label = f'{iso.get("sets","3-5")}×{iso.get("duration_seconds","30")}s @ {iso.get("effort_pct",70)}%'
+        return [{"name": "Knee Extension Isometrics", "label": iso_label, "sets_reps": ""}]
+
+    if stype == "jump":
+        return [
+            {"name": "Knee Extension ISO",    "label": "Activation", "sets_reps": ""},
+            {"name": "Dynamic Flexibility",   "label": "Warmup",     "sets_reps": ""},
+            {"name": "Sprint Development",    "label": "CNS Primer", "sets_reps": ""},
+            {"name": "Jumps 10→100%",         "label": "Ramp",       "sets_reps": ""},
+            {"name": "Max Approach Jumps",    "label": "MAX",        "sets_reps": ""},
+        ]
+
+    return []
+
+
 def _serialize_working_weights(ww) -> dict | None:
     if ww is None:
         return None
@@ -72,9 +132,11 @@ def _serialize_working_weights(ww) -> dict | None:
 
 
 def _serialize_session(s: PlannedSession) -> dict:
+    v = s.session_type.value
     return {
         "date": s.date.isoformat(),
-        "session_type": s.session_type.value,
+        "session_type": v,
+        "display_name": _SESSION_DISPLAY.get(v, v.upper()),
         "phase": s.phase.value,
         "week_of_mesocycle": s.week_of_mesocycle,
         "working_weights": _serialize_working_weights(s.working_weights),
@@ -177,7 +239,9 @@ def training_status(
         today=date.today(),
         opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
     )
-    return _serialize_status(status)
+    result = _serialize_status(status)
+    result["today_session"]["exercises"] = _resolve_exercises(result["today_session"], constitution)
+    return result
 
 
 @router.post("/log/session")

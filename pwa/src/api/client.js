@@ -34,6 +34,18 @@ export async function getTrainingBrief() {
   return apiFetch('/training/brief')
 }
 
+export async function getTrainingHistory() {
+  return apiFetch('/training/history')
+}
+
+export async function logJump({ date, jump_type, height_cm, notes }) {
+  return apiFetch('/training/log/jump', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date, jump_type, height_cm, notes }),
+  })
+}
+
 export async function getNutritionStatus() {
   return apiFetch('/nutrition/status')
 }

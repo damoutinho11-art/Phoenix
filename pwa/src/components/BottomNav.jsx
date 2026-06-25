@@ -1,6 +1,7 @@
 const TABS = [
   { id: 'chat',      label: 'CHAT',      icon: '◈', accent: '#c9a84c' },
   { id: 'nutrition', label: 'NUTRITION', icon: '◉', accent: '#9dff6f' },
+  { id: 'training',  label: 'TRAINING',  icon: '◎', accent: '#ff9f43' },
 ]
 
 export default function BottomNav({ tab, onTab }) {
