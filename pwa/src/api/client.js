@@ -122,3 +122,11 @@ export async function getFinanceBriefHistory() {
 export async function postBriefAction(briefId, action) {
   return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
 }
+
+export async function logSession(payload) {
+  return apiFetch('/training/log/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}

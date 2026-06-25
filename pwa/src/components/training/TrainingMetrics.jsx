@@ -488,8 +488,7 @@ const _BADGE_LABEL = {
   deload: 'DELOAD',
 }
 
-function TodayCard({ todaySession, dunkGoal }) {
-  const [startMsg, setStartMsg] = useState(null)
+function TodayCard({ todaySession, dunkGoal, onStartSession }) {
   if (!todaySession) return null
 
   const stype = todaySession.session_type || 'general'
@@ -585,22 +584,17 @@ function TodayCard({ todaySession, dunkGoal }) {
       {/* Start session button */}
       {isActive && (
         <div style={{ padding: '10px 14px', borderTop: `1px solid ${BORDER}` }}>
-          {startMsg
-            ? <div style={{ fontSize: '12px', color: DIM, textAlign: 'center' }}>{startMsg}</div>
-            : (
-              <button
-                onClick={() => setStartMsg('Session logging coming soon — tap Log Jump to record your jumps.')}
-                style={{
-                  width: '100%', padding: '11px', background: 'none',
-                  border: `1px solid ${ORANGE}55`, borderRadius: '8px',
-                  color: ORANGE, fontSize: '12px', fontWeight: 600,
-                  fontFamily: DISPLAY, letterSpacing: '0.1em', cursor: 'pointer',
-                }}
-              >
-                ▶ START SESSION
-              </button>
-            )
-          }
+          <button
+            onClick={onStartSession}
+            style={{
+              width: '100%', padding: '11px', background: 'none',
+              border: `1px solid ${ORANGE}55`, borderRadius: '8px',
+              color: ORANGE, fontSize: '12px', fontWeight: 600,
+              fontFamily: DISPLAY, letterSpacing: '0.1em', cursor: 'pointer',
+            }}
+          >
+            ▶ START SESSION
+          </button>
         </div>
       )}
     </div>
@@ -609,7 +603,7 @@ function TodayCard({ todaySession, dunkGoal }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function TrainingMetrics({ onQuickAsk }) {
+export default function TrainingMetrics({ onQuickAsk, onNav }) {
   const [history, setHistory] = useState(null)
   const [statusData, setStatusData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -677,7 +671,7 @@ export default function TrainingMetrics({ onQuickAsk }) {
       <RecoveryStrip fatigueWarning={fatigue_warning} />
 
       {/* Today's session */}
-      <TodayCard todaySession={today_session} dunkGoal={dunk_goal} />
+      <TodayCard todaySession={today_session} dunkGoal={dunk_goal} onStartSession={() => onNav?.('active-session')} />
 
       {/* Jump chart section */}
       <div style={{ padding: '20px 16px 0' }}>

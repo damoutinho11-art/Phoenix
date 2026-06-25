@@ -7,6 +7,7 @@ import RecipeList from './components/nutrition/RecipeList'
 import LogMeal from './components/nutrition/LogMeal'
 import WeightHistory from './components/nutrition/WeightHistory'
 import TrainingMetrics from './components/training/TrainingMetrics'
+import ActiveSession from './components/training/ActiveSession'
 import FinanceDashboard from './components/finance/FinanceDashboard'
 import WeeklyBrief from './components/finance/WeeklyBrief'
 import Holdings from './components/finance/Holdings'
@@ -18,6 +19,7 @@ import WeekView from './components/calendar/WeekView'
 
 export default function App() {
   const [tab, setTab] = useState('home')
+  const [trainingScreen, setTrainingScreen] = useState('dashboard')
   const [nutritionScreen, setNutritionScreen] = useState('dashboard')
   const [financeScreen, setFinanceScreen] = useState('dashboard')
   const [calendarScreen, setCalendarScreen] = useState('dashboard')
@@ -26,10 +28,10 @@ export default function App() {
 
   function switchTab(t) {
     setTab(t)
+    if (t === 'training') setTrainingScreen('dashboard')
     if (t === 'nutrition') setNutritionScreen('dashboard')
     if (t === 'finance') setFinanceScreen('dashboard')
     if (t === 'calendar') { setCalendarScreen('dashboard'); setCalendarEvent(null) }
-    if (t === 'home') {}
   }
 
   function handleQuickAsk(message) {
@@ -42,7 +44,11 @@ export default function App() {
       <HomeScreen onOpenCockpit={() => { setChatPrefill(null); setTab('chat') }} />
     )
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
-    if (tab === 'training') return <TrainingMetrics onQuickAsk={handleQuickAsk} />
+    if (tab === 'training') {
+      if (trainingScreen === 'active-session')
+        return <ActiveSession onBack={() => setTrainingScreen('dashboard')} />
+      return <TrainingMetrics onQuickAsk={handleQuickAsk} onNav={setTrainingScreen} />
+    }
     if (tab === 'calendar') {
       switch (calendarScreen) {
         case 'dashboard':
