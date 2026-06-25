@@ -3,6 +3,7 @@ const TABS = [
   { id: 'finance',   label: 'FINANCE',   icon: '◆', accent: '#20d8ec' },
   { id: 'nutrition', label: 'NUTRITION', icon: '◉', accent: '#9dff6f' },
   { id: 'training',  label: 'TRAINING',  icon: '◎', accent: '#ff9f43' },
+  { id: 'calendar',  label: 'CALENDAR',  icon: '◷', accent: '#9f7dff' },
 ]
 
 export default function BottomNav({ tab, onTab }) {

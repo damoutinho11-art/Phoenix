@@ -11,17 +11,23 @@ import WeeklyBrief from './components/finance/WeeklyBrief'
 import Holdings from './components/finance/Holdings'
 import BriefHistory from './components/finance/BriefHistory'
 import Performance from './components/finance/Performance'
+import CalendarDashboard from './components/calendar/CalendarDashboard'
+import EventDetail from './components/calendar/EventDetail'
+import WeekView from './components/calendar/WeekView'
 
 export default function App() {
   const [tab, setTab] = useState('chat')
   const [nutritionScreen, setNutritionScreen] = useState('dashboard')
   const [financeScreen, setFinanceScreen] = useState('dashboard')
+  const [calendarScreen, setCalendarScreen] = useState('dashboard')
+  const [calendarEvent, setCalendarEvent] = useState(null)
   const [chatPrefill, setChatPrefill] = useState(null)
 
   function switchTab(t) {
     setTab(t)
     if (t === 'nutrition') setNutritionScreen('dashboard')
     if (t === 'finance') setFinanceScreen('dashboard')
+    if (t === 'calendar') { setCalendarScreen('dashboard'); setCalendarEvent(null) }
   }
 
   function handleQuickAsk(message) {
@@ -32,6 +38,34 @@ export default function App() {
   function renderContent() {
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
     if (tab === 'training') return <TrainingMetrics onQuickAsk={handleQuickAsk} />
+    if (tab === 'calendar') {
+      switch (calendarScreen) {
+        case 'dashboard':
+          return (
+            <CalendarDashboard
+              onEvent={ev => { setCalendarEvent(ev); setCalendarScreen('detail') }}
+              onWeekView={() => setCalendarScreen('week')}
+              onQuickAsk={handleQuickAsk}
+            />
+          )
+        case 'detail':
+          return (
+            <EventDetail
+              event={calendarEvent}
+              onBack={() => setCalendarScreen('dashboard')}
+            />
+          )
+        case 'week':
+          return (
+            <WeekView
+              onBack={() => setCalendarScreen('dashboard')}
+              onEvent={ev => { setCalendarEvent(ev); setCalendarScreen('detail') }}
+            />
+          )
+        default:
+          return null
+      }
+    }
     if (tab === 'finance') {
       switch (financeScreen) {
         case 'dashboard':
