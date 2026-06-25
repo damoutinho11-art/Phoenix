@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Chat from './components/Chat'
+import HomeScreen from './components/HomeScreen'
 import BottomNav from './components/BottomNav'
 import NutritionDashboard from './components/nutrition/NutritionDashboard'
 import RecipeList from './components/nutrition/RecipeList'
@@ -16,7 +17,7 @@ import EventDetail from './components/calendar/EventDetail'
 import WeekView from './components/calendar/WeekView'
 
 export default function App() {
-  const [tab, setTab] = useState('chat')
+  const [tab, setTab] = useState('home')
   const [nutritionScreen, setNutritionScreen] = useState('dashboard')
   const [financeScreen, setFinanceScreen] = useState('dashboard')
   const [calendarScreen, setCalendarScreen] = useState('dashboard')
@@ -28,6 +29,7 @@ export default function App() {
     if (t === 'nutrition') setNutritionScreen('dashboard')
     if (t === 'finance') setFinanceScreen('dashboard')
     if (t === 'calendar') { setCalendarScreen('dashboard'); setCalendarEvent(null) }
+    if (t === 'home') {}
   }
 
   function handleQuickAsk(message) {
@@ -36,6 +38,9 @@ export default function App() {
   }
 
   function renderContent() {
+    if (tab === 'home') return (
+      <HomeScreen onOpenCockpit={() => { setChatPrefill(null); setTab('chat') }} />
+    )
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
     if (tab === 'training') return <TrainingMetrics onQuickAsk={handleQuickAsk} />
     if (tab === 'calendar') {
@@ -114,7 +119,9 @@ export default function App() {
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {renderContent()}
       </div>
-      <BottomNav tab={tab} onTab={switchTab} />
+      <div style={{ position: 'relative', zIndex: 30, flexShrink: 0 }}>
+        <BottomNav tab={tab} onTab={switchTab} />
+      </div>
     </div>
   )
 }

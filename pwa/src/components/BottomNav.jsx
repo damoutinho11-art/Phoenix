@@ -1,5 +1,5 @@
 const TABS = [
-  { id: 'chat',      label: 'CHAT',      icon: '◈', accent: '#c9a84c' },
+  { id: 'home',      label: 'HOME',      icon: '⬡', accent: '#7df0ff' },
   { id: 'finance',   label: 'FINANCE',   icon: '◆', accent: '#20d8ec' },
   { id: 'nutrition', label: 'NUTRITION', icon: '◉', accent: '#9dff6f' },
   { id: 'training',  label: 'TRAINING',  icon: '◎', accent: '#ff9f43' },
