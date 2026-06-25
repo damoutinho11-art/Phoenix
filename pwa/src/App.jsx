@@ -6,15 +6,22 @@ import RecipeList from './components/nutrition/RecipeList'
 import LogMeal from './components/nutrition/LogMeal'
 import WeightHistory from './components/nutrition/WeightHistory'
 import TrainingMetrics from './components/training/TrainingMetrics'
+import FinanceDashboard from './components/finance/FinanceDashboard'
+import WeeklyBrief from './components/finance/WeeklyBrief'
+import Holdings from './components/finance/Holdings'
+import BriefHistory from './components/finance/BriefHistory'
+import Performance from './components/finance/Performance'
 
 export default function App() {
   const [tab, setTab] = useState('chat')
   const [nutritionScreen, setNutritionScreen] = useState('dashboard')
+  const [financeScreen, setFinanceScreen] = useState('dashboard')
   const [chatPrefill, setChatPrefill] = useState(null)
 
   function switchTab(t) {
     setTab(t)
     if (t === 'nutrition') setNutritionScreen('dashboard')
+    if (t === 'finance') setFinanceScreen('dashboard')
   }
 
   function handleQuickAsk(message) {
@@ -25,6 +32,22 @@ export default function App() {
   function renderContent() {
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
     if (tab === 'training') return <TrainingMetrics onQuickAsk={handleQuickAsk} />
+    if (tab === 'finance') {
+      switch (financeScreen) {
+        case 'dashboard':
+          return <FinanceDashboard onNav={setFinanceScreen} onQuickAsk={handleQuickAsk} />
+        case 'brief':
+          return <WeeklyBrief onBack={() => setFinanceScreen('dashboard')} />
+        case 'holdings':
+          return <Holdings onBack={() => setFinanceScreen('dashboard')} onQuickAsk={handleQuickAsk} />
+        case 'performance':
+          return <Performance onBack={() => setFinanceScreen('dashboard')} />
+        case 'history':
+          return <BriefHistory onBack={() => setFinanceScreen('dashboard')} />
+        default:
+          return null
+      }
+    }
     // nutrition screens
     switch (nutritionScreen) {
       case 'dashboard':

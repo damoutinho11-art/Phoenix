@@ -106,3 +106,7 @@ export async function postJarvisChat({ message, domain = 'home', history = [] })
 export async function getMealHistory(days = 14) {
   return apiFetch(`/nutrition/log/meals/history?days=${days}`)
 }
+
+export async function getFinanceHoldings() {
+  return apiFetch('/finance/holdings')
+}

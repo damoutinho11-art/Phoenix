@@ -81,6 +81,70 @@ def finance_recommendation(
     }
 
 
+_ASSET_DISPLAY_NAMES = {
+    "btc": "Bitcoin",
+    "hype": "Hyperliquid",
+    "tao": "Bittensor",
+    "global_core_etf": "Global Core ETF",
+    "growth_nasdaq_etf": "Growth Nasdaq ETF",
+    "quality_etf": "Quality ETF",
+    "discovery": "Discovery",
+    "tactical_reserve": "Tactical Reserve",
+}
+
+_LEGACY_DISPLAY_NAMES = {
+    "lhv_growth_cash_pending_settlement": "LHV Cash (Pending)",
+    "lhv_growth_euro_bond": "LHV Euro Bond",
+    "lhv_growth_iemm": "LHV Emerging Markets",
+    "lhv_growth_sxr8": "LHV S&P 500 (SXR8)",
+    "lhv_growth_world_equities": "LHV World Equities",
+    "lhv_growth_xcha": "LHV Corporate Bond (XCHA)",
+}
+
+
+@router.get("/holdings")
+def finance_holdings(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+) -> dict:
+    holdings = engine.investable_holdings(constitution, portfolio_state)
+    statuses = engine.current_statuses(constitution, holdings)
+    status_map = {s.name: s for s in statuses}
+
+    active = []
+    for key, value in portfolio_state.get("holdings", {}).items():
+        s = status_map.get(key)
+        active.append({
+            "key": key,
+            "display_name": _ASSET_DISPLAY_NAMES.get(key, key.replace("_", " ").title()),
+            "amount": value,
+            "sleeve": key,
+            "route": constitution.get("asset_routes", {}).get(key),
+            "band_status": s.band_status if s else "unknown",
+            "current_weight": round(s.current_weight, 4) if s else 0.0,
+            "target_weight": s.target_weight if s else 0.0,
+            "is_crypto": key in _CRYPTO_ASSETS,
+        })
+
+    legacy = []
+    for key, value in portfolio_state.get("legacy_holdings", {}).items():
+        policy = constitution.get("legacy_holding_policy", {}).get(key, {})
+        legacy.append({
+            "key": key,
+            "display_name": _LEGACY_DISPLAY_NAMES.get(key, key.replace("_", " ").title()),
+            "amount": value,
+            "maps_to": policy.get("maps_to"),
+            "classification": policy.get("classification"),
+        })
+
+    return {
+        "as_of": portfolio_state.get("as_of"),
+        "holdings": active,
+        "legacy_holdings": legacy,
+        "note": "Prices not live — update portfolio_state.json for current values",
+    }
+
+
 _BRIEF_SYSTEM_PROMPT = """\
 You are J.A.R.V.I.S., a personal investment assistant. You are concise, precise, and direct. No fluff. You reason about portfolio allocation and surface what matters.
 
