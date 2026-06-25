@@ -1,10 +1,12 @@
 """Finance API routes. Routers call engines; no business logic lives here."""
 
+import json
 import anthropic
 from fastapi import APIRouter, Depends
 
 from jarvis.api.dependencies import get_finance_constitution, get_portfolio_state
 from jarvis.domains.finance import engine
+from jarvis.domains.finance.market_data import update_portfolio_state_prices
 
 router = APIRouter()
 
@@ -233,3 +235,34 @@ Provide a brief, direct investment summary for this week.\
         )
 
     return {"brief": brief_text, "requires_approval": True}
+
+
+@router.post("/refresh-prices")
+def finance_refresh_prices() -> dict:
+    """Fetch live market prices via yfinance and update portfolio_state.json.
+
+    This endpoint reads prices only — no trades are executed.
+    Holdings with a ``units`` entry in portfolio_state.json are updated to
+    reflect the current market value (units × live EUR price).
+    Holdings without units are left unchanged; their key appears in
+    ``needs_units`` so the user knows to add a unit count.
+    """
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+
+    updated_state, meta = update_portfolio_state_prices(portfolio_state, constitution)
+
+    engine.DEFAULT_PORTFOLIO_STATE_PATH.write_text(
+        json.dumps(updated_state, indent=2),
+        encoding="utf-8",
+    )
+
+    return {
+        "updated": True,
+        "as_of": updated_state["as_of"],
+        "prices_fetched": meta["prices_fetched"],
+        "holdings_updated": meta["holdings_updated"],
+        "needs_units": meta["needs_units"],
+        "failed": meta["failed"],
+        "requires_approval": False,
+    }

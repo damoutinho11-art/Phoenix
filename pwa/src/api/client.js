@@ -110,3 +110,7 @@ export async function getMealHistory(days = 14) {
 export async function getFinanceHoldings() {
   return apiFetch('/finance/holdings')
 }
+
+export async function postFinanceRefreshPrices() {
+  return apiFetch('/finance/refresh-prices', { method: 'POST' })
+}

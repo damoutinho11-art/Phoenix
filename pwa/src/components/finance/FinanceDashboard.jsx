@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getFinanceSummary, postJarvisChat } from '../../api/client'
+import { getFinanceSummary, postJarvisChat, postFinanceRefreshPrices } from '../../api/client'
 
 const CYAN = '#20d8ec'
 
@@ -54,8 +54,11 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
   const [summary, setSummary] = useState(null)
   const [jarvisText, setJarvisText] = useState('')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMsg, setRefreshMsg] = useState('')
 
-  useEffect(() => {
+  function loadSummary() {
+    setLoading(true)
     getFinanceSummary()
       .then(s => {
         setSummary(s)
@@ -65,7 +68,25 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
           .catch(() => setJarvisText('Unable to load JARVIS brief.'))
       })
       .catch(() => setLoading(false))
-  }, [])
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    setRefreshMsg('')
+    try {
+      const r = await postFinanceRefreshPrices()
+      const n = r.holdings_updated?.length ?? 0
+      const f = r.failed?.length ?? 0
+      setRefreshMsg(f > 0 ? `${n} updated · ${f} failed` : `${n} holdings updated`)
+      loadSummary()
+    } catch {
+      setRefreshMsg('Refresh failed')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => { loadSummary() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalLegacy = summary
     ? summary.sleeve_summary.reduce((acc, s) => {
@@ -92,6 +113,26 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
         </div>
         <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 52, color: '#fff', lineHeight: 1 }}>
           {loading ? '—' : `€${(summary?.total_invested ?? 0).toFixed(2)}`}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            style={{
+              background: 'none', border: `1px solid ${refreshing ? '#333' : CYAN + '55'}`,
+              borderRadius: 4, padding: '4px 10px', cursor: refreshing ? 'default' : 'pointer',
+              color: refreshing ? '#444' : CYAN,
+              fontFamily: "'Share Tech Mono', monospace", fontSize: 10,
+              letterSpacing: '0.08em', transition: 'border-color 0.2s',
+            }}
+          >
+            {refreshing ? '⟳ FETCHING…' : '↻ REFRESH PRICES'}
+          </button>
+          {refreshMsg && (
+            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#9dff6f' }}>
+              {refreshMsg}
+            </span>
+          )}
         </div>
         {summary?.staleness_warning && (
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#ffb347', marginTop: 6 }}>
