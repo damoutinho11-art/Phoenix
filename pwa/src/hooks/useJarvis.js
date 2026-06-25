@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { speak } from '../services/tts'
 import {
   getFinanceSummary,
   getCalendarSnapshot,
@@ -138,6 +139,7 @@ export function useJarvis() {
 
       setApiStatus('ok')
       addMessage('jarvis', response)
+      speak(response)
     } catch {
       setApiStatus('error')
       addMessage('jarvis', UNREACHABLE)

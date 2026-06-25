@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getFinanceSummary, getTrainingStatus, getCrossDomainAlerts, postJarvisChat } from '../api/client'
+import { speak, stopSpeaking } from '../services/tts'
 import './HomeScreen.css'
 
 // ── Circuit decoration SVG ──────────────────────────────────────────────────
@@ -429,7 +430,7 @@ export default function HomeScreen({ onOpenCockpit }) {
     { who: 'phoenix', text: 'I am online. Hold the reactor to speak, or type below.' },
   ])
 
-  const [reactorMode, setReactorMode] = useState('') // '' | 'listening' | 'responding'
+  const [reactorMode, setReactorMode] = useState('') // '' | 'listening' | 'responding' | 'speaking'
 
   const streamRef          = useRef(null)
   const holdingRef         = useRef(false)
@@ -471,6 +472,16 @@ export default function HomeScreen({ onOpenCockpit }) {
         setCalendarText(`${n} EVT`)
       })
       .catch(() => setCalendarText('5 EVT'))
+  }, [])
+
+  // ── Morning greeting TTS (once on mount) ─────────────────────────────────
+  useEffect(() => {
+    const h = new Date().getHours()
+    const tod = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'
+    const timer = setTimeout(() => {
+      speak(`Good ${tod}, Diogo. Systems are nominal.`)
+    }, 1500)
+    return () => clearTimeout(timer)
   }, [])
 
   // ── Auto-scroll chat stream ───────────────────────────────────────────────
@@ -560,10 +571,17 @@ export default function HomeScreen({ onOpenCockpit }) {
       const reply = r?.response || 'I am here.'
       setMessages(prev => [...prev, { who: 'phoenix', text: reply }])
       setDockResponse(reply)
+      setReactorMode('speaking')
+      setChatState('speaking')
+      speak(reply, {
+        onEnd: () => {
+          setReactorMode('')
+          setChatState('standing by')
+        },
+      })
     } catch {
       const err = 'Connection error. Try again.'
       setMessages(prev => [...prev, { who: 'phoenix', text: err }])
-    } finally {
       setReactorMode('')
       setChatState('standing by')
     }
@@ -664,6 +682,8 @@ export default function HomeScreen({ onOpenCockpit }) {
               ? 'LISTENING…'
               : reactorMode === 'responding'
               ? 'PHOENIX RESPONDING'
+              : reactorMode === 'speaking'
+              ? 'PHOENIX SPEAKING'
               : 'hold to speak'}
           </div>
         </div>
@@ -676,7 +696,17 @@ export default function HomeScreen({ onOpenCockpit }) {
             <div className="chat-title">PHOENIX CHAT</div>
             <div className="chat-state">{chatState}</div>
           </div>
-          <button className="chat-close" onClick={() => setChatOpen(false)}>×</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              className="chat-close"
+              onClick={() => stopSpeaking()}
+              title="Stop audio"
+              style={{ fontSize: 14 }}
+            >
+              ⬛
+            </button>
+            <button className="chat-close" onClick={() => setChatOpen(false)}>×</button>
+          </div>
         </div>
         <div className="chat-stream" ref={streamRef}>
           {messages.map((msg, i) => (

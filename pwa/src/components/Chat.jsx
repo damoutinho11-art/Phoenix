@@ -3,6 +3,7 @@ import Message from './Message'
 import StatusBar from './StatusBar'
 import BarcodeScanner from './BarcodeScanner'
 import { useJarvis } from '../hooks/useJarvis'
+import { stopSpeaking } from '../services/tts'
 
 export default function Chat({ prefill, onPrefillConsumed }) {
   const { messages, apiStatus, loading, greet, send, lookupBarcodeItem } = useJarvis()
@@ -109,6 +110,22 @@ export default function Chat({ prefill, onPrefillConsumed }) {
           paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
+        <button
+          type="button"
+          aria-label="Stop audio"
+          onClick={() => stopSpeaking()}
+          style={{
+            background: '#151515',
+            border: '1px solid #2d2818',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            color: '#c9a84c',
+            fontSize: '14px',
+            cursor: 'pointer',
+          }}
+        >
+          ⬛
+        </button>
         <button
           type="button"
           aria-label="Scan barcode"

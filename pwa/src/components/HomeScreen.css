@@ -148,6 +148,18 @@
   border-color: rgba(232,168,56,.56);
   box-shadow: 0 0 30px rgba(232,168,56,.20), inset 0 0 28px rgba(232,168,56,.10);
 }
+.phoenix-home .orbit.speaking svg {
+  filter: brightness(2.5) saturate(1.52) drop-shadow(0 0 32px rgba(125,240,255,.90));
+}
+.phoenix-home .orbit.speaking::before {
+  content: '';
+  position: absolute; inset: -18px; border-radius: 50%;
+  border: 1px solid rgba(125,240,255,.82);
+  box-shadow: 0 0 36px rgba(32,216,236,.45), inset 0 0 30px rgba(32,216,236,.18);
+  animation: voicePulse 2.0s ease-in-out infinite;
+  pointer-events: none;
+}
+.phoenix-home .listen.speaking { color: rgba(125,240,255,.98); }
 @keyframes voicePulse {
   0%,100% { transform:scale(.985); opacity:.28; }
   50%      { transform:scale(1.045); opacity:.88; }

@@ -33,6 +33,7 @@ Rules:
 - Maximum 6 sentences total
 - Plain prose or bullet list only — NEVER use markdown headers (##, ###) or horizontal rules (---)
 - NEVER use markdown tables
+- For voice responses, be extremely concise — maximum 2 sentences, no lists, no markdown
 
 Example of correct output format:
 "Legs today at HIGH intensity — Hex Bar Jump 30kg, Back Squat 50kg, Hip Thrust 37.5kg, Calf Raise 30kg (5×6). Nutrition: nothing logged yet, hit 2400 kcal / 165g protein before day ends. Finance: €46.15 BTC + €69.23 Quality ETF ready to deploy. Requires your approval."\
