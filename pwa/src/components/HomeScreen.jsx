@@ -476,12 +476,15 @@ export default function HomeScreen({ onOpenCockpit }) {
 
   // ── Morning greeting TTS (once on mount) ─────────────────────────────────
   useEffect(() => {
-    const h = new Date().getHours()
-    const tod = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'
-    const timer = setTimeout(() => {
-      speak(`Good ${tod}, Diogo. Systems are nominal.`)
-    }, 1500)
-    return () => clearTimeout(timer)
+    const greet = async () => {
+      await new Promise(r => setTimeout(r, 2000))
+      setDockResponse('Good morning, Sir. How can I assist you today?')
+      setReactorMode('speaking')
+      speak('Good morning Sir. How can I assist you today?', {
+        onEnd: () => setReactorMode(''),
+      })
+    }
+    greet()
   }, [])
 
   // ── Auto-scroll chat stream ───────────────────────────────────────────────
@@ -494,6 +497,7 @@ export default function HomeScreen({ onOpenCockpit }) {
   // ── Speech ───────────────────────────────────────────────────────────────
   function startListening() {
     if (holdingRef.current) return
+    stopSpeaking() // skip morning brief if still playing
     holdingRef.current     = true
     finalTranscriptRef.current = ''
     setReactorMode('listening')
