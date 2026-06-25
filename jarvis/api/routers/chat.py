@@ -38,6 +38,18 @@ Example of correct output format:
 "Legs today at HIGH intensity — Hex Bar Jump 30kg, Back Squat 50kg, Hip Thrust 37.5kg, Calf Raise 30kg (5×6). Nutrition: nothing logged yet, hit 2400 kcal / 165g protein before day ends. Finance: €46.15 BTC + €69.23 Quality ETF ready to deploy. Requires your approval."\
 """
 
+_FINANCE_WEB_SEARCH_ADDENDUM = """\
+
+You have access to web search. Before making any recommendation, search for:
+- Recent news on the specific assets being recommended (BTC, ETFs)
+- Any macro events this week (Fed decisions, CPI data, major market moves)
+- Earnings or events affecting holdings in the stock universe
+Use this context to explain WHY the recommendation makes sense right now,
+or flag if news changes the conviction level.
+Keep the response under 200 words. Lead with the recommendation,
+follow with the news context in 1-2 sentences.
+"""
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -55,11 +67,24 @@ def _build_finance_context() -> tuple[str, bool]:
         return "FINANCE: Constitution or portfolio state unavailable.", True
 
     try:
-        result = finance_engine.allocate_weekly_budget(constitution, portfolio_state)
+        from jarvis.domains.finance.market_data import detect_market_regime
+
+        # Load profile for regime-aware allocation
+        try:
+            profile = finance_engine.load_json(finance_engine.DEFAULT_PROFILE_PATH)
+        except FileNotFoundError:
+            profile = None
+
+        regime = detect_market_regime(portfolio_state)
+        result = finance_engine.allocate_weekly_budget(
+            constitution, portfolio_state,
+            regime=regime, profile=profile,
+        )
         ticket = result["approval_ticket"]
         holdings = finance_engine.investable_holdings(constitution, portfolio_state)
         statuses = finance_engine.current_statuses(constitution, holdings)
         mandate = ticket["weekly_dual_lane_mandate"]
+        dyn = result.get("dynamic_context", {})
 
         sleeve_lines = "\n".join(
             f"  {s.name}: gap={s.gap:+.2%}, status={s.band_status}"
@@ -80,11 +105,15 @@ def _build_finance_context() -> tuple[str, bool]:
             s = mandate["stock_fund_etf_lane"]
             rationale_parts.append(f"Buy {s['asset']} €{s['amount']:.2f}")
 
+        regime_str = f"Market regime: {dyn.get('regime', regime).upper()}"
+        phase_str = f"Portfolio phase: {dyn.get('phase', '?')} ({dyn.get('phase_label', '')})"
+
         context = (
             f"FINANCE (as of {portfolio_state.get('as_of')}):\n"
             f"Total invested: €{finance_engine.euros(sum(holdings.values())):.2f}\n"
             f"Weekly budget: €{ticket['weekly_budget']:.2f}\n"
             f"Portfolio mode: {result['portfolio_mode']['mode']}\n"
+            f"{regime_str} | {phase_str}\n"
             f"Sleeves:\n{sleeve_lines}\n"
             f"Recommended buys:\n{rec_lines}\n"
             f"Engine rationale: {'; '.join(rationale_parts) or 'No buys this week'}\n"
@@ -212,15 +241,25 @@ def jarvis_chat(request: ChatRequest) -> dict:
 
     messages = [*request.history, {"role": "user", "content": user_content}]
 
+    tools = []
+    system_prompt = _SYSTEM_PROMPT
+    if domain == "finance":
+        tools = [{"type": "web_search_20250305", "name": "web_search"}]
+        system_prompt = _SYSTEM_PROMPT + _FINANCE_WEB_SEARCH_ADDENDUM
+
     try:
         client = anthropic.Anthropic()
         msg = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=512,
-            system=_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=messages,
+            **({"tools": tools} if tools else {}),
         )
-        response_text = msg.content[0].text
+        # web_search returns multiple content blocks (text + tool_use + tool_result)
+        response_text = " ".join(
+            block.text for block in msg.content if hasattr(block, "text")
+        ).strip() or "No response generated."
     except Exception:
         response_text = (
             "Unable to reach the AI backend. Check your ANTHROPIC_API_KEY and try again."

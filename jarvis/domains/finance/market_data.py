@@ -128,6 +128,27 @@ def fetch_current_prices(keys: list[str]) -> tuple[dict[str, float], list[str]]:
     return prices_eur, failed
 
 
+def detect_market_regime(portfolio_state: dict[str, Any] | None = None) -> str:  # noqa: ARG001
+    """Detect market regime using live VIX from yfinance.
+
+    Returns 'risk_on' (VIX < 20), 'risk_off' (VIX 20-30), or 'drawdown' (VIX > 30).
+    Falls back to 'risk_on' on any network or data error so the engine always runs.
+    """
+    try:
+        import yfinance as yf
+        vix = float(yf.Ticker("^VIX").fast_info.last_price)
+        log.info("VIX fetched: %.2f", vix)
+    except Exception as exc:
+        log.warning("VIX fetch failed (%s) — defaulting to risk_on", exc)
+        return "risk_on"
+
+    if vix > 30:
+        return "drawdown"
+    if vix >= 20:
+        return "risk_off"
+    return "risk_on"
+
+
 def update_portfolio_state_prices(
     portfolio_state: dict[str, Any],
     constitution: dict[str, Any],  # noqa: ARG001 — reserved for future constitution rules

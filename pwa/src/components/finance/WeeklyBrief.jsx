@@ -168,6 +168,27 @@ export default function WeeklyBrief({ onBack }) {
             </div>
           )}
 
+          {/* News context */}
+          {rec?.news_thesis && (
+            <div style={{
+              background: '#0d0d00', borderRadius: 8, padding: 14,
+              marginBottom: 12, borderLeft: '3px solid #ffd56b',
+            }}>
+              <div style={{
+                fontFamily: "'Share Tech Mono', monospace", fontSize: 9,
+                color: '#ffd56b', letterSpacing: '0.12em', marginBottom: 8,
+              }}>
+                JARVIS NEWS CONTEXT
+              </div>
+              <div style={{
+                fontFamily: "'Saira Condensed', sans-serif", fontSize: 13,
+                color: '#ccc', lineHeight: 1.5,
+              }}>
+                {rec.news_thesis}
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 4 }}>
             <button onClick={() => handleAction('approved')} disabled={acting} style={{

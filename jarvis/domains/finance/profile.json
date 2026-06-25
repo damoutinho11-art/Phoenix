@@ -1,0 +1,83 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-06-25",
+  "personal": {
+    "name": "Diogo",
+    "age": 26,
+    "location": "Tallinn, Estonia",
+    "base_currency": "EUR",
+    "occupation": "Professional Musician — Solo Bassoon, Estonian National Opera",
+    "employment_stability": "high",
+    "dependents": 0,
+    "emergency_fund_months": 6
+  },
+  "financial": {
+    "monthly_investable": 500,
+    "monthly_investable_target": 700,
+    "annual_review_month": 1,
+    "tax_jurisdiction": "EE",
+    "platforms": {
+      "lhv_crypto": ["btc", "eth", "hype", "tao", "sol"],
+      "lightyear": ["global_core_etf", "quality_etf", "growth_nasdaq_etf",
+                    "emerging_markets_etf", "small_cap_etf", "thematic_etf",
+                    "msft", "nvda", "goog", "amzn", "meta",
+                    "novo_b", "asml", "lly", "brk_b", "tsm"],
+      "lhv_growth": ["lhv_growth_sxr8", "lhv_growth_iemm",
+                     "lhv_growth_xcha", "lhv_growth_world_equities",
+                     "lhv_growth_euro_bond"]
+    }
+  },
+  "risk_profile": {
+    "stated_tolerance": "aggressive",
+    "time_horizon_years": 20,
+    "max_acceptable_drawdown_pct": 40,
+    "volatility_comfort": "high",
+    "crypto_conviction": "high",
+    "individual_stock_conviction": "high",
+    "rebalancing_preference": "opportunistic"
+  },
+  "goals": {
+    "5_year": {
+      "target_portfolio_eur": 50000,
+      "monthly_savings_required": 700,
+      "notes": "Establish full diversified portfolio, all phases unlocked"
+    },
+    "10_year": {
+      "target_portfolio_eur": 200000,
+      "notes": "Compound growth phase, reduce crypto to 10%"
+    },
+    "20_year": {
+      "target_portfolio_eur": 800000,
+      "notes": "Financial independence threshold"
+    }
+  },
+  "portfolio_phases": {
+    "1": {
+      "label": "Foundation",
+      "threshold_eur": 0,
+      "max_assets": 5,
+      "eligible_sleeves": ["global_core", "quality_etf", "growth_thematic", "crypto", "cash"]
+    },
+    "2": {
+      "label": "Expansion",
+      "threshold_eur": 5000,
+      "max_assets": 12,
+      "eligible_sleeves": ["global_core", "quality_etf", "growth_thematic",
+                           "quality_stocks", "crypto", "emerging_markets", "cash"]
+    },
+    "3": {
+      "label": "Diversification",
+      "threshold_eur": 20000,
+      "max_assets": 20,
+      "eligible_sleeves": ["global_core", "quality_etf", "growth_thematic",
+                           "quality_stocks", "crypto", "emerging_markets",
+                           "small_cap", "thematic", "cash"]
+    },
+    "4": {
+      "label": "Optimisation",
+      "threshold_eur": 50000,
+      "max_assets": 35,
+      "eligible_sleeves": "all"
+    }
+  }
+}

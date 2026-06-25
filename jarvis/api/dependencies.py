@@ -25,6 +25,14 @@ def get_finance_constitution() -> dict:
         raise HTTPException(status_code=500, detail=f"Finance constitution violation: {exc}")
 
 
+def get_finance_profile() -> dict:
+    """Load finance/profile.json. HTTP 503 if missing."""
+    try:
+        return finance_engine.load_json(finance_engine.DEFAULT_PROFILE_PATH)
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="finance/profile.json not found")
+
+
 def get_portfolio_state() -> dict:
     """Load portfolio_state.json. HTTP 503 if the file is missing."""
     try:

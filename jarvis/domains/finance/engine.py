@@ -39,6 +39,9 @@ class SleeveStatus:
     band_status: str
 
 
+DEFAULT_PROFILE_PATH = _FINANCE_DOMAIN_DIR / "profile.json"
+
+
 def load_json(path: str | Path) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as file:
         return json.load(file)
@@ -62,6 +65,127 @@ def allocations_to_euros(allocations_cents: dict[str, int]) -> dict[str, float]:
         for name, amount in sorted(allocations_cents.items())
         if amount > 0
     }
+
+
+def _age_bracket(age: int) -> str:
+    if age < 30:
+        return "26_30"
+    if age < 35:
+        return "30_35"
+    if age < 40:
+        return "35_40"
+    return "40_plus"
+
+
+def detect_portfolio_phase(total_eur: float, profile: dict[str, Any]) -> int:
+    """Return current portfolio phase (1–4) based on total invested vs profile thresholds."""
+    phases = profile.get("portfolio_phases", {})
+    current = 1
+    for key in sorted(phases.keys(), key=lambda x: int(x)):
+        if total_eur >= float(phases[key].get("threshold_eur", 0)):
+            current = int(key)
+    return current
+
+
+def get_dynamic_targets(
+    constitution: dict[str, Any],
+    profile: dict[str, Any],
+    regime: str,
+    age: int,
+    phase: int = 1,
+) -> dict[str, float]:
+    """Return sleeve-level target fractions from regime + age glide path + phase locking.
+
+    1. Start from market_regimes[regime].targets (percentage ints, sum=100).
+    2. Apply age_glide_path adjustments (crypto_bonus, growth_bonus, core_reduction).
+    3. Zero out sleeves locked by portfolio phase; redistribute their weight to global_core.
+    4. Return {sleeve_name: fraction} summing to 1.0.
+    """
+    regime_targets = (
+        constitution.get("market_regimes", {})
+        .get(regime, {})
+        .get("targets", {})
+    )
+    if not regime_targets:
+        regime_targets = (
+            constitution.get("market_regimes", {})
+            .get("risk_on", {})
+            .get("targets", {})
+        )
+
+    targets: dict[str, float] = {k: float(v) for k, v in regime_targets.items()}
+
+    bracket = _age_bracket(age)
+    glide = constitution.get("age_glide_path", {}).get(bracket, {})
+    targets["crypto"] = targets.get("crypto", 0.0) + float(glide.get("crypto_bonus_pct", 0))
+    targets["growth_thematic"] = targets.get("growth_thematic", 0.0) + float(glide.get("growth_bonus_pct", 0))
+    targets["global_core"] = targets.get("global_core", 0.0) - float(glide.get("core_reduction_pct", 0))
+
+    # Phase locking: sleeves with phase_unlock > current phase redirect to global_core
+    constitution_sleeves = constitution.get("sleeves", {})
+    phase_data = profile.get("portfolio_phases", {}).get(str(phase), {})
+    eligible_raw = phase_data.get("eligible_sleeves", list(targets.keys()))
+    eligible = set(eligible_raw) if not isinstance(eligible_raw, str) else set(targets.keys())
+
+    locked_total = 0.0
+    for sleeve in list(targets.keys()):
+        if sleeve in constitution_sleeves and sleeve not in eligible:
+            locked_total += targets[sleeve]
+            targets[sleeve] = 0.0
+    targets["global_core"] = targets.get("global_core", 0.0) + locked_total
+
+    total = sum(targets.values())
+    return {k: round(v / total, 8) for k, v in targets.items()} if total > 0 else targets
+
+
+def compute_asset_target_weights(
+    sleeve_targets: dict[str, float],
+    constitution: dict[str, Any],
+    phase: int,
+) -> dict[str, float]:
+    """Distribute sleeve-level fractions to per-asset target_weights for the engine.
+
+    Uses the existing target_weights keys as the output shape (guarantees the same
+    asset set the rest of the engine references). Crypto is distributed by
+    crypto_universe.sleeve_weight_pct, gated by phase_unlock.
+    growth_thematic is split growth_nasdaq_etf : quality_etf = 3 : 2.
+    """
+    static_weights = constitution.get("target_weights", {})
+    result: dict[str, float] = {k: 0.0 for k in static_weights}
+    crypto_universe = constitution.get("crypto_universe", {})
+
+    result["global_core_etf"] = sleeve_targets.get("global_core", 0.0)
+
+    gt = sleeve_targets.get("growth_thematic", 0.0)
+    result["growth_nasdaq_etf"] = gt * 3.0 / 5.0
+    result["quality_etf"] = gt * 2.0 / 5.0
+
+    crypto_total = sleeve_targets.get("crypto", 0.0)
+    engine_crypto_assets = [k for k in ["btc", "hype", "tao"] if k in result]
+    available = [
+        a for a in engine_crypto_assets
+        if phase >= int(crypto_universe.get(a, {}).get("phase_unlock", 1))
+    ]
+    total_w = sum(float(crypto_universe.get(a, {}).get("sleeve_weight_pct", 0)) for a in available)
+    for asset in engine_crypto_assets:
+        if asset in available and total_w > 0:
+            w = float(crypto_universe.get(asset, {}).get("sleeve_weight_pct", 0))
+            result[asset] = crypto_total * w / total_w
+        else:
+            result[asset] = 0.0
+
+    result["tactical_reserve"] = sleeve_targets.get("cash", 0.0)
+    result["discovery"] = 0.0
+
+    # Normalise to exactly 1.0, absorbing float rounding into global_core_etf
+    total = sum(result.values())
+    if total > 0:
+        result = {k: round(v / total, 8) for k, v in result.items()}
+        rounding_err = round(1.0 - sum(result.values()), 8)
+        if rounding_err != 0.0 and "global_core_etf" in result:
+            result["global_core_etf"] = round(result["global_core_etf"] + rounding_err, 8)
+
+    return result
 
 
 def validate_constitution(constitution: dict[str, Any]) -> None:
@@ -1131,8 +1255,36 @@ def build_approval_ticket(
 
 
 def allocate_weekly_budget(
-    constitution: dict[str, Any], portfolio_state: dict[str, Any]
+    constitution: dict[str, Any],
+    portfolio_state: dict[str, Any],
+    *,
+    regime: str | None = None,
+    profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    dynamic_context: dict[str, Any] = {}
+    if regime is not None and profile is not None:
+        # Pre-compute holdings total to determine portfolio phase
+        _pre_holdings = investable_holdings(constitution, portfolio_state)
+        _total_eur = float(sum(_pre_holdings.values())) / 100.0  # cents → EUR
+        age = int(profile.get("personal", {}).get("age", 30))
+        phase = detect_portfolio_phase(_total_eur, profile)
+        sleeve_targets = get_dynamic_targets(constitution, profile, regime, age, phase)
+        per_asset_targets = compute_asset_target_weights(sleeve_targets, constitution, phase)
+        constitution = {**constitution, "target_weights": per_asset_targets}
+        dynamic_context = {
+            "regime": regime,
+            "phase": phase,
+            "phase_label": profile.get("portfolio_phases", {}).get(str(phase), {}).get("label", f"Phase {phase}"),
+            "age": age,
+            "age_bracket": _age_bracket(age),
+            "sleeve_targets_pct": {
+                k: round(v * 100, 1) for k, v in sleeve_targets.items() if v > 0
+            },
+            "asset_targets_pct": {
+                k: round(v * 100, 2) for k, v in per_asset_targets.items() if v > 0
+            },
+        }
+
     validate_constitution(constitution)
 
     holdings = investable_holdings(constitution, portfolio_state)
@@ -1206,6 +1358,7 @@ def allocate_weekly_budget(
         ),
         "warnings": warnings,
         "approval_notice": APPROVAL_NOTICE,
+        "dynamic_context": dynamic_context,
     }
     result["approval_ticket"] = build_approval_ticket(portfolio_state, result)
     return result

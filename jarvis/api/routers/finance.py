@@ -5,9 +5,9 @@ from datetime import date
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException
 
-from jarvis.api.dependencies import get_finance_constitution, get_portfolio_state
+from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.domains.finance import engine
-from jarvis.domains.finance.market_data import update_portfolio_state_prices
+from jarvis.domains.finance.market_data import detect_market_regime, update_portfolio_state_prices
 from jarvis.data import database
 
 router = APIRouter()
@@ -20,6 +20,45 @@ def _iso_week_label() -> str:
     return f"W{iso[1]} {iso[0]}"
 
 _CRYPTO_ASSETS = {"btc", "hype", "tao"}
+
+_ASSET_LABELS_FOR_NEWS = {
+    "btc": "Bitcoin (BTC)",
+    "hype": "Hyperliquid (HYPE)",
+    "tao": "Bittensor (TAO)",
+    "global_core_etf": "VWCE global equity ETF",
+    "growth_nasdaq_etf": "Nasdaq-100 ETF (EQQQ)",
+    "quality_etf": "MSCI World Quality ETF (IWQU)",
+    "emerging_markets_etf": "Emerging Markets ETF",
+    "quality_etf": "Quality Factor ETF",
+}
+
+
+def _generate_news_thesis(recommendations: list[dict], regime: str, phase: int) -> str:
+    """Call Claude with web search to generate a 2-sentence news-enriched thesis."""
+    assets = [r["asset"] for r in recommendations if r.get("amount", 0) > 0]
+    if not assets:
+        return ""
+    asset_labels = [_ASSET_LABELS_FOR_NEWS.get(a, a) for a in assets]
+    prompt = (
+        f"Market regime: {regime}. Portfolio phase: {phase} (Foundation). "
+        f"This week's recommended buys: {', '.join(asset_labels)}. "
+        "Search for current news on these assets and explain in 2 sentences "
+        "why now is a good time to buy, or flag any risks. "
+        "Be specific — mention actual news or data if found."
+    )
+    try:
+        client = anthropic.Anthropic()
+        result = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=256,
+            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return " ".join(
+            block.text for block in result.content if hasattr(block, "text")
+        ).strip()
+    except Exception:
+        return ""
 
 
 @router.get("/summary")
@@ -54,8 +93,12 @@ def finance_summary(
 def finance_recommendation(
     constitution: dict = Depends(get_finance_constitution),
     portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
 ) -> dict:
-    result = engine.allocate_weekly_budget(constitution, portfolio_state)
+    regime = detect_market_regime(portfolio_state)
+    result = engine.allocate_weekly_budget(
+        constitution, portfolio_state, regime=regime, profile=profile
+    )
     ticket = result["approval_ticket"]
     mandate = ticket["weekly_dual_lane_mandate"]
 
@@ -83,12 +126,20 @@ def finance_recommendation(
         )
 
     rationale = "; ".join(rationale_parts) or "No buys recommended this week."
+    dyn = result.get("dynamic_context", {})
+    news_thesis = _generate_news_thesis(recommendations, regime, dyn.get("phase", 1))
     response = {
         "week_budget": ticket["weekly_budget"],
         "recommendations": recommendations,
         "rationale": rationale,
         "portfolio_mode": result["portfolio_mode"]["mode"],
+        "regime": dyn.get("regime", regime),
+        "phase": dyn.get("phase"),
+        "phase_label": dyn.get("phase_label"),
+        "dynamic_targets": dyn.get("asset_targets_pct"),
+        "sleeve_targets": dyn.get("sleeve_targets_pct"),
         "warnings": ticket["warnings"],
+        "news_thesis": news_thesis,
         "requires_approval": True,
     }
 
