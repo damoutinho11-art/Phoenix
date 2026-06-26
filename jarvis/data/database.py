@@ -93,6 +93,22 @@ CREATE TABLE IF NOT EXISTS brief_history (
 
 CREATE INDEX IF NOT EXISTS idx_brief_history_week ON brief_history(week_label);
 CREATE INDEX IF NOT EXISTS idx_brief_history_status ON brief_history(status);
+
+CREATE TABLE IF NOT EXISTS budget_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    merchant TEXT NOT NULL,
+    amount_eur REAL NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT,
+    source TEXT DEFAULT 'text',
+    month TEXT NOT NULL,
+    is_income INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_unique
+ON budget_transactions(date, merchant, amount_eur);
 """
 
 
@@ -483,6 +499,79 @@ def get_pending_briefs() -> list[dict[str, Any]]:
             "SELECT * FROM brief_history WHERE status = 'pending' ORDER BY created_at DESC",
         ).fetchall()
         return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def save_budget_transactions(transactions: list[dict]) -> int:
+    """Insert transactions; skip duplicates by (date, merchant, amount_eur)."""
+    connection = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    count = 0
+    try:
+        for t in transactions:
+            try:
+                connection.execute(
+                    """INSERT OR IGNORE INTO budget_transactions
+                       (date, merchant, amount_eur, category, description, source, month, is_income, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (t["date"], t["merchant"], t["amount_eur"], t["category"],
+                     t.get("description", ""), t.get("source", "text"),
+                     t["month"], int(t.get("is_income", 0)), now),
+                )
+                count += connection.execute("SELECT changes()").fetchone()[0]
+            except Exception:
+                pass
+        connection.commit()
+    finally:
+        connection.close()
+    return count
+
+
+def get_budget_transactions(month: str) -> list[dict[str, Any]]:
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT * FROM budget_transactions WHERE month=? ORDER BY date DESC",
+            (month,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        connection.close()
+
+
+def get_budget_summary(month: str) -> dict[str, Any]:
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """SELECT category, SUM(amount_eur) as total, COUNT(*) as count
+               FROM budget_transactions WHERE month=? GROUP BY category""",
+            (month,)
+        ).fetchall()
+    finally:
+        connection.close()
+    by_category = {r["category"]: {"total": round(r["total"], 2), "count": r["count"]} for r in rows}
+    income = sum(v["total"] for k, v in by_category.items() if k == "Income")
+    expenses = sum(v["total"] for k, v in by_category.items() if k != "Income" and k != "Investment")
+    invested = by_category.get("Investment", {}).get("total", 0)
+    savings_rate = round((income - expenses) / income * 100, 1) if income > 0 else 0
+    return {
+        "month": month,
+        "by_category": by_category,
+        "income_total": round(income, 2),
+        "expenses_total": round(expenses, 2),
+        "invested_total": round(invested, 2),
+        "savings_rate": savings_rate,
+    }
+
+
+def get_budget_months() -> list[str]:
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT DISTINCT month FROM budget_transactions ORDER BY month DESC"
+        ).fetchall()
+        return [r["month"] for r in rows]
     finally:
         connection.close()
 

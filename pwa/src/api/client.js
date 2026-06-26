@@ -130,3 +130,31 @@ export async function logSession(payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export async function parseBudgetTransactions(rawText) {
+  return apiFetch('/budget/parse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw_text: rawText, source: 'text' }),
+  })
+}
+
+export async function saveBudgetTransactions(transactions) {
+  return apiFetch('/budget/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transactions }),
+  })
+}
+
+export async function getBudgetSummary(month) {
+  return apiFetch(`/budget/summary?month=${month}`)
+}
+
+export async function getBudgetTransactions(month) {
+  return apiFetch(`/budget/transactions?month=${month}`)
+}
+
+export async function getBudgetMonths() {
+  return apiFetch('/budget/months')
+}

@@ -176,7 +176,7 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
 
       {/* Quick nav */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {[['BRIEF', 'brief'], ['HOLDINGS', 'holdings'], ['PERFORMANCE', 'performance'], ['HISTORY', 'history']].map(([label, screen]) => (
+        {[['BRIEF', 'brief'], ['HOLDINGS', 'holdings'], ['PERFORMANCE', 'performance'], ['HISTORY', 'history'], ['BUDGET', 'budget']].map(([label, screen]) => (
           <button key={screen} onClick={() => onNav(screen)} style={{
             background: '#111', border: '1px solid #222', borderRadius: 6,
             padding: '13px 0', color: CYAN,

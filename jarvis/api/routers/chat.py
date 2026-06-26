@@ -235,6 +235,14 @@ def jarvis_chat(request: ChatRequest) -> dict:
     if domain in ("calendar", "home"):
         context_parts.append(_build_calendar_context())
 
+    if domain == "budget":
+        try:
+            month = date.today().strftime("%Y-%m")
+            budget_summary = database.get_budget_summary(month)
+            context_parts.append(f"BUDGET ({month}):\n{json.dumps(budget_summary)}")
+        except Exception:
+            pass
+
     context = "\n\n".join(p for p in context_parts if p)
     user_content = (
         f"Live data:\n{context}\n\nQuestion: {request.message}" if context else request.message

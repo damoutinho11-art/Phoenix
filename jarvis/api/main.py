@@ -9,7 +9,7 @@ load_dotenv()  # loads .env from project root if present; no-op otherwise
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from jarvis.api.routers import barcode, calendar, chat, crossdomain, finance, nutrition, training
+from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, finance, nutrition, training
 from jarvis.data.database import init_db
 
 
@@ -40,6 +40,7 @@ app.add_middleware(
 )
 
 app.include_router(finance.router, prefix="/finance", tags=["finance"])
+app.include_router(budget.router, prefix="/budget", tags=["budget"])
 app.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 app.include_router(training.router, prefix="/training", tags=["training"])
 app.include_router(nutrition.router, prefix="/nutrition", tags=["nutrition"])
