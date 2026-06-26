@@ -1,0 +1,96 @@
+{
+  "name": "J.A.R.V.I.S. Training Domain Constitution",
+  "version": "0",
+  "system": "Isiah Rivera Long Conjugate Sequence System",
+  "goal": "dunk",
+  "start_date": "2026-06-23",
+  "dunk_attempt_window_start": "2026-08-25",
+  "dunk_deadline": "2026-08-31",
+  "cut_end_date": "2026-08-17",
+  "peak_week_start": "2026-08-18",
+  "current_bodyweight_kg": 73.4,
+  "current_bf_percent": 25.0,
+  "target_bf_percent": 19.0,
+  "estimated_1rm_kg": {
+    "back_squat": 68,
+    "hex_bar_jump": 40,
+    "hip_thrust": 50,
+    "seated_calf_raise": 40,
+    "power_clean": 0
+  },
+  "weekly_structure": {
+    "monday": "high_intensity",
+    "tuesday": "general",
+    "wednesday": "high_intensity",
+    "thursday": "general",
+    "friday": "rest",
+    "saturday": "jump",
+    "sunday": "iso_only"
+  },
+  "mesocycle_progression": {
+    "month_1": {
+      "name": "hypertrophy_volume",
+      "start_date": "2026-06-23",
+      "end_date": "2026-07-20",
+      "weeks": {
+        "1": {"sets": 5, "reps": 6, "intensity_pct": 75},
+        "2": {"sets": 6, "reps": 5, "intensity_pct": 80},
+        "3": {"sets": 7, "reps": 4, "intensity_pct": 85},
+        "4": {"sets": 3, "reps": 3, "intensity_pct": 85, "deload": true}
+      },
+      "explosive_exercise": "hex_bar_jump",
+      "knee_extension": "back_squat",
+      "posterior_chain": "hip_thrust",
+      "lower_leg": "seated_calf_raise",
+      "general_push": "bench_press",
+      "general_pull": "lat_pulldown",
+      "general_shoulder": "lateral_raise"
+    },
+    "month_2": {
+      "name": "max_strength",
+      "start_date": "2026-07-21",
+      "end_date": "2026-08-17",
+      "weeks": {
+        "1": {"sets": 5, "reps": 5, "intensity_pct": 78},
+        "2": {"sets": 6, "reps": 4, "intensity_pct": 83},
+        "3": {"sets": 7, "reps": 3, "intensity_pct": 88},
+        "4": {"sets": 3, "reps": 2, "intensity_pct": 88, "deload": true}
+      },
+      "explosive_exercise": "power_clean",
+      "knee_extension": "back_squat",
+      "posterior_chain": "hip_thrust",
+      "lower_leg": "seated_calf_raise",
+      "general_push": "bench_press",
+      "general_pull": "weighted_pullup",
+      "general_shoulder": "lateral_raise"
+    },
+    "peak": {
+      "name": "peak_week",
+      "start_date": "2026-08-18",
+      "end_date": "2026-08-24",
+      "description": "Jump sessions and isometrics only. No heavy lifting. Fatigue dissipates, fitness surfaces."
+    },
+    "attempt": {
+      "name": "attempt_week",
+      "start_date": "2026-08-25",
+      "end_date": "2026-08-31",
+      "description": "Max effort jump sessions. Body fresh. This is when you dunk."
+    }
+  },
+  "iso_protocol": {
+    "sets": "3-5",
+    "duration_seconds": "30-45",
+    "effort_pct": 70,
+    "sunday_groups": 3,
+    "sunday_hours_apart": 6
+  },
+  "heavy_session_types": ["high_intensity", "jump"],
+  "conflict_rules": {
+    "heavy_session_on_performance_day": "hard_block",
+    "heavy_session_day_before_performance": "hard_block",
+    "any_session_day_before_performance": "advisory",
+    "general_day_conflicts": "skip_first"
+  },
+  "read_only": true,
+  "manual_approval_required_for_any_external_action": true
+}

@@ -1,0 +1,14 @@
+.env
+*.env
+pwa/.env
+node_modules/
+pwa/node_modules/
+dist/
+pwa/dist/
+dev-dist/
+pwa/dev-dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store

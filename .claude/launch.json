@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jarvis-pwa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173,
+      "cwd": "pwa",
+      "autoPort": false
+    },
+    {
+      "name": "jarvis-api",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["run_server.py"],
+      "port": 8000,
+      "autoPort": false
+    }
+  ]
+}

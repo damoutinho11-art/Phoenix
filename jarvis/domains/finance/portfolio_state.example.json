@@ -1,0 +1,20 @@
+{
+  "as_of": "YYYY-MM-DD",
+  "currency": "EUR",
+  "emergency_fund": { "amount": 0.0, "excluded_from_allocation": true },
+  "holdings": {
+    "btc": 0.0, "discovery": 0.0, "global_core_etf": 0.0, "growth_nasdaq_etf": 0.0,
+    "hype": 0.0, "quality_etf": 0.0, "tactical_reserve": 0.0, "tao": 0.0
+  },
+  "legacy_holdings": {
+    "lhv_growth_cash_pending_settlement": 0.0, "lhv_growth_euro_bond": 0.0,
+    "lhv_growth_iemm": 0.0, "lhv_growth_sxr8": 0.0,
+    "lhv_growth_world_equities": 0.0, "lhv_growth_xcha": 0.0
+  },
+  "monthly_investment_budget": 0.0,
+  "weekly_investment_budget": 0.0,
+  "platform_status": {
+    "kraken_ready": false, "lhv_crypto_ready": false,
+    "lightyear_ready": false, "trade_republic_ready": false
+  }
+}

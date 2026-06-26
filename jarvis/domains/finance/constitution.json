@@ -1,0 +1,482 @@
+{
+  "name": "J.A.R.V.I.S. Portfolio OS Constitution",
+  "version": "2.0",
+  "last_updated": "2026-06-25",
+  "currency": "EUR",
+  "read_only": true,
+
+  "_note": "Engine-compat flags (manual_approval_required etc.) are kept alongside the v2 design fields so validate_constitution() passes without modification. Dynamic target_weights are computed at runtime by get_dynamic_targets(); the static values below are the Phase 1 / risk_on / age-26 fallback.",
+
+  "manual_approval_required": true,
+  "manual_approval_required_for_any_external_action": true,
+  "no_auto_trading": true,
+  "no_broker_connections": true,
+  "no_api_keys": true,
+  "no_network_calls": true,
+  "requires_approval": true,
+
+  "rules": {
+    "no_leverage": true,
+    "no_options": true,
+    "no_futures": true,
+    "no_staking_yet": true,
+    "no_use_of_emergency_fund": true,
+    "no_automatic_selling": true,
+    "no_random_new_assets": true,
+    "emergency_fund_excluded_from_allocation": true
+  },
+
+  "target_weights": {
+    "global_core_etf":    0.54,
+    "growth_nasdaq_etf":  0.126,
+    "quality_etf":        0.084,
+    "btc":                0.21,
+    "hype":               0.0,
+    "tao":                0.0,
+    "discovery":          0.0,
+    "tactical_reserve":   0.04
+  },
+
+  "sleeve_bands": {
+    "global_core_etf":   { "min_weight": 0.20, "max_weight": 0.70 },
+    "growth_nasdaq_etf": { "min_weight": 0.04, "max_weight": 0.20 },
+    "quality_etf":       { "min_weight": 0.02, "max_weight": 0.17 },
+    "btc":               { "min_weight": 0.08, "max_weight": 0.25 },
+    "hype":              { "min_weight": 0.0,  "max_weight": 0.08 },
+    "tao":               { "min_weight": 0.0,  "max_weight": 0.08 },
+    "discovery":         { "min_weight": 0.0,  "max_weight": 0.025 },
+    "tactical_reserve":  { "min_weight": 0.0,  "max_weight": 0.10 }
+  },
+
+  "asset_routes": {
+    "global_core_etf":   "lightyear",
+    "growth_nasdaq_etf": "lightyear",
+    "quality_etf":       "lightyear",
+    "btc":               "lhv_crypto",
+    "hype":              "lhv_crypto",
+    "tao":               "lhv_crypto",
+    "discovery":         "manual_review",
+    "tactical_reserve":  "cash"
+  },
+
+  "minimum_efficient_buys": {
+    "btc":       20.0,
+    "hype":      20.0,
+    "tao":       20.0,
+    "discovery": 20.0
+  },
+
+  "crypto_risk_rules": {
+    "btc_target":                              0.21,
+    "btc_max":                                 0.25,
+    "total_crypto_hard_max":                   0.25,
+    "hype_tao_combined_max":                   0.08,
+    "max_btc_fallback_fraction_of_weekly_budget":      0.40,
+    "max_total_crypto_buy_fraction_of_weekly_budget":  0.50
+  },
+
+  "legacy_holding_policy": {
+    "lhv_growth_cash_pending_settlement": {
+      "classification": "legacy_cash",
+      "maps_to": "tactical_reserve",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_euro_bond": {
+      "classification": "legacy_unwanted_fee_sensitive",
+      "maps_to": "tactical_reserve",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_iemm": {
+      "classification": "legacy_acceptable",
+      "maps_to": "global_core_etf",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_sxr8": {
+      "classification": "legacy_acceptable",
+      "maps_to": "global_core_etf",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_world_equities": {
+      "classification": "legacy_acceptable",
+      "maps_to": "global_core_etf",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    },
+    "lhv_growth_xcha": {
+      "classification": "legacy_unwanted_fee_sensitive",
+      "maps_to": "discovery",
+      "new_buys_allowed": false,
+      "sell_allowed_without_explicit_user_approval": false
+    }
+  },
+
+  "age_glide_path": {
+    "26_30": {
+      "crypto_bonus_pct": 3,
+      "growth_bonus_pct": 3,
+      "core_reduction_pct": 6,
+      "notes": "Maximum aggression phase"
+    },
+    "30_35": {
+      "crypto_bonus_pct": 0,
+      "growth_bonus_pct": 1,
+      "core_reduction_pct": 1,
+      "notes": "Maintain aggression, slight quality tilt"
+    },
+    "35_40": {
+      "crypto_bonus_pct": -3,
+      "growth_bonus_pct": -2,
+      "core_reduction_pct": 5,
+      "notes": "Begin gradual de-risking"
+    },
+    "40_plus": {
+      "crypto_bonus_pct": -8,
+      "growth_bonus_pct": -5,
+      "core_reduction_pct": 13,
+      "notes": "Capital preservation begins"
+    }
+  },
+
+  "market_regimes": {
+    "risk_on": {
+      "label": "RISK-ON",
+      "conditions": "VIX < 20, SPY above 200-day MA, positive momentum",
+      "targets": {
+        "global_core":       30,
+        "quality_stocks":    25,
+        "growth_thematic":   18,
+        "crypto":            18,
+        "emerging_markets":   5,
+        "cash":               4
+      }
+    },
+    "risk_off": {
+      "label": "RISK-OFF",
+      "conditions": "VIX 20-30, elevated uncertainty, negative momentum",
+      "targets": {
+        "global_core":       42,
+        "quality_stocks":    25,
+        "growth_thematic":   10,
+        "crypto":            10,
+        "emerging_markets":   5,
+        "cash":               8
+      }
+    },
+    "drawdown": {
+      "label": "DRAWDOWN",
+      "conditions": "Portfolio down >15% in 3 months OR VIX > 30",
+      "targets": {
+        "global_core":       55,
+        "quality_stocks":    22,
+        "growth_thematic":    8,
+        "crypto":             8,
+        "emerging_markets":   3,
+        "cash":               4
+      },
+      "special_rules": [
+        "Suspend growth and thematic buys",
+        "Deploy tactical reserve into global core on >20% drawdown",
+        "No new crypto buys until VIX < 25"
+      ]
+    }
+  },
+
+  "sleeves": {
+    "global_core": {
+      "label": "Global Core Equity",
+      "assets": ["global_core_etf", "lhv_growth_sxr8",
+                 "lhv_growth_world_equities", "lhv_growth_iemm"],
+      "base_target_pct": 35,
+      "min_pct": 25,
+      "max_pct": 60,
+      "rebalance_threshold_pct": 10,
+      "notes": "Bedrock — never stop buying this"
+    },
+    "quality_stocks": {
+      "label": "Quality Growth Stocks",
+      "assets": ["msft", "nvda", "goog", "amzn", "meta",
+                 "novo_b", "asml", "lly", "brk_b", "tsm"],
+      "base_target_pct": 25,
+      "min_pct": 15,
+      "max_pct": 35,
+      "max_single_stock_pct": 5,
+      "phase_unlock": 2,
+      "rebalance_threshold_pct": 8
+    },
+    "growth_thematic": {
+      "label": "Growth & Thematic",
+      "assets": ["growth_nasdaq_etf", "quality_etf", "thematic_etf"],
+      "base_target_pct": 15,
+      "min_pct": 8,
+      "max_pct": 25,
+      "phase_unlock": 1,
+      "rebalance_threshold_pct": 8
+    },
+    "crypto": {
+      "label": "Crypto",
+      "assets": ["btc", "eth", "hype", "tao", "sol"],
+      "base_target_pct": 15,
+      "min_pct": 8,
+      "max_pct": 20,
+      "hard_cap_pct": 25,
+      "phase_unlock": 1,
+      "asset_weights": {
+        "btc":  60,
+        "eth":  25,
+        "hype":  8,
+        "tao":   4,
+        "sol":   3
+      },
+      "rebalance_threshold_pct": 5,
+      "notes": "Hard cap 25% regardless of appreciation. BTC is primary."
+    },
+    "emerging_markets": {
+      "label": "Emerging Markets",
+      "assets": ["emerging_markets_etf", "lhv_growth_iemm"],
+      "base_target_pct": 5,
+      "min_pct": 2,
+      "max_pct": 12,
+      "phase_unlock": 2,
+      "rebalance_threshold_pct": 5
+    },
+    "cash": {
+      "label": "Tactical Reserve",
+      "assets": ["cash"],
+      "base_target_pct": 5,
+      "min_pct": 2,
+      "max_pct": 10,
+      "deploy_on_drawdown_pct": 20,
+      "notes": "Dry powder — deploy on major market dislocations"
+    }
+  },
+
+  "stock_universe": {
+    "msft": {
+      "name": "Microsoft",
+      "ticker_yahoo": "MSFT",
+      "ticker_lightyear": "MSFT",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "technology",
+      "thesis": "AI infrastructure monopoly, Azure cloud dominance, Office 365 recurring revenue",
+      "max_position_pct": 5,
+      "conviction": "very_high"
+    },
+    "nvda": {
+      "name": "NVIDIA",
+      "ticker_yahoo": "NVDA",
+      "ticker_lightyear": "NVDA",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "semiconductors",
+      "thesis": "GPU scarcity, CUDA moat, AI training compute monopoly",
+      "max_position_pct": 5,
+      "conviction": "very_high"
+    },
+    "goog": {
+      "name": "Alphabet",
+      "ticker_yahoo": "GOOGL",
+      "ticker_lightyear": "GOOGL",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "technology",
+      "thesis": "Search monopoly, YouTube, GCP, deeply undervalued AI assets",
+      "max_position_pct": 5,
+      "conviction": "high"
+    },
+    "amzn": {
+      "name": "Amazon",
+      "ticker_yahoo": "AMZN",
+      "ticker_lightyear": "AMZN",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "technology",
+      "thesis": "AWS dominance, retail flywheel, best logistics moat globally",
+      "max_position_pct": 5,
+      "conviction": "high"
+    },
+    "meta": {
+      "name": "Meta Platforms",
+      "ticker_yahoo": "META",
+      "ticker_lightyear": "META",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "technology",
+      "thesis": "Social media monopoly, Reels monetisation, Reality Labs long bet",
+      "max_position_pct": 5,
+      "conviction": "high"
+    },
+    "novo_b": {
+      "name": "Novo Nordisk",
+      "ticker_yahoo": "NVO",
+      "ticker_lightyear": "NOVO-B.CO",
+      "currency": "DKK",
+      "moat": "wide",
+      "sector": "healthcare",
+      "thesis": "GLP-1 generational drug cycle, Ozempic/Wegovy supply ramp",
+      "max_position_pct": 5,
+      "conviction": "high"
+    },
+    "asml": {
+      "name": "ASML",
+      "ticker_yahoo": "ASML",
+      "ticker_lightyear": "ASML.AS",
+      "currency": "EUR",
+      "moat": "wide",
+      "sector": "semiconductors",
+      "thesis": "EUV lithography monopoly — only company that can make the machines that make chips",
+      "max_position_pct": 5,
+      "conviction": "very_high"
+    },
+    "lly": {
+      "name": "Eli Lilly",
+      "ticker_yahoo": "LLY",
+      "ticker_lightyear": "LLY",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "healthcare",
+      "thesis": "GLP-1 + Alzheimer's pipeline, 20-year compounder",
+      "max_position_pct": 5,
+      "conviction": "high"
+    },
+    "brk_b": {
+      "name": "Berkshire Hathaway B",
+      "ticker_yahoo": "BRK-B",
+      "ticker_lightyear": "BRK.B",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "financials",
+      "thesis": "Buffett capital allocation machine, defensive anchor, record cash pile",
+      "max_position_pct": 5,
+      "conviction": "high"
+    },
+    "tsm": {
+      "name": "TSMC",
+      "ticker_yahoo": "TSM",
+      "ticker_lightyear": "TSM",
+      "currency": "USD",
+      "moat": "wide",
+      "sector": "semiconductors",
+      "thesis": "World's most advanced chip manufacturer, irreplaceable infrastructure",
+      "max_position_pct": 4,
+      "conviction": "high",
+      "risk_flag": "Taiwan geopolitical risk — cap at 4%"
+    }
+  },
+
+  "etf_universe": {
+    "global_core_etf": {
+      "name": "Vanguard FTSE All-World",
+      "ticker_yahoo": "VWCE.DE",
+      "currency": "EUR",
+      "ter_pct": 0.22,
+      "sleeve": "global_core"
+    },
+    "quality_etf": {
+      "name": "iShares MSCI World Quality Factor",
+      "ticker_yahoo": "IWQU.L",
+      "currency": "GBP",
+      "ter_pct": 0.30,
+      "sleeve": "growth_thematic"
+    },
+    "growth_nasdaq_etf": {
+      "name": "Invesco EQQQ Nasdaq-100",
+      "ticker_yahoo": "EQQQ.L",
+      "currency": "USD",
+      "ter_pct": 0.30,
+      "sleeve": "growth_thematic"
+    },
+    "emerging_markets_etf": {
+      "name": "iShares Core MSCI EM IMI",
+      "ticker_yahoo": "IEEM.L",
+      "currency": "GBP",
+      "ter_pct": 0.18,
+      "sleeve": "emerging_markets"
+    },
+    "thematic_etf": {
+      "name": "TBD — AI/Biotech/Clean Energy",
+      "ticker_yahoo": "TBD",
+      "currency": "USD",
+      "ter_pct": 0.35,
+      "sleeve": "growth_thematic",
+      "notes": "To be selected at Phase 2 unlock via strategy review"
+    }
+  },
+
+  "crypto_universe": {
+    "btc": {
+      "name": "Bitcoin",
+      "ticker_yahoo": "BTC-EUR",
+      "platform": "lhv_crypto",
+      "conviction": "very_high",
+      "sleeve_weight_pct": 60,
+      "phase_unlock": 1
+    },
+    "eth": {
+      "name": "Ethereum",
+      "ticker_yahoo": "ETH-EUR",
+      "platform": "lhv_crypto",
+      "conviction": "high",
+      "sleeve_weight_pct": 25,
+      "phase_unlock": 2
+    },
+    "hype": {
+      "name": "Hyperliquid",
+      "ticker_yahoo": null,
+      "platform": "lhv_crypto",
+      "conviction": "medium",
+      "sleeve_weight_pct": 8,
+      "phase_unlock": 2
+    },
+    "tao": {
+      "name": "Bittensor",
+      "ticker_yahoo": null,
+      "platform": "lhv_crypto",
+      "conviction": "medium",
+      "sleeve_weight_pct": 4,
+      "phase_unlock": 3
+    },
+    "sol": {
+      "name": "Solana",
+      "ticker_yahoo": "SOL-EUR",
+      "platform": "lhv_crypto",
+      "conviction": "medium",
+      "sleeve_weight_pct": 3,
+      "phase_unlock": 2
+    }
+  },
+
+  "risk_rules": {
+    "max_single_stock_pct": 5,
+    "max_crypto_pct": 25,
+    "max_single_crypto_pct": 15,
+    "min_cash_pct": 2,
+    "drawdown_threshold_pct": 15,
+    "drawdown_suspension_rules": [
+      "Suspend growth_thematic buys",
+      "Suspend new crypto positions",
+      "Redirect budget to global_core",
+      "Deploy cash reserve if drawdown exceeds 20%"
+    ],
+    "rebalancing": {
+      "frequency": "monthly_review",
+      "trigger": "sleeve_deviation_exceeds_threshold",
+      "method": "buy_only_until_portfolio_exceeds_10000",
+      "notes": "Below €10K — rebalance by redirecting new money only. Above €10K — consider trimming."
+    }
+  },
+
+  "weekly_budget": {
+    "amount_eur": 500,
+    "frequency": "monthly",
+    "weekly_equivalent": 115.38,
+    "split": {
+      "method": "dynamic",
+      "notes": "Engine calculates split based on regime and gaps — not fixed"
+    }
+  }
+}
