@@ -85,11 +85,11 @@ export default function BudgetUpload({ onBack, onSaved }) {
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif" }}>
       {/* Header */}
-      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
-        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
-        <span style={{ fontFamily: 'var(--display)', fontSize: 13, color: 'var(--gold)', letterSpacing: '.12em' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '13px 18px 11px', borderBottom: '1px solid rgba(255,213,107,.18)', position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
+        <span onClick={onBack} style={{ color: '#ffd56b', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: '#ffd56b' }}>
           {transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}
         </span>
       </div>
