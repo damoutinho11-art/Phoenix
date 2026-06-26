@@ -575,14 +575,8 @@ export default function HomeScreen({ onOpenCockpit }) {
       const reply = r?.response || 'I am here.'
       setMessages(prev => [...prev, { who: 'phoenix', text: reply }])
       setDockResponse(reply)
-      setReactorMode('speaking')
-      setChatState('speaking')
-      speak(reply, {
-        onEnd: () => {
-          setReactorMode('')
-          setChatState('standing by')
-        },
-      })
+      setReactorMode('')
+      setChatState('standing by')
     } catch {
       const err = 'Connection error. Try again.'
       setMessages(prev => [...prev, { who: 'phoenix', text: err }])

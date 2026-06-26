@@ -27,6 +27,28 @@ export async function speak(text, { onEnd } = {}) {
     .replace(/\bSTT\b/g, 'S T T')
     .replace(/\bAPI\b/g, 'A P I')
 
+    // Currency words
+    .replace(/\bdollars\b/gi, 'euros')
+
+    // Units — spell out for natural TTS reading
+    .replace(/\bkcal\b/gi, 'calories')
+    .replace(/\bkCal\b/g, 'calories')
+    .replace(/(\d+)\s*g\b(?!\w)/g, '$1 grams')
+    .replace(/\bkg\b/gi, 'kilograms')
+    .replace(/\bml\b/gi, 'millilitres')
+    .replace(/\bkm\b/gi, 'kilometres')
+    .replace(/\blbs\b/gi, 'pounds')
+
+    // Fitness abbreviations
+    .replace(/\bBW\b/g, 'bodyweight')
+    .replace(/\b1RM\b/g, 'one rep max')
+    .replace(/\b3RM\b/g, 'three rep max')
+    .replace(/\bRM\b/g, 'rep max')
+    .replace(/\bRDL\b/g, 'R D L')
+    .replace(/\bGHR\b/g, 'G H R')
+    .replace(/\bME\b/g, 'max effort')
+    .replace(/\bDE\b/g, 'dynamic effort')
+
     // Percentages
     .replace(/(\d+\.\d+)%/g, '$1 percent')
     .replace(/(\d+)%/g, '$1 percent')

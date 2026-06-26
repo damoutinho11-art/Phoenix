@@ -76,7 +76,7 @@ def _generate_budget_insight(summary: dict, month: str) -> str:
 {json.dumps(summary, indent=2)}
 
 Generate a spoken JARVIS budget brief for Sir.
-Maximum 3 sentences. Cover: savings rate vs 25% target,
+Maximum 3 sentences. Be concise. Cover: savings rate vs 25% target,
 top spending category, one specific thing to cut.
 No markdown, no symbols, natural spoken sentences.
 Address the user as Sir."""
