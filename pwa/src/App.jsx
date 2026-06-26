@@ -127,11 +127,21 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#0a0a0a' }}>
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg)' }}>
+      <div className="topbar">
+        <div className="brand">
+          <div className="brand-mark" />
+          <div>
+            <div className="brand-title">PHOENIX</div>
+            <div className="brand-sub">PERSONAL HEURISTIC OPERATING ENGINE</div>
+          </div>
+        </div>
+        <div className="hud-chip">● ONLINE</div>
+      </div>
+      <div key={tab} className="screen-enter" style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {renderContent()}
       </div>
-      <div style={{ position: 'relative', zIndex: 30, flexShrink: 0 }}>
+      <div style={{ flexShrink: 0 }}>
         <BottomNav tab={tab} onTab={switchTab} />
       </div>
     </div>

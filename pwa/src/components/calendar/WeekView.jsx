@@ -1,6 +1,3 @@
-const PURPLE = '#9f7dff'
-const ORANGE = '#ff9f43'
-
 const MOCK_EVENTS = [
   { event_id: 'perf-001', event_type: 'performance', title: 'La Traviata', date: '2026-06-25', time_start: '19:00', time_end: '22:00', location: 'Opera House', role: 'Solo Bassoon' },
   { event_id: 'reh-002', event_type: 'rehearsal', title: 'Dress Rehearsal', date: '2026-06-23', time_start: '18:00', time_end: '22:30', location: 'Opera House', role: 'Solo Bassoon' },
@@ -33,20 +30,13 @@ function getWeekDates() {
   })
 }
 
-function isoDate(d) {
-  return d.toISOString().slice(0, 10)
-}
+function isoDate(d) { return d.toISOString().slice(0, 10) }
 
 function eventTypeColor(type) {
-  if (type === 'performance') return PURPLE
+  if (type === 'performance') return 'var(--accent-calendar)'
   if (type === 'rehearsal') return '#bb9dff'
-  if (type === 'travel') return '#888'
-  return '#777'
-}
-
-function trainingColor(type) {
-  if (type === 'rest') return null
-  return ORANGE
+  if (type === 'travel') return 'var(--muted)'
+  return 'var(--dim)'
 }
 
 export default function WeekView({ onBack, onEvent }) {
@@ -54,73 +44,72 @@ export default function WeekView({ onBack, onEvent }) {
   const today = isoDate(new Date())
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: '#0a0a0a', color: '#fff' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 16px 8px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 20, padding: 0 }}>
-          ←
-        </button>
-        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color: PURPLE, letterSpacing: '0.1em' }}>
-          WEEK VIEW
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 8px', borderBottom: '1px solid var(--line)' }}>
+        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 16, color: 'var(--accent-calendar)', letterSpacing: '.1em' }}>WEEK VIEW</span>
       </div>
 
       {/* Read-only notice */}
-      <div style={{ margin: '0 16px 12px', background: '#0d0014', border: `1px solid ${PURPLE}33`, borderRadius: 6, padding: '7px 12px' }}>
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#6b5da8' }}>
-          Read-only — Plaan sync pending · Mock data displayed
-        </span>
+      <div style={{ margin: '10px 16px', fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(159,125,255,.5)' }}>
+        Read-only — Plaan sync pending · Mock data displayed
       </div>
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: 14, padding: '0 16px 12px' }}>
-        {[[PURPLE, 'PERFORMANCE'], ['#bb9dff', 'REHEARSAL'], [ORANGE, 'TRAINING'], ['#888', 'OTHER']].map(([c, l]) => (
+        {[
+          ['var(--accent-calendar)', 'PERFORMANCE'],
+          ['#bb9dff', 'REHEARSAL'],
+          ['var(--accent-training)', 'TRAINING'],
+          ['var(--muted)', 'OTHER'],
+        ].map(([c, l]) => (
           <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
-            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: '#555' }}>{l}</span>
+            <div style={{ width: 8, height: 8, background: c }} />
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--dim)' }}>{l}</span>
           </div>
         ))}
       </div>
 
       {/* 7-column grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, padding: '0 8px 16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, padding: '0 8px 24px' }}>
         {weekDates.map((d, i) => {
           const ds = isoDate(d)
           const isToday = ds === today
           const dayEvents = MOCK_EVENTS.filter(e => e.date === ds)
           const training = WEEK_TRAINING[i]
-          const tColor = trainingColor(training.type)
+          const hasTraining = training.type !== 'rest'
 
           return (
             <div key={ds} style={{
-              background: isToday ? `${PURPLE}11` : '#0f0f0f',
-              border: `1px solid ${isToday ? PURPLE + '66' : '#1a1a1a'}`,
-              borderRadius: 6, padding: '8px 4px', minHeight: 140,
-              display: 'flex', flexDirection: 'column', gap: 4,
+              background: isToday ? 'rgba(159,125,255,.12)' : 'rgba(1,10,13,.5)',
+              border: `1px solid ${isToday ? 'rgba(159,125,255,.4)' : 'var(--line)'}`,
+              padding: '6px 3px', minHeight: 130,
+              display: 'flex', flexDirection: 'column', gap: 3,
             }}>
               {/* Day label */}
-              <div style={{ textAlign: 'center', marginBottom: 4 }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 9, color: isToday ? PURPLE : '#444', letterSpacing: '0.08em' }}>
+              <div style={{ textAlign: 'center', marginBottom: 3 }}>
+                <div style={{ fontFamily: 'var(--display)', fontSize: 8, color: isToday ? 'var(--accent-calendar)' : 'var(--dim)', letterSpacing: '.06em' }}>
                   {DAY_NAMES[i]}
                 </div>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: isToday ? '#fff' : '#666' }}>
+                <div style={{ fontFamily: 'var(--display)', fontSize: 13, color: isToday ? 'var(--text)' : 'var(--muted)' }}>
                   {d.getDate()}
                 </div>
               </div>
 
               {/* Training block */}
-              {tColor && (
+              {hasTraining && (
                 <div style={{
-                  background: tColor + '22', border: `1px solid ${tColor}44`,
-                  borderRadius: 3, padding: '3px 4px',
+                  background: 'rgba(255,143,46,.15)', border: '1px solid rgba(255,143,46,.3)',
+                  padding: '2px 3px',
                 }}>
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 8, color: tColor, letterSpacing: '0.06em', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 7, color: 'var(--accent-training)', letterSpacing: '.04em', textAlign: 'center' }}>
                     {training.label}
                   </div>
                 </div>
               )}
 
-              {/* Opera event blocks */}
+              {/* Event blocks */}
               {dayEvents.map(ev => {
                 const ec = eventTypeColor(ev.event_type)
                 return (
@@ -128,16 +117,19 @@ export default function WeekView({ onBack, onEvent }) {
                     key={ev.event_id}
                     onClick={() => onEvent(ev)}
                     style={{
-                      background: ec + '22', border: `1px solid ${ec}55`,
-                      borderRadius: 3, padding: '3px 4px', cursor: 'pointer',
+                      background: ev.event_type === 'performance'
+                        ? 'rgba(159,125,255,.13)' : ev.event_type === 'rehearsal'
+                        ? 'rgba(187,157,255,.13)' : 'rgba(132,212,226,.07)',
+                      border: `1px solid ${ev.event_type === 'performance' ? 'rgba(159,125,255,.4)' : ev.event_type === 'rehearsal' ? 'rgba(187,157,255,.4)' : 'rgba(132,212,226,.2)'}`,
+                      padding: '2px 3px', cursor: 'pointer',
                       textAlign: 'left', width: '100%',
                     }}
                   >
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 8, color: ec, letterSpacing: '0.04em', lineHeight: 1.2 }}>
+                    <div style={{ fontFamily: 'var(--display)', fontSize: 7, color: ec, letterSpacing: '.03em', lineHeight: 1.2 }}>
                       {ev.title.length > 10 ? ev.title.slice(0, 9) + '…' : ev.title}
                     </div>
                     {ev.time_start && (
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: ec + 'bb' }}>
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: 'var(--muted)' }}>
                         {ev.time_start}
                       </div>
                     )}
@@ -145,10 +137,9 @@ export default function WeekView({ onBack, onEvent }) {
                 )
               })}
 
-              {/* Rest indicator */}
-              {!tColor && dayEvents.length === 0 && (
+              {!hasTraining && dayEvents.length === 0 && (
                 <div style={{ textAlign: 'center', marginTop: 'auto', paddingBottom: 4 }}>
-                  <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: '#2a2a2a' }}>—</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--line)' }}>—</span>
                 </div>
               )}
             </div>

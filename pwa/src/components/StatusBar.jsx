@@ -1,5 +1,10 @@
 export default function StatusBar({ apiStatus, loading }) {
-  const color = apiStatus === 'ok' ? '#4caf50' : apiStatus === 'error' ? '#ef5350' : '#666'
+  const color = apiStatus === 'ok'
+    ? 'var(--green)'
+    : apiStatus === 'error'
+    ? 'var(--red)'
+    : 'var(--dim)'
+
   const label = loading ? 'thinking…'
     : apiStatus === 'ok' ? 'online'
     : apiStatus === 'error' ? 'unreachable'
@@ -7,33 +12,25 @@ export default function StatusBar({ apiStatus, loading }) {
 
   return (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      padding: '8px 16px',
-      borderBottom: '1px solid #1a1a1a',
-      background: '#0a0a0a',
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '7px 16px',
+      borderBottom: '1px solid var(--line)',
+      background: 'rgba(1,6,8,.9)',
     }}>
       <span style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        fontSize: '11px',
-        letterSpacing: '0.08em',
-        color: '#555',
-        fontWeight: 500,
+        display: 'flex', alignItems: 'center', gap: 6,
+        fontFamily: 'var(--mono)', fontSize: 10,
+        letterSpacing: '.1em', color: 'var(--muted)',
       }}>
         J.A.R.V.I.S.
-        <span style={{ color: '#333' }}>·</span>
-        <span style={{ color }}>
+        <span style={{ color: 'var(--line)' }}>·</span>
+        <span style={{ color, display: 'flex', alignItems: 'center', gap: 4 }}>
           <span style={{
             display: 'inline-block',
-            width: '6px',
-            height: '6px',
+            width: 6, height: 6,
             borderRadius: '50%',
             background: color,
-            marginRight: '4px',
-            verticalAlign: 'middle',
+            boxShadow: `0 0 6px ${color}`,
           }} />
           {label}
         </span>

@@ -1,15 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getNutritionStatus, deleteMeal, getMealHistory, postJarvisChat } from '../../api/client'
 
-const G = '#9dff6f'
-const BG = '#0a0a0a'
-const CARD = '#111'
-const BORDER = '#1a1a1a'
-const TEXT = '#e8e8e8'
-const DIM = '#555'
-const RED = '#ef5350'
-const MONO = "'Share Tech Mono', monospace"
-const DISPLAY = "'Oswald', 'Inter', sans-serif"
+const G = 'var(--accent-nutrition)'
 
 function ProteinRing({ logged, target }) {
   const r = 38, cx = 46, cy = 46
@@ -18,18 +10,18 @@ function ProteinRing({ logged, target }) {
   const dash = circ * pct
   return (
     <svg width="92" height="92" viewBox="0 0 92 92" style={{ flexShrink: 0 }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1a2a1a" strokeWidth="6" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(125,255,207,.12)" strokeWidth="6" />
       <circle
         cx={cx} cy={cy} r={r}
-        fill="none" stroke={G} strokeWidth="6"
+        fill="none" stroke="#9dff6f" strokeWidth="6"
         strokeDasharray={`${dash.toFixed(1)} ${circ.toFixed(1)}`}
         strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`}
       />
-      <text x={cx} y={cy - 4} textAnchor="middle" fill={TEXT} fontSize="15" fontFamily={MONO}>
+      <text x={cx} y={cy - 4} textAnchor="middle" fill="var(--text)" fontSize="15" fontFamily="'Share Tech Mono', monospace">
         {Math.round(logged)}g
       </text>
-      <text x={cx} y={cy + 13} textAnchor="middle" fill={DIM} fontSize="10" fontFamily="Inter,sans-serif">
+      <text x={cx} y={cy + 13} textAnchor="middle" fill="var(--muted)" fontSize="10" fontFamily="'Saira Condensed', sans-serif">
         /{target}g
       </text>
     </svg>
@@ -41,54 +33,30 @@ function MacroRow({ label, logged, target }) {
   const remaining = Math.max(0, target - logged)
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
-        <span style={{ color: DIM, fontFamily: DISPLAY, letterSpacing: '0.06em' }}>{label}</span>
-        <span style={{ color: TEXT, fontFamily: MONO }}>{Math.round(remaining)}g</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 10, color: 'var(--muted)', letterSpacing: '.06em' }}>{label}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text)' }}>{Math.round(remaining)}g</span>
       </div>
-      <div style={{ height: '3px', background: '#1a2a1a', borderRadius: '2px' }}>
-        <div style={{ height: '100%', width: `${(pct * 100).toFixed(1)}%`, background: G, borderRadius: '2px' }} />
+      <div className="bar">
+        <span style={{ width: `${(pct * 100).toFixed(1)}%`, background: '#9dff6f', boxShadow: '0 0 8px #9dff6f' }} />
       </div>
     </div>
   )
 }
 
-function Btn({ onClick, children, primary }) {
-  return (
-    <button onClick={onClick} style={{
-      flex: primary ? 1 : '0 0 auto',
-      padding: '10px 14px',
-      background: primary ? G : 'none',
-      border: `1px solid ${primary ? G : '#2a2a2a'}`,
-      borderRadius: '8px',
-      color: primary ? '#000' : '#777',
-      fontSize: '12px',
-      fontWeight: 600,
-      letterSpacing: '0.08em',
-      fontFamily: DISPLAY,
-      cursor: 'pointer',
-    }}>
-      {children}
-    </button>
-  )
-}
-
 function StatsStrip({ adherencePct, avgProtein }) {
   return (
-    <div style={{ display: 'flex', gap: '12px', padding: '0 16px 16px' }}>
-      <div style={{ flex: 1, background: CARD, border: `1px solid ${BORDER}`, borderRadius: '8px', padding: '10px 14px' }}>
-        <div style={{ fontFamily: MONO, fontSize: '22px', color: adherencePct >= 80 ? G : adherencePct >= 60 ? '#f0b429' : RED }}>
+    <div style={{ display: 'flex', gap: 12, padding: '0 16px 16px' }}>
+      <div className="metric" style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start' }}>
+        <div className="label">14-DAY ADHERENCE</div>
+        <div className="value" style={{ fontSize: 22, color: adherencePct >= 80 ? '#9dff6f' : adherencePct >= 60 ? 'var(--gold)' : 'var(--red)' }}>
           {adherencePct ?? '—'}%
         </div>
-        <div style={{ fontSize: '10px', color: DIM, fontFamily: DISPLAY, letterSpacing: '0.08em', marginTop: '2px' }}>
-          14-DAY ADHERENCE
-        </div>
       </div>
-      <div style={{ flex: 1, background: CARD, border: `1px solid ${BORDER}`, borderRadius: '8px', padding: '10px 14px' }}>
-        <div style={{ fontFamily: MONO, fontSize: '22px', color: TEXT }}>
+      <div className="metric" style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start' }}>
+        <div className="label">AVG PROTEIN</div>
+        <div className="value" style={{ fontSize: 22 }}>
           {avgProtein != null ? `${avgProtein}g` : '—'}
-        </div>
-        <div style={{ fontSize: '10px', color: DIM, fontFamily: DISPLAY, letterSpacing: '0.08em', marginTop: '2px' }}>
-          AVG PROTEIN
         </div>
       </div>
     </div>
@@ -127,31 +95,23 @@ function CalorieChart({ history, targetCalories }) {
 
   return (
     <div style={{ padding: '0 16px 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-        <span style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM }}>7-DAY CALORIES</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+        <span className="panel-title" style={{ marginBottom: 0 }}>7-DAY CALORIES</span>
         {avgDeficit != null && (
-          <span style={{ fontSize: '12px', fontFamily: MONO, color: avgDeficit <= 0 ? G : RED }}>
-            {avgDeficit > 0 ? '+' : ''}{avgDeficit} kcal/day avg
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: avgDeficit <= 0 ? '#9dff6f' : 'var(--red)' }}>
+            {avgDeficit > 0 ? '+' : ''}{avgDeficit} kcal/day
           </span>
         )}
       </div>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
-        {/* Target line */}
-        <line
-          x1={PAD.l} y1={targetY} x2={W - PAD.r} y2={targetY}
-          stroke={G} strokeWidth="1" strokeDasharray="4 3" opacity="0.4"
-        />
-        <text x={W - PAD.r + 2} y={targetY + 4} fontSize="8" fill={G} opacity="0.5" fontFamily={MONO}>TGT</text>
+        <line x1={PAD.l} y1={targetY} x2={W - PAD.r} y2={targetY}
+          stroke="#9dff6f" strokeWidth="1" strokeDasharray="4 3" opacity="0.4" />
+        <text x={W - PAD.r + 2} y={targetY + 4} fontSize="8" fill="#9dff6f" opacity="0.5" fontFamily="'Share Tech Mono', monospace">TGT</text>
 
-        {/* Data line */}
         {points.length >= 2 && (
-          <polyline
-            points={points.join(' ')}
-            fill="none" stroke={G} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
-          />
+          <polyline points={points.join(' ')} fill="none" stroke="#9dff6f" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         )}
 
-        {/* Dots */}
         {days7.map((d, i) => {
           if (!d.has_data) return null
           const cx = PAD.l + i * xStep
@@ -159,25 +119,23 @@ function CalorieChart({ history, targetCalories }) {
           const over = d.total_calories > targetCalories
           return (
             <circle key={d.date} cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="3"
-              fill={over ? RED : G} stroke={BG} strokeWidth="1.5" />
+              fill={over ? 'var(--red)' : '#9dff6f'} stroke="var(--bg)" strokeWidth="1.5" />
           )
         })}
 
-        {/* X axis labels */}
         {days7.map((d, i) => (
           <text key={d.date} x={(PAD.l + i * xStep).toFixed(1)} y={H - 4}
-            textAnchor="middle" fontSize="9" fill={DIM} fontFamily="Inter,sans-serif">
+            textAnchor="middle" fontSize="9" fill="var(--dim)" fontFamily="'Saira Condensed', sans-serif">
             {dayLabels[i]}
           </text>
         ))}
 
-        {/* Y axis labels */}
         {[0, 0.5, 1].map(t => {
           const v = minCal + t * (maxCal - minCal)
           const y = PAD.t + yScale(v)
           return (
             <text key={t} x={PAD.l - 4} y={y + 3}
-              textAnchor="end" fontSize="8" fill={DIM} fontFamily={MONO}>
+              textAnchor="end" fontSize="8" fill="var(--dim)" fontFamily="'Share Tech Mono', monospace">
               {Math.round(v / 100) * 100}
             </text>
           )
@@ -193,32 +151,24 @@ function AdherenceHeatmap({ history }) {
 
   return (
     <div style={{ padding: '0 16px 16px' }}>
-      <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '8px' }}>
-        14-DAY ADHERENCE
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+      <div className="panel-title">14-DAY ADHERENCE</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((l, i) => (
-          <div key={i} style={{ textAlign: 'center', fontSize: '9px', color: DIM, fontFamily: DISPLAY, marginBottom: '2px' }}>{l}</div>
+          <div key={i} style={{ textAlign: 'center', fontFamily: 'var(--display)', fontSize: 9, color: 'var(--dim)', marginBottom: 2 }}>{l}</div>
         ))}
         {days14.map(d => {
-          const bg = !d.has_data ? '#1a1a1a' : d.target_met ? '#1a3a1a' : '#3a1a1a'
-          const dot = !d.has_data ? DIM : d.target_met ? G : RED
+          const bg = !d.has_data ? 'rgba(1,10,13,.46)' : d.target_met ? 'rgba(125,255,207,.12)' : 'rgba(255,109,122,.1)'
+          const dot = !d.has_data ? 'var(--dim)' : d.target_met ? '#9dff6f' : 'var(--red)'
           const dt = new Date(d.date + 'T00:00:00')
-          const label = dt.getDate()
           return (
             <div key={d.date} title={`${d.date}: ${d.has_data ? Math.round(d.total_calories) + ' kcal' : 'no data'}`}
               style={{
-                aspectRatio: '1',
-                background: bg,
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '9px',
-                color: dot,
-                fontFamily: MONO,
+                aspectRatio: '1', background: bg,
+                border: '1px solid rgba(32,216,236,.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--mono)', fontSize: 9, color: dot,
               }}>
-              {label}
+              {dt.getDate()}
             </div>
           )
         })}
@@ -230,13 +180,13 @@ function AdherenceHeatmap({ history }) {
 function TrendRead({ text, loading }) {
   if (!text && !loading) return null
   return (
-    <div style={{ margin: '0 16px 16px', padding: '12px 14px', background: CARD, border: `1px solid ${BORDER}`, borderRadius: '8px' }}>
-      <div style={{ fontSize: '10px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: G, marginBottom: '6px' }}>
+    <div className="glass" style={{ margin: '0 16px 16px', padding: '12px 14px', borderLeft: '3px solid #9dff6f' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: '#9dff6f', letterSpacing: '.1em', marginBottom: 6 }}>
         PHOENIX TREND READ
       </div>
       {loading
-        ? <div style={{ fontSize: '13px', color: DIM, fontFamily: 'Inter,sans-serif' }}>Analysing…</div>
-        : <div style={{ fontSize: '13px', color: TEXT, fontFamily: 'Inter,sans-serif', lineHeight: 1.5 }}>{text}</div>
+        ? <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--dim)' }}>Analysing…</div>
+        : <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{text}</div>
       }
     </div>
   )
@@ -250,23 +200,10 @@ function QuickAskChips({ onQuickAsk }) {
   ]
   return (
     <div style={{ padding: '0 16px 20px' }}>
-      <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '8px' }}>
-        QUICK ASK
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="panel-title">QUICK ASK</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {chips.map(chip => (
-          <button key={chip} onClick={() => onQuickAsk(chip)}
-            style={{
-              background: 'none',
-              border: `1px solid ${BORDER}`,
-              borderRadius: '8px',
-              padding: '10px 14px',
-              color: '#aaa',
-              fontSize: '13px',
-              textAlign: 'left',
-              cursor: 'pointer',
-              fontFamily: 'Inter,sans-serif',
-            }}>
+          <button key={chip} onClick={() => onQuickAsk(chip)} className="action ghost" style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11 }}>
             {chip}
           </button>
         ))}
@@ -293,9 +230,7 @@ export default function NutritionDashboard({ onLogMeal, onRecipes, onWeight, onQ
     setLoading(false)
   }
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
   useEffect(() => {
     if (!historyData) return
@@ -315,73 +250,67 @@ export default function NutritionDashboard({ onLogMeal, onRecipes, onWeight, onQ
   }
 
   if (loading) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: BG, color: DIM }}>
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--dim)', fontFamily: 'var(--mono)' }}>
       Loading…
     </div>
   )
   if (!status) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: BG, color: RED }}>
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--red)', fontFamily: 'var(--mono)' }}>
       Could not reach backend
     </div>
   )
 
-  const { target, logged, remaining_calories, remaining_protein_g, remaining_carbs_g, remaining_fat_g, suggested_recipes, is_training_day, phase, meal_log } = status
+  const { target, logged, remaining_calories, suggested_recipes, is_training_day, phase, meal_log } = status
   const meals = meal_log || []
   const over = remaining_calories < 0
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: BG, color: TEXT, fontFamily: 'Inter,sans-serif' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
       {/* Header */}
-      <div style={{ padding: '14px 16px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${BORDER}` }}>
-        <span style={{ fontFamily: DISPLAY, fontSize: '13px', letterSpacing: '0.12em', color: G, fontWeight: 600 }}>NUTRITION</span>
-        <span style={{ fontSize: '11px', color: DIM }}>{is_training_day ? 'Training' : 'Rest'} · {(phase || '').toUpperCase()}</span>
+      <div style={{ padding: '14px 16px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)' }}>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 13, letterSpacing: '.12em', color: '#9dff6f' }}>NUTRITION</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)' }}>{is_training_day ? 'Training' : 'Rest'} · {(phase || '').toUpperCase()}</span>
       </div>
 
       {/* Stats strip */}
       {historyData && (
-        <div style={{ paddingTop: '14px' }}>
-          <StatsStrip
-            adherencePct={historyData.adherence_pct}
-            avgProtein={historyData.avg_protein_g}
-          />
+        <div style={{ paddingTop: 14 }}>
+          <StatsStrip adherencePct={historyData.adherence_pct} avgProtein={historyData.avg_protein_g} />
         </div>
       )}
 
       {/* Calories hero */}
-      <div style={{ padding: '16px 16px 16px', textAlign: 'center' }}>
-        <div style={{ fontFamily: MONO, fontSize: '72px', lineHeight: 1, color: over ? RED : TEXT }}>
+      <div style={{ padding: '16px 16px', textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 72, lineHeight: 1, color: over ? 'var(--red)' : 'var(--text)', textShadow: `0 0 30px ${over ? 'var(--red)' : '#9dff6f'}` }}>
           {Math.abs(Math.round(remaining_calories))}
         </div>
-        <div style={{ fontSize: '11px', color: DIM, letterSpacing: '0.12em', marginTop: '4px', fontFamily: DISPLAY }}>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 10, color: 'var(--muted)', letterSpacing: '.12em', marginTop: 4 }}>
           KCAL {over ? 'OVER' : 'REMAINING'}
         </div>
       </div>
 
       {/* Ring + macros */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '0 16px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '0 16px 20px' }}>
         <ProteinRing logged={logged?.total_protein_g ?? 0} target={target?.protein_g ?? 165} />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <MacroRow label="CARBS" logged={logged?.total_carbs_g ?? 0} target={target?.carbs_g ?? 260} />
-          <MacroRow label="FAT"   logged={logged?.total_fat_g ?? 0}   target={target?.fat_g ?? 60}  />
-          <div style={{ fontSize: '11px', color: DIM, fontFamily: MONO }}>
+          <MacroRow label="FAT"   logged={logged?.total_fat_g ?? 0}   target={target?.fat_g ?? 60} />
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>
             {Math.round(logged?.total_calories ?? 0)} / {target?.calories} kcal
           </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '8px', padding: '0 16px 20px' }}>
-        <Btn onClick={onLogMeal} primary>+ LOG MEAL</Btn>
-        <Btn onClick={onRecipes}>RECIPES</Btn>
-        <Btn onClick={onWeight}>WEIGHT</Btn>
+      <div style={{ display: 'flex', gap: 8, padding: '0 16px 20px' }}>
+        <button onClick={onLogMeal} className="action safe lg" style={{ flex: 1 }}>+ LOG MEAL</button>
+        <button onClick={onRecipes} className="action ghost">RECIPES</button>
+        <button onClick={onWeight} className="action ghost">WEIGHT</button>
       </div>
 
       {/* Calorie trend chart */}
       {historyData?.history && (
-        <CalorieChart
-          history={historyData.history}
-          targetCalories={historyData.target_calories}
-        />
+        <CalorieChart history={historyData.history} targetCalories={historyData.target_calories} />
       )}
 
       {/* Adherence heatmap */}
@@ -389,31 +318,28 @@ export default function NutritionDashboard({ onLogMeal, onRecipes, onWeight, onQ
         <AdherenceHeatmap history={historyData.history} />
       )}
 
-      {/* JARVIS trend read */}
       <TrendRead text={trendText} loading={trendLoading} />
 
-      {/* Quick-ask chips */}
       {onQuickAsk && <QuickAskChips onQuickAsk={onQuickAsk} />}
 
       {/* Meal log */}
       <div style={{ padding: '0 16px 24px' }}>
-        <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '10px' }}>
-          TODAY · {meals.length} LOGGED
-        </div>
+        <div className="panel-title">TODAY · {meals.length} LOGGED</div>
         {meals.length === 0
-          ? <div style={{ color: DIM, fontSize: '14px', padding: '8px 0' }}>Nothing logged yet.</div>
+          ? <div style={{ color: 'var(--dim)', fontFamily: 'var(--mono)', fontSize: 11, padding: '8px 0' }}>Nothing logged yet.</div>
           : meals.map(m => (
-            <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <div key={m.id} className="row" style={{ marginBottom: 6, alignItems: 'center' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
-                <div style={{ fontSize: '12px', color: DIM, marginTop: '2px', fontFamily: MONO }}>
+                <div className="row-title" style={{ fontSize: 13 }}>{m.name}</div>
+                <div className="row-sub">
                   {Math.round(m.calories)} kcal · {Math.round(m.protein_g)}g P{m.servings !== 1 ? ` · ×${m.servings}` : ''}
                 </div>
               </div>
               <button
                 onClick={() => handleDelete(m.id)}
                 disabled={deleting === m.id}
-                style={{ background: 'none', border: 'none', color: deleting === m.id ? '#333' : '#3a3a3a', fontSize: '18px', cursor: 'pointer', padding: '4px 6px', lineHeight: 1 }}
+                className="action ghost"
+                style={{ padding: '4px 8px', fontSize: 16, color: deleting === m.id ? 'var(--dim)' : 'var(--muted)' }}
               >×</button>
             </div>
           ))
@@ -423,14 +349,13 @@ export default function NutritionDashboard({ onLogMeal, onRecipes, onWeight, onQ
       {/* Suggested */}
       {suggested_recipes?.length > 0 && (
         <div style={{ padding: '0 16px 32px' }}>
-          <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '10px' }}>SUGGESTED NEXT</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="panel-title">SUGGESTED NEXT</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {suggested_recipes.slice(0, 3).map(r => (
-              <button key={r.id} onClick={onLogMeal}
-                style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: '8px', padding: '12px', textAlign: 'left', cursor: 'pointer', width: '100%' }}>
-                <div style={{ fontSize: '14px', color: TEXT }}>{r.name}</div>
-                <div style={{ fontSize: '12px', color: DIM, marginTop: '3px', fontFamily: MONO }}>
-                  {r.calories} kcal · {r.protein_g}g P · <span style={{ color: G }}>{r.category}</span>
+              <button key={r.id} onClick={onLogMeal} className="row" style={{ flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }}>
+                <div className="row-title" style={{ fontSize: 13 }}>{r.name}</div>
+                <div className="row-sub">
+                  {r.calories} kcal · {r.protein_g}g P · <span style={{ color: '#9dff6f' }}>{r.category}</span>
                 </div>
               </button>
             ))}

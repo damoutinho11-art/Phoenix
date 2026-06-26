@@ -44,45 +44,26 @@ export default function Chat({ prefill, onPrefillConsumed }) {
     }
   }
 
+  const canSend = !!input.trim() && !loading
+
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      background: '#0a0a0a',
-      fontFamily: 'Inter, sans-serif',
-      maxWidth: '680px',
-      margin: '0 auto',
-      width: '100%',
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: 'transparent', maxWidth: 680, margin: '0 auto', width: '100%',
     }}>
       <StatusBar apiStatus={apiStatus} loading={loading} />
 
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column' }}>
         {messages.map(msg => (
           <Message key={msg.id} role={msg.role} text={msg.text} />
         ))}
         {loading && messages.length > 0 && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-start',
-            marginBottom: '12px',
-          }}>
-            <div style={{
-              padding: '10px 14px',
-              borderRadius: '2px 12px 12px 12px',
-              background: '#111111',
-              border: '1px solid #222',
-              color: '#444',
-              fontSize: '14px',
-            }}>
-              <span style={{ color: '#c9a84c', fontSize: '10px', letterSpacing: '0.1em', fontWeight: 600, display: 'block', marginBottom: '4px' }}>JARVIS</span>
-              …
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
+            <div className="glass" style={{ padding: '10px 14px', maxWidth: '85%' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.12em', color: 'var(--cyan)', display: 'block', marginBottom: 4 }}>
+                JARVIS
+              </span>
+              <span style={{ color: 'var(--muted)', fontFamily: 'var(--mono)' }}>…</span>
             </div>
           </div>
         )}
@@ -102,11 +83,9 @@ export default function Chat({ prefill, onPrefillConsumed }) {
       <form
         onSubmit={handleSubmit}
         style={{
-          display: 'flex',
-          gap: '8px',
-          padding: '12px 16px',
-          borderTop: '1px solid #1a1a1a',
-          background: '#0a0a0a',
+          display: 'flex', gap: 8, padding: '12px 16px',
+          borderTop: '1px solid var(--line)',
+          background: 'rgba(1,6,8,.9)',
           paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
@@ -114,15 +93,8 @@ export default function Chat({ prefill, onPrefillConsumed }) {
           type="button"
           aria-label="Stop audio"
           onClick={() => stopSpeaking()}
-          style={{
-            background: '#151515',
-            border: '1px solid #2d2818',
-            borderRadius: '8px',
-            padding: '10px 12px',
-            color: '#c9a84c',
-            fontSize: '14px',
-            cursor: 'pointer',
-          }}
+          className="action ghost"
+          style={{ padding: '10px 12px', flexShrink: 0 }}
         >
           ⬛
         </button>
@@ -131,15 +103,8 @@ export default function Chat({ prefill, onPrefillConsumed }) {
           aria-label="Scan barcode"
           onClick={() => setScannerOpen(open => !open)}
           disabled={loading}
-          style={{
-            background: scannerOpen ? '#2d2818' : '#151515',
-            border: '1px solid #2d2818',
-            borderRadius: '8px',
-            padding: '10px 12px',
-            color: '#c9a84c',
-            fontSize: '16px',
-            cursor: loading ? 'default' : 'pointer',
-          }}
+          className={`action${scannerOpen ? '' : ' ghost'}`}
+          style={scannerOpen ? { borderColor: 'var(--cyan)', color: 'var(--cyan)', padding: '10px 12px' } : { padding: '10px 12px' }}
         >
           ▣
         </button>
@@ -147,39 +112,32 @@ export default function Chat({ prefill, onPrefillConsumed }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="portfolio · meals · weight · barcode · status"
+          placeholder="portfolio · meals · weight · status"
           disabled={loading}
           style={{
             flex: 1,
-            background: '#111',
-            border: '1px solid #222',
-            borderRadius: '8px',
+            background: 'rgba(1,10,13,.7)',
+            border: '1px solid var(--line)',
             padding: '10px 14px',
-            color: '#e8e8e8',
-            fontSize: '14px',
-            fontFamily: 'inherit',
-            outline: 'none',
-            caretColor: '#c9a84c',
+            color: 'var(--text)', fontSize: 14,
+            fontFamily: 'var(--body)', outline: 'none',
+            caretColor: 'var(--cyan)',
           }}
         />
         <button
           type="submit"
-          disabled={!input.trim() || loading}
+          disabled={!canSend}
           style={{
-            background: input.trim() && !loading ? '#c9a84c' : '#1a1a1a',
-            border: 'none',
-            borderRadius: '8px',
+            background: canSend ? 'var(--cyan)' : 'rgba(1,10,13,.7)',
+            border: `1px solid ${canSend ? 'var(--cyan)' : 'var(--line)'}`,
             padding: '10px 18px',
-            color: input.trim() && !loading ? '#0a0a0a' : '#333',
-            fontSize: '14px',
-            fontWeight: 600,
-            fontFamily: 'inherit',
-            cursor: input.trim() && !loading ? 'pointer' : 'default',
-            transition: 'background 0.15s, color 0.15s',
-            letterSpacing: '0.04em',
+            color: canSend ? '#010608' : 'var(--dim)',
+            fontSize: 12, fontFamily: 'var(--display)',
+            letterSpacing: '.08em', cursor: canSend ? 'pointer' : 'default',
+            transition: 'background .15s, color .15s',
           }}
         >
-          Send
+          SEND
         </button>
       </form>
     </div>

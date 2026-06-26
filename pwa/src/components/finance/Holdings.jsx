@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { getFinanceHoldings, postJarvisChat } from '../../api/client'
 
-const CYAN = '#20d8ec'
-
 function statusColor(s) {
-  if (s === 'within_band') return '#9dff6f'
-  if (s === 'below_min') return '#ffb347'
-  return '#ff6b6b'
+  if (s === 'within_band') return 'var(--green)'
+  if (s === 'below_min') return 'var(--gold)'
+  return 'var(--red)'
+}
+
+function statusVariant(s) {
+  if (s === 'within_band') return 'safe'
+  if (s === 'below_min') return 'warn'
+  return 'danger'
 }
 
 function statusLabel(s) {
@@ -29,58 +33,54 @@ function Drawer({ holding, onClose, onQuickAsk }) {
   return (
     <>
       <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, background: '#000a', zIndex: 10,
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 10, backdropFilter: 'blur(8px)',
       }} />
-      <div style={{
+      <div className="glass" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 11,
-        background: '#111', borderRadius: '12px 12px 0 0', padding: 20,
-        borderTop: `2px solid ${CYAN}`,
+        padding: 20, borderTop: '2px solid var(--cyan)', borderRadius: 0,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, color: '#fff' }}>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 20, color: '#fff' }}>
               {holding.display_name}
             </div>
             {!holding.is_legacy && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#555', marginTop: 2 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', marginTop: 2 }}>
                 {holding.sleeve} · {holding.route}
               </div>
             )}
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 20 }}>✕</button>
+          <button onClick={onClose} className="action ghost" style={{ padding: '6px 10px' }}>✕</button>
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-          <div style={{ flex: 1, background: '#0a0a0a', borderRadius: 6, padding: 12 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#555', marginBottom: 4 }}>VALUE</div>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: '#fff' }}>€{holding.amount.toFixed(2)}</div>
+          <div className="metric" style={{ flex: 1 }}>
+            <div><div className="label">VALUE</div></div>
+            <div className="value" style={{ fontSize: 20 }}>€{holding.amount.toFixed(2)}</div>
           </div>
           {!holding.is_legacy && (
-            <div style={{ flex: 1, background: '#0a0a0a', borderRadius: 6, padding: 12 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#555', marginBottom: 4 }}>WEIGHT</div>
-              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: statusColor(holding.band_status) }}>
+            <div className="metric" style={{ flex: 1 }}>
+              <div><div className="label">WEIGHT</div></div>
+              <div className="value" style={{ fontSize: 20, color: statusColor(holding.band_status) }}>
                 {(holding.current_weight * 100).toFixed(1)}%
               </div>
             </div>
           )}
         </div>
 
-        <div style={{ background: '#0a0a0a', borderRadius: 6, padding: 12, borderLeft: `3px solid ${CYAN}`, marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 10, color: CYAN, letterSpacing: '0.1em', marginBottom: 6 }}>
+        <div className="glass" style={{ padding: 12, borderLeft: '3px solid var(--cyan)', marginBottom: 14 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--cyan)', letterSpacing: '.1em', marginBottom: 6 }}>
             JARVIS NOTE
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: loading ? '#444' : '#ccc', lineHeight: 1.5 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: loading ? 'var(--dim)' : 'var(--text)', lineHeight: 1.5 }}>
             {loading ? 'Analysing…' : text}
           </div>
         </div>
 
         <button
           onClick={() => { onQuickAsk(`Tell me more about my ${holding.display_name} position`); onClose() }}
-          style={{
-            width: '100%', background: '#0a2226', border: `1px solid ${CYAN}44`, borderRadius: 6,
-            padding: '12px 0', color: CYAN, fontFamily: "'Oswald', sans-serif",
-            fontSize: 13, letterSpacing: '0.1em', cursor: 'pointer',
-          }}
+          className="action"
+          style={{ width: '100%', padding: '12px 0', fontSize: 10, letterSpacing: '.14em' }}
         >
           ASK JARVIS MORE
         </button>
@@ -91,37 +91,30 @@ function Drawer({ holding, onClose, onQuickAsk }) {
 
 function HoldingRow({ holding, onClick }) {
   const isLegacy = holding.is_legacy
-  const color = isLegacy ? '#555' : statusColor(holding.band_status)
+  const color = isLegacy ? 'var(--dim)' : statusColor(holding.band_status)
+  const borderColor = isLegacy ? 'rgba(32,216,236,.05)' : color
 
   return (
-    <button onClick={onClick} style={{
-      width: '100%', background: '#111', border: 'none', borderRadius: 8,
-      padding: '12px 14px', marginBottom: 8, cursor: 'pointer', textAlign: 'left',
-      borderLeft: `3px solid ${isLegacy ? '#2a2a2a' : color}`,
+    <button onClick={onClick} className="row" style={{
+      width: '100%', marginBottom: 6, textAlign: 'left',
+      borderLeft: `3px solid ${borderColor}`, cursor: 'pointer',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: '#fff' }}>
-            {holding.display_name}
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#555', marginTop: 2 }}>
-            {isLegacy ? `maps to ${holding.maps_to}` : holding.route}
-            {isLegacy && <span style={{ marginLeft: 8, color: '#ffb34799', fontSize: 9 }}>LEGACY</span>}
-          </div>
+      <div className="row-main" style={{ flex: 1 }}>
+        <div className="row-title">{holding.display_name}</div>
+        <div className="row-sub">
+          {isLegacy ? `maps to ${holding.maps_to}` : holding.route}
+          {isLegacy && <span style={{ marginLeft: 8, color: 'var(--gold)', opacity: .6, fontSize: 8 }}>LEGACY</span>}
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: '#fff' }}>
-            €{holding.amount.toFixed(2)}
-          </div>
-          {!isLegacy && (
-            <div style={{
-              fontFamily: "'Share Tech Mono', monospace", fontSize: 9,
-              color, marginTop: 2, letterSpacing: '0.06em',
-            }}>
-              {statusLabel(holding.band_status)}
-            </div>
-          )}
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--cyan-br)' }}>
+          €{holding.amount.toFixed(2)}
         </div>
+        {!isLegacy && (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color, marginTop: 2, letterSpacing: '.06em' }}>
+            {statusLabel(holding.band_status)}
+          </div>
+        )}
       </div>
     </button>
   )
@@ -153,35 +146,28 @@ export default function Holdings({ onBack, onQuickAsk }) {
   const selectedHolding = selected ? allHoldings.find(h => h.key === selected) : null
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: '#0a0a0a', color: '#fff' }}>
+    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: 'transparent', color: 'var(--text)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 20, padding: 0 }}>←</button>
-        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color: CYAN, letterSpacing: '0.1em' }}>HOLDINGS</span>
+        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 18, color: 'var(--cyan)', letterSpacing: '.1em' }}>HOLDINGS</span>
       </div>
 
       {/* Prices note */}
-      <div style={{ background: '#0d0d00', border: '1px solid #ffb34722', borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#ffb34799' }}>
-          Prices not live — update portfolio_state.json for current values
-        </span>
+      <div className="badge warn" style={{ display: 'block', marginBottom: 14, padding: '8px 12px' }}>
+        Prices not live — refresh from dashboard for current values
       </div>
 
       {/* Sort tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {[['BY VALUE', 'value'], ['BY STATUS', 'status']].map(([label, key]) => (
-          <button key={key} onClick={() => setSortBy(key)} style={{
-            background: sortBy === key ? CYAN + '22' : '#111',
-            border: `1px solid ${sortBy === key ? CYAN : '#222'}`,
-            borderRadius: 6, padding: '7px 14px', color: sortBy === key ? CYAN : '#555',
-            fontFamily: "'Oswald', sans-serif", fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',
-          }}>
+          <button key={key} onClick={() => setSortBy(key)} className={`action${sortBy === key ? '' : ' ghost'}`}>
             {label}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div style={{ color: '#444', fontFamily: "'Share Tech Mono', monospace", textAlign: 'center', paddingTop: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--dim)', fontFamily: 'var(--mono)', textAlign: 'center', paddingTop: 40 }}>Loading…</div>
       ) : (
         sorted.map(h => (
           <HoldingRow key={h.key} holding={h} onClick={() => setSelected(h.key)} />

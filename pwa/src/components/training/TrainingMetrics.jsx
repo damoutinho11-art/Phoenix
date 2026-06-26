@@ -1,22 +1,33 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTrainingHistory, getTrainingStatus, logJump, postJarvisChat } from '../../api/client'
 
-const BG = '#0a0a0a'
-const CARD = '#111'
-const BORDER = '#1a1a1a'
-const TEXT = '#e8e8e8'
-const DIM = '#555'
-const ORANGE = '#ff9f43'
-const CYAN = '#20d8ec'
-const RED = '#ef5350'
-const MONO = "'Share Tech Mono', monospace"
-const DISPLAY = "'Oswald', 'Inter', sans-serif"
-
 const CM_PER_INCH = 2.54
 const TARGET_INCHES = 32
 
 function inchesToCm(inches) { return +(inches * CM_PER_INCH).toFixed(1) }
 function cmToInches(cm) { return +(cm / CM_PER_INCH).toFixed(1) }
+
+const _BORDER_COLOR = {
+  high_intensity: 'var(--accent-training)',
+  jump: 'var(--cyan)',
+  general: 'rgba(32,216,236,.12)',
+  iso_only: 'rgba(32,216,236,.12)',
+  rest: 'rgba(32,216,236,.08)',
+  peak: 'var(--cyan)',
+  attempt: 'var(--accent-training)',
+  deload: 'rgba(32,216,236,.08)',
+}
+
+const _BADGE_LABEL = {
+  high_intensity: 'LOWER',
+  general: 'UPPER',
+  jump: 'JUMP',
+  iso_only: 'ISO',
+  rest: 'REST',
+  peak: 'PEAK',
+  attempt: 'ATTEMPT',
+  deload: 'DELOAD',
+}
 
 // ─── Jump Trend Chart ────────────────────────────────────────────────────────
 
@@ -24,10 +35,12 @@ function JumpChart({ progression, onLog }) {
   if (!progression || progression.length === 0) {
     return (
       <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: '14px', color: DIM, marginBottom: '20px', lineHeight: 1.6 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--dim)', marginBottom: 20, lineHeight: 1.6 }}>
           No jumps logged yet —<br />tap + to add your first measurement
         </div>
-        <button onClick={onLog} style={logBtnStyle(true)}>+ LOG JUMP</button>
+        <button onClick={onLog} className="action lg" style={{ background: 'rgba(255,143,46,.12)', borderColor: 'var(--accent-training)', color: 'var(--accent-training)' }}>
+          + LOG JUMP
+        </button>
       </div>
     )
   }
@@ -68,122 +81,87 @@ function JumpChart({ progression, onLog }) {
 
   return (
     <div style={{ padding: '0 16px 8px' }}>
-      {/* Best numbers */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
         {bestApproach != null && (
           <div>
-            <div style={{ fontFamily: MONO, fontSize: '38px', color: ORANGE, lineHeight: 1 }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 38, color: 'var(--accent-training)', lineHeight: 1 }}>
               {bestApproach}"
             </div>
-            <div style={{ fontSize: '10px', color: DIM, fontFamily: DISPLAY, letterSpacing: '0.08em' }}>BEST APPROACH</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.08em' }}>BEST APPROACH</div>
           </div>
         )}
         {bestStanding != null && (
           <div>
-            <div style={{ fontFamily: MONO, fontSize: '38px', color: TEXT, lineHeight: 1 }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 38, color: 'var(--text)', lineHeight: 1 }}>
               {bestStanding}"
             </div>
-            <div style={{ fontSize: '10px', color: DIM, fontFamily: DISPLAY, letterSpacing: '0.08em' }}>BEST STANDING</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.08em' }}>BEST STANDING</div>
           </div>
         )}
         <div style={{ marginLeft: 'auto', alignSelf: 'center' }}>
-          <button onClick={onLog} style={logBtnStyle(false)}>+</button>
+          <button onClick={onLog} className="action" style={{ borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.08)', fontSize: 16, padding: '6px 12px' }}>+</button>
         </div>
       </div>
 
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
-        {/* Target line */}
         <line x1={PAD.l} y1={targetY} x2={W - PAD.r} y2={targetY}
-          stroke={CYAN} strokeWidth="1" strokeDasharray="5 3" opacity="0.6" />
-        <text x={W - PAD.r + 2} y={targetY + 4} fontSize="8" fill={CYAN} opacity="0.7" fontFamily={MONO}>32"</text>
+          stroke="var(--cyan)" strokeWidth="1" strokeDasharray="5 3" opacity="0.6" />
+        <text x={W - PAD.r + 2} y={targetY + 4} fontSize="8" fill="var(--cyan)" opacity="0.7" fontFamily="'Share Tech Mono', monospace">32"</text>
 
-        {/* Standing line (secondary) */}
         {standingLine.length >= 2 && (
-          <polyline points={standingLine.join(' ')} fill="none" stroke={TEXT} strokeWidth="1.5"
+          <polyline points={standingLine.join(' ')} fill="none" stroke="var(--text)" strokeWidth="1.5"
             strokeLinejoin="round" strokeLinecap="round" opacity="0.4" strokeDasharray="4 2" />
         )}
 
-        {/* Approach line (primary) */}
         {approachLine.length >= 2 && (
-          <polyline points={approachLine.join(' ')} fill="none" stroke={ORANGE} strokeWidth="2"
+          <polyline points={approachLine.join(' ')} fill="none" stroke="#ff8f2e" strokeWidth="2"
             strokeLinejoin="round" strokeLinecap="round" />
         )}
 
-        {/* Dots */}
         {progression.map((p, i) => {
           const x = PAD.l + i * xStep
           return (
             <g key={p.date}>
               {p.approach && (
                 <circle cx={x.toFixed(1)} cy={(PAD.t + yScale(cmToInches(p.approach))).toFixed(1)} r="3.5"
-                  fill={ORANGE} stroke={BG} strokeWidth="1.5" />
+                  fill="#ff8f2e" stroke="var(--bg)" strokeWidth="1.5" />
               )}
               {p.standing && (
                 <circle cx={x.toFixed(1)} cy={(PAD.t + yScale(cmToInches(p.standing))).toFixed(1)} r="2.5"
-                  fill={TEXT} stroke={BG} strokeWidth="1" opacity="0.5" />
+                  fill="var(--text)" stroke="var(--bg)" strokeWidth="1" opacity="0.5" />
               )}
             </g>
           )
         })}
 
-        {/* X axis labels */}
         {progression.map((p, i) => (
           <text key={p.date} x={(PAD.l + i * xStep).toFixed(1)} y={H - 4}
-            textAnchor="middle" fontSize="8" fill={DIM} fontFamily="Inter,sans-serif">
+            textAnchor="middle" fontSize="8" fill="var(--dim)" fontFamily="'Saira Condensed', sans-serif">
             {xLabels[i]}
           </text>
         ))}
 
-        {/* Y axis labels */}
         {[0, 0.5, 1].map(t => {
           const v = yMin + t * yRange
           const y = PAD.t + yScale(v)
           return (
-            <text key={t} x={PAD.l - 4} y={y + 3} textAnchor="end" fontSize="8" fill={DIM} fontFamily={MONO}>
+            <text key={t} x={PAD.l - 4} y={y + 3} textAnchor="end" fontSize="8" fill="var(--dim)" fontFamily="'Share Tech Mono', monospace">
               {Math.round(v)}"
             </text>
           )
         })}
       </svg>
 
-      {/* Legend */}
-      <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '2px', background: ORANGE }} />
-          <span style={{ fontSize: '9px', color: DIM, fontFamily: DISPLAY }}>APPROACH</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '2px', background: TEXT, opacity: 0.4 }} />
-          <span style={{ fontSize: '9px', color: DIM, fontFamily: DISPLAY }}>STANDING</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '1px', background: CYAN, opacity: 0.6 }} />
-          <span style={{ fontSize: '9px', color: DIM, fontFamily: DISPLAY }}>32" TARGET</span>
-        </div>
+      <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
+        {[['#ff8f2e', 'APPROACH'], ['rgba(201,246,255,.4)', 'STANDING'], ['var(--cyan)', '32" TARGET']].map(([c, l]) => (
+          <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 12, height: 2, background: c }} />
+            <span style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--muted)' }}>{l}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
-}
-
-function logBtnStyle(large) {
-  return {
-    background: ORANGE,
-    border: 'none',
-    borderRadius: large ? '8px' : '50%',
-    width: large ? 'auto' : '36px',
-    height: large ? 'auto' : '36px',
-    padding: large ? '10px 24px' : '0',
-    color: '#000',
-    fontSize: large ? '13px' : '20px',
-    fontWeight: 700,
-    fontFamily: DISPLAY,
-    letterSpacing: large ? '0.08em' : '0',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    lineHeight: 1,
-  }
 }
 
 // ─── Log Jump Modal ───────────────────────────────────────────────────────────
@@ -213,79 +191,49 @@ function JumpModal({ onClose, onSuccess }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.88)', zIndex: 100,
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
     }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div style={{
-        background: '#131313', border: `1px solid ${BORDER}`, borderRadius: '16px 16px 0 0',
-        padding: '24px 20px 36px', width: '100%', maxWidth: '480px',
-      }}>
-        <div style={{ fontSize: '12px', fontFamily: DISPLAY, letterSpacing: '0.12em', color: ORANGE, marginBottom: '20px' }}>
+      <div className="glass" style={{ padding: '24px 20px 36px', width: '100%', maxWidth: 480, borderRadius: 0 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent-training)', letterSpacing: '.12em', marginBottom: 20 }}>
           LOG JUMP
         </div>
 
-        {/* Type toggle */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           {['approach', 'standing'].map(t => (
-            <button key={t} onClick={() => setJumpType(t)} style={{
-              flex: 1, padding: '10px', border: `1px solid ${jumpType === t ? ORANGE : BORDER}`,
-              background: jumpType === t ? '#1a1200' : 'none', borderRadius: '8px',
-              color: jumpType === t ? ORANGE : DIM, fontSize: '12px', fontWeight: 600,
-              fontFamily: DISPLAY, letterSpacing: '0.08em', cursor: 'pointer',
-            }}>
+            <button key={t} onClick={() => setJumpType(t)} className={`action${jumpType === t ? '' : ' ghost'}`} style={{ flex: 1, justifyContent: 'center', ...(jumpType === t ? { borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.1)' } : {}) }}>
               {t.toUpperCase()}
             </button>
           ))}
         </div>
 
-        {/* Height stepper */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ fontSize: '10px', color: DIM, fontFamily: DISPLAY, letterSpacing: '0.1em', marginBottom: '12px' }}>
-            HEIGHT
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
-            <button onClick={() => adjust(-0.5)} style={stepperBtn()}>−</button>
-            <div style={{ fontFamily: MONO, fontSize: '52px', color: TEXT, minWidth: '100px', textAlign: 'center', lineHeight: 1 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.1em', marginBottom: 12 }}>HEIGHT</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+            <button onClick={() => adjust(-0.5)} className="action ghost" style={{ width: 52, height: 52, fontSize: 24, color: 'var(--accent-training)' }}>−</button>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 52, color: 'var(--text)', minWidth: 100, textAlign: 'center', lineHeight: 1 }}>
               {inches}"
             </div>
-            <button onClick={() => adjust(0.5)} style={stepperBtn()}>+</button>
+            <button onClick={() => adjust(0.5)} className="action ghost" style={{ width: 52, height: 52, fontSize: 24, color: 'var(--accent-training)' }}>+</button>
           </div>
-          <div style={{ fontSize: '11px', color: DIM, fontFamily: MONO, marginTop: '8px' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: 8 }}>
             {inchesToCm(inches)} cm · target: {TARGET_INCHES}"
           </div>
         </div>
 
-        {error && <div style={{ fontSize: '12px', color: RED, marginBottom: '12px', textAlign: 'center' }}>{error}</div>}
+        {error && <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--red)', marginBottom: 12, textAlign: 'center' }}>{error}</div>}
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={onClose} style={{
-            flex: 1, padding: '13px', background: 'none', border: `1px solid ${BORDER}`,
-            borderRadius: '8px', color: DIM, fontSize: '13px', fontFamily: DISPLAY,
-            letterSpacing: '0.06em', cursor: 'pointer',
-          }}>CANCEL</button>
-          <button onClick={handleSubmit} disabled={submitting} style={{
-            flex: 2, padding: '13px', background: submitting ? '#332200' : ORANGE,
-            border: 'none', borderRadius: '8px', color: submitting ? DIM : '#000',
-            fontSize: '13px', fontWeight: 700, fontFamily: DISPLAY, letterSpacing: '0.06em',
-            cursor: submitting ? 'default' : 'pointer',
-          }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} className="action ghost" style={{ flex: 1 }}>CANCEL</button>
+          <button onClick={handleSubmit} disabled={submitting} className={`action lg${submitting ? ' ghost' : ''}`} style={{ flex: 2, justifyContent: 'center', ...(!submitting ? { borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.1)' } : {}) }}>
             {submitting ? 'LOGGING…' : 'LOG'}
           </button>
         </div>
       </div>
     </div>
   )
-}
-
-function stepperBtn() {
-  return {
-    width: '52px', height: '52px', borderRadius: '50%', background: '#1a1a1a',
-    border: `1px solid #2a2a2a`, color: ORANGE, fontSize: '26px',
-    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    lineHeight: 1,
-  }
 }
 
 // ─── PR Tracker ───────────────────────────────────────────────────────────────
@@ -317,26 +265,17 @@ function findPR(sessions, aliases) {
 function PRTracker({ sessions }) {
   return (
     <div style={{ padding: '0 16px 16px' }}>
-      <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '8px' }}>
-        PERSONAL RECORDS
-      </div>
-      <div style={{ display: 'flex', gap: '8px' }}>
+      <div className="panel-title">PERSONAL RECORDS</div>
+      <div style={{ display: 'flex', gap: 8 }}>
         {PR_EXERCISES.map(({ key, label, aliases }) => {
           const { kg, reps } = findPR(sessions, aliases)
           return (
-            <div key={key} style={{
-              flex: 1, background: CARD, border: `1px solid ${BORDER}`,
-              borderRadius: '8px', padding: '10px 8px', textAlign: 'center',
-            }}>
-              <div style={{ fontFamily: MONO, fontSize: '18px', color: kg != null ? ORANGE : DIM }}>
+            <div key={key} className="metric" style={{ flex: 1, flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <div className="value" style={{ fontSize: 18, color: kg != null ? 'var(--accent-training)' : 'var(--dim)' }}>
                 {kg != null ? `${kg}kg` : '—'}
               </div>
-              {reps != null && (
-                <div style={{ fontSize: '10px', color: DIM, fontFamily: MONO, marginBottom: '2px' }}>×{reps}</div>
-              )}
-              <div style={{ fontSize: '9px', color: DIM, fontFamily: DISPLAY, letterSpacing: '0.06em', marginTop: '4px' }}>
-                {label}
-              </div>
+              {reps != null && <div className="label" style={{ marginBottom: 2 }}>×{reps}</div>}
+              <div className="label" style={{ marginTop: 4 }}>{label}</div>
             </div>
           )
         })}
@@ -353,7 +292,6 @@ function calcStreak(sessions) {
   let streak = 0
   let d = new Date()
   d.setHours(0, 0, 0, 0)
-  // allow today even if not yet logged
   const todayStr = d.toISOString().slice(0, 10)
   if (!dates.has(todayStr)) d.setDate(d.getDate() - 1)
   while (true) {
@@ -370,7 +308,6 @@ function calcStreak(sessions) {
 function weekStart(d) {
   const dt = new Date(d + 'T00:00:00')
   const day = dt.getDay()
-  // Monday-based week
   const diff = (day === 0 ? -6 : 1 - day)
   dt.setDate(dt.getDate() + diff)
   return dt.toISOString().slice(0, 10)
@@ -383,7 +320,6 @@ function buildWeeklyVolume(sessions) {
     const sets = (s.exercises || []).reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0)
     byWeek[wk] = (byWeek[wk] ?? 0) + sets
   }
-  // Last 6 weeks
   const weeks = []
   const now = new Date()
   for (let i = 5; i >= 0; i--) {
@@ -403,22 +339,20 @@ function VolumeChart({ sessions }) {
 
   return (
     <div style={{ padding: '0 16px 16px' }}>
-      <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '8px' }}>
-        WEEKLY VOLUME (SETS)
-      </div>
-      <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', height: `${BAR_H + 20}px` }}>
+      <div className="panel-title">WEEKLY VOLUME (SETS)</div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: `${BAR_H + 20}px` }}>
         {weeks.map(w => {
           const h = w.sets === 0 ? 2 : Math.max(4, (w.sets / maxSets) * BAR_H)
           return (
-            <div key={w.wk} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-              <div style={{ fontSize: '9px', color: w.sets > 0 ? ORANGE : DIM, fontFamily: MONO }}>{w.sets || ''}</div>
+            <div key={w.wk} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: w.sets > 0 ? 'var(--accent-training)' : 'var(--dim)' }}>{w.sets || ''}</div>
               <div style={{
                 width: '100%', height: `${h}px`,
-                background: w.sets > 0 ? ORANGE : '#1a1a1a',
+                background: w.sets > 0 ? 'var(--accent-training)' : 'rgba(32,216,236,.1)',
                 borderRadius: '3px 3px 0 0',
-                opacity: w.sets > 0 ? 1 : 0.4,
+                boxShadow: w.sets > 0 ? '0 0 8px var(--accent-training)' : 'none',
               }} />
-              <div style={{ fontSize: '9px', color: DIM, fontFamily: DISPLAY }}>{w.label}</div>
+              <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--dim)' }}>{w.label}</div>
             </div>
           )
         })}
@@ -432,13 +366,13 @@ function VolumeChart({ sessions }) {
 function JarvisInsight({ text, loading }) {
   if (!text && !loading) return null
   return (
-    <div style={{ margin: '0 16px 16px', padding: '12px 14px', background: CARD, border: `1px solid ${BORDER}`, borderRadius: '8px' }}>
-      <div style={{ fontSize: '10px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: CYAN, marginBottom: '6px' }}>
+    <div className="glass" style={{ margin: '0 16px 16px', padding: '12px 14px', borderLeft: '3px solid var(--cyan)' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--cyan)', letterSpacing: '.1em', marginBottom: 6 }}>
         JARVIS ASSESSMENT
       </div>
       {loading
-        ? <div style={{ fontSize: '13px', color: DIM }}>Analysing…</div>
-        : <div style={{ fontSize: '13px', color: TEXT, lineHeight: 1.5 }}>{text}</div>
+        ? <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--dim)' }}>Analysing…</div>
+        : <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{text}</div>
       }
     </div>
   )
@@ -449,14 +383,15 @@ function JarvisInsight({ text, loading }) {
 function RecoveryStrip({ fatigueWarning }) {
   const good = !fatigueWarning
   return (
-    <div style={{ margin: '12px 16px 0', padding: '10px 14px', background: CARD, border: `1px solid ${BORDER}`, borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <div className="row" style={{ margin: '12px 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{
-        width: '8px', height: '8px', borderRadius: '50%',
-        background: good ? '#9dff6f' : '#f0b429', flexShrink: 0,
+        width: 8, height: 8, borderRadius: '50%',
+        background: good ? 'var(--green)' : 'var(--gold)', flexShrink: 0,
+        boxShadow: `0 0 8px ${good ? 'var(--green)' : 'var(--gold)'}`,
       }} />
       <div>
-        <div style={{ fontSize: '10px', fontFamily: DISPLAY, letterSpacing: '0.08em', color: DIM, marginBottom: '2px' }}>RECOVERY</div>
-        <div style={{ fontSize: '12px', color: good ? '#9dff6f' : '#f0b429', fontFamily: 'Inter,sans-serif' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted)', letterSpacing: '.08em', marginBottom: 2 }}>RECOVERY</div>
+        <div style={{ fontFamily: 'var(--body)', fontSize: 12, color: good ? 'var(--green)' : 'var(--gold)' }}>
           {good ? 'Good — CNS fresh, full output expected' : fatigueWarning}
         </div>
       </div>
@@ -466,98 +401,55 @@ function RecoveryStrip({ fatigueWarning }) {
 
 // ─── Today's Session Card ─────────────────────────────────────────────────────
 
-const _BORDER_COLOR = {
-  high_intensity: ORANGE,
-  jump: CYAN,
-  general: '#2a2a2a',
-  iso_only: '#2a2a2a',
-  rest: '#2a2a2a',
-  peak: CYAN,
-  attempt: ORANGE,
-  deload: '#2a2a2a',
-}
-
-const _BADGE_LABEL = {
-  high_intensity: 'LOWER',
-  general: 'UPPER',
-  jump: 'JUMP',
-  iso_only: 'ISO',
-  rest: 'REST',
-  peak: 'PEAK',
-  attempt: 'ATTEMPT',
-  deload: 'DELOAD',
-}
-
 function TodayCard({ todaySession, dunkGoal, onStartSession }) {
   if (!todaySession) return null
 
   const stype = todaySession.session_type || 'general'
   const ww = todaySession.working_weights
   const exercises = todaySession.exercises || []
-  const accentColor = _BORDER_COLOR[stype] || '#2a2a2a'
+  const accentColor = _BORDER_COLOR[stype] || 'rgba(32,216,236,.12)'
   const badgeLabel = _BADGE_LABEL[stype] || stype.toUpperCase()
   const isActive = !['rest', 'deload'].includes(stype)
 
   return (
-    <div style={{
+    <div className="glass" style={{
       margin: '14px 16px 0',
-      background: CARD,
-      border: `1px solid ${BORDER}`,
       borderLeft: `3px solid ${accentColor}`,
-      borderRadius: '8px',
-      overflow: 'hidden',
     }}>
-      {/* Header row */}
-      <div style={{ padding: '12px 14px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ fontSize: '10px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: ORANGE, fontWeight: 600 }}>
-          TODAY
-        </div>
-        <div style={{
-          fontSize: '9px', fontFamily: DISPLAY, letterSpacing: '0.08em',
-          color: accentColor === '#2a2a2a' ? DIM : accentColor,
-          background: accentColor === '#2a2a2a' ? '#1a1a1a' : `${accentColor}18`,
-          border: `1px solid ${accentColor === '#2a2a2a' ? '#2a2a2a' : accentColor}44`,
-          borderRadius: '3px', padding: '2px 6px',
-        }}>
-          {badgeLabel}
-        </div>
-        <div style={{ marginLeft: 'auto', fontSize: '11px', color: DIM }}>
+      <div style={{ padding: '12px 14px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--accent-training)', letterSpacing: '.1em' }}>TODAY</div>
+        <span className="badge" style={{ color: accentColor, borderColor: accentColor + '44', background: accentColor + '18' }}>{badgeLabel}</span>
+        <div style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)' }}>
           {dunkGoal?.days_to_attempt}d to attempt
         </div>
       </div>
 
-      {/* Session name */}
-      <div style={{ padding: '0 14px 8px', fontSize: '16px', color: TEXT, fontFamily: DISPLAY, letterSpacing: '0.06em', fontWeight: 600 }}>
+      <div style={{ padding: '0 14px 8px', fontFamily: 'var(--display)', fontSize: 16, color: 'var(--text)', letterSpacing: '.06em' }}>
         {todaySession.display_name || stype.toUpperCase()}
       </div>
 
-      {/* Intensity line — only for high_intensity */}
       {ww && (
-        <div style={{ padding: '0 14px 10px', fontSize: '11px', color: ORANGE, fontFamily: MONO }}>
+        <div style={{ padding: '0 14px 10px', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--accent-training)' }}>
           {ww.intensity_pct}% · {ww.sets}×{ww.reps}
         </div>
       )}
 
-      {/* Exercise rows */}
       {exercises.length > 0 && (
-        <div style={{ borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ borderTop: '1px solid var(--line)' }}>
           {exercises.map((ex, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            <div key={i} className="row" style={{
               padding: '9px 14px',
-              borderBottom: i < exercises.length - 1 ? `1px solid ${BORDER}` : 'none',
+              borderBottom: i < exercises.length - 1 ? '1px solid var(--line)' : 'none',
+              border: 'none', borderRadius: 0,
             }}>
-              <div style={{ fontSize: '13px', color: TEXT }}>{ex.name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+              <div className="row-title" style={{ fontSize: 13 }}>{ex.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 {ex.sets_reps && (
-                  <span style={{ fontSize: '11px', color: DIM, fontFamily: MONO }}>{ex.sets_reps}</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>{ex.sets_reps}</span>
                 )}
                 <span style={{
-                  fontSize: '11px', fontFamily: MONO,
-                  color: ex.label?.includes('kg') ? ORANGE : DIM,
-                  background: ex.label?.includes('kg') ? `${ORANGE}15` : 'transparent',
-                  border: ex.label?.includes('kg') ? `1px solid ${ORANGE}33` : 'none',
-                  borderRadius: '4px', padding: ex.label?.includes('kg') ? '2px 6px' : '0',
+                  fontFamily: 'var(--mono)', fontSize: 10,
+                  color: ex.label?.includes('kg') ? 'var(--accent-training)' : 'var(--muted)',
                 }}>
                   {ex.label}
                 </span>
@@ -567,31 +459,24 @@ function TodayCard({ todaySession, dunkGoal, onStartSession }) {
         </div>
       )}
 
-      {/* Top set note */}
       {ww?.top_set_note && (
-        <div style={{ padding: '8px 14px', borderTop: `1px solid ${BORDER}`, fontSize: '11px', color: '#666', fontFamily: 'Inter,sans-serif', fontStyle: 'italic' }}>
+        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--line)', fontFamily: 'var(--body)', fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>
           {ww.top_set_note}
         </div>
       )}
 
-      {/* Notes (iso/deload) */}
       {todaySession.notes && !ww?.top_set_note && (
-        <div style={{ padding: '8px 14px', borderTop: `1px solid ${BORDER}`, fontSize: '11px', color: '#666', fontFamily: 'Inter,sans-serif' }}>
+        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--line)', fontFamily: 'var(--body)', fontSize: 11, color: 'var(--muted)' }}>
           {todaySession.notes}
         </div>
       )}
 
-      {/* Start session button */}
       {isActive && (
-        <div style={{ padding: '10px 14px', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ padding: '10px 14px', borderTop: '1px solid var(--line)' }}>
           <button
             onClick={onStartSession}
-            style={{
-              width: '100%', padding: '11px', background: 'none',
-              border: `1px solid ${ORANGE}55`, borderRadius: '8px',
-              color: ORANGE, fontSize: '12px', fontWeight: 600,
-              fontFamily: DISPLAY, letterSpacing: '0.1em', cursor: 'pointer',
-            }}
+            className="action lg"
+            style={{ width: '100%', justifyContent: 'center', borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.08)' }}
           >
             ▶ START SESSION
           </button>
@@ -635,12 +520,12 @@ export default function TrainingMetrics({ onQuickAsk, onNav }) {
   }, [history])
 
   if (loading) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: BG, color: DIM }}>
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--dim)', fontFamily: 'var(--mono)' }}>
       Loading…
     </div>
   )
   if (!history || !statusData) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: BG, color: RED }}>
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--red)', fontFamily: 'var(--mono)' }}>
       Could not reach backend
     </div>
   )
@@ -651,62 +536,44 @@ export default function TrainingMetrics({ onQuickAsk, onNav }) {
   const { today_session, dunk_goal, fatigue_warning } = statusData
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: BG, color: TEXT, fontFamily: 'Inter,sans-serif' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
       {/* Header */}
-      <div style={{ padding: '14px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${BORDER}`, paddingBottom: '10px' }}>
-        <span style={{ fontFamily: DISPLAY, fontSize: '13px', letterSpacing: '0.12em', color: ORANGE, fontWeight: 600 }}>TRAINING</span>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+      <div style={{ padding: '14px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 10 }}>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 13, letterSpacing: '.12em', color: 'var(--accent-training)' }}>TRAINING</span>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           {streak > 0 && (
-            <span style={{ fontSize: '11px', color: DIM }}>
-              <span style={{ color: ORANGE, fontFamily: MONO }}>{streak}</span> day streak
+            <span className="badge" style={{ color: 'var(--accent-training)', borderColor: 'var(--accent-training)44' }}>
+              <span style={{ fontFamily: 'var(--mono)' }}>{streak}</span> DAY STREAK
             </span>
           )}
-          <span style={{ fontSize: '11px', color: DIM }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)' }}>
             {dunk_goal?.current_phase?.toUpperCase()} · W{dunk_goal?.current_mesocycle_week}
           </span>
         </div>
       </div>
 
-      {/* Recovery status */}
       <RecoveryStrip fatigueWarning={fatigue_warning} />
-
-      {/* Today's session */}
       <TodayCard todaySession={today_session} dunkGoal={dunk_goal} onStartSession={() => onNav?.('active-session')} />
 
-      {/* Jump chart section */}
       <div style={{ padding: '20px 16px 0' }}>
-        <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '12px' }}>
-          VERTICAL JUMP TREND
-        </div>
+        <div className="panel-title">VERTICAL JUMP TREND</div>
       </div>
       <JumpChart progression={jumpProgression} onLog={() => setModalOpen(true)} />
 
-      {/* JARVIS insight */}
       <JarvisInsight text={insight} loading={insightLoading} />
-
-      {/* PR Tracker */}
       <PRTracker sessions={sessions} />
-
-      {/* Volume chart */}
       <VolumeChart sessions={sessions} />
 
-      {/* Quick ask */}
       {onQuickAsk && (
         <div style={{ padding: '0 16px 32px' }}>
-          <div style={{ fontSize: '11px', fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: '8px' }}>
-            QUICK ASK
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="panel-title">QUICK ASK</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
               'Am I on track for the dunk attempt?',
               'What are my working weights today?',
               'Should I adjust my training this week?',
             ].map(q => (
-              <button key={q} onClick={() => onQuickAsk(q)} style={{
-                background: 'none', border: `1px solid ${BORDER}`, borderRadius: '8px',
-                padding: '10px 14px', color: '#aaa', fontSize: '13px', textAlign: 'left',
-                cursor: 'pointer', fontFamily: 'Inter,sans-serif',
-              }}>
+              <button key={q} onClick={() => onQuickAsk(q)} className="action ghost" style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11 }}>
                 {q}
               </button>
             ))}
@@ -714,7 +581,6 @@ export default function TrainingMetrics({ onQuickAsk, onNav }) {
         </div>
       )}
 
-      {/* Log jump modal */}
       {modalOpen && (
         <JumpModal
           onClose={() => setModalOpen(false)}

@@ -1,51 +1,46 @@
-const TABS = [
-  { id: 'home',      label: 'HOME',      icon: '⬡', accent: '#7df0ff' },
-  { id: 'finance',   label: 'FINANCE',   icon: '◆', accent: '#20d8ec' },
-  { id: 'nutrition', label: 'NUTRITION', icon: '◉', accent: '#9dff6f' },
-  { id: 'training',  label: 'TRAINING',  icon: '◎', accent: '#ff9f43' },
-  { id: 'calendar',  label: 'CALENDAR',  icon: '◷', accent: '#9f7dff' },
+const NAV_ITEMS = [
+  { id: 'home',      icon: '◈', label: 'HOME',      accent: 'var(--cyan-br)' },
+  { id: 'finance',   icon: '◆', label: 'FINANCE',   accent: 'var(--accent-finance)' },
+  { id: 'nutrition', icon: '◎', label: 'NUTRITION', accent: 'var(--accent-nutrition)' },
+  { id: 'training',  icon: '▲', label: 'TRAINING',  accent: 'var(--accent-training)' },
+  { id: 'calendar',  icon: '◷', label: 'CALENDAR',  accent: 'var(--accent-calendar)' },
 ]
 
 export default function BottomNav({ tab, onTab }) {
+  const active = NAV_ITEMS.find(n => n.id === tab) || NAV_ITEMS[0]
   return (
-    <div style={{
-      display: 'flex',
-      borderTop: '1px solid #1a1a1a',
-      background: '#0a0a0a',
-      paddingBottom: 'env(safe-area-inset-bottom)',
-      flexShrink: 0,
-    }}>
-      {TABS.map(t => (
-        <button
-          key={t.id}
-          onClick={() => onTab(t.id)}
-          style={{
-            flex: 1,
-            padding: '10px 0',
-            background: 'none',
-            border: 'none',
-            borderTop: tab === t.id ? `2px solid ${t.accent}` : '2px solid transparent',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '3px',
-          }}
-        >
-          <span style={{ fontSize: '16px', color: tab === t.id ? t.accent : '#333' }}>
-            {t.icon}
-          </span>
-          <span style={{
-            fontSize: '9px',
-            letterSpacing: '0.1em',
-            fontWeight: 600,
-            color: tab === t.id ? t.accent : '#333',
-            fontFamily: "'Oswald', 'Inter', sans-serif",
-          }}>
-            {t.label}
-          </span>
-        </button>
-      ))}
-    </div>
+    <nav className="nav-rail">
+      <div
+        className="nav-rail-glow"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${active.accent}, transparent)`,
+          boxShadow: `0 0 18px ${active.accent}55`,
+        }}
+      />
+      <div className="nav-bar">
+        {NAV_ITEMS.map(item => (
+          <button
+            key={item.id}
+            className={`nav-btn${tab === item.id ? ' active' : ''}`}
+            style={tab === item.id ? { color: item.accent } : {}}
+            onClick={() => onTab(item.id)}
+          >
+            {tab === item.id && (
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: 0, left: '15%', right: '15%',
+                  height: 2,
+                  background: item.accent,
+                  boxShadow: `0 0 8px ${item.accent}`,
+                }}
+              />
+            )}
+            <span className="nav-icon">{item.icon}</span>
+            <span className="nav-label">{item.label}</span>
+          </button>
+        ))}
+      </div>
+    </nav>
   )
 }

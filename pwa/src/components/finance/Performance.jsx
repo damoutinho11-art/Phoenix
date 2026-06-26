@@ -1,6 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
-
-const CYAN = '#20d8ec'
+import { useState, useRef } from 'react'
 
 // --- mock data generators ---
 function seededRand(seed) {
@@ -39,6 +37,8 @@ const DATA = {
   },
 }
 
+const CYAN = '#20d8ec'
+
 function calcStats(portfolio, spy) {
   const rets = portfolio.slice(1).map((v, i) => (v - portfolio[i]) / portfolio[i])
   const spyRets = spy.slice(1).map((v, i) => (v - spy[i]) / spy[i])
@@ -69,7 +69,6 @@ function calcStats(portfolio, spy) {
 }
 
 function buildWeeklyBars(portfolio) {
-  // Group into chunks of max 8 points as "weeks"
   const chunk = Math.max(1, Math.floor(portfolio.length / 8))
   const bars = []
   for (let i = 0; i < portfolio.length - chunk; i += chunk) {
@@ -113,18 +112,17 @@ function EquityChart({ portfolio, spy, onScrub, scrubIdx }) {
   const spyRet = ((spyVal - spy[0]) / spy[0] * 100).toFixed(1)
 
   return (
-    <div style={{ background: '#111', borderRadius: 8, padding: 14, marginBottom: 12 }}>
-      {/* Scrub readout */}
+    <div className="glass" style={{ padding: 14, marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: CYAN }}>PORTFOLIO</div>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 24, color: '#fff' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--cyan)' }}>PORTFOLIO</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: '#fff' }}>
             {portRet >= 0 ? '+' : ''}{portRet}%
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#444' }}>SPY</div>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 24, color: '#444' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--dim)' }}>SPY</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: 'var(--dim)' }}>
             {spyRet >= 0 ? '+' : ''}{spyRet}%
           </div>
         </div>
@@ -138,11 +136,10 @@ function EquityChart({ portfolio, spy, onScrub, scrubIdx }) {
         onTouchMove={handleMove}
         onMouseLeave={() => onScrub(null)}
       >
-        {/* SPY area */}
         <defs>
           <linearGradient id="spyGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#333" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#333" stopOpacity="0" />
+            <stop offset="0%" stopColor="rgba(132,212,226,.3)" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="rgba(132,212,226,.3)" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="portGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={CYAN} stopOpacity="0.25" />
@@ -150,14 +147,12 @@ function EquityChart({ portfolio, spy, onScrub, scrubIdx }) {
           </linearGradient>
         </defs>
         <path d={area(spy)} fill="url(#spyGrad)" />
-        <polyline points={polyline(spy)} fill="none" stroke="#333" strokeWidth="1.5" />
+        <polyline points={polyline(spy)} fill="none" stroke="rgba(132,212,226,.32)" strokeWidth="1.5" />
         <path d={area(portfolio)} fill="url(#portGrad)" />
         <polyline points={polyline(portfolio)} fill="none" stroke={CYAN} strokeWidth="2" />
-
-        {/* Scrub line + dot */}
-        <line x1={px(si)} y1={PAD.top} x2={px(si)} y2={H - PAD.bottom} stroke="#444" strokeWidth="1" strokeDasharray="3,3" />
+        <line x1={px(si)} y1={PAD.top} x2={px(si)} y2={H - PAD.bottom} stroke="rgba(125,240,255,.3)" strokeWidth="1" strokeDasharray="3,3" />
         <circle cx={px(si)} cy={py(portVal)} r="4" fill={CYAN} />
-        <circle cx={px(si)} cy={py(spyVal)} r="3" fill="#444" />
+        <circle cx={px(si)} cy={py(spyVal)} r="3" fill="rgba(132,212,226,.5)" />
       </svg>
     </div>
   )
@@ -174,15 +169,11 @@ function StatsRow({ stats }) {
       {items.map(([label, val]) => {
         const isNeg = val.startsWith('-')
         const isPos = val.startsWith('+')
-        const color = isPos ? '#9dff6f' : isNeg ? '#ff6b6b' : '#fff'
+        const color = isPos ? 'var(--green)' : isNeg ? 'var(--red)' : '#fff'
         return (
-          <div key={label} style={{ background: '#111', borderRadius: 6, padding: '10px 8px', textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: '#555', marginBottom: 4, letterSpacing: '0.06em' }}>
-              {label}
-            </div>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color }}>
-              {val}
-            </div>
+          <div key={label} className="metric" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div className="label">{label}</div>
+            <div className="value" style={{ fontSize: 16, color }}>{val}</div>
           </div>
         )
       })}
@@ -197,18 +188,15 @@ function BarChart({ portfolio }) {
   const barW = W / bars.length - 4
 
   return (
-    <div style={{ background: '#111', borderRadius: 8, padding: 14 }}>
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 10 }}>
-        WEEKLY RETURNS
-      </div>
+    <div className="glass" style={{ padding: 14 }}>
+      <div className="panel-title">WEEKLY RETURNS</div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H, display: 'block' }}>
-        {/* Zero line */}
-        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#222" strokeWidth="1" />
+        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="rgba(32,216,236,.15)" strokeWidth="1" />
         {bars.map((ret, i) => {
           const x = i * (W / bars.length) + 2
           const barH = (Math.abs(ret) / maxAbs) * (H / 2 - 4)
           const y = ret >= 0 ? H / 2 - barH : H / 2
-          const color = ret >= 0 ? '#9dff6f' : '#ff6b6b'
+          const color = ret >= 0 ? '#7dffcf' : '#ff6d7a'
           return <rect key={i} x={x} y={y} width={barW} height={barH} fill={color} rx="1" />
         })}
       </svg>
@@ -224,31 +212,24 @@ export default function Performance({ onBack }) {
   const stats = calcStats(portfolio, spy)
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: '#0a0a0a', color: '#fff' }}>
+    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: 'transparent', color: 'var(--text)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 20, padding: 0 }}>←</button>
-        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color: CYAN, letterSpacing: '0.1em' }}>PERFORMANCE</span>
+        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 18, color: 'var(--cyan)', letterSpacing: '.1em' }}>PERFORMANCE</span>
       </div>
 
       {/* Period tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {[['WEEK', 'week'], ['MONTH', 'month'], ['YEAR', 'year']].map(([label, key]) => (
-          <button key={key} onClick={() => { setPeriod(key); setScrubIdx(null) }} style={{
-            background: period === key ? CYAN + '22' : '#111',
-            border: `1px solid ${period === key ? CYAN : '#222'}`,
-            borderRadius: 6, padding: '8px 18px', color: period === key ? CYAN : '#555',
-            fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer',
-          }}>
+          <button key={key} onClick={() => { setPeriod(key); setScrubIdx(null) }} className={`action${period === key ? '' : ' ghost'}`}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* Live price feed note */}
-      <div style={{ background: '#0d0d00', border: '1px solid #ffb34722', borderRadius: 6, padding: '7px 12px', marginBottom: 12 }}>
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#ffb34799' }}>
-          Live price feed coming soon — connect yfinance to update
-        </span>
+      {/* Live price note */}
+      <div className="badge warn" style={{ display: 'block', marginBottom: 12, padding: '7px 12px' }}>
+        Live price feed coming soon — connect yfinance to update
       </div>
 
       <EquityChart portfolio={portfolio} spy={spy} onScrub={setScrubIdx} scrubIdx={scrubIdx} />

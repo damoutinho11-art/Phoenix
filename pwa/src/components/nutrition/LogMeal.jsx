@@ -2,15 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { getRecipes, getLidlStaples, logMeal, lookupBarcode } from '../../api/client'
 import BarcodeScanner from '../BarcodeScanner'
 
-const G = '#9dff6f'
-const BG = '#0a0a0a'
-const CARD = '#111'
-const BORDER = '#1a1a1a'
-const TEXT = '#e8e8e8'
-const DIM = '#555'
-const MONO = "'Share Tech Mono', monospace"
-const DISPLAY = "'Oswald', 'Inter', sans-serif"
-
 export default function LogMeal({ onBack, onSuccess }) {
   const [tab, setTab] = useState('recipes')
   const [recipes, setRecipes] = useState([])
@@ -22,7 +13,7 @@ export default function LogMeal({ onBack, onSuccess }) {
   const [logging, setLogging] = useState(false)
   const [error, setError] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
-  const [scanState, setScanState] = useState(null) // null | 'scanning' | 'not_found'
+  const [scanState, setScanState] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -105,33 +96,25 @@ export default function LogMeal({ onBack, onSuccess }) {
   const scaledProt = selected ? +(selected.protein_g * servings).toFixed(1) : 0
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: 'Inter,sans-serif' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
       {/* Header */}
-      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: DIM, fontSize: '22px', cursor: 'pointer', padding: 0, lineHeight: 1 }}>‹</button>
-        <span style={{ fontFamily: DISPLAY, fontSize: '13px', letterSpacing: '0.12em', color: G, fontWeight: 600, flex: 1 }}>LOG MEAL</span>
+      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 13, letterSpacing: '.12em', color: 'var(--accent-nutrition)', flex: 1 }}>
+          LOG MEAL
+        </span>
         {scanState === 'scanning' && (
-          <span style={{ fontSize: '11px', color: DIM, fontFamily: DISPLAY }}>scanning…</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>scanning…</span>
         )}
         {scanState === 'not_found' && (
-          <span style={{ fontSize: '11px', color: '#ef5350', fontFamily: DISPLAY }}>not found</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)' }}>not found</span>
         )}
         <button
           onClick={() => { setScannerOpen(o => !o); setScanState(null) }}
-          style={{
-            background: scannerOpen ? '#1a2a1a' : 'none',
-            border: `1px solid ${scannerOpen ? G : '#2a2a2a'}`,
-            borderRadius: '8px',
-            padding: '7px 10px',
-            color: scannerOpen ? G : DIM,
-            fontSize: '16px',
-            cursor: 'pointer',
-            lineHeight: 1,
-          }}
+          className={`action${scannerOpen ? '' : ' ghost'}`}
+          style={scannerOpen ? { borderColor: 'var(--accent-nutrition)', color: 'var(--accent-nutrition)' } : {}}
           title="Scan barcode"
-        >
-          ▣
-        </button>
+        >▣</button>
       </div>
 
       {/* Barcode scanner */}
@@ -143,15 +126,15 @@ export default function LogMeal({ onBack, onSuccess }) {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
         {['recipes', 'staples'].map(t => (
           <button key={t} onClick={() => { setTab(t); setSelected(null); setSearch('') }}
             style={{
               flex: 1, padding: '10px 0', background: 'none', border: 'none',
-              borderBottom: tab === t ? `2px solid ${G}` : '2px solid transparent',
-              color: tab === t ? G : DIM,
-              fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em',
-              fontFamily: DISPLAY, cursor: 'pointer',
+              borderBottom: tab === t ? '2px solid var(--accent-nutrition)' : '2px solid transparent',
+              color: tab === t ? 'var(--accent-nutrition)' : 'var(--muted)',
+              fontSize: 11, letterSpacing: '.1em',
+              fontFamily: 'var(--display)', cursor: 'pointer',
             }}>
             {t.toUpperCase()}
           </button>
@@ -159,66 +142,68 @@ export default function LogMeal({ onBack, onSuccess }) {
       </div>
 
       {/* Search */}
-      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
+      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={`Search ${tab}…`}
-          style={{ width: '100%', background: CARD, border: `1px solid ${BORDER}`, borderRadius: '8px', padding: '9px 12px', color: TEXT, fontSize: '14px', fontFamily: 'Inter,sans-serif', outline: 'none', boxSizing: 'border-box' }}
+          style={{
+            width: '100%', background: 'rgba(1,10,13,.7)',
+            border: '1px solid var(--line)',
+            padding: '9px 12px', color: 'var(--text)', fontSize: 13,
+            fontFamily: 'var(--body)', outline: 'none', boxSizing: 'border-box',
+          }}
         />
       </div>
 
       {/* Selected + serving adjuster */}
       {selected && (
-        <div style={{ padding: '12px 16px', background: '#0a1a0a', borderBottom: `1px solid ${G}22`, flexShrink: 0 }}>
-          <div style={{ fontSize: '14px', color: TEXT, marginBottom: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ padding: '12px 16px', background: 'rgba(125,255,207,.04)', borderBottom: '1px solid rgba(125,255,207,.15)', flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {selected.name}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* Stepper */}
-            <button onClick={() => adjustServings(-0.5)}
-              style={{ width: '34px', height: '34px', background: '#1a2a1a', border: `1px solid ${G}33`, borderRadius: '8px', color: G, fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-              −
-            </button>
-            <span style={{ fontFamily: MONO, fontSize: '20px', color: TEXT, minWidth: '38px', textAlign: 'center' }}>{servings}</span>
-            <button onClick={() => adjustServings(0.5)}
-              style={{ width: '34px', height: '34px', background: '#1a2a1a', border: `1px solid ${G}33`, borderRadius: '8px', color: G, fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-              +
-            </button>
-            <span style={{ fontSize: '12px', color: DIM, fontFamily: MONO, marginLeft: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => adjustServings(-0.5)} className="action ghost" style={{ width: 34, height: 34, fontSize: 20, color: 'var(--accent-nutrition)', padding: 0 }}>−</button>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 20, color: 'var(--text)', minWidth: 38, textAlign: 'center' }}>{servings}</span>
+            <button onClick={() => adjustServings(0.5)} className="action ghost" style={{ width: 34, height: 34, fontSize: 20, color: 'var(--accent-nutrition)', padding: 0 }}>+</button>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', marginLeft: 4 }}>
               {scaledCal} kcal · {scaledProt}g P
             </span>
-            <button onClick={handleLog} disabled={logging}
-              style={{ marginLeft: 'auto', background: logging ? '#1a2a1a' : G, border: 'none', borderRadius: '8px', padding: '10px 22px', color: logging ? DIM : '#000', fontSize: '13px', fontWeight: 700, cursor: logging ? 'default' : 'pointer', fontFamily: DISPLAY, letterSpacing: '0.06em' }}>
+            <button
+              onClick={handleLog}
+              disabled={logging}
+              className={`action safe${logging ? ' ghost' : ''}`}
+              style={{ marginLeft: 'auto' }}
+            >
               {logging ? '…' : 'LOG'}
             </button>
           </div>
-          {error && <div style={{ fontSize: '12px', color: '#ef5350', marginTop: '6px' }}>{error}</div>}
+          {error && <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--red)', marginTop: 6 }}>{error}</div>}
         </div>
       )}
 
       {/* Item list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 32px' }}>
         {loading ? (
-          <div style={{ padding: '40px 0', textAlign: 'center', color: DIM }}>Loading…</div>
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--dim)', fontFamily: 'var(--mono)', fontSize: 12 }}>Loading…</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: '40px 0', textAlign: 'center', color: DIM }}>Nothing found.</div>
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--dim)', fontFamily: 'var(--mono)', fontSize: 12 }}>Nothing found.</div>
         ) : filtered.map(item => {
           const isSelected = selected?.id === item.id && selected?.name === item.name
           return (
             <div key={`${tab}-${item.id}`} onClick={() => selectItem(item)}
               style={{
-                padding: '12px 0',
-                borderBottom: `1px solid ${BORDER}`,
+                padding: '12px 0 12px',
+                paddingLeft: isSelected ? 10 : 0,
+                borderBottom: '1px solid var(--line)',
+                borderLeft: isSelected ? '3px solid var(--accent-nutrition)' : '3px solid transparent',
                 cursor: 'pointer',
-                borderLeft: isSelected ? `3px solid ${G}` : '3px solid transparent',
-                paddingLeft: isSelected ? '10px' : 0,
               }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                <div style={{ fontSize: '14px', color: isSelected ? TEXT : TEXT, flex: 1 }}>{item.name}</div>
-                <div style={{ fontSize: '12px', color: G, fontFamily: MONO, flexShrink: 0 }}>{item.protein_g}g P</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', flex: 1 }}>{item.name}</div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent-nutrition)', flexShrink: 0 }}>{item.protein_g}g P</div>
               </div>
-              <div style={{ fontSize: '12px', color: DIM, marginTop: '2px', fontFamily: MONO }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
                 {item.calories} kcal
                 {tab === 'staples' && item.unit ? ` / ${item.unit}` : ''}
                 {tab === 'staples' && item.price_eur ? ` · €${item.price_eur.toFixed(2)}` : ''}

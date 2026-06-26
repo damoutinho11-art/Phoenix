@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getCrossDomainAlerts, postJarvisChat } from '../../api/client'
 
-const PURPLE = '#9f7dff'
-const ORANGE = '#ff9f43'
-
-// Mock events from TYPICAL_WEEK_SNAPSHOT_RAW fixture (Plaan data not yet live)
 const MOCK_EVENTS = [
   { event_id: 'perf-001', event_type: 'performance', title: 'La Traviata', date: '2026-06-25', time_start: '19:00', time_end: '22:00', location: 'Opera House', role: 'Solo Bassoon' },
   { event_id: 'reh-002', event_type: 'rehearsal', title: 'Dress Rehearsal', date: '2026-06-23', time_start: '18:00', time_end: '22:30', location: 'Opera House', role: 'Solo Bassoon' },
@@ -13,7 +9,6 @@ const MOCK_EVENTS = [
   { event_id: 'unk-001', event_type: 'masterclass', title: 'Guest Masterclass', date: '2026-06-27', time_start: '14:00', time_end: '17:00', location: 'Opera House', role: null },
 ]
 
-// Mock conflicts computed from event × training overlap
 const MOCK_CONFLICTS = [
   {
     date: '2026-06-24',
@@ -29,20 +24,19 @@ const MOCK_CONFLICTS = [
   },
 ]
 
-// Week structure derived from training constitution
 const WEEK_TRAINING = {
-  0: { label: 'LOWER', type: 'high_intensity' }, // Mon
-  1: { label: 'UPPER', type: 'general' },         // Tue
-  2: { label: 'LOWER', type: 'high_intensity' }, // Wed
-  3: { label: 'UPPER', type: 'general' },         // Thu
-  4: { label: 'REST',  type: 'rest' },            // Fri
-  5: { label: 'JUMP',  type: 'jump' },            // Sat
-  6: { label: 'ISO',   type: 'iso_only' },        // Sun
+  0: { label: 'LOWER', type: 'high_intensity' },
+  1: { label: 'UPPER', type: 'general' },
+  2: { label: 'LOWER', type: 'high_intensity' },
+  3: { label: 'UPPER', type: 'general' },
+  4: { label: 'REST',  type: 'rest' },
+  5: { label: 'JUMP',  type: 'jump' },
+  6: { label: 'ISO',   type: 'iso_only' },
 }
 
 function getWeekDates() {
   const today = new Date()
-  const dow = today.getDay() // 0=Sun
+  const dow = today.getDay()
   const monday = new Date(today)
   monday.setDate(today.getDate() - ((dow + 6) % 7))
   return Array.from({ length: 7 }, (_, i) => {
@@ -52,68 +46,59 @@ function getWeekDates() {
   })
 }
 
-function isoDate(d) {
-  return d.toISOString().slice(0, 10)
-}
+function isoDate(d) { return d.toISOString().slice(0, 10) }
 
 function eventTypeColor(type) {
-  if (type === 'performance') return PURPLE
+  if (type === 'performance') return 'var(--accent-calendar)'
   if (type === 'rehearsal') return '#bb9dff'
-  if (type === 'travel') return '#888'
-  return '#666'
+  if (type === 'travel') return 'var(--muted)'
+  return 'var(--dim)'
 }
 
 function EventTypeBadge({ type }) {
   const labels = { performance: 'PERF', rehearsal: 'REHEARSAL', travel: 'TRAVEL', masterclass: 'CLASS' }
   const color = eventTypeColor(type)
   return (
-    <span style={{
-      fontSize: 9, background: color + '22', color, borderRadius: 3,
-      padding: '2px 6px', fontFamily: "'Oswald', sans-serif", letterSpacing: '0.08em',
-    }}>
+    <span className="badge" style={{ background: `${color}22`, color, border: `1px solid ${color}44` }}>
       {labels[type] || type.toUpperCase()}
     </span>
   )
 }
 
-function WeekStrip({ weekDates, events, onDayPress }) {
+function WeekStrip({ weekDates, events }) {
   const today = isoDate(new Date())
   const DAY_INIT = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
   return (
-    <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+    <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {weekDates.map((d, i) => {
         const ds = isoDate(d)
         const isToday = ds === today
         const dayEvents = events.filter(e => e.date === ds)
         const training = WEEK_TRAINING[i]
         const hasPerf = dayEvents.some(e => e.event_type === 'performance')
-        const hasReh = dayEvents.some(e => e.event_type === 'rehearsal' || e.event_type === 'masterclass' || e.event_type === 'travel')
-        const hasTraining = training?.type !== 'rest'
+        const hasReh  = dayEvents.some(e => ['rehearsal','masterclass','travel'].includes(e.event_type))
 
         return (
-          <button
-            key={ds}
-            onClick={() => onDayPress && onDayPress(ds)}
-            style={{
-              flex: 1, background: isToday ? PURPLE + '22' : '#111',
-              border: `1px solid ${isToday ? PURPLE : '#222'}`,
-              borderRadius: 6, padding: '8px 2px', cursor: 'default',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-            }}
-          >
-            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isToday ? PURPLE : '#555' }}>
+          <div key={ds} style={{
+            flex: 1,
+            background: isToday ? 'rgba(159,125,255,.15)' : 'rgba(1,10,13,.5)',
+            border: `1px solid ${isToday ? 'rgba(159,125,255,.5)' : 'var(--line)'}`,
+            padding: '8px 2px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+          }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: isToday ? 'var(--accent-calendar)' : 'var(--dim)' }}>
               {DAY_INIT[i]}
             </span>
-            <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: isToday ? '#fff' : '#888' }}>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 13, color: isToday ? 'var(--text)' : 'var(--muted)' }}>
               {d.getDate()}
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
-              {hasPerf && <div style={{ width: 6, height: 6, borderRadius: '50%', background: PURPLE }} />}
+              {hasPerf && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-calendar)' }} />}
               {hasReh && !hasPerf && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#bb9dff' }} />}
-              {hasTraining && <div style={{ width: 6, height: 6, borderRadius: '50%', background: training.type === 'rest' ? '#333' : ORANGE }} />}
+              {training?.type !== 'rest' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-training)' }} />}
             </div>
-          </button>
+          </div>
         )
       })}
     </div>
@@ -123,21 +108,16 @@ function WeekStrip({ weekDates, events, onDayPress }) {
 function EventCard({ event, onPress }) {
   const color = eventTypeColor(event.event_type)
   return (
-    <button onClick={() => onPress(event)} style={{
-      width: '100%', background: '#111', border: 'none', borderRadius: 8,
-      padding: '12px 14px', marginBottom: 8, cursor: 'pointer', textAlign: 'left',
-      borderLeft: `3px solid ${color}`,
+    <button onClick={() => onPress(event)} className="row" style={{
+      flexDirection: 'column', alignItems: 'flex-start',
+      borderLeft: `3px solid ${color}`, marginBottom: 8, cursor: 'pointer',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 4 }}>
         <EventTypeBadge type={event.event_type} />
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#555' }}>
-          {event.date}
-        </span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>{event.date}</span>
       </div>
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: '#fff', marginBottom: 2 }}>
-        {event.title}
-      </div>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#555' }}>
+      <div className="row-title" style={{ fontSize: 15 }}>{event.title}</div>
+      <div className="row-sub">
         {event.time_start && `${event.time_start}–${event.time_end}`}
         {event.location && ` · ${event.location}`}
       </div>
@@ -147,26 +127,22 @@ function EventCard({ event, onPress }) {
 
 function ConflictCard({ conflict }) {
   const isHard = conflict.severity === 'hard'
-  const color = isHard ? '#ff6b6b' : '#ffb347'
+  const color = isHard ? 'var(--red)' : 'var(--gold)'
   return (
-    <div style={{
-      background: isHard ? '#1a0707' : '#130e00',
-      border: `1px solid ${color}33`,
-      borderRadius: 8, padding: 12, marginBottom: 8,
+    <div className="glass" style={{
+      marginBottom: 8, padding: '12px 14px',
       borderLeft: `3px solid ${color}`,
     }}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ fontSize: 9, background: color + '22', color, padding: '2px 6px', borderRadius: 3, fontFamily: "'Oswald', sans-serif", letterSpacing: '0.08em' }}>
+        <span className="badge" style={{ background: `${color}22`, color, border: `1px solid ${color}44` }}>
           {isHard ? 'CONFLICT' : 'ADVISORY'}
         </span>
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#555' }}>
-          {conflict.date}
-        </span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>{conflict.date}</span>
       </div>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#ccc', lineHeight: 1.5, marginBottom: 6 }}>
+      <div style={{ fontFamily: 'var(--body)', fontSize: 12, color: 'var(--text)', lineHeight: 1.5, marginBottom: 6 }}>
         {conflict.detail}
       </div>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: color, lineHeight: 1.4 }}>
+      <div style={{ fontFamily: 'var(--body)', fontSize: 12, color, lineHeight: 1.4 }}>
         → {conflict.suggestion}
       </div>
     </div>
@@ -188,41 +164,32 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
       .catch(() => setJarvisText('Unable to load schedule insight.'))
   }, [])
 
-  // Sort upcoming events by date
   const upcoming = [...MOCK_EVENTS].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: '#0a0a0a', color: '#fff' }}>
+    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: 'transparent', color: 'var(--text)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color: PURPLE, letterSpacing: '0.1em' }}>
-          CALENDAR
-        </span>
-        <span style={{ fontSize: 9, background: '#1a1200', border: '1px solid #ffb34744', color: '#ffb347', borderRadius: 4, padding: '3px 8px', fontFamily: "'Share Tech Mono', monospace" }}>
-          Plaan sync pending
-        </span>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 16, color: 'var(--accent-calendar)', letterSpacing: '.1em' }}>CALENDAR</span>
+        <span className="badge warn">Plaan sync pending</span>
       </div>
 
       {/* Read-only banner */}
-      <div style={{ background: '#0d0014', border: `1px solid ${PURPLE}33`, borderRadius: 6, padding: '8px 12px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: PURPLE, fontSize: 14 }}>🔒</span>
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: '#bb9dff' }}>
-          Calendar is read-only. JARVIS never writes to Plaan.
+      <div className="glass" style={{ padding: '8px 12px', marginBottom: 14, borderLeft: '3px solid var(--accent-calendar)' }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: '#bb9dff' }}>
+          🔒 Calendar is read-only. JARVIS never writes to Plaan.
         </span>
       </div>
 
       {/* Week strip */}
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 8 }}>
-        THIS WEEK · MOCK DATA
-      </div>
+      <div className="panel-title">THIS WEEK · MOCK DATA</div>
       <WeekStrip weekDates={weekDates} events={MOCK_EVENTS} />
 
-      {/* WEEK VIEW button */}
-      <button onClick={onWeekView} style={{
-        width: '100%', background: '#111', border: `1px solid ${PURPLE}44`, borderRadius: 6,
-        padding: '10px 0', color: PURPLE, fontFamily: "'Oswald', sans-serif",
-        fontSize: 12, letterSpacing: '0.1em', cursor: 'pointer', marginBottom: 16,
+      {/* Week view button */}
+      <button onClick={onWeekView} className="action ghost" style={{
+        width: '100%', justifyContent: 'center', marginBottom: 16,
+        borderColor: 'rgba(159,125,255,.4)', color: 'var(--accent-calendar)',
       }}>
         ▦ WEEK VIEW
       </button>
@@ -230,21 +197,17 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
       {/* Conflicts */}
       {MOCK_CONFLICTS.length > 0 && (
         <>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 8 }}>
-            CONFLICTS
-          </div>
+          <div className="panel-title">CONFLICTS</div>
           {MOCK_CONFLICTS.map((c, i) => <ConflictCard key={i} conflict={c} />)}
         </>
       )}
 
-      {/* Cross-domain alerts from API */}
+      {/* Cross-domain alerts */}
       {alerts.length > 0 && (
-        <div style={{ background: '#111', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 8 }}>
-            SYSTEM ALERTS
-          </div>
+        <div className="glass" style={{ padding: '12px 14px', marginBottom: 14 }}>
+          <div className="panel-title" style={{ marginBottom: 8 }}>SYSTEM ALERTS</div>
           {alerts.map((a, i) => (
-            <div key={i} style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#888', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid #333' }}>
+            <div key={i} style={{ fontFamily: 'var(--body)', fontSize: 12, color: 'var(--muted)', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid var(--line)' }}>
               {a}
             </div>
           ))}
@@ -252,37 +215,32 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
       )}
 
       {/* Upcoming events */}
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 8 }}>
-        UPCOMING EVENTS · MOCK DATA
-      </div>
+      <div className="panel-title">UPCOMING EVENTS · MOCK DATA</div>
       {upcoming.map(ev => (
         <EventCard key={ev.event_id} event={ev} onPress={onEvent} />
       ))}
 
       {/* JARVIS insight */}
-      <div style={{ background: '#111', borderRadius: 8, padding: 14, borderLeft: `3px solid ${PURPLE}`, marginBottom: 14 }}>
-        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: PURPLE, letterSpacing: '0.1em', marginBottom: 6 }}>
+      <div className="glass" style={{ padding: '12px 14px', borderLeft: '3px solid var(--accent-calendar)', marginBottom: 14 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--accent-calendar)', letterSpacing: '.1em', marginBottom: 6 }}>
           JARVIS SCHEDULE INSIGHT
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: jarvisText ? '#ccc' : '#444', lineHeight: 1.6 }}>
+        <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: jarvisText ? 'var(--text)' : 'var(--dim)', lineHeight: 1.6 }}>
           {jarvisText || 'Analysing schedule…'}
         </div>
       </div>
 
-      {/* Quick-ask chips */}
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 8 }}>
-        QUICK ASK
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Quick ask */}
+      <div className="panel-title">QUICK ASK</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 32 }}>
         {[
           'Do I have any conflicts this week?',
           'When is my next performance?',
           'Should I train today?',
         ].map(q => (
-          <button key={q} onClick={() => onQuickAsk(q)} style={{
-            background: '#111', border: `1px solid ${PURPLE}33`, borderRadius: 6,
-            padding: '11px 14px', color: '#aaa', fontFamily: "'Share Tech Mono', monospace",
-            fontSize: 12, cursor: 'pointer', textAlign: 'left',
+          <button key={q} onClick={() => onQuickAsk(q)} className="action ghost" style={{
+            textAlign: 'left', padding: '10px 14px', fontSize: 11,
+            borderColor: 'rgba(159,125,255,.25)', color: 'var(--muted)',
           }}>
             {q}
           </button>

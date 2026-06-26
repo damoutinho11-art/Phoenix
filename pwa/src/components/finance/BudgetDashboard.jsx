@@ -2,19 +2,9 @@ import { useState, useEffect } from 'react'
 import { getBudgetSummary, getBudgetMonths } from '../../api/client'
 import { speak } from '../../services/tts'
 
-const BG = '#0a0a0a'
-const CARD = '#111'
-const BORDER = '#1a1a1a'
-const TEXT = '#e8e8e8'
-const DIM = '#555'
-const ORANGE = '#ff9f43'
-const CYAN = '#20d8ec'
-const MONO = "'Share Tech Mono', monospace"
-const DISPLAY = "'Oswald', 'Inter', sans-serif"
-
 const CAT_COLORS = {
   'Food & Groceries': '#4dffb4',
-  'Eating Out': '#ff9f43',
+  'Eating Out': '#ff8f2e',
   'Subscriptions': '#ff5c7a',
   'Transport': '#20d8ec',
   'Housing': '#9f7dff',
@@ -23,7 +13,7 @@ const CAT_COLORS = {
   'Investment': '#ffd56b',
   'Banking & Fees': '#888',
   'Income': '#fff',
-  'Other': '#555',
+  'Other': 'rgba(132,212,226,.32)',
 }
 
 function fmtMonth(m) {
@@ -78,37 +68,33 @@ export default function BudgetDashboard({ onBack, onUpload }) {
   const maxExpense = expenses.length ? Math.max(...expenses.map(([, v]) => v.total)) : 1
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: BG, color: TEXT, fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
       {/* Header */}
-      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${BORDER}` }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: DIM, fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}>←</button>
-        <span style={{ fontFamily: DISPLAY, fontSize: 13, color: ORANGE, letterSpacing: '0.12em', fontWeight: 600 }}>BUDGET</span>
-        {/* Month selector */}
+      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--line)' }}>
+        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
+        <span style={{ fontFamily: 'var(--display)', fontSize: 13, color: 'var(--gold)', letterSpacing: '.12em' }}>BUDGET</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={prevMonth} style={{ background: 'none', border: 'none', color: DIM, fontSize: 16, cursor: 'pointer', padding: '0 4px' }}>‹</button>
-          <span style={{ fontFamily: MONO, fontSize: 11, color: TEXT }}>{fmtMonth(month)}</span>
-          <button onClick={nextMonth} style={{ background: 'none', border: 'none', color: DIM, fontSize: 16, cursor: 'pointer', padding: '0 4px' }}>›</button>
+          <button onClick={prevMonth} className="action ghost" style={{ padding: '4px 8px' }}>‹</button>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text)' }}>{fmtMonth(month)}</span>
+          <button onClick={nextMonth} className="action ghost" style={{ padding: '4px 8px' }}>›</button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: DIM, fontFamily: MONO, fontSize: 12 }}>Loading…</div>
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--dim)', fontFamily: 'var(--mono)', fontSize: 12 }}>Loading…</div>
       ) : !hasData ? (
         <div style={{ padding: '60px 24px', textAlign: 'center' }}>
-          <div style={{ color: DIM, fontFamily: DISPLAY, fontSize: 14, marginBottom: 20 }}>No transactions for {fmtMonth(month)}.</div>
-          <button onClick={onUpload} style={{
-            padding: '11px 24px', background: ORANGE, border: 'none', borderRadius: 8,
-            color: '#000', fontSize: 13, fontWeight: 700, fontFamily: DISPLAY, letterSpacing: '0.1em', cursor: 'pointer',
-          }}>+ ADD TRANSACTIONS</button>
+          <div style={{ color: 'var(--dim)', fontFamily: 'var(--display)', fontSize: 14, marginBottom: 20 }}>No transactions for {fmtMonth(month)}.</div>
+          <button onClick={onUpload} className="action warn lg">+ ADD TRANSACTIONS</button>
         </div>
       ) : (
         <>
           {/* Savings rate hero */}
           <div style={{ padding: '20px 16px 0', textAlign: 'center' }}>
-            <div style={{ fontFamily: MONO, fontSize: 64, color: (summary.savings_rate >= 25) ? '#9dff6f' : ORANGE, lineHeight: 1 }}>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 64, color: summary.savings_rate >= 25 ? 'var(--green)' : 'var(--gold)', lineHeight: 1 }}>
               {summary.savings_rate}%
             </div>
-            <div style={{ fontSize: 10, color: DIM, fontFamily: DISPLAY, letterSpacing: '0.15em', marginTop: 6 }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.15em', marginTop: 6 }}>
               SAVINGS RATE · TARGET 25%
             </div>
           </div>
@@ -116,13 +102,13 @@ export default function BudgetDashboard({ onBack, onUpload }) {
           {/* Income / Expenses / Invested row */}
           <div style={{ display: 'flex', gap: 8, padding: '16px 16px 0' }}>
             {[
-              { label: 'INCOME', value: summary.income_total, color: '#9dff6f' },
-              { label: 'EXPENSES', value: summary.expenses_total, color: '#ff5c7a' },
-              { label: 'INVESTED', value: summary.invested_total, color: '#ffd56b' },
+              { label: 'INCOME',   value: summary.income_total,   color: 'var(--green)' },
+              { label: 'EXPENSES', value: summary.expenses_total,  color: 'var(--red)' },
+              { label: 'INVESTED', value: summary.invested_total,  color: 'var(--gold)' },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ flex: 1, background: CARD, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
-                <div style={{ fontFamily: MONO, fontSize: 16, color }}>{value > 0 ? `€${value.toFixed(0)}` : '—'}</div>
-                <div style={{ fontSize: 9, color: DIM, fontFamily: DISPLAY, letterSpacing: '0.08em', marginTop: 4 }}>{label}</div>
+              <div key={label} className="metric" style={{ flex: 1, flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                <div className="label">{label}</div>
+                <div className="value" style={{ fontSize: 16, color }}>{value > 0 ? `€${value.toFixed(0)}` : '—'}</div>
               </div>
             ))}
           </div>
@@ -130,22 +116,22 @@ export default function BudgetDashboard({ onBack, onUpload }) {
           {/* Spending by category */}
           {expenses.length > 0 && (
             <div style={{ padding: '16px 16px 0' }}>
-              <div style={{ fontSize: 11, fontFamily: DISPLAY, letterSpacing: '0.1em', color: DIM, marginBottom: 10 }}>BY CATEGORY</div>
-              <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 8, overflow: 'hidden' }}>
+              <div className="panel-title">BY CATEGORY</div>
+              <div className="glass" style={{ overflow: 'hidden' }}>
                 {expenses.map(([cat, data], i) => {
-                  const color = CAT_COLORS[cat] || DIM
+                  const color = CAT_COLORS[cat] || 'var(--dim)'
                   const pct = Math.max(4, (data.total / maxExpense) * 100)
                   return (
                     <div key={cat} style={{
                       padding: '10px 14px',
-                      borderBottom: i < expenses.length - 1 ? `1px solid ${BORDER}` : 'none',
+                      borderBottom: i < expenses.length - 1 ? '1px solid var(--line)' : 'none',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <span style={{ fontSize: 12, color: TEXT }}>{cat}</span>
-                        <span style={{ fontFamily: MONO, fontSize: 12, color }}>€{data.total.toFixed(2)}</span>
+                        <span style={{ fontFamily: 'var(--body)', fontSize: 12, color: 'var(--text)' }}>{cat}</span>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color }}>€{data.total.toFixed(2)}</span>
                       </div>
-                      <div style={{ height: 3, background: '#1a1a1a', borderRadius: 2 }}>
-                        <div style={{ height: 3, width: `${pct}%`, background: color, borderRadius: 2 }} />
+                      <div className="bar">
+                        <span style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}` }} />
                       </div>
                     </div>
                   )
@@ -156,20 +142,17 @@ export default function BudgetDashboard({ onBack, onUpload }) {
 
           {/* JARVIS insight */}
           {summary.insight && (
-            <div style={{ margin: '16px 16px 0', padding: '12px 14px', background: CARD, border: `1px solid ${BORDER}`, borderLeft: `3px solid ${CYAN}`, borderRadius: 8 }}>
-              <div style={{ fontSize: 10, fontFamily: DISPLAY, letterSpacing: '0.1em', color: CYAN, marginBottom: 6 }}>JARVIS ASSESSMENT</div>
-              <div style={{ fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{summary.insight}</div>
+            <div className="glass" style={{ margin: '16px 16px 0', padding: '12px 14px', borderLeft: '3px solid var(--cyan)' }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--cyan)', letterSpacing: '.1em', marginBottom: 6 }}>JARVIS ASSESSMENT</div>
+              <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{summary.insight}</div>
             </div>
           )}
 
-          {/* Add transactions button */}
+          {/* Add transactions */}
           <div style={{ padding: '16px 16px 32px' }}>
-            <button onClick={onUpload} style={{
-              width: '100%', padding: 12, background: 'none',
-              border: `1px solid ${ORANGE}55`, borderRadius: 8,
-              color: ORANGE, fontSize: 12, fontWeight: 600, fontFamily: DISPLAY,
-              letterSpacing: '0.1em', cursor: 'pointer',
-            }}>+ ADD TRANSACTIONS</button>
+            <button onClick={onUpload} className="action warn lg" style={{ width: '100%', justifyContent: 'center' }}>
+              + ADD TRANSACTIONS
+            </button>
           </div>
         </>
       )}

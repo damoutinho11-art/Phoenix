@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getFinanceRecommendation, postBriefAction } from '../../api/client'
 
-const CYAN = '#20d8ec'
-
 const LABEL_MAP = {
   btc: 'BTC', hype: 'HYPE', tao: 'TAO',
   global_core_etf: 'Global Core ETF', growth_nasdaq_etf: 'Growth Nasdaq ETF',
@@ -17,18 +15,12 @@ const MODE_LABELS = {
 function Header({ onBack, mode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 20, padding: 0, lineHeight: 1 }}>
-        ←
-      </button>
-      <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color: CYAN, letterSpacing: '0.1em' }}>
+      <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
+      <span style={{ fontFamily: 'var(--display)', fontSize: 18, color: 'var(--cyan)', letterSpacing: '.1em' }}>
         WEEKLY BRIEF
       </span>
       {mode && (
-        <span style={{
-          marginLeft: 'auto', fontSize: 9, background: '#0a2226',
-          border: `1px solid ${CYAN}44`, color: CYAN, borderRadius: 4,
-          padding: '3px 8px', fontFamily: "'Share Tech Mono', monospace", letterSpacing: '0.08em',
-        }}>
+        <span className="badge live" style={{ marginLeft: 'auto' }}>
           {MODE_LABELS[mode] || mode.toUpperCase()}
         </span>
       )}
@@ -38,30 +30,25 @@ function Header({ onBack, mode }) {
 
 function ConfirmState({ action, weekLabel, onBack }) {
   const cfg = {
-    approved: { icon: '✓', color: '#9dff6f', label: 'APPROVED', note: 'Execute manually in your broker app.' },
-    deferred:  { icon: '⏸', color: '#ffb347', label: 'DEFERRED', note: 'Deferred to next week.' },
-    rejected:  { icon: '✕', color: '#ff6b6b', label: 'REJECTED', note: 'Brief rejected.' },
+    approved: { color: 'var(--green)', label: 'APPROVED', note: 'Execute manually in your broker app.' },
+    deferred:  { color: 'var(--gold)', label: 'DEFERRED', note: 'Deferred to next week.' },
+    rejected:  { color: 'var(--red)',  label: 'REJECTED', note: 'Brief rejected.' },
   }[action]
 
   return (
     <div style={{ textAlign: 'center', padding: '60px 0' }}>
-      <div style={{ fontSize: 48, color: cfg.color, marginBottom: 12 }}>{cfg.icon}</div>
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 28, color: cfg.color, letterSpacing: '0.1em' }}>
+      <div style={{ fontFamily: 'var(--display)', fontSize: 48, color: cfg.color, letterSpacing: '.1em', marginBottom: 12 }}>
         {cfg.label}
       </div>
       {weekLabel && (
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#555', marginTop: 6 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>
           Logged — {weekLabel} {cfg.label}
         </div>
       )}
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: '#444', marginTop: 4 }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--dim)', marginTop: 4 }}>
         {cfg.note}
       </div>
-      <button onClick={onBack} style={{
-        marginTop: 28, background: '#111', border: '1px solid #333', borderRadius: 6,
-        padding: '10px 24px', color: '#888', fontFamily: "'Oswald', sans-serif", fontSize: 12,
-        letterSpacing: '0.1em', cursor: 'pointer',
-      }}>
+      <button onClick={onBack} className="action ghost" style={{ marginTop: 28, padding: '10px 24px' }}>
         BACK
       </button>
     </div>
@@ -70,15 +57,15 @@ function ConfirmState({ action, weekLabel, onBack }) {
 
 function RecCard({ rec, laneColor, laneLabel }) {
   return (
-    <div style={{ background: '#111', borderRadius: 8, padding: 16, marginBottom: 10, borderLeft: `3px solid ${laneColor}` }}>
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 10, color: laneColor, letterSpacing: '0.12em', marginBottom: 6 }}>
+    <div className="glass" style={{ padding: 16, marginBottom: 10, borderLeft: `3px solid ${laneColor}` }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: laneColor, letterSpacing: '.12em', marginBottom: 6 }}>
         {laneLabel}
       </div>
-      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 32, color: '#fff', lineHeight: 1 }}>
+      <div style={{ fontFamily: 'var(--display)', fontSize: 32, color: '#fff', lineHeight: 1 }}>
         {LABEL_MAP[rec.asset] || rec.asset}{' '}
-        <span style={{ color: '#9dff6f' }}>€{rec.amount.toFixed(2)}</span>
+        <span style={{ color: 'var(--green)' }}>€{rec.amount.toFixed(2)}</span>
       </div>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#555', marginTop: 6 }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>
         via {rec.route} · BUY
       </div>
     </div>
@@ -99,7 +86,6 @@ export default function WeeklyBrief({ onBack }) {
 
   async function handleAction(actionName) {
     if (!rec?.brief_id) {
-      // No brief_id yet (shouldn't happen) — optimistic UI only
       setAction({ name: actionName, weekLabel: rec?.week_label })
       return
     }
@@ -118,33 +104,33 @@ export default function WeeklyBrief({ onBack }) {
   const etfRec = rec?.recommendations.find(r => r.lane === 'etf')
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: '#0a0a0a', color: '#fff' }}>
+    <div style={{ height: '100%', overflowY: 'auto', padding: 16, background: 'transparent', color: 'var(--text)' }}>
       <Header onBack={onBack} mode={rec?.portfolio_mode} />
 
       {action ? (
         <ConfirmState action={action.name} weekLabel={action.weekLabel} onBack={() => setAction(null)} />
       ) : loading ? (
-        <div style={{ color: '#444', fontFamily: "'Share Tech Mono', monospace", textAlign: 'center', paddingTop: 60 }}>
+        <div style={{ color: 'var(--dim)', fontFamily: 'var(--mono)', textAlign: 'center', paddingTop: 60 }}>
           Loading…
         </div>
       ) : (
         <>
           {cryptoRec && <RecCard rec={cryptoRec} laneColor="#f7931a" laneLabel="CRYPTO LANE" />}
-          {etfRec && <RecCard rec={etfRec} laneColor={CYAN} laneLabel="ETF LANE" />}
+          {etfRec && <RecCard rec={etfRec} laneColor="var(--cyan)" laneLabel="ETF LANE" />}
 
           {!cryptoRec && !etfRec && (
-            <div style={{ background: '#111', borderRadius: 8, padding: 24, textAlign: 'center', marginBottom: 10 }}>
-              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: '#555' }}>NO BUYS THIS WEEK</div>
+            <div className="glass" style={{ padding: 24, textAlign: 'center', marginBottom: 10 }}>
+              <div className="panel-title" style={{ color: 'var(--dim)' }}>NO BUYS THIS WEEK</div>
             </div>
           )}
 
           {/* Budget row */}
-          <div style={{ background: '#111', borderRadius: 8, padding: 14, marginBottom: 12 }}>
+          <div className="glass" style={{ padding: 14, marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#555', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.08em' }}>
                 WEEKLY BUDGET
               </span>
-              <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 15, color: '#fff' }}>
+              <span style={{ fontFamily: 'var(--display)', fontSize: 22, color: '#fff' }}>
                 €{rec?.week_budget?.toFixed(2) ?? '—'}
               </span>
             </div>
@@ -152,15 +138,13 @@ export default function WeeklyBrief({ onBack }) {
 
           {/* Warnings */}
           {rec?.warnings?.length > 0 && (
-            <div style={{ background: '#130e00', border: '1px solid #ffb34733', borderRadius: 8, padding: 14, marginBottom: 12 }}>
-              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: '#ffb347', letterSpacing: '0.1em', marginBottom: 8 }}>
-                WARNINGS
-              </div>
+            <div className="glass" style={{ padding: 14, marginBottom: 12, borderLeft: '3px solid var(--gold)' }}>
+              <div className="panel-title" style={{ color: 'var(--gold)' }}>WARNINGS</div>
               {rec.warnings.map((w, i) => (
                 <div key={i} style={{
-                  fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#ccc',
+                  fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text)',
                   marginBottom: i < rec.warnings.length - 1 ? 6 : 0,
-                  paddingLeft: 10, borderLeft: '2px solid #ffb347',
+                  paddingLeft: 10, borderLeft: '2px solid var(--gold)',
                 }}>
                   {w}
                 </div>
@@ -170,20 +154,11 @@ export default function WeeklyBrief({ onBack }) {
 
           {/* News context */}
           {rec?.news_thesis && (
-            <div style={{
-              background: '#0d0d00', borderRadius: 8, padding: 14,
-              marginBottom: 12, borderLeft: '3px solid #ffd56b',
-            }}>
-              <div style={{
-                fontFamily: "'Share Tech Mono', monospace", fontSize: 9,
-                color: '#ffd56b', letterSpacing: '0.12em', marginBottom: 8,
-              }}>
+            <div className="glass" style={{ padding: 14, marginBottom: 12, borderLeft: '3px solid var(--gold)' }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--gold)', letterSpacing: '.12em', marginBottom: 8 }}>
                 JARVIS NEWS CONTEXT
               </div>
-              <div style={{
-                fontFamily: "'Saira Condensed', sans-serif", fontSize: 13,
-                color: '#ccc', lineHeight: 1.5,
-              }}>
+              <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
                 {rec.news_thesis}
               </div>
             </div>
@@ -191,21 +166,15 @@ export default function WeeklyBrief({ onBack }) {
 
           {/* Action buttons */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 4 }}>
-            <button onClick={() => handleAction('approved')} disabled={acting} style={{
-              background: '#071a07', border: '1px solid #9dff6f55', borderRadius: 6,
-              padding: '14px 0', color: acting ? '#444' : '#9dff6f', fontFamily: "'Oswald', sans-serif",
-              fontSize: 12, letterSpacing: '0.1em', cursor: acting ? 'default' : 'pointer',
-            }}>APPROVE</button>
-            <button onClick={() => handleAction('deferred')} disabled={acting} style={{
-              background: '#1a1000', border: '1px solid #ffb34755', borderRadius: 6,
-              padding: '14px 0', color: acting ? '#444' : '#ffb347', fontFamily: "'Oswald', sans-serif",
-              fontSize: 12, letterSpacing: '0.1em', cursor: acting ? 'default' : 'pointer',
-            }}>DEFER</button>
-            <button onClick={() => handleAction('rejected')} disabled={acting} style={{
-              background: '#1a0707', border: '1px solid #ff6b6b55', borderRadius: 6,
-              padding: '14px 0', color: acting ? '#444' : '#ff6b6b', fontFamily: "'Oswald', sans-serif",
-              fontSize: 12, letterSpacing: '0.1em', cursor: acting ? 'default' : 'pointer',
-            }}>REJECT</button>
+            <button onClick={() => handleAction('approved')} disabled={acting} className={`action safe lg${acting ? ' ghost' : ''}`}>
+              APPROVE
+            </button>
+            <button onClick={() => handleAction('deferred')} disabled={acting} className={`action warn lg${acting ? ' ghost' : ''}`}>
+              DEFER
+            </button>
+            <button onClick={() => handleAction('rejected')} disabled={acting} className={`action danger lg${acting ? ' ghost' : ''}`}>
+              REJECT
+            </button>
           </div>
         </>
       )}
