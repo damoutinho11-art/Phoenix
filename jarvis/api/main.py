@@ -13,9 +13,23 @@ from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, fin
 from jarvis.data.database import init_db
 
 
+async def _keep_alive():
+    import asyncio
+    import httpx
+    while True:
+        await asyncio.sleep(300)
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get("http://localhost:8000/health")
+        except Exception:
+            pass
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    import asyncio
     init_db()
+    asyncio.create_task(_keep_alive())
     yield
 
 
