@@ -1,162 +1,128 @@
-import { useState, useEffect, useCallback } from 'react'
-import { getTrainingHistory, getTrainingStatus, logJump, postJarvisChat } from '../../api/client'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { getTrainingHistory, getTrainingStatus, logJump } from '../../api/client'
 
-const CM_PER_INCH = 2.54
-const TARGET_INCHES = 32
+// ─── Jump Chart SVG ───────────────────────────────────────────────────────────
 
-function inchesToCm(inches) { return +(inches * CM_PER_INCH).toFixed(1) }
-function cmToInches(cm) { return +(cm / CM_PER_INCH).toFixed(1) }
+function JumpChart() {
+  const lineRef = useRef(null)
+  const jumpData = [26.0, 26.2, 26.5, 26.8, 27.0, 27.2, 27.4, 27.5, 27.8, 28.0, 28.2, 28.5]
+  const targetLine = 32.0
+  const W = 390, H = 80
+  const pad = { l: 0, r: 0, t: 8, b: 4 }
+  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b
+  const mn = 25.5, mx = 33
+  const px = i => (i / (jumpData.length - 1)) * cw + pad.l
+  const py = v => pad.t + (1 - (v - mn) / (mx - mn)) * ch
 
-const _BORDER_COLOR = {
-  high_intensity: 'var(--accent-training)',
-  jump: 'var(--cyan)',
-  general: 'rgba(32,216,236,.12)',
-  iso_only: 'rgba(32,216,236,.12)',
-  rest: 'rgba(32,216,236,.08)',
-  peak: 'var(--cyan)',
-  attempt: 'var(--accent-training)',
-  deload: 'rgba(32,216,236,.08)',
-}
+  // target line y
+  const tyVal = py(targetLine)
 
-const _BADGE_LABEL = {
-  high_intensity: 'LOWER',
-  general: 'UPPER',
-  jump: 'JUMP',
-  iso_only: 'ISO',
-  rest: 'REST',
-  peak: 'PEAK',
-  attempt: 'ATTEMPT',
-  deload: 'DELOAD',
-}
+  // fill polygon points
+  const lastX = px(jumpData.length - 1)
+  const lastY = py(jumpData[jumpData.length - 1])
+  const pts = jumpData.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ')
+  const fillPts = pts + ` ${lastX.toFixed(1)},${H} 0,${H}`
 
-// ─── Jump Trend Chart ────────────────────────────────────────────────────────
+  // line length for dash animation
+  const lineLen = jumpData.reduce((a, v, i) =>
+    i === 0 ? 0 : a + Math.hypot(px(i) - px(i - 1), py(v) - py(jumpData[i - 1])), 0)
 
-function JumpChart({ progression, onLog }) {
-  if (!progression || progression.length === 0) {
-    return (
-      <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--dim)', marginBottom: 20, lineHeight: 1.6 }}>
-          No jumps logged yet —<br />tap + to add your first measurement
-        </div>
-        <button onClick={onLog} className="action lg" style={{ background: 'rgba(255,143,46,.12)', borderColor: 'var(--accent-training)', color: 'var(--accent-training)' }}>
-          + LOG JUMP
-        </button>
-      </div>
-    )
-  }
-
-  const approachPts = progression.filter(p => p.approach != null)
-  const bestApproach = approachPts.length ? Math.max(...approachPts.map(p => cmToInches(p.approach))) : null
-  const bestStanding = progression.filter(p => p.standing != null).length
-    ? Math.max(...progression.filter(p => p.standing != null).map(p => cmToInches(p.standing)))
-    : null
-
-  const W = 340, H = 130, PAD = { t: 14, r: 14, b: 28, l: 36 }
-  const plotW = W - PAD.l - PAD.r
-  const plotH = H - PAD.t - PAD.b
-
-  const allInches = progression.flatMap(p => [
-    p.approach ? cmToInches(p.approach) : null,
-    p.standing ? cmToInches(p.standing) : null,
-  ].filter(Boolean))
-  const yMin = Math.min(TARGET_INCHES - 4, ...(allInches.length ? allInches : [TARGET_INCHES - 4]))
-  const yMax = Math.max(TARGET_INCHES + 2, ...(allInches.length ? allInches : [TARGET_INCHES + 2]))
-  const yRange = yMax - yMin
-
-  const xStep = plotW / Math.max(1, progression.length - 1)
-  const yScale = v => plotH - ((v - yMin) / yRange) * plotH
-  const targetY = PAD.t + yScale(TARGET_INCHES)
-
-  const approachLine = progression
-    .map((p, i) => p.approach ? `${(PAD.l + i * xStep).toFixed(1)},${(PAD.t + yScale(cmToInches(p.approach))).toFixed(1)}` : null)
-    .filter(Boolean)
-  const standingLine = progression
-    .map((p, i) => p.standing ? `${(PAD.l + i * xStep).toFixed(1)},${(PAD.t + yScale(cmToInches(p.standing))).toFixed(1)}` : null)
-    .filter(Boolean)
-
-  const xLabels = progression.map(p => {
-    const d = new Date(p.date + 'T00:00:00')
-    return `${d.getMonth() + 1}/${d.getDate()}`
-  })
+  useEffect(() => {
+    if (!lineRef.current) return
+    lineRef.current.style.transition = 'none'
+    lineRef.current.setAttribute('stroke-dashoffset', lineLen)
+    const t = setTimeout(() => {
+      if (lineRef.current) {
+        lineRef.current.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1)'
+        lineRef.current.setAttribute('stroke-dashoffset', '0')
+      }
+    }, 100)
+    return () => clearTimeout(t)
+  }, [lineLen])
 
   return (
-    <div style={{ padding: '0 16px 8px' }}>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-        {bestApproach != null && (
-          <div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 38, color: 'var(--accent-training)', lineHeight: 1 }}>
-              {bestApproach}"
-            </div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.08em' }}>BEST APPROACH</div>
-          </div>
-        )}
-        {bestStanding != null && (
-          <div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 38, color: 'var(--text)', lineHeight: 1 }}>
-              {bestStanding}"
-            </div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.08em' }}>BEST STANDING</div>
-          </div>
-        )}
-        <div style={{ marginLeft: 'auto', alignSelf: 'center' }}>
-          <button onClick={onLog} className="action" style={{ borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.08)', fontSize: 16, padding: '6px 12px' }}>+</button>
+    <div style={{ position: 'relative', height: 80 }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="jGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(77,255,180,.4)" />
+            <stop offset="100%" stopColor="rgba(77,255,180,0)" />
+          </linearGradient>
+          <filter id="jGlow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Target line */}
+        <line x1={0} y1={tyVal} x2={W} y2={tyVal}
+          stroke="rgba(255,213,107,.3)" strokeWidth="1" strokeDasharray="4 4" />
+        <text x={W - 2} y={tyVal - 3} textAnchor="end"
+          fontFamily="Share Tech Mono,monospace" fontSize="7" fill="rgba(255,213,107,.55)">
+          32" TARGET
+        </text>
+
+        {/* Fill */}
+        <polygon points={fillPts} fill="url(#jGrad)" />
+
+        {/* Animated line */}
+        <polyline
+          ref={lineRef}
+          points={pts}
+          fill="none"
+          stroke="#4dffb4"
+          strokeWidth="2.5"
+          filter="url(#jGlow)"
+          strokeDasharray={lineLen}
+          strokeDashoffset={lineLen}
+        />
+
+        {/* Endpoint dot */}
+        <circle cx={lastX.toFixed(1)} cy={lastY.toFixed(1)} r="4"
+          fill="#4dffb4" stroke="#000" strokeWidth="1.5" filter="url(#jGlow)" />
+      </svg>
+    </div>
+  )
+}
+
+// ─── Recovery Ring ────────────────────────────────────────────────────────────
+
+function RecoveryRing() {
+  // 75% recovery: circumference=213.6, dashoffset = 213.6 * (1-0.75) = 53.4
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '14px 18px', borderTop: '1px solid rgba(32,216,236,.18)' }}>
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(32,216,236,.1)" strokeWidth="6" />
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#7df0ff" strokeWidth="6"
+            strokeLinecap="round" strokeDasharray="213.6" strokeDashoffset="53.4"
+            transform="rotate(-90 40 40)"
+            style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)' }} />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#7df0ff', lineHeight: 1 }}>75%</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: 'rgba(32,216,236,.38)' }}>RECOVERY</div>
         </div>
       </div>
 
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
-        <line x1={PAD.l} y1={targetY} x2={W - PAD.r} y2={targetY}
-          stroke="var(--cyan)" strokeWidth="1" strokeDasharray="5 3" opacity="0.6" />
-        <text x={W - PAD.r + 2} y={targetY + 4} fontSize="8" fill="var(--cyan)" opacity="0.7" fontFamily="'Share Tech Mono', monospace">32"</text>
-
-        {standingLine.length >= 2 && (
-          <polyline points={standingLine.join(' ')} fill="none" stroke="var(--text)" strokeWidth="1.5"
-            strokeLinejoin="round" strokeLinecap="round" opacity="0.4" strokeDasharray="4 2" />
-        )}
-
-        {approachLine.length >= 2 && (
-          <polyline points={approachLine.join(' ')} fill="none" stroke="#ff8f2e" strokeWidth="2"
-            strokeLinejoin="round" strokeLinecap="round" />
-        )}
-
-        {progression.map((p, i) => {
-          const x = PAD.l + i * xStep
-          return (
-            <g key={p.date}>
-              {p.approach && (
-                <circle cx={x.toFixed(1)} cy={(PAD.t + yScale(cmToInches(p.approach))).toFixed(1)} r="3.5"
-                  fill="#ff8f2e" stroke="var(--bg)" strokeWidth="1.5" />
-              )}
-              {p.standing && (
-                <circle cx={x.toFixed(1)} cy={(PAD.t + yScale(cmToInches(p.standing))).toFixed(1)} r="2.5"
-                  fill="var(--text)" stroke="var(--bg)" strokeWidth="1" opacity="0.5" />
-              )}
-            </g>
-          )
-        })}
-
-        {progression.map((p, i) => (
-          <text key={p.date} x={(PAD.l + i * xStep).toFixed(1)} y={H - 4}
-            textAnchor="middle" fontSize="8" fill="var(--dim)" fontFamily="'Saira Condensed', sans-serif">
-            {xLabels[i]}
-          </text>
-        ))}
-
-        {[0, 0.5, 1].map(t => {
-          const v = yMin + t * yRange
-          const y = PAD.t + yScale(v)
-          return (
-            <text key={t} x={PAD.l - 4} y={y + 3} textAnchor="end" fontSize="8" fill="var(--dim)" fontFamily="'Share Tech Mono', monospace">
-              {Math.round(v)}"
-            </text>
-          )
-        })}
-      </svg>
-
-      <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
-        {[['#ff8f2e', 'APPROACH'], ['rgba(201,246,255,.4)', 'STANDING'], ['var(--cyan)', '32" TARGET']].map(([c, l]) => (
-          <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 12, height: 2, background: c }} />
-            <span style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--muted)' }}>{l}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: 'rgba(32,216,236,.38)', marginBottom: 6 }}>
+          READINESS BREAKDOWN
+        </div>
+        {[
+          { label: 'SLEEP', pct: 82, color: '#4dffb4', val: '7h 20m', valColor: '#7df0ff' },
+          { label: 'SORENESS', pct: 60, color: '#ffd56b', val: 'MOD', valColor: '#ffd56b' },
+          { label: 'HRV', pct: 78, color: '#4dffb4', val: '68ms', valColor: '#7df0ff' },
+        ].map(({ label, pct, color, val, valColor }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(32,216,236,.38)' }}>{label}</span>
+            <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }}>
+              <div style={{ height: '100%', borderRadius: 1, background: color, width: `${pct}%` }} />
+            </div>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: valColor }}>{val}</span>
           </div>
         ))}
       </div>
@@ -164,24 +130,64 @@ function JumpChart({ progression, onLog }) {
   )
 }
 
-// ─── Log Jump Modal ───────────────────────────────────────────────────────────
+// ─── Weight Bars ──────────────────────────────────────────────────────────────
+
+function WeightBars() {
+  const weights = [87.0, 86.5, 86.2, 85.8, 85.5, 85.1, 84.8, 84.5, 84.3, 84.2]
+  const target = 81, start = 87
+  const maxH = 28
+
+  return (
+    <div style={{ padding: '14px 18px', borderTop: '1px solid rgba(32,216,236,.18)' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: 'rgba(32,216,236,.38)', marginBottom: 8 }}>
+        BODYWEIGHT · CUT PHASE
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 28, fontWeight: 700, color: '#fff' }}>84.2</div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(32,216,236,.38)', letterSpacing: '.1em' }}>KG</div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#4dffb4', padding: '2px 7px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.06)' }}>−2.8kg</div>
+      </div>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'rgba(125,188,200,.55)', letterSpacing: '.1em', marginBottom: 12 }}>
+        TARGET: 81KG BY MID-AUG · 3.2KG TO GO
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 32 }}>
+        {weights.map((w, i) => {
+          const pct = 1 - (w - target) / (start - target)
+          const h = Math.max(4, pct * maxH)
+          const isLast = i === weights.length - 1
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1, height: h, borderRadius: '1px 1px 0 0', alignSelf: 'flex-end',
+                background: isLast ? '#7df0ff' : 'rgba(32,216,236,.4)',
+                boxShadow: isLast ? '0 0 8px rgba(32,216,236,.6)' : 'none',
+              }}
+            />
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.38)' }}>WK01</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.38)' }}>NOW</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Log Jump Modal ────────────────────────────────────────────────────────────
 
 function JumpModal({ onClose, onSuccess }) {
-  const [jumpType, setJumpType] = useState('approach')
   const [inches, setInches] = useState(24)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-
-  function adjust(delta) {
-    setInches(v => Math.max(10, Math.min(50, +(v + delta).toFixed(1))))
-  }
 
   async function handleSubmit() {
     setSubmitting(true)
     setError('')
     try {
       const today = new Date().toISOString().slice(0, 10)
-      await logJump({ date: today, jump_type: jumpType, height_cm: inchesToCm(inches) })
+      await logJump({ date: today, jump_type: 'approach', height_cm: +(inches * 2.54).toFixed(1) })
       onSuccess()
     } catch {
       setError('Failed to log. Try again.')
@@ -190,401 +196,228 @@ function JumpModal({ onClose, onSuccess }) {
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.88)', zIndex: 100,
-      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-    }}
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.88)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div className="glass" style={{ padding: '24px 20px 36px', width: '100%', maxWidth: 480, borderRadius: 0 }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent-training)', letterSpacing: '.12em', marginBottom: 20 }}>
+      <div style={{ width: '100%', maxWidth: 480, background: '#000', border: '1px solid rgba(32,216,236,.18)', borderBottom: 'none', padding: '24px 20px 40px' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: 'rgba(32,216,236,.38)', marginBottom: 16 }}>
           LOG JUMP
         </div>
-
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-          {['approach', 'standing'].map(t => (
-            <button key={t} onClick={() => setJumpType(t)} className={`action${jumpType === t ? '' : ' ghost'}`} style={{ flex: 1, justifyContent: 'center', ...(jumpType === t ? { borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.1)' } : {}) }}>
-              {t.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.1em', marginBottom: 12 }}>HEIGHT</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
-            <button onClick={() => adjust(-0.5)} className="action ghost" style={{ width: 52, height: 52, fontSize: 24, color: 'var(--accent-training)' }}>−</button>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 52, color: 'var(--text)', minWidth: 100, textAlign: 'center', lineHeight: 1 }}>
+            <button onClick={() => setInches(v => Math.max(10, +(v - 0.5).toFixed(1)))}
+              style={{ width: 52, height: 52, background: 'none', border: '1px solid rgba(32,216,236,.18)', color: '#ff8f2e', fontSize: 24, cursor: 'pointer', fontFamily: 'var(--display)' }}>−</button>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 52, color: '#fff', minWidth: 100, textAlign: 'center', lineHeight: 1 }}>
               {inches}"
             </div>
-            <button onClick={() => adjust(0.5)} className="action ghost" style={{ width: 52, height: 52, fontSize: 24, color: 'var(--accent-training)' }}>+</button>
+            <button onClick={() => setInches(v => Math.min(50, +(v + 0.5).toFixed(1)))}
+              style={{ width: 52, height: 52, background: 'none', border: '1px solid rgba(32,216,236,.18)', color: '#ff8f2e', fontSize: 24, cursor: 'pointer', fontFamily: 'var(--display)' }}>+</button>
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: 8 }}>
-            {inchesToCm(inches)} cm · target: {TARGET_INCHES}"
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'rgba(32,216,236,.38)', marginTop: 8 }}>
+            {(inches * 2.54).toFixed(1)} cm · target: 32"
           </div>
         </div>
-
-        {error && <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--red)', marginBottom: 12, textAlign: 'center' }}>{error}</div>}
-
+        {error && <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#ff5c7a', marginBottom: 12, textAlign: 'center' }}>{error}</div>}
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose} className="action ghost" style={{ flex: 1 }}>CANCEL</button>
-          <button onClick={handleSubmit} disabled={submitting} className={`action lg${submitting ? ' ghost' : ''}`} style={{ flex: 2, justifyContent: 'center', ...(!submitting ? { borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.1)' } : {}) }}>
-            {submitting ? 'LOGGING…' : 'LOG'}
+          <button onClick={onClose} style={{ flex: 1, padding: '14px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: 'rgba(32,216,236,.38)', border: '1px solid rgba(32,216,236,.18)', background: 'none', cursor: 'pointer' }}>
+            CANCEL
+          </button>
+          <button onClick={handleSubmit} disabled={submitting}
+            style={{ flex: 2, padding: '14px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: '#000', fontWeight: 700, background: '#20d8ec', border: '1px solid #20d8ec', cursor: 'pointer', boxShadow: '0 0 16px rgba(32,216,236,.4)' }}>
+            {submitting ? 'LOGGING…' : 'LOG JUMP'}
           </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-// ─── PR Tracker ───────────────────────────────────────────────────────────────
-
-const PR_EXERCISES = [
-  { key: 'hex_bar_jump', label: 'HEX BAR JUMP', aliases: ['hex bar', 'hex_bar'] },
-  { key: 'back_squat',   label: 'BACK SQUAT',   aliases: ['back squat', 'back_squat', 'squat'] },
-  { key: 'power_clean',  label: 'POWER CLEAN',  aliases: ['power clean', 'power_clean', 'clean'] },
-]
-
-function findPR(sessions, aliases) {
-  let bestKg = null
-  let bestReps = null
-  for (const s of sessions) {
-    for (const ex of (s.exercises || [])) {
-      const name = ex.name?.toLowerCase() || ''
-      if (!aliases.some(a => name.includes(a))) continue
-      for (const set of (ex.sets || [])) {
-        if (set.weight_kg > (bestKg ?? -1)) {
-          bestKg = set.weight_kg
-          bestReps = set.reps
-        }
-      }
-    }
-  }
-  return { kg: bestKg, reps: bestReps }
-}
-
-function PRTracker({ sessions }) {
-  return (
-    <div style={{ padding: '0 16px 16px' }}>
-      <div className="panel-title">PERSONAL RECORDS</div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {PR_EXERCISES.map(({ key, label, aliases }) => {
-          const { kg, reps } = findPR(sessions, aliases)
-          return (
-            <div key={key} className="metric" style={{ flex: 1, flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <div className="value" style={{ fontSize: 18, color: kg != null ? 'var(--accent-training)' : 'var(--dim)' }}>
-                {kg != null ? `${kg}kg` : '—'}
-              </div>
-              {reps != null && <div className="label" style={{ marginBottom: 2 }}>×{reps}</div>}
-              <div className="label" style={{ marginTop: 4 }}>{label}</div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── Session Streak ───────────────────────────────────────────────────────────
-
-function calcStreak(sessions) {
-  if (!sessions.length) return 0
-  const dates = new Set(sessions.map(s => s.date))
-  let streak = 0
-  let d = new Date()
-  d.setHours(0, 0, 0, 0)
-  const todayStr = d.toISOString().slice(0, 10)
-  if (!dates.has(todayStr)) d.setDate(d.getDate() - 1)
-  while (true) {
-    const str = d.toISOString().slice(0, 10)
-    if (!dates.has(str)) break
-    streak++
-    d.setDate(d.getDate() - 1)
-  }
-  return streak
-}
-
-// ─── Weekly Volume Chart ──────────────────────────────────────────────────────
-
-function weekStart(d) {
-  const dt = new Date(d + 'T00:00:00')
-  const day = dt.getDay()
-  const diff = (day === 0 ? -6 : 1 - day)
-  dt.setDate(dt.getDate() + diff)
-  return dt.toISOString().slice(0, 10)
-}
-
-function buildWeeklyVolume(sessions) {
-  const byWeek = {}
-  for (const s of sessions) {
-    const wk = weekStart(s.date)
-    const sets = (s.exercises || []).reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0)
-    byWeek[wk] = (byWeek[wk] ?? 0) + sets
-  }
-  const weeks = []
-  const now = new Date()
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i * 7)
-    const wk = weekStart(d.toISOString().slice(0, 10))
-    const label = `W${6 - i}`
-    weeks.push({ wk, label, sets: byWeek[wk] ?? 0 })
-  }
-  return weeks
-}
-
-function VolumeChart({ sessions }) {
-  const weeks = buildWeeklyVolume(sessions)
-  const maxSets = Math.max(1, ...weeks.map(w => w.sets))
-  const BAR_H = 60
-
-  return (
-    <div style={{ padding: '0 16px 16px' }}>
-      <div className="panel-title">WEEKLY VOLUME (SETS)</div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: `${BAR_H + 20}px` }}>
-        {weeks.map(w => {
-          const h = w.sets === 0 ? 2 : Math.max(4, (w.sets / maxSets) * BAR_H)
-          return (
-            <div key={w.wk} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: w.sets > 0 ? 'var(--accent-training)' : 'var(--dim)' }}>{w.sets || ''}</div>
-              <div style={{
-                width: '100%', height: `${h}px`,
-                background: w.sets > 0 ? 'var(--accent-training)' : 'rgba(32,216,236,.1)',
-                borderRadius: '3px 3px 0 0',
-                boxShadow: w.sets > 0 ? '0 0 8px var(--accent-training)' : 'none',
-              }} />
-              <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--dim)' }}>{w.label}</div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── JARVIS Insight ───────────────────────────────────────────────────────────
-
-function JarvisInsight({ text, loading }) {
-  if (!text && !loading) return null
-  return (
-    <div className="glass" style={{ margin: '0 16px 16px', padding: '12px 14px', borderLeft: '3px solid var(--cyan)' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--cyan)', letterSpacing: '.1em', marginBottom: 6 }}>
-        JARVIS ASSESSMENT
-      </div>
-      {loading
-        ? <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--dim)' }}>Analysing…</div>
-        : <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{text}</div>
-      }
-    </div>
-  )
-}
-
-// ─── Recovery Strip ───────────────────────────────────────────────────────────
-
-function RecoveryStrip({ fatigueWarning }) {
-  const good = !fatigueWarning
-  return (
-    <div className="row" style={{ margin: '12px 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{
-        width: 8, height: 8, borderRadius: '50%',
-        background: good ? 'var(--green)' : 'var(--gold)', flexShrink: 0,
-        boxShadow: `0 0 8px ${good ? 'var(--green)' : 'var(--gold)'}`,
-      }} />
-      <div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted)', letterSpacing: '.08em', marginBottom: 2 }}>RECOVERY</div>
-        <div style={{ fontFamily: 'var(--body)', fontSize: 12, color: good ? 'var(--green)' : 'var(--gold)' }}>
-          {good ? 'Good — CNS fresh, full output expected' : fatigueWarning}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Today's Session Card ─────────────────────────────────────────────────────
-
-function TodayCard({ todaySession, dunkGoal, onStartSession }) {
-  if (!todaySession) return null
-
-  const stype = todaySession.session_type || 'general'
-  const ww = todaySession.working_weights
-  const exercises = todaySession.exercises || []
-  const accentColor = _BORDER_COLOR[stype] || 'rgba(32,216,236,.12)'
-  const badgeLabel = _BADGE_LABEL[stype] || stype.toUpperCase()
-  const isActive = !['rest', 'deload'].includes(stype)
-
-  return (
-    <div className="glass" style={{
-      margin: '14px 16px 0',
-      borderLeft: `3px solid ${accentColor}`,
-    }}>
-      <div style={{ padding: '12px 14px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ fontFamily: 'var(--display)', fontSize: 9, color: 'var(--accent-training)', letterSpacing: '.1em' }}>TODAY</div>
-        <span className="badge" style={{ color: accentColor, borderColor: accentColor + '44', background: accentColor + '18' }}>{badgeLabel}</span>
-        <div style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)' }}>
-          {dunkGoal?.days_to_attempt}d to attempt
-        </div>
-      </div>
-
-      <div style={{ padding: '0 14px 8px', fontFamily: 'var(--display)', fontSize: 16, color: 'var(--text)', letterSpacing: '.06em' }}>
-        {todaySession.display_name || stype.toUpperCase()}
-      </div>
-
-      {ww && (
-        <div style={{ padding: '0 14px 10px', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--accent-training)' }}>
-          {ww.intensity_pct}% · {ww.sets}×{ww.reps}
-        </div>
-      )}
-
-      {exercises.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--line)' }}>
-          {exercises.map((ex, i) => (
-            <div key={i} className="row" style={{
-              padding: '9px 14px',
-              borderBottom: i < exercises.length - 1 ? '1px solid var(--line)' : 'none',
-              border: 'none', borderRadius: 0,
-            }}>
-              <div className="row-title" style={{ fontSize: 13 }}>{ex.name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                {ex.sets_reps && (
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>{ex.sets_reps}</span>
-                )}
-                <span style={{
-                  fontFamily: 'var(--mono)', fontSize: 10,
-                  color: ex.label?.includes('kg') ? 'var(--accent-training)' : 'var(--muted)',
-                }}>
-                  {ex.label}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {ww?.top_set_note && (
-        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--line)', fontFamily: 'var(--body)', fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>
-          {ww.top_set_note}
-        </div>
-      )}
-
-      {todaySession.notes && !ww?.top_set_note && (
-        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--line)', fontFamily: 'var(--body)', fontSize: 11, color: 'var(--muted)' }}>
-          {todaySession.notes}
-        </div>
-      )}
-
-      {isActive && (
-        <div style={{ padding: '10px 14px', borderTop: '1px solid var(--line)' }}>
-          <button
-            onClick={onStartSession}
-            className="action lg"
-            style={{ width: '100%', justifyContent: 'center', borderColor: 'var(--accent-training)', color: 'var(--accent-training)', background: 'rgba(255,143,46,.08)' }}
-          >
-            ▶ START SESSION
-          </button>
-        </div>
-      )}
     </div>
   )
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function TrainingMetrics({ onQuickAsk, onNav }) {
-  const [history, setHistory] = useState(null)
-  const [statusData, setStatusData] = useState(null)
-  const [loading, setLoading] = useState(true)
+export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, onNav }) {
   const [modalOpen, setModalOpen] = useState(false)
-  const [insight, setInsight] = useState(null)
-  const [insightLoading, setInsightLoading] = useState(false)
+  const [statusData, setStatusData] = useState(null)
+  const [_history, setHistory] = useState(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [h, s] = await Promise.all([getTrainingHistory(), getTrainingStatus()])
-      setHistory(h)
-      setStatusData(s)
-    } catch {}
-    setLoading(false)
+  // Load in background; prototype data is primary display
+  useEffect(() => {
+    getTrainingStatus().then(setStatusData).catch(() => {})
+    getTrainingHistory().then(setHistory).catch(() => {})
   }, [])
 
-  useEffect(() => { load() }, [load])
+  // Dunk countdown
+  const target = new Date('2026-08-25')
+  const now = new Date()
+  const days = Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)))
 
-  useEffect(() => {
-    if (!history) return
-    setInsightLoading(true)
-    postJarvisChat({
-      domain: 'training',
-      message: 'Give me a one-sentence assessment of my jump progression and whether I\'m on track for the dunk attempt',
-    }).then(r => setInsight(r?.response || null))
-      .catch(() => {})
-      .finally(() => setInsightLoading(false))
-  }, [history])
-
-  if (loading) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--dim)', fontFamily: 'var(--mono)' }}>
-      Loading…
-    </div>
-  )
-  if (!history || !statusData) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--red)', fontFamily: 'var(--mono)' }}>
-      Could not reach backend
-    </div>
-  )
-
-  const sessions = history.sessions || []
-  const jumpProgression = history.jump_progression || []
-  const streak = calcStreak(sessions)
-  const { today_session, dunk_goal, fatigue_warning } = statusData
+  const BORDER = 'rgba(32,216,236,.18)'
+  const MUTED = 'rgba(32,216,236,.38)'
+  const CYAN = '#20d8ec'
+  const CYAN_BR = '#7df0ff'
+  const ORANGE = '#ff8f2e'
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
-      {/* Header */}
-      <div style={{ padding: '14px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 10 }}>
-        <span style={{ fontFamily: 'var(--display)', fontSize: 13, letterSpacing: '.12em', color: 'var(--accent-training)' }}>TRAINING</span>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          {streak > 0 && (
-            <span className="badge" style={{ color: 'var(--accent-training)', borderColor: 'var(--accent-training)44' }}>
-              <span style={{ fontFamily: 'var(--mono)' }}>{streak}</span> DAY STREAK
-            </span>
-          )}
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)' }}>
-            {dunk_goal?.current_phase?.toUpperCase()} · W{dunk_goal?.current_mesocycle_week}
-          </span>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif" }}>
+      {/* TOP BAR */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`,
+        position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: CYAN_BR }}>TRAINING</span>
         </div>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: ORANGE, border: `1px solid rgba(255,143,46,.26)`, padding: '2px 8px', background: 'rgba(255,143,46,.07)' }}>
+          PHASE 1 · ACCUMULATION
+        </span>
       </div>
 
-      <RecoveryStrip fatigueWarning={fatigue_warning} />
-      <TodayCard todaySession={today_session} dunkGoal={dunk_goal} onStartSession={() => onNav?.('active-session')} />
-
-      <div style={{ padding: '20px 16px 0' }}>
-        <div className="panel-title">VERTICAL JUMP TREND</div>
-      </div>
-      <JumpChart progression={jumpProgression} onLog={() => setModalOpen(true)} />
-
-      <JarvisInsight text={insight} loading={insightLoading} />
-      <PRTracker sessions={sessions} />
-      <VolumeChart sessions={sessions} />
-
-      {onQuickAsk && (
-        <div style={{ padding: '0 16px 32px' }}>
-          <div className="panel-title">QUICK ASK</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {[
-              'Am I on track for the dunk attempt?',
-              'What are my working weights today?',
-              'Should I adjust my training this week?',
-            ].map(q => (
-              <button key={q} onClick={() => onQuickAsk(q)} className="action ghost" style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11 }}>
-                {q}
-              </button>
-            ))}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* DUNK COUNTDOWN HERO */}
+        <div style={{
+          padding: '20px 20px 18px', borderBottom: `1px solid ${BORDER}`,
+          background: 'linear-gradient(180deg,rgba(32,216,236,.035),transparent)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg,transparent,rgba(32,216,236,.28),transparent)' }} />
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>
+            DAYS TO DUNK ATTEMPT
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+            <div style={{
+              fontFamily: 'var(--display)', fontSize: 72, fontWeight: 700, lineHeight: .9,
+              background: 'linear-gradient(155deg,#fff 0%,#7df0ff 50%,#20d8ec 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 0 20px rgba(32,216,236,.38))',
+            }}>
+              {days}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 6 }}>
+              <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 400, letterSpacing: '.2em', color: MUTED }}>DAYS</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: CYAN, padding: '3px 8px', border: `1px solid rgba(32,216,236,.3)`, background: 'rgba(32,216,236,.06)' }}>
+                TARGET · LATE AUG 2026
+              </div>
+            </div>
+          </div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: 'rgba(125,188,200,.55)', marginTop: 10 }}>
+            WK 03 OF 10 · 30% COMPLETE · ON TRACK
+          </div>
+          <div style={{ height: 2, background: 'rgba(32,216,236,.12)', marginTop: 10, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: `linear-gradient(90deg,${CYAN},${CYAN_BR})`, width: '30%', boxShadow: `0 0 8px ${CYAN}` }} />
           </div>
         </div>
-      )}
+
+        {/* WEEK + SESSION TYPE STRIP */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ padding: '14px 18px', borderRight: `1px solid ${BORDER}` }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: MUTED, marginBottom: 6 }}>CURRENT WEEK</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.04em', color: CYAN_BR }}>03 / 10</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: 'rgba(125,188,200,.55)', marginTop: 3 }}>Rivera Conjugate</div>
+          </div>
+          <div style={{ padding: '14px 18px' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: MUTED, marginBottom: 6 }}>TODAY'S TYPE</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.04em', color: ORANGE }}>ME</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: 'rgba(125,188,200,.55)', marginTop: 3 }}>Max Effort Lower</div>
+          </div>
+        </div>
+
+        {/* TODAY'S SESSION CARD */}
+        <div style={{ margin: '16px 18px', border: `1px solid ${BORDER}`, background: 'rgba(0,0,0,.9)', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}
+          onClick={() => { if (onNav) onNav('active-session'); else if (onStartSession) onStartSession() }}>
+          {/* Left orange accent */}
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: ORANGE, boxShadow: `0 0 9px rgba(255,143,46,.32)` }} />
+          {/* Top shine */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg,transparent,rgba(32,216,236,.25),transparent)' }} />
+
+          <div style={{ padding: '16px 16px 16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ display: 'inline-block', fontFamily: 'var(--display)', fontSize: 11, fontWeight: 700, letterSpacing: '.22em', padding: '3px 10px', color: ORANGE, border: `1px solid rgba(255,143,46,.4)`, background: 'rgba(255,143,46,.08)', marginBottom: 2 }}>
+                  MAX EFFORT
+                </span>
+                <div style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 700, letterSpacing: '.06em', color: '#fff', lineHeight: 1 }}>LOWER BODY</div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: 'rgba(125,188,200,.55)', marginTop: 2 }}>Primary: Hex Bar Jump · Accessory: Posterior Chain</div>
+              </div>
+              <span style={{ fontSize: 18, color: CYAN, opacity: .7 }}>→</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 12 }}>
+              {[
+                { name: 'Hex Bar Deadlift Jump', pct: 'MAX', detail: 'Work to 3RM' },
+                { name: 'Romanian Deadlift', pct: '65%', detail: '4 × 6' },
+                { name: 'Glute Ham Raise', pct: null, detail: '3 × 8' },
+                { name: 'Single-Leg Calf Raise', pct: null, detail: '3 × 15 ea.' },
+              ].map((ex, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < 3 ? `1px solid rgba(32,216,236,.06)` : 'none' }}>
+                  <span style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 13, fontWeight: 400, color: 'rgba(199,236,244,.82)' }}>{ex.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {ex.pct && (
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: ORANGE, padding: '1px 5px', border: `1px solid rgba(255,143,46,.25)` }}>{ex.pct}</span>
+                    )}
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.08em', color: MUTED }}>{ex.detail}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 0', background: 'rgba(32,216,236,.06)', border: `1px solid rgba(32,216,236,.2)`, fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: CYAN, cursor: 'pointer', marginTop: -1 }}>
+            ▶ START SESSION
+          </div>
+        </div>
+
+        {/* STATS ROW */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+          {[
+            { label: 'SESSIONS', val: '11', valClass: CYAN_BR, sub: 'this block' },
+            { label: 'VERT JUMP', val: '28.5"', valClass: '#4dffb4', sub: '+2.5" gained' },
+            { label: 'STREAK', val: '6', valClass: ORANGE, sub: 'days active' },
+          ].map(({ label, val, valClass, sub }, i) => (
+            <div key={i} style={{ padding: '12px 14px', borderRight: i < 2 ? `1px solid ${BORDER}` : 'none', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED, marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: valClass }}>{val}</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(125,188,200,.55)', marginTop: 2, letterSpacing: '.08em' }}>{sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* VERTICAL JUMP TREND */}
+        <div style={{ padding: '16px 18px 12px', borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>VERTICAL JUMP TREND</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: '#4dffb4' }}>28.5"</span>
+          </div>
+          <JumpChart />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED }}>WK01</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED, letterSpacing: '.1em' }}>TARGET: 32" BY AUG</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED }}>NOW</span>
+          </div>
+        </div>
+
+        {/* RECOVERY RING */}
+        <RecoveryRing />
+
+        {/* BODYWEIGHT TREND */}
+        <WeightBars />
+
+        {/* LOG JUMP BUTTON */}
+        <div style={{ padding: '0 18px 32px' }}>
+          <button
+            onClick={() => setModalOpen(true)}
+            style={{ width: '100%', padding: '13px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: '#000', fontWeight: 700, background: CYAN, border: `1px solid ${CYAN}`, cursor: 'pointer', boxShadow: `0 0 16px rgba(32,216,236,.4)` }}
+          >
+            + LOG JUMP
+          </button>
+        </div>
+      </div>
 
       {modalOpen && (
         <JumpModal
           onClose={() => setModalOpen(false)}
-          onSuccess={() => { setModalOpen(false); load() }}
+          onSuccess={() => setModalOpen(false)}
         />
       )}
     </div>
