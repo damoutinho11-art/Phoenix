@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getCrossDomainAlerts, postJarvisChat } from '../../api/client'
+import { getCalendarSnapshot, getCrossDomainAlerts, postJarvisChat } from '../../api/client'
 
 const VIOLET = '#9f7dff'
 const VIOLET_BR = '#d8ccff'
@@ -10,24 +10,6 @@ const CYAN = '#20d8ec'
 const GOLD = '#ffd56b'
 const POS = '#4dffb4'
 
-const PROTO_EVENTS = [
-  { id: 'e1', time: '10:00', title: 'Opera Rehearsal',  meta: 'ESTONIAN NATIONAL OPERA · BASSOON', status: 'LOCKED', type: 'rehearsal' },
-  { id: 'e2', time: '13:15', title: 'Lunch + Recovery', meta: 'PROTEIN TARGET · 740 KCAL',          status: 'PLAN',   type: 'food' },
-  { id: 'e3', time: '16:30', title: 'ME Lower Session', meta: 'TRAINING · 75% RECOVERY · 55 MIN',   status: 'READY',  type: 'training' },
-  { id: 'e4', time: '19:15', title: 'Dinner Window',    meta: '780 KCAL LEFT · HIGH PROTEIN',        status: 'OPEN',   type: 'food' },
-  { id: 'e5', time: '21:00', title: 'PHOENIX Review',   meta: 'FINANCE · TRAINING · NUTRITION CHECK', status: '15M',   type: 'default' },
-]
-
-const WEEK_DAYS = [
-  { dow: 'MON', num: 22 },
-  { dow: 'TUE', num: 23 },
-  { dow: 'WED', num: 24, active: true },
-  { dow: 'THU', num: 25 },
-  { dow: 'FRI', num: 26 },
-  { dow: 'SAT', num: 27 },
-  { dow: 'SUN', num: 28 },
-]
-
 function eventAccent(type) {
   if (type === 'rehearsal') return GOLD
   if (type === 'training')  return POS
@@ -35,11 +17,35 @@ function eventAccent(type) {
   return VIOLET
 }
 
+function buildWeekDays() {
+  const now = new Date()
+  const dow = now.getDay() // 0=Sun
+  // Start from Monday of current week
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - ((dow + 6) % 7))
+  const DOW_LABELS = ['MON','TUE','WED','THU','FRI','SAT','SUN']
+  const todayNum = now.getDate()
+  return DOW_LABELS.map((label, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return { dow: label, num: d.getDate(), active: d.getDate() === todayNum && d.getMonth() === now.getMonth() }
+  })
+}
+
 export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
+  const [events, setEvents] = useState(null)
+  const [alerts, setAlerts] = useState(null)
   const [jarvisText, setJarvisText] = useState('')
 
   useEffect(() => {
-    getCrossDomainAlerts().catch(() => {})
+    getCalendarSnapshot()
+      .then(r => setEvents(r.events || []))
+      .catch(() => setEvents([]))
+
+    getCrossDomainAlerts()
+      .then(r => setAlerts(r))
+      .catch(() => {})
+
     postJarvisChat({ domain: 'calendar', message: 'What should I know about my schedule this week?' })
       .then(r => setJarvisText(r.response || ''))
       .catch(() => {})
@@ -50,8 +56,14 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
   const dayNum = now.getDate()
   const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
   const dowNames = ['SUN','MON','TUE','WED','THU','FRI','SAT']
-  const dayLabel = `${dowNames[now.getDay()]}`
+  const dayLabel = dowNames[now.getDay()]
   const monthLabel = monthNames[now.getMonth()]
+  const weekDays = buildWeekDays()
+
+  // Filter events to show today's events first, then upcoming
+  const today = now.toISOString().slice(0, 10)
+  const todayEvents = (events || []).filter(e => e.date === today)
+  const displayEvents = todayEvents.length > 0 ? todayEvents : (events || []).slice(0, 5)
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(226,222,255,.94)', fontFamily: "'Saira Condensed',sans-serif" }}>
@@ -71,12 +83,16 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
             <div style={{ fontFamily: 'var(--display)', fontSize: 64, fontWeight: 700, lineHeight: .9, background: `linear-gradient(155deg,#fff 0%,${VIOLET_BR} 50%,${VIOLET} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 22px rgba(159,125,255,.38))' }}>{dayNum}</div>
             <div style={{ fontFamily: 'var(--display)', fontSize: 16, letterSpacing: '.18em', color: 'rgba(159,125,255,.36)', paddingBottom: 7 }}>{monthLabel} · {dayLabel}</div>
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: TEXT_DIM, marginTop: 10 }}>5 EVENTS · 2 FOCUS BLOCKS · 1 TRAINING WINDOW</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: TEXT_DIM, marginTop: 10 }}>
+            {events === null
+              ? 'LOADING…'
+              : `${displayEvents.length} EVENT${displayEvents.length !== 1 ? 'S' : ''} TODAY`}
+          </div>
         </div>
 
         {/* DAY STRIP */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderBottom: `1px solid ${BORDER}`, background: 'rgba(159,125,255,.018)' }}>
-          {WEEK_DAYS.map(d => (
+          {weekDays.map(d => (
             <div key={d.dow + d.num} style={{ padding: '10px 4px', textAlign: 'center', borderRight: `1px solid rgba(32,216,236,.08)`, background: d.active ? 'rgba(159,125,255,.08)' : 'transparent', boxShadow: d.active ? 'inset 0 -2px 0 ' + VIOLET : 'none' }}>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED, letterSpacing: '.12em', marginBottom: 5 }}>{d.dow}</div>
               <div style={{ fontFamily: 'var(--display)', fontSize: 17, color: d.active ? VIOLET_BR : 'rgba(226,222,255,.72)' }}>{d.num}</div>
@@ -88,27 +104,40 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
         <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>AGENDA</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: VIOLET }}>ON TRACK</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: VIOLET }}>
+              {events === null ? '…' : 'ON TRACK'}
+            </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {PROTO_EVENTS.map(ev => {
-              const accent = eventAccent(ev.type)
-              return (
-                <div
-                  key={ev.id}
-                  onClick={() => onEvent && onEvent({ event_id: ev.id, event_type: ev.type === 'default' ? 'rehearsal' : ev.type, title: ev.title, date: `2026-06-${String(dayNum).padStart(2,'0')}`, time_start: ev.time, time_end: null, location: null, role: null })}
-                  style={{ display: 'grid', gridTemplateColumns: '54px 1fr 64px', gap: 10, padding: 12, border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(159,125,255,.025)', position: 'relative', cursor: 'pointer', borderLeft: `3px solid ${accent}` }}
-                >
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: VIOLET_BR, letterSpacing: '.08em' }}>{ev.time}</div>
-                  <div>
-                    <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, letterSpacing: '.06em', color: '#fff', lineHeight: 1.1 }}>{ev.title}</div>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.09em', color: TEXT_DIM, marginTop: 4, lineHeight: 1.5 }}>{ev.meta}</div>
+
+          {events === null ? (
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: MUTED, padding: '20px 0', textAlign: 'center' }}>Loading…</div>
+          ) : displayEvents.length === 0 ? (
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: MUTED, padding: '20px 0', textAlign: 'center' }}>No events today.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {displayEvents.map(ev => {
+                const accent = eventAccent(ev.event_type)
+                return (
+                  <div
+                    key={ev.event_id}
+                    onClick={() => onEvent && onEvent(ev)}
+                    style={{ display: 'grid', gridTemplateColumns: '54px 1fr 64px', gap: 10, padding: 12, border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(159,125,255,.025)', position: 'relative', cursor: 'pointer', borderLeft: `3px solid ${accent}` }}
+                  >
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: VIOLET_BR, letterSpacing: '.08em' }}>{ev.time_start || '—'}</div>
+                    <div>
+                      <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, letterSpacing: '.06em', color: '#fff', lineHeight: 1.1 }}>{ev.title}</div>
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.09em', color: TEXT_DIM, marginTop: 4, lineHeight: 1.5 }}>
+                        {[ev.event_type?.toUpperCase(), ev.location, ev.role].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, textAlign: 'right', color: MUTED, letterSpacing: '.10em' }}>
+                      {ev.time_end || ev.event_type?.toUpperCase() || ''}
+                    </div>
                   </div>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, textAlign: 'right', color: MUTED, letterSpacing: '.10em' }}>{ev.status}</div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* QUICK ACTIONS */}
@@ -121,7 +150,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
             {[
               { label: 'ADD EVENT', action: null },
               { label: 'WEEK VIEW', action: onWeekView },
-              { label: 'EVENT DETAIL', action: () => onEvent && onEvent(null) },
+              { label: 'EVENT DETAIL', action: () => onEvent && onEvent(displayEvents[0] || null) },
               { label: 'ASK PHOENIX', action: () => onQuickAsk && onQuickAsk('What should I know about my schedule today?') },
             ].map(btn => (
               <div
@@ -137,7 +166,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
         <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${VIOLET}`, background: 'rgba(159,125,255,.025)' }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(159,125,255,.52)', marginBottom: 6 }}>PHOENIX NOTE</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(226,222,255,.78)' }}>
-            {jarvisText || 'Calendar gets violet as its domain accent. It should coordinate life blocks across work, training, meals, finance reviews, and recovery.'}
+            {jarvisText || <span style={{ color: MUTED }}>Loading schedule analysis…</span>}
           </div>
         </div>
       </div>

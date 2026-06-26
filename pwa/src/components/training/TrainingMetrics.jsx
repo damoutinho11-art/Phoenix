@@ -1,29 +1,30 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getTrainingHistory, getTrainingStatus, logJump } from '../../api/client'
 
 // ─── Jump Chart SVG ───────────────────────────────────────────────────────────
 
-function JumpChart() {
+function JumpChart({ jumpData, targetLine = 32.0 }) {
   const lineRef = useRef(null)
-  const jumpData = [26.0, 26.2, 26.5, 26.8, 27.0, 27.2, 27.4, 27.5, 27.8, 28.0, 28.2, 28.5]
-  const targetLine = 32.0
   const W = 390, H = 80
   const pad = { l: 0, r: 0, t: 8, b: 4 }
   const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b
-  const mn = 25.5, mx = 33
+  if (!jumpData || jumpData.length < 2) return (
+    <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 9, color: 'rgba(32,216,236,.38)' }}>
+      No jump data yet
+    </div>
+  )
+
+  const mn = Math.min(...jumpData, targetLine) - 0.5
+  const mx = Math.max(...jumpData, targetLine) + 0.5
   const px = i => (i / (jumpData.length - 1)) * cw + pad.l
   const py = v => pad.t + (1 - (v - mn) / (mx - mn)) * ch
 
-  // target line y
   const tyVal = py(targetLine)
-
-  // fill polygon points
   const lastX = px(jumpData.length - 1)
   const lastY = py(jumpData[jumpData.length - 1])
   const pts = jumpData.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ')
   const fillPts = pts + ` ${lastX.toFixed(1)},${H} 0,${H}`
 
-  // line length for dash animation
   const lineLen = jumpData.reduce((a, v, i) =>
     i === 0 ? 0 : a + Math.hypot(px(i) - px(i - 1), py(v) - py(jumpData[i - 1])), 0)
 
@@ -50,25 +51,16 @@ function JumpChart() {
           </linearGradient>
           <filter id="jGlow">
             <feGaussianBlur stdDeviation="2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
         </defs>
-
-        {/* Target line */}
         <line x1={0} y1={tyVal} x2={W} y2={tyVal}
           stroke="rgba(255,213,107,.3)" strokeWidth="1" strokeDasharray="4 4" />
         <text x={W - 2} y={tyVal - 3} textAnchor="end"
           fontFamily="Share Tech Mono,monospace" fontSize="7" fill="rgba(255,213,107,.55)">
-          32" TARGET
+          {targetLine}" TARGET
         </text>
-
-        {/* Fill */}
         <polygon points={fillPts} fill="url(#jGrad)" />
-
-        {/* Animated line */}
         <polyline
           ref={lineRef}
           points={pts}
@@ -79,8 +71,6 @@ function JumpChart() {
           strokeDasharray={lineLen}
           strokeDashoffset={lineLen}
         />
-
-        {/* Endpoint dot */}
         <circle cx={lastX.toFixed(1)} cy={lastY.toFixed(1)} r="4"
           fill="#4dffb4" stroke="#000" strokeWidth="1.5" filter="url(#jGlow)" />
       </svg>
@@ -90,20 +80,21 @@ function JumpChart() {
 
 // ─── Recovery Ring ────────────────────────────────────────────────────────────
 
-function RecoveryRing() {
-  // 75% recovery: circumference=213.6, dashoffset = 213.6 * (1-0.75) = 53.4
+function RecoveryRing({ pct = 75 }) {
+  const circ = 213.6
+  const offset = circ * (1 - pct / 100)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '14px 18px', borderTop: '1px solid rgba(32,216,236,.18)' }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <svg width="80" height="80" viewBox="0 0 80 80">
           <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(32,216,236,.1)" strokeWidth="6" />
           <circle cx="40" cy="40" r="34" fill="none" stroke="#7df0ff" strokeWidth="6"
-            strokeLinecap="round" strokeDasharray="213.6" strokeDashoffset="53.4"
+            strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
             transform="rotate(-90 40 40)"
             style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)' }} />
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#7df0ff', lineHeight: 1 }}>75%</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#7df0ff', lineHeight: 1 }}>{pct}%</div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: 'rgba(32,216,236,.38)' }}>RECOVERY</div>
         </div>
       </div>
@@ -113,14 +104,14 @@ function RecoveryRing() {
           READINESS BREAKDOWN
         </div>
         {[
-          { label: 'SLEEP', pct: 82, color: '#4dffb4', val: '7h 20m', valColor: '#7df0ff' },
-          { label: 'SORENESS', pct: 60, color: '#ffd56b', val: 'MOD', valColor: '#ffd56b' },
-          { label: 'HRV', pct: 78, color: '#4dffb4', val: '68ms', valColor: '#7df0ff' },
-        ].map(({ label, pct, color, val, valColor }) => (
+          { label: 'SLEEP',    pct: 82, color: '#4dffb4', val: '7h 20m', valColor: '#7df0ff' },
+          { label: 'SORENESS', pct: 60, color: '#ffd56b', val: 'MOD',    valColor: '#ffd56b' },
+          { label: 'HRV',      pct: 78, color: '#4dffb4', val: '68ms',   valColor: '#7df0ff' },
+        ].map(({ label, pct: p, color, val, valColor }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(32,216,236,.38)' }}>{label}</span>
             <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }}>
-              <div style={{ height: '100%', borderRadius: 1, background: color, width: `${pct}%` }} />
+              <div style={{ height: '100%', borderRadius: 1, background: color, width: `${p}%` }} />
             </div>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: valColor }}>{val}</span>
           </div>
@@ -132,10 +123,19 @@ function RecoveryRing() {
 
 // ─── Weight Bars ──────────────────────────────────────────────────────────────
 
-function WeightBars() {
-  const weights = [87.0, 86.5, 86.2, 85.8, 85.5, 85.1, 84.8, 84.5, 84.3, 84.2]
-  const target = 81, start = 87
+function WeightBars({ currentKg, targetKg = 81, startKg = 87 }) {
+  const current = currentKg ?? startKg
   const maxH = 28
+
+  // Build a simple display bar from start → current
+  const steps = 10
+  const weights = Array.from({ length: steps }, (_, i) => {
+    const progress = i / (steps - 1)
+    return startKg - (startKg - current) * progress
+  })
+
+  const kgLost = (startKg - current).toFixed(1)
+  const kgToGo = Math.max(0, current - targetKg).toFixed(1)
 
   return (
     <div style={{ padding: '14px 18px', borderTop: '1px solid rgba(32,216,236,.18)' }}>
@@ -143,16 +143,18 @@ function WeightBars() {
         BODYWEIGHT · CUT PHASE
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-        <div style={{ fontFamily: 'var(--display)', fontSize: 28, fontWeight: 700, color: '#fff' }}>84.2</div>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 28, fontWeight: 700, color: '#fff' }}>{current.toFixed(1)}</div>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(32,216,236,.38)', letterSpacing: '.1em' }}>KG</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#4dffb4', padding: '2px 7px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.06)' }}>−2.8kg</div>
+        {parseFloat(kgLost) > 0 && (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#4dffb4', padding: '2px 7px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.06)' }}>−{kgLost}kg</div>
+        )}
       </div>
       <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'rgba(125,188,200,.55)', letterSpacing: '.1em', marginBottom: 12 }}>
-        TARGET: 81KG BY MID-AUG · 3.2KG TO GO
+        TARGET: {targetKg}KG · {kgToGo}KG TO GO
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 32 }}>
         {weights.map((w, i) => {
-          const pct = 1 - (w - target) / (start - target)
+          const pct = 1 - (w - targetKg) / Math.max(0.1, startKg - targetKg)
           const h = Math.max(4, pct * maxH)
           const isLast = i === weights.length - 1
           return (
@@ -168,7 +170,7 @@ function WeightBars() {
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.38)' }}>WK01</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.38)' }}>START</span>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.38)' }}>NOW</span>
       </div>
     </div>
@@ -238,18 +240,46 @@ function JumpModal({ onClose, onSuccess }) {
 export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, onNav }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [statusData, setStatusData] = useState(null)
-  const [_history, setHistory] = useState(null)
+  const [history, setHistory] = useState(null)
 
-  // Load in background; prototype data is primary display
-  useEffect(() => {
-    getTrainingStatus().then(setStatusData).catch(() => {})
-    getTrainingHistory().then(setHistory).catch(() => {})
-  }, [])
+  async function loadData() {
+    const [s, h] = await Promise.allSettled([getTrainingStatus(), getTrainingHistory()])
+    if (s.status === 'fulfilled') setStatusData(s.value)
+    if (h.status === 'fulfilled') setHistory(h.value)
+  }
 
-  // Dunk countdown
-  const target = new Date('2026-08-25')
-  const now = new Date()
-  const days = Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)))
+  useEffect(() => { loadData() }, [])
+
+  // Dunk countdown from API or computed from target date
+  const targetDateStr = statusData?.dunk_goal?.attempt_window_start ?? '2026-08-25'
+  const daysToAttempt = statusData?.dunk_goal?.days_to_attempt ?? Math.max(0, Math.ceil((new Date(targetDateStr) - new Date()) / 86400000))
+
+  const phase = statusData?.dunk_goal?.current_phase ?? 'ACCUMULATION'
+  const mesoWeek = statusData?.dunk_goal?.current_mesocycle_week ?? '—'
+  const onTrack = statusData?.dunk_goal?.on_track
+
+  // Today's session from API
+  const todaySession = statusData?.today_session
+  const sessionType = todaySession?.session_type?.toUpperCase() ?? '—'
+  const sessionLabel = todaySession?.label ?? ''
+  const exercises = todaySession?.exercises ?? []
+
+  // Jump progression: convert cm → inches, extract approach values
+  const jumpProgression = history?.jump_progression ?? []
+  const jumpDataInches = jumpProgression
+    .filter(p => p.approach != null)
+    .map(p => parseFloat((p.approach / 2.54).toFixed(2)))
+  const lastJumpIn = jumpDataInches.length > 0 ? jumpDataInches[jumpDataInches.length - 1] : null
+  const firstJumpIn = jumpDataInches.length > 0 ? jumpDataInches[0] : null
+  const jumpGained = (lastJumpIn != null && firstJumpIn != null)
+    ? `+${(lastJumpIn - firstJumpIn).toFixed(1)}" gained`
+    : 'no data yet'
+
+  // Sessions count
+  const sessionCount = history?.sessions?.length ?? 0
+
+  // Bodyweight from cut_status
+  const currentBodyweightKg = statusData?.cut_status?.current_bodyweight_kg ?? null
 
   const BORDER = 'rgba(32,216,236,.18)'
   const MUTED = 'rgba(32,216,236,.38)'
@@ -270,7 +300,7 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
           <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: CYAN_BR }}>TRAINING</span>
         </div>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: ORANGE, border: `1px solid rgba(255,143,46,.26)`, padding: '2px 8px', background: 'rgba(255,143,46,.07)' }}>
-          PHASE 1 · ACCUMULATION
+          {phase.replace(/_/g, ' ')}
         </span>
       </div>
 
@@ -292,75 +322,63 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               filter: 'drop-shadow(0 0 20px rgba(32,216,236,.38))',
             }}>
-              {days}
+              {daysToAttempt}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 6 }}>
               <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 400, letterSpacing: '.2em', color: MUTED }}>DAYS</div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: CYAN, padding: '3px 8px', border: `1px solid rgba(32,216,236,.3)`, background: 'rgba(32,216,236,.06)' }}>
-                TARGET · LATE AUG 2026
+                TARGET · {targetDateStr.slice(0, 7).replace('-', ' ').toUpperCase()}
               </div>
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: 'rgba(125,188,200,.55)', marginTop: 10 }}>
-            WK 03 OF 10 · 30% COMPLETE · ON TRACK
-          </div>
-          <div style={{ height: 2, background: 'rgba(32,216,236,.12)', marginTop: 10, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: `linear-gradient(90deg,${CYAN},${CYAN_BR})`, width: '30%', boxShadow: `0 0 8px ${CYAN}` }} />
-          </div>
+          {statusData && (
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: 'rgba(125,188,200,.55)', marginTop: 10 }}>
+              WEEK {mesoWeek} OF MESOCYCLE · {onTrack ? 'ON TRACK' : 'REVIEW NEEDED'}
+            </div>
+          )}
         </div>
 
         {/* WEEK + SESSION TYPE STRIP */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ padding: '14px 18px', borderRight: `1px solid ${BORDER}` }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: MUTED, marginBottom: 6 }}>CURRENT WEEK</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.04em', color: CYAN_BR }}>03 / 10</div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: 'rgba(125,188,200,.55)', marginTop: 3 }}>Rivera Conjugate</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.04em', color: CYAN_BR }}>WK {mesoWeek}</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: 'rgba(125,188,200,.55)', marginTop: 3 }}>{phase.replace(/_/g, ' ')}</div>
           </div>
           <div style={{ padding: '14px 18px' }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: MUTED, marginBottom: 6 }}>TODAY'S TYPE</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.04em', color: ORANGE }}>ME</div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: 'rgba(125,188,200,.55)', marginTop: 3 }}>Max Effort Lower</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.04em', color: ORANGE }}>{sessionType}</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: 'rgba(125,188,200,.55)', marginTop: 3 }}>{sessionLabel}</div>
           </div>
         </div>
 
         {/* TODAY'S SESSION CARD */}
         <div style={{ margin: '16px 18px', border: `1px solid ${BORDER}`, background: 'rgba(0,0,0,.9)', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}
           onClick={() => { if (onNav) onNav('active-session'); else if (onStartSession) onStartSession() }}>
-          {/* Left orange accent */}
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: ORANGE, boxShadow: `0 0 9px rgba(255,143,46,.32)` }} />
-          {/* Top shine */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg,transparent,rgba(32,216,236,.25),transparent)' }} />
 
           <div style={{ padding: '16px 16px 16px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'inline-block', fontFamily: 'var(--display)', fontSize: 11, fontWeight: 700, letterSpacing: '.22em', padding: '3px 10px', color: ORANGE, border: `1px solid rgba(255,143,46,.4)`, background: 'rgba(255,143,46,.08)', marginBottom: 2 }}>
-                  MAX EFFORT
+                  {sessionType}
                 </span>
-                <div style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 700, letterSpacing: '.06em', color: '#fff', lineHeight: 1 }}>LOWER BODY</div>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: 'rgba(125,188,200,.55)', marginTop: 2 }}>Primary: Hex Bar Jump · Accessory: Posterior Chain</div>
+                <div style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 700, letterSpacing: '.06em', color: '#fff', lineHeight: 1 }}>{sessionLabel || 'SESSION'}</div>
               </div>
               <span style={{ fontSize: 18, color: CYAN, opacity: .7 }}>→</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 12 }}>
-              {[
-                { name: 'Hex Bar Deadlift Jump', pct: 'MAX', detail: 'Work to 3RM' },
-                { name: 'Romanian Deadlift', pct: '65%', detail: '4 × 6' },
-                { name: 'Glute Ham Raise', pct: null, detail: '3 × 8' },
-                { name: 'Single-Leg Calf Raise', pct: null, detail: '3 × 15 ea.' },
-              ].map((ex, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < 3 ? `1px solid rgba(32,216,236,.06)` : 'none' }}>
-                  <span style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 13, fontWeight: 400, color: 'rgba(199,236,244,.82)' }}>{ex.name}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {ex.pct && (
-                      <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: ORANGE, padding: '1px 5px', border: `1px solid rgba(255,143,46,.25)` }}>{ex.pct}</span>
-                    )}
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.08em', color: MUTED }}>{ex.detail}</span>
+            {exercises.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 12 }}>
+                {exercises.slice(0, 4).map((ex, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < Math.min(exercises.length, 4) - 1 ? `1px solid rgba(32,216,236,.06)` : 'none' }}>
+                    <span style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 13, fontWeight: 400, color: 'rgba(199,236,244,.82)' }}>{ex.name}</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.08em', color: MUTED }}>{ex.sets_reps || ex.label || ''}</span>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 0', background: 'rgba(32,216,236,.06)', border: `1px solid rgba(32,216,236,.2)`, fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: CYAN, cursor: 'pointer', marginTop: -1 }}>
@@ -371,9 +389,9 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
         {/* STATS ROW */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
           {[
-            { label: 'SESSIONS', val: '11', valClass: CYAN_BR, sub: 'this block' },
-            { label: 'VERT JUMP', val: '28.5"', valClass: '#4dffb4', sub: '+2.5" gained' },
-            { label: 'STREAK', val: '6', valClass: ORANGE, sub: 'days active' },
+            { label: 'SESSIONS', val: sessionCount > 0 ? String(sessionCount) : '—', valClass: CYAN_BR, sub: 'this block' },
+            { label: 'VERT JUMP', val: lastJumpIn != null ? `${lastJumpIn.toFixed(1)}"` : '—', valClass: '#4dffb4', sub: jumpGained },
+            { label: 'PHASE', val: String(mesoWeek), valClass: ORANGE, sub: phase.toLowerCase().replace(/_/g, ' ') },
           ].map(({ label, val, valClass, sub }, i) => (
             <div key={i} style={{ padding: '12px 14px', borderRight: i < 2 ? `1px solid ${BORDER}` : 'none', textAlign: 'center' }}>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED, marginBottom: 4 }}>{label}</div>
@@ -387,21 +405,23 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
         <div style={{ padding: '16px 18px 12px', borderTop: `1px solid ${BORDER}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>VERTICAL JUMP TREND</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: '#4dffb4' }}>28.5"</span>
+            {lastJumpIn != null && (
+              <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: '#4dffb4' }}>{lastJumpIn.toFixed(1)}"</span>
+            )}
           </div>
-          <JumpChart />
+          <JumpChart jumpData={jumpDataInches} targetLine={32.0} />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED }}>WK01</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED }}>FIRST LOG</span>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED, letterSpacing: '.1em' }}>TARGET: 32" BY AUG</span>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED }}>NOW</span>
           </div>
         </div>
 
         {/* RECOVERY RING */}
-        <RecoveryRing />
+        <RecoveryRing pct={75} />
 
         {/* BODYWEIGHT TREND */}
-        <WeightBars />
+        <WeightBars currentKg={currentBodyweightKg} targetKg={81} startKg={87} />
 
         {/* LOG JUMP BUTTON */}
         <div style={{ padding: '0 18px 32px' }}>
@@ -417,7 +437,7 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
       {modalOpen && (
         <JumpModal
           onClose={() => setModalOpen(false)}
-          onSuccess={() => setModalOpen(false)}
+          onSuccess={() => { setModalOpen(false); loadData() }}
         />
       )}
     </div>

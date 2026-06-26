@@ -9,11 +9,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
-        name: 'J.A.R.V.I.S.',
-        short_name: 'JARVIS',
+        name: 'PHOENIX',
+        short_name: 'PHOENIX',
         description: 'Personal AI assistant',
-        theme_color: '#c9a84c',
-        background_color: '#0a0a0a',
+        theme_color: '#010608',
+        background_color: '#010608',
         display: 'standalone',
         start_url: '/',
         icons: [
