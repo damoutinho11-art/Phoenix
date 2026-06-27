@@ -13,6 +13,7 @@ import WeeklyBrief from './components/finance/WeeklyBrief'
 import Holdings from './components/finance/Holdings'
 import BriefHistory from './components/finance/BriefHistory'
 import Performance from './components/finance/Performance'
+import Research from './components/finance/Research'
 import BudgetDashboard from './components/finance/BudgetDashboard'
 import BudgetUpload from './components/finance/BudgetUpload'
 import CalendarDashboard from './components/calendar/CalendarDashboard'
@@ -113,6 +114,8 @@ export default function App() {
           return <Performance onBack={() => setFinanceScreen('dashboard')} />
         case 'history':
           return <BriefHistory onBack={() => setFinanceScreen('dashboard')} />
+        case 'research':
+          return <Research onBack={() => setFinanceScreen('dashboard')} />
         case 'budget':
           return <BudgetDashboard onBack={() => setFinanceScreen('dashboard')} onUpload={() => setFinanceScreen('budget-upload')} />
         case 'budget-upload':

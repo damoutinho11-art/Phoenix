@@ -55,6 +55,18 @@ def test_create_research_memo_returns_record_and_safety_flags() -> None:
     assert data["memo"]["risks"] == ["Factor underperformance"]
 
 
+def test_create_accepts_minimal_research_ui_payload() -> None:
+    payload = _payload()
+    payload.pop("sources")
+    payload.pop("validation")
+
+    response = client.post("/finance/research/memos", json=payload)
+
+    assert response.status_code == 200
+    assert response.json()["memo"]["sources"] == []
+    assert response.json()["memo"]["validation"] == {}
+
+
 def test_list_and_fetch_research_memos() -> None:
     created = client.post("/finance/research/memos", json=_payload()).json()
 

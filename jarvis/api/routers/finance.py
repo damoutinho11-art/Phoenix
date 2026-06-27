@@ -57,8 +57,8 @@ class ResearchMemoPayload(BaseModel):
     risks: list[str] = Field(min_length=1)
     data_confidence: str = Field(min_length=1)
     verdict: Literal["BUY_CANDIDATE", "WATCH", "REJECT", "INSUFFICIENT_DATA"]
-    sources: list[dict] = Field(min_length=1)
-    validation: dict
+    sources: list[dict] = Field(default_factory=list)
+    validation: dict = Field(default_factory=dict)
     status: Literal["draft", "active", "archived"]
     notes: str | None = None
 

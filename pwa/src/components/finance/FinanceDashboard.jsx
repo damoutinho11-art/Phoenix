@@ -280,8 +280,8 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
 
       {/* NAV BUTTONS */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 16px 24px' }}>
-        {[['HOLDINGS', 'holdings'], ['PERFORMANCE', 'performance'], ['HISTORY', 'history'], ['BUDGET', 'budget']].map(([lbl, screen]) => (
-          <button key={screen} onClick={() => onNav(screen)} className="action" style={{ padding: '13px 0', fontSize: 10, letterSpacing: '.14em' }}>
+        {[['HOLDINGS', 'holdings'], ['PERFORMANCE', 'performance'], ['HISTORY', 'history'], ['BUDGET', 'budget'], ['RESEARCH', 'research']].map(([lbl, screen]) => (
+          <button key={screen} onClick={() => onNav(screen)} className="action" style={{ padding: '13px 0', fontSize: 10, letterSpacing: '.14em', gridColumn: screen === 'research' ? '1 / -1' : 'auto' }}>
             {lbl}
           </button>
         ))}
