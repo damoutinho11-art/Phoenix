@@ -1,4 +1,4 @@
-﻿"""Stable J.A.R.V.I.S. runtime safety boundary.
+"""Stable J.A.R.V.I.S. runtime safety boundary.
 
 This module owns the user-facing execution block message for active runtime
 commands. It deliberately does not import historical versioned runtime modules.

@@ -1,4 +1,4 @@
-﻿"""Training domain engine — Isiah Rivera Long Conjugate Sequence System."""
+"""Training domain engine — Isiah Rivera Long Conjugate Sequence System."""
 
 from datetime import date, timedelta
 from pathlib import Path
