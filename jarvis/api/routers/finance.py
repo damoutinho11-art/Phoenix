@@ -479,6 +479,145 @@ def finance_recommendation(
     return response
 
 
+_MANUAL_BUY_SAFETY_FLAGS = {
+    "checklist_only": True,
+    "investment_approval": False,
+    "trades_executed": False,
+    "broker_connection": False,
+    "orders_created": False,
+    "portfolio_state_updated": False,
+    "recommendation_overridden": False,
+    "manual_broker_action_required": True,
+}
+
+
+def _manual_buy_platform(route: str | None, instrument: dict) -> str:
+    platform = instrument.get("platform")
+    if platform:
+        return str(platform)
+    return {
+        "lhv_crypto": "LHV Crypto",
+        "lightyear": "Lightyear",
+    }.get(route, route or "Manual broker")
+
+
+def _build_manual_buy_checklist(recommendation: dict) -> dict:
+    """Project the existing recommendation into a read-only manual checklist."""
+    research_by_asset = {
+        leg.get("asset"): leg
+        for leg in (recommendation.get("research_context") or [])
+        if leg.get("asset")
+    }
+    checklist_items = []
+    for leg in recommendation.get("recommendations") or []:
+        asset = leg["asset"]
+        amount = leg["amount"]
+        route = leg.get("route")
+        instrument = leg.get("instrument") or {}
+        resolved_candidate = instrument.get("resolved_candidate")
+        candidate = resolved_candidate if isinstance(resolved_candidate, dict) else {}
+        platform = _manual_buy_platform(route, instrument)
+        ticker = candidate.get("symbol") or instrument.get("ticker")
+        instrument_name = (
+            candidate.get("label")
+            or instrument.get("display_name")
+            or instrument.get("candidate_label")
+            or asset
+        )
+        confirmation_required = bool(instrument.get("confirmation_required", False))
+        research = research_by_asset.get(asset) or {
+            "memo_id": None,
+            "verdict": None,
+            "data_confidence": None,
+            "evidence_status": "NO_EVIDENCE",
+            "research_warning": "No active research memo attached.",
+        }
+
+        if resolved_candidate:
+            broker_instruction = (
+                f"Open {platform} manually, search {ticker or instrument_name} / "
+                f"{instrument_name}, verify it matches the PHOENIX resolved candidate, "
+                f"then buy approximately \u20ac{amount:.2f}. Confirm final price, fees, "
+                "and quantity before recording."
+            )
+        else:
+            broker_instruction = (
+                f"Open {platform} manually and buy approximately \u20ac{amount:.2f} of "
+                f"{ticker or instrument_name}. Confirm final price, fees, and received "
+                "quantity before recording the transaction."
+            )
+
+        pre_buy_checks = [
+            "Confirm the weekly brief has been manually reviewed and approved.",
+            f"Confirm the broker instrument matches {ticker or instrument_name}.",
+            "Confirm the live broker price and all fees before submitting anything manually.",
+            f"Confirm the intended spend is approximately \u20ac{amount:.2f}.",
+            "After the manual buy, record the actual price, fees, and received quantity in the PHOENIX ledger.",
+        ]
+        if confirmation_required:
+            pre_buy_checks.insert(
+                2,
+                "Instrument confirmation is required; verify ticker, listing, exchange, and fund identity.",
+            )
+
+        checklist_items.append(
+            {
+                "asset": asset,
+                "amount": amount,
+                "route": route,
+                "platform": platform,
+                "instrument_display_name": instrument_name,
+                "ticker": ticker,
+                "symbol": ticker,
+                "resolved_candidate": resolved_candidate,
+                "research_memo_id": research.get("memo_id"),
+                "research_verdict": research.get("verdict"),
+                "research_data_confidence": research.get("data_confidence"),
+                "evidence_status": research.get("evidence_status") or "NO_EVIDENCE",
+                "research_warning": research.get("research_warning"),
+                "manual_action_text": (
+                    f"Review the {asset} leg and, only after manual approval, complete "
+                    f"the approximately \u20ac{amount:.2f} purchase in {platform}."
+                ),
+                "broker_instruction": broker_instruction,
+                "confirmation_required": confirmation_required,
+                "pre_buy_checks": pre_buy_checks,
+            }
+        )
+
+    review_statuses = {"NO_EVIDENCE", "NEEDS_RESEARCH", "BLOCKED_BY_FAIL"}
+    approval_summary = recommendation.get("approval_ticket_summary") or {}
+    has_blocker = bool(approval_summary.get("blocked_actions"))
+    needs_research = has_blocker or any(
+        item["evidence_status"] in review_statuses or item["research_warning"]
+        for item in checklist_items
+    )
+    return {
+        "week_label": recommendation.get("week_label"),
+        "week_budget": recommendation.get("week_budget"),
+        "portfolio_mode": recommendation.get("portfolio_mode"),
+        "brief_id": recommendation.get("brief_id"),
+        "brief_status": recommendation.get("brief_status"),
+        "requires_approval": recommendation.get("requires_approval", True),
+        "checklist_status": (
+            "NEEDS_RESEARCH_REVIEW" if needs_research else "READY_FOR_MANUAL_REVIEW"
+        ),
+        "research_gate_summary": recommendation.get("research_gate_summary") or {},
+        "checklist_items": checklist_items,
+        "safety_flags": dict(_MANUAL_BUY_SAFETY_FLAGS),
+    }
+
+
+@router.get("/manual-buy-checklist")
+def finance_manual_buy_checklist(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    recommendation = finance_recommendation(constitution, portfolio_state, profile)
+    return _build_manual_buy_checklist(recommendation)
+
+
 _ASSET_DISPLAY_NAMES = {
     "btc": "Bitcoin",
     "hype": "Hyperliquid",

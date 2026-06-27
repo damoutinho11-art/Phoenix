@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getFinanceLedger, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceResearchAutopilotRun, postFinanceTransactionApply, postManualFinanceTransaction } from '../../api/client'
+import { getFinanceLedger, getFinanceManualBuyChecklist, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceResearchAutopilotRun, postFinanceTransactionApply, postManualFinanceTransaction } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
 const muted = 'rgba(32,216,236,.38)'
@@ -174,6 +174,62 @@ function ResearchContextSection({ researchContext, gateSummary }) {
           <span>WITH RESEARCH · {gateSummary.legs_with_research ?? 0}/{gateSummary.total_recommendation_legs ?? 0}</span>
           <span>BLOCKED · {gateSummary.legs_blocked_by_failed_research ?? 0}</span>
           <span style={{ gridColumn: '1/-1', marginTop: 2, color: 'rgba(32,216,236,.4)' }}>ADVISORY ONLY · ALLOCATIONS UNCHANGED</span>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+function ManualBuyChecklistSection({ checklist, error }) {
+  const items = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
+  const ready = checklist?.checklist_status === 'READY_FOR_MANUAL_REVIEW'
+
+  return (
+    <Section title="MANUAL BUY CHECKLIST">
+      {!checklist && !error && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted, letterSpacing: '.12em' }}>LOADING MANUAL CHECKLIST…</div>
+      )}
+      {error && (
+        <div style={{ padding: '10px 12px', border: '1px solid rgba(255,92,122,.3)', color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8, lineHeight: 1.5 }}>
+          MANUAL CHECKLIST UNAVAILABLE · {error}
+        </div>
+      )}
+      {checklist && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ padding: '10px 12px', border: ready ? '1px solid rgba(77,255,180,.25)' : '1px solid rgba(255,213,107,.3)', background: ready ? 'rgba(77,255,180,.03)' : 'rgba(255,213,107,.035)' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: ready ? '#4dffb4' : '#ffd56b' }}>{checklist.checklist_status}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.55, marginTop: 5, color: 'rgba(199,236,244,.8)' }}>PHOENIX has not bought anything. Open the broker manually.</div>
+          </div>
+          {items.map((item, index) => (
+            <CornerCard key={`${item.asset}-${index}`}>
+              <div style={{ padding: '13px 15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#7df0ff', overflowWrap: 'anywhere' }}>{String(item.asset || '—').toUpperCase()}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(199,236,244,.72)', marginTop: 3, overflowWrap: 'anywhere' }}>{item.instrument_display_name || item.ticker || 'Instrument details unavailable'}</div>
+                  </div>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 18, color: '#fff', flexShrink: 0 }}>{formatEur(item.amount)}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+                  <Stat label="PLATFORM" value={item.platform || item.route || '—'} />
+                  <Stat label="TICKER / SYMBOL" value={item.ticker || item.resolved_candidate?.symbol || 'Needs confirmation'} />
+                  <Stat label="RESEARCH" value={item.evidence_status || 'NO_EVIDENCE'} color={item.evidence_status === 'EVIDENCE_STRONG' ? '#4dffb4' : '#ffd56b'} />
+                  <Stat label="VERDICT" value={item.research_verdict || '—'} />
+                </div>
+                {item.research_warning && <div style={{ marginTop: 9, color: '#ffd56b', fontSize: 11, lineHeight: 1.5 }}>{item.research_warning}</div>}
+                <div style={{ marginTop: 10, padding: '9px 10px', border, background: 'rgba(32,216,236,.02)', fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.86)' }}>{item.broker_instruction || item.manual_action_text}</div>
+                {Array.isArray(item.pre_buy_checks) && item.pre_buy_checks.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: muted, marginBottom: 6 }}>PRE-BUY CHECKS</div>
+                    <TextList items={item.pre_buy_checks} />
+                  </div>
+                )}
+              </div>
+            </CornerCard>
+          ))}
+          <div style={{ padding: '9px 11px', border, color: 'rgba(125,240,255,.72)', fontFamily: 'var(--mono)', fontSize: 8, lineHeight: 1.55 }}>
+            After buying manually, record the actual transaction in the ledger.
+          </div>
         </div>
       )}
     </Section>
@@ -559,6 +615,8 @@ function ManualBuyPanel({ recommendations, briefId }) {
 
 export default function WeeklyBrief({ onBack }) {
   const [rec, setRec] = useState(null)
+  const [manualChecklist, setManualChecklist] = useState(null)
+  const [manualChecklistError, setManualChecklistError] = useState('')
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [acting, setActing] = useState(false)
@@ -573,6 +631,18 @@ export default function WeeklyBrief({ onBack }) {
       })
       .catch((requestError) => {
         if (active) setError(requestError?.message || 'Unable to load the weekly brief.')
+      })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    getFinanceManualBuyChecklist()
+      .then((response) => {
+        if (active) setManualChecklist(response)
+      })
+      .catch((requestError) => {
+        if (active) setManualChecklistError(requestError?.message || 'Unable to load the manual checklist.')
       })
     return () => { active = false }
   }, [])
@@ -672,6 +742,8 @@ export default function WeeklyBrief({ onBack }) {
           </Section>
 
           <ResearchContextSection researchContext={researchContext} gateSummary={researchGateSummary} />
+
+          <ManualBuyChecklistSection checklist={manualChecklist} error={manualChecklistError} />
 
           {(researchContext.length > 0 || rec?.autopilot_available) && (
             <div style={{ margin: '0 0 0', padding: '10px 18px' }}>

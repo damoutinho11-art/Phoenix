@@ -18,6 +18,10 @@ export async function getFinanceRecommendation() {
   return apiFetch('/finance/recommendation')
 }
 
+export async function getFinanceManualBuyChecklist() {
+  return apiFetch('/finance/manual-buy-checklist')
+}
+
 export async function getCalendarSnapshot() {
   return apiFetch('/calendar/snapshot')
 }
