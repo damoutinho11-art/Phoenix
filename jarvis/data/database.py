@@ -1325,6 +1325,29 @@ def find_active_research_memo_for_leg(
         connection.close()
 
 
+def find_active_or_latest_research_memo_for_asset(asset: str) -> dict[str, Any] | None:
+    """Return the most recent non-archived memo for an asset, regardless of quality status.
+
+    Used by the finance autopilot to find existing work before creating a new draft.
+    Priority: any non-archived memo with the given asset key.
+    Never returns archived memos; never mutates state.
+    """
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """
+            SELECT * FROM research_memos
+            WHERE asset = ? AND status != 'archived'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (asset,),
+        ).fetchone()
+        return _decode_research_memo(row)
+    finally:
+        connection.close()
+
+
 _QUALITY_GATE_STATUSES = {"UNREVIEWED", "NEEDS_MORE_EVIDENCE", "VALIDATED", "REJECTED"}
 
 

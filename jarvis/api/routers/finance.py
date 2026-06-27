@@ -449,6 +449,11 @@ def finance_recommendation(
         "recommendation_overridden": False,
         "trades_executed": False,
     }
+    response["autopilot_available"] = True
+    response["research_autopilot_hint"] = (
+        "POST /finance/research/autopilot/run to run autonomous research "
+        "for all recommendation legs. Research only — no trades."
+    )
 
     # Auto-save brief (once per ISO week — idempotent on repeated calls)
     week_label = _iso_week_label()
@@ -1188,6 +1193,16 @@ _SYNTHESIS_EVIDENCE_RISKS = {
     "local_only": "All evidence is local PHOENIX data only — no external sources checked",
 }
 
+_AUTOPILOT_SAFETY_FLAGS: dict = {
+    "research_only": True,
+    "autopilot_only": True,
+    "investment_approval": False,
+    "trades_executed": False,
+    "broker_connection": False,
+    "portfolio_state_updated": False,
+    "recommendation_overridden": False,
+}
+
 
 def _synthesize_memo_from_evidence(
     memo: dict,
@@ -1384,6 +1399,196 @@ def finance_research_synthesize_from_evidence(
         response["quality_gate_result"] = gate_result
 
     return response
+
+
+def _run_source_adapters(memo: dict, constitution: dict) -> list[dict]:
+    """Dispatch to the appropriate read-only source adapter(s) for the memo's asset."""
+    from jarvis.domains.finance.research_adapters import (
+        run_crypto_price_adapter,
+        run_etf_source_adapter,
+    )
+
+    asset = (memo.get("asset") or "").strip().lower()
+    memo_id = memo["id"]
+
+    if asset in _CRYPTO_ASSETS:
+        return [run_crypto_price_adapter(memo_id, asset)]
+
+    try:
+        etf_universe = load_etf_universe(engine.DEFAULT_ETF_UNIVERSE_PATH)
+    except Exception:
+        etf_universe = {}
+    return run_etf_source_adapter(memo_id, asset, constitution, etf_universe)
+
+
+def _run_memo_autopilot(
+    memo_id: int,
+    constitution: dict,
+    portfolio_state: dict,
+    profile: dict,
+) -> dict:
+    """Run the full autonomous research pipeline for one memo.
+
+    Steps (in order):
+    1. Generate/repair local PHOENIX evidence.
+    2. Run read-only source adapter(s) for the asset type.
+    3. Synthesize memo from all evidence.
+    4. Run quality gate.
+    5. Return all step results + final memo state.
+
+    Pure research — no trades, no portfolio mutation, no investment approval.
+    """
+    memo = database.get_research_memo(memo_id)
+    if memo is None:
+        raise ValueError(f"Memo {memo_id} not found")
+
+    # Step 1: generate/repair local PHOENIX evidence
+    created_records, skipped_count, updated_count = _generate_evidence_records(
+        memo_id=memo_id,
+        memo=memo,
+        constitution=constitution,
+        portfolio_state=portfolio_state,
+        profile=profile,
+    )
+    evidence_result = {
+        "generated_count": len(created_records) - updated_count,
+        "updated_count": updated_count,
+        "skipped_count": skipped_count,
+        "records": created_records,
+    }
+
+    # Step 2: source adapters (re-read memo in case step 1 updated related state)
+    memo = database.get_research_memo(memo_id)
+    source_adapter_results = _run_source_adapters(memo, constitution)
+
+    # Step 3: synthesize from all evidence
+    memo = database.get_research_memo(memo_id)
+    records = database.list_research_validation_records_by_memo_id(memo_id)
+    synthesis_result, new_fields = _synthesize_memo_from_evidence(memo, records)
+    database.update_research_memo_content(
+        memo_id=memo_id,
+        thesis=new_fields["thesis"],
+        risks=new_fields["risks"],
+        verdict=new_fields["verdict"],
+        data_confidence=new_fields["data_confidence"],
+        notes=new_fields["notes"],
+    )
+
+    # Step 4: quality gate
+    quality_gate_result = database.evaluate_research_memo_quality(memo_id)
+
+    # Step 5: final memo state
+    final_memo = database.get_research_memo(memo_id)
+
+    return {
+        "memo_id": memo_id,
+        "evidence_result": evidence_result,
+        "source_adapter_results": source_adapter_results,
+        "synthesis_result": synthesis_result,
+        "quality_gate_result": quality_gate_result,
+        "final_memo": final_memo,
+    }
+
+
+@router.post("/research/memos/{memo_id}/autopilot")
+def finance_research_memo_autopilot(
+    memo_id: int,
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    """Run the full autonomous research pipeline for one memo.
+
+    Steps: generate evidence → source adapters → synthesize → quality gate.
+    Pure research — no trades, no portfolio mutation, no investment approval.
+    """
+    memo = database.get_research_memo(memo_id)
+    if memo is None:
+        raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
+
+    result = _run_memo_autopilot(memo_id, constitution, portfolio_state, profile)
+    return {**result, **_AUTOPILOT_SAFETY_FLAGS}
+
+
+@router.post("/research/autopilot/run")
+def finance_research_autopilot_run(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    """Run autonomous research for every current recommendation leg.
+
+    For each leg: finds an existing non-archived memo or creates a draft, then
+    runs the full autopilot pipeline (evidence → adapters → synthesis → quality gate).
+    Never changes recommendation amounts, routes, or portfolio state.
+    """
+    try:
+        regime = detect_market_regime(portfolio_state)
+    except Exception:
+        regime = "neutral"
+
+    try:
+        alloc_result = engine.allocate_weekly_budget(
+            constitution, portfolio_state, regime=regime, profile=profile
+        )
+    except Exception:
+        alloc_result = {}
+
+    ticket = alloc_result.get("approval_ticket", {})
+    exec_alloc = ticket.get("executable_allocation", {})
+    asset_routes = constitution.get("asset_routes", {})
+
+    legs = [
+        {"asset": k, "amount": v, "route": asset_routes.get(k)}
+        for k, v in exec_alloc.items()
+        if (v or 0) > 0
+    ]
+
+    leg_results = []
+    for leg in legs:
+        asset = leg["asset"]
+        asset_lower = asset.strip().lower()
+
+        memo = database.find_active_or_latest_research_memo_for_asset(asset_lower)
+        if memo is None:
+            sleeve = None if asset_lower in _CRYPTO_ASSETS else asset_lower
+            draft_content = _build_draft_memo_content(
+                asset=asset_lower,
+                sleeve=sleeve,
+                title=f"{asset_lower.upper()} — PHOENIX autopilot draft",
+                source_context="autopilot run",
+                constitution=constitution,
+                portfolio_state=portfolio_state,
+            )
+            memo_id = database.create_research_memo(draft_content)
+        else:
+            memo_id = memo["id"]
+
+        autopilot_result = _run_memo_autopilot(
+            memo_id, constitution, portfolio_state, profile
+        )
+        final_memo = autopilot_result["final_memo"] or {}
+
+        leg_results.append({
+            "asset": asset,
+            "amount": leg["amount"],
+            "route": leg["route"],
+            "memo_id": memo_id,
+            "synthesis_verdict": final_memo.get("verdict"),
+            "data_confidence": final_memo.get("data_confidence"),
+            "research_quality_status": final_memo.get("research_quality_status"),
+            "research_quality_reason": final_memo.get("research_quality_reason"),
+            "validated_for_context": (
+                final_memo.get("research_quality_status") == "VALIDATED"
+            ),
+            "autopilot_detail": autopilot_result,
+        })
+
+    return {
+        "legs": leg_results,
+        "total_legs": len(leg_results),
+        **_AUTOPILOT_SAFETY_FLAGS,
+    }
 
 
 @router.post("/research/memos/{memo_id}/generate-evidence")

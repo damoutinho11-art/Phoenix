@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getFinanceLedger, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceTransactionApply, postManualFinanceTransaction } from '../../api/client'
+import { getFinanceLedger, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceResearchAutopilotRun, postFinanceTransactionApply, postManualFinanceTransaction } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
 const muted = 'rgba(32,216,236,.38)'
@@ -562,6 +562,8 @@ export default function WeeklyBrief({ onBack }) {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [acting, setActing] = useState(false)
+  const [autopilotRunning, setAutopilotRunning] = useState(false)
+  const [autopilotResult, setAutopilotResult] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -574,6 +576,19 @@ export default function WeeklyBrief({ onBack }) {
       })
     return () => { active = false }
   }, [])
+
+  async function handleFinanceAutopilot() {
+    setAutopilotRunning(true)
+    setAutopilotResult(null)
+    try {
+      const result = await postFinanceResearchAutopilotRun()
+      setAutopilotResult(result)
+    } catch {
+      setAutopilotResult({ error: true })
+    } finally {
+      setAutopilotRunning(false)
+    }
+  }
 
   async function handleAction(actionName) {
     if (!rec?.brief_id) return
@@ -657,6 +672,34 @@ export default function WeeklyBrief({ onBack }) {
           </Section>
 
           <ResearchContextSection researchContext={researchContext} gateSummary={researchGateSummary} />
+
+          {(researchContext.length > 0 || rec?.autopilot_available) && (
+            <div style={{ margin: '0 0 0', padding: '10px 18px' }}>
+              <div style={{ padding: '9px 11px', border: '1px solid rgba(77,255,180,.18)', background: 'rgba(77,255,180,.012)' }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(77,255,180,.6)', letterSpacing: '.12em', marginBottom: 7 }}>
+                  PHOENIX runs research autonomously. This does not approve or execute a trade.
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleFinanceAutopilot}
+                    disabled={autopilotRunning}
+                    style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.06)', color: '#4dffb4', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', cursor: autopilotRunning ? 'wait' : 'pointer' }}
+                  >
+                    {autopilotRunning ? 'RUNNING AUTOPILOT…' : 'RUN FINANCE AUTOPILOT'}
+                  </button>
+                  {autopilotResult && !autopilotResult.error && (
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4' }}>
+                      {autopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY · NO TRADES
+                    </span>
+                  )}
+                  {autopilotResult?.error && (
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#ff5c7a' }}>AUTOPILOT ERROR</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {briefStatus && (
             <Section title="BRIEF DECISION">

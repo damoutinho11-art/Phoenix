@@ -9,6 +9,8 @@ import {
   postFinanceResearchQualityGateAll,
   postFinanceResearchGenerateEvidence,
   postFinanceResearchSynthesizeMemo,
+  postFinanceResearchMemoAutopilot,
+  postFinanceResearchAutopilotRun,
 } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
@@ -99,6 +101,10 @@ export default function Research({ onBack }) {
   const [evidenceResults, setEvidenceResults] = useState({})
   const [synthesisRunning, setSynthesisRunning] = useState(null)
   const [synthesisResults, setSynthesisResults] = useState({})
+  const [autopilotRunning, setAutopilotRunning] = useState(null)
+  const [autopilotResults, setAutopilotResults] = useState({})
+  const [globalAutopilotRunning, setGlobalAutopilotRunning] = useState(false)
+  const [globalAutopilotResult, setGlobalAutopilotResult] = useState(null)
 
   const loadResearch = useCallback(async () => {
     const [memoResponse, validationResponse] = await Promise.all([
@@ -229,6 +235,33 @@ export default function Research({ onBack }) {
     }
   }
 
+  async function handleMemoAutopilot(memoId) {
+    setAutopilotRunning(memoId)
+    try {
+      const response = await postFinanceResearchMemoAutopilot(memoId)
+      setAutopilotResults(prev => ({ ...prev, [memoId]: response }))
+      await loadResearch()
+    } catch {
+      // silent — list refresh shows current state
+    } finally {
+      setAutopilotRunning(null)
+    }
+  }
+
+  async function handleGlobalAutopilot() {
+    setGlobalAutopilotRunning(true)
+    setGlobalAutopilotResult(null)
+    try {
+      const response = await postFinanceResearchAutopilotRun()
+      setGlobalAutopilotResult(response)
+      await loadResearch()
+    } catch {
+      setGlobalAutopilotResult({ error: true })
+    } finally {
+      setGlobalAutopilotRunning(false)
+    }
+  }
+
   async function handleQualityGateAll() {
     setQualityAllRunning(true)
     setQualityAllResult(null)
@@ -265,6 +298,26 @@ export default function Research({ onBack }) {
 
       <div style={{ margin: '10px 16px 0', padding: '9px 11px', border: '1px solid rgba(125,240,255,.15)', background: 'rgba(125,240,255,.012)', fontFamily: 'var(--mono)', fontSize: 7, color: '#7df0ff', letterSpacing: '.12em', lineHeight: 1.6 }}>
         PHOENIX synthesizes research from evidence. This does not approve a trade.
+      </div>
+
+      <div style={{ margin: '10px 16px 0', padding: '9px 11px', border: '1px solid rgba(77,255,180,.2)', background: 'rgba(77,255,180,.015)' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4', letterSpacing: '.12em', marginBottom: 7 }}>PHOENIX runs research autonomously. This does not approve or execute a trade.</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleGlobalAutopilot}
+            disabled={globalAutopilotRunning}
+            style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.06)', color: '#4dffb4', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', cursor: globalAutopilotRunning ? 'wait' : 'pointer' }}
+          >
+            {globalAutopilotRunning ? 'RUNNING AUTOPILOT…' : 'RUN FINANCE AUTOPILOT'}
+          </button>
+          {globalAutopilotResult && !globalAutopilotResult.error && (
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4' }}>{globalAutopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY · NO TRADES</span>
+          )}
+          {globalAutopilotResult?.error && (
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#ff5c7a' }}>AUTOPILOT ERROR — CHECK LOGS</span>
+          )}
+        </div>
       </div>
 
       <div style={{ margin: '10px 16px 0', padding: '9px 11px', border, background: 'rgba(32,216,236,.015)' }}>
@@ -482,6 +535,29 @@ export default function Research({ onBack }) {
                             style={{ background: 'none', border, padding: '4px 8px', cursor: isSynthesizing ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
                           >
                             {isSynthesizing ? 'SYNTHESIZING…' : 'SYNTHESIZE MEMO'}
+                          </button>
+                        </div>
+                      )
+                    })()}
+                    {(() => {
+                      const isRunning = autopilotRunning === memo.id
+                      const apResult = autopilotResults[memo.id]
+                      return (
+                        <div style={{ marginTop: 8, paddingTop: 7, borderTop: '1px solid rgba(77,255,180,.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <div>
+                            {apResult && (
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: 6, color: '#4dffb4', letterSpacing: '.1em' }}>
+                                {apResult.final_memo?.verdict} · {apResult.final_memo?.research_quality_status} · AUTOPILOT · NO TRADES
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleMemoAutopilot(memo.id)}
+                            disabled={isRunning}
+                            style={{ background: 'none', border: '1px solid rgba(77,255,180,.3)', padding: '4px 8px', cursor: isRunning ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#4dffb4', flexShrink: 0 }}
+                          >
+                            {isRunning ? 'RUNNING AUTOPILOT…' : 'RUN RESEARCH AUTOPILOT'}
                           </button>
                         </div>
                       )

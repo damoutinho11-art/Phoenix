@@ -187,6 +187,14 @@ export async function postFinanceResearchValidationRecord(payload) {
   })
 }
 
+export async function postFinanceResearchMemoAutopilot(memoId) {
+  return apiFetch(`/finance/research/memos/${memoId}/autopilot`, { method: 'POST' })
+}
+
+export async function postFinanceResearchAutopilotRun() {
+  return apiFetch('/finance/research/autopilot/run', { method: 'POST' })
+}
+
 export async function postBriefAction(briefId, action) {
   return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
 }
