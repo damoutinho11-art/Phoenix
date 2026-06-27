@@ -46,6 +46,31 @@ class ManualFinanceTransaction(BaseModel):
     executed_at: str = Field(min_length=1)
     notes: str | None = None
 
+
+class ResearchMemoPayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    asset: str | None = None
+    sleeve: str | None = None
+    title: str = Field(min_length=1)
+    thesis: str = Field(min_length=1)
+    risks: list[str] = Field(min_length=1)
+    data_confidence: str = Field(min_length=1)
+    verdict: Literal["BUY_CANDIDATE", "WATCH", "REJECT", "INSUFFICIENT_DATA"]
+    sources: list[dict] = Field(min_length=1)
+    validation: dict
+    status: Literal["draft", "active", "archived"]
+    notes: str | None = None
+
+
+_RESEARCH_SAFETY_FLAGS = {
+    "research_only": True,
+    "trades_executed": False,
+    "broker_connection": False,
+    "portfolio_state_updated": False,
+    "recommendation_overridden": False,
+}
+
 _CRYPTO_INSTRUMENTS = {
     "btc": {
         "display_name": "Bitcoin",
@@ -512,6 +537,27 @@ def finance_brief_reject(brief_id: int) -> dict:
 def finance_brief_history() -> dict:
     rows = database.get_brief_history(limit=50)
     return {"history": rows, "count": len(rows)}
+
+
+@router.get("/research/memos")
+def finance_research_memos() -> dict:
+    memos = database.list_research_memos(limit=50)
+    return {"memos": memos, "count": len(memos), **_RESEARCH_SAFETY_FLAGS}
+
+
+@router.get("/research/memos/{memo_id}")
+def finance_research_memo(memo_id: int) -> dict:
+    memo = database.get_research_memo(memo_id)
+    if memo is None:
+        raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
+    return {"memo": memo, **_RESEARCH_SAFETY_FLAGS}
+
+
+@router.post("/research/memos")
+def finance_create_research_memo(payload: ResearchMemoPayload) -> dict:
+    memo_id = database.create_research_memo(payload.model_dump())
+    memo = database.get_research_memo(memo_id)
+    return {"memo_id": memo_id, "memo": memo, **_RESEARCH_SAFETY_FLAGS}
 
 
 @router.get("/performance/history")

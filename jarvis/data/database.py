@@ -146,6 +146,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_finance_portfolio_snapshots_transaction
 ON finance_portfolio_snapshots(transaction_id)
 WHERE transaction_id IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS research_memos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    asset TEXT,
+    sleeve TEXT,
+    title TEXT NOT NULL,
+    thesis TEXT NOT NULL,
+    risks TEXT NOT NULL,
+    data_confidence TEXT NOT NULL,
+    verdict TEXT NOT NULL CHECK (
+        verdict IN ('BUY_CANDIDATE', 'WATCH', 'REJECT', 'INSUFFICIENT_DATA')
+    ),
+    sources_json TEXT NOT NULL,
+    validation_json TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('draft', 'active', 'archived')),
+    notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_research_memos_created
+ON research_memos(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_research_memos_status
+ON research_memos(status);
+
 CREATE TABLE IF NOT EXISTS persistence_markers (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -839,6 +864,97 @@ def list_finance_portfolio_snapshots(limit: int = 100) -> list[dict[str, Any]]:
             (limit,),
         ).fetchall()
         return [snapshot for row in rows if (snapshot := _decode_finance_snapshot(row))]
+    finally:
+        connection.close()
+
+
+_RESEARCH_MEMO_VERDICTS = {
+    "BUY_CANDIDATE",
+    "WATCH",
+    "REJECT",
+    "INSUFFICIENT_DATA",
+}
+_RESEARCH_MEMO_STATUSES = {"draft", "active", "archived"}
+
+
+def _decode_research_memo(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    memo = dict(row)
+    memo["risks"] = json.loads(memo["risks"])
+    memo["sources"] = json.loads(memo.pop("sources_json"))
+    memo["validation"] = json.loads(memo.pop("validation_json"))
+    return memo
+
+
+def create_research_memo(payload: dict) -> int:
+    """Persist a research-only memo; this function has no execution side effects."""
+    verdict = payload["verdict"]
+    status = payload["status"]
+    if verdict not in _RESEARCH_MEMO_VERDICTS:
+        raise ValueError(f"Invalid research memo verdict: {verdict}")
+    if status not in _RESEARCH_MEMO_STATUSES:
+        raise ValueError(f"Invalid research memo status: {status}")
+
+    now = _utc_now()
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO research_memos (
+                created_at, updated_at, asset, sleeve, title, thesis, risks,
+                data_confidence, verdict, sources_json, validation_json, status, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                now,
+                now,
+                payload.get("asset"),
+                payload.get("sleeve"),
+                payload["title"],
+                payload["thesis"],
+                json.dumps(payload["risks"]),
+                payload["data_confidence"],
+                verdict,
+                json.dumps(payload["sources"]),
+                json.dumps(payload["validation"]),
+                status,
+                payload.get("notes"),
+            ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def list_research_memos(limit: int = 50) -> list[dict[str, Any]]:
+    """Return research memos newest first."""
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM research_memos
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [memo for row in rows if (memo := _decode_research_memo(row))]
+    finally:
+        connection.close()
+
+
+def get_research_memo(memo_id: int) -> dict[str, Any] | None:
+    """Return one research memo by id."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT * FROM research_memos WHERE id = ?", (memo_id,)
+        ).fetchone()
+        return _decode_research_memo(row)
     finally:
         connection.close()
 

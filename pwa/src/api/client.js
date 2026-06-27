@@ -123,6 +123,22 @@ export async function getFinancePerformanceHistory() {
   return apiFetch('/finance/performance/history')
 }
 
+export async function getFinanceResearchMemos() {
+  return apiFetch('/finance/research/memos')
+}
+
+export async function getFinanceResearchMemo(memoId) {
+  return apiFetch(`/finance/research/memos/${memoId}`)
+}
+
+export async function postFinanceResearchMemo(payload) {
+  return apiFetch('/finance/research/memos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function postBriefAction(briefId, action) {
   return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
 }

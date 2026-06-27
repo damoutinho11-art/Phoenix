@@ -53,6 +53,7 @@ class DatabaseTests(unittest.TestCase):
             "barcode_cache",
             "finance_transaction_ledger",
             "finance_portfolio_snapshots",
+            "research_memos",
         } <= names
 
     def test_init_db_is_idempotent(self):
@@ -146,6 +147,50 @@ class DatabaseTests(unittest.TestCase):
         assert len(rows) == 1
         assert rows[0]["id"] == second_id
         assert rows[0]["id"] != first_id
+
+    def _research_memo_payload(self, **overrides):
+        payload = {
+            "asset": "quality_etf",
+            "sleeve": None,
+            "title": "Quality ETF research memo",
+            "thesis": "Evidence-backed research thesis.",
+            "risks": ["Factor underperformance"],
+            "data_confidence": "MEDIUM",
+            "verdict": "WATCH",
+            "sources": [{"label": "Issuer factsheet", "url": "https://example.com/factsheet"}],
+            "validation": {"status": "PARTIAL", "notes": ["Identifier confirmation pending"]},
+            "status": "draft",
+            "notes": "Research only.",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_create_list_and_get_research_memo(self):
+        first_id = database.create_research_memo(self._research_memo_payload())
+        second_id = database.create_research_memo(
+            self._research_memo_payload(asset="btc", title="Bitcoin memo", verdict="BUY_CANDIDATE")
+        )
+
+        rows = database.list_research_memos()
+        first = database.get_research_memo(first_id)
+
+        assert [row["id"] for row in rows] == [second_id, first_id]
+        assert first is not None
+        assert first["asset"] == "quality_etf"
+        assert first["risks"] == ["Factor underperformance"]
+        assert first["sources"][0]["label"] == "Issuer factsheet"
+        assert first["validation"]["status"] == "PARTIAL"
+
+    def test_get_research_memo_returns_none_for_missing_id(self):
+        assert database.get_research_memo(999999) is None
+
+    def test_create_research_memo_rejects_invalid_verdict(self):
+        with self.assertRaises(ValueError):
+            database.create_research_memo(self._research_memo_payload(verdict="BUY"))
+
+    def test_create_research_memo_rejects_invalid_status(self):
+        with self.assertRaises(ValueError):
+            database.create_research_memo(self._research_memo_payload(status="published"))
 
     def test_empty_date_returns_empty_list(self):
         assert database.get_meals_for_date(date.today()) == []
