@@ -5,13 +5,17 @@ dependency_overrides to simulate edge cases (missing file, bad constitution).
 No business logic is asserted here beyond the API contract shape.
 """
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from jarvis.api import dependencies
 from jarvis.api.main import app
+from jarvis.data import database
 
 client = TestClient(app)
 
@@ -149,6 +153,71 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
             self.assertEqual(response.status_code, 503)
         finally:
             app.dependency_overrides.clear()
+
+
+class FinanceBriefIdentityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.db_patch = patch.object(database, "DB_PATH", Path(self.temp_dir.name) / "briefs.db")
+        self.db_patch.start()
+        database.init_db()
+        safe_resolution = {
+            "selected_candidate": None,
+            "candidates": [],
+            "source": "yfinance",
+            "broker_source": "lightyear_public_fund_screener",
+            "broker_verification": "not_verified",
+            "confirmation_required": True,
+            "lightyear_available": "unknown",
+            "confidence": "unresolved",
+            "reason": "test fixture",
+        }
+        self.resolver_patch = patch(
+            "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
+            return_value=safe_resolution,
+        )
+        self.regime_patch = patch(
+            "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+        )
+        self.resolver_patch.start()
+        self.regime_patch.start()
+
+    def tearDown(self) -> None:
+        self.regime_patch.stop()
+        self.resolver_patch.stop()
+        self.db_patch.stop()
+        self.temp_dir.cleanup()
+
+    def test_recommendation_returns_brief_id_for_new_brief(self) -> None:
+        data = client.get("/finance/recommendation").json()
+
+        self.assertIsInstance(data["brief_id"], int)
+        self.assertEqual(data["brief_status"], "pending")
+
+    def test_recommendation_returns_same_brief_id_while_pending(self) -> None:
+        first = client.get("/finance/recommendation").json()
+        second = client.get("/finance/recommendation").json()
+
+        self.assertEqual(second["brief_id"], first["brief_id"])
+        self.assertEqual(second["brief_status"], "pending")
+
+    def test_recommendation_keeps_identity_and_status_after_approval(self) -> None:
+        first = client.get("/finance/recommendation").json()
+        approval = client.post(f"/finance/brief/{first['brief_id']}/approve")
+        after = client.get("/finance/recommendation").json()
+
+        self.assertEqual(approval.status_code, 200)
+        self.assertEqual(after["brief_id"], first["brief_id"])
+        self.assertEqual(after["brief_status"], "approved")
+        self.assertEqual(after["brief_user_action"], "approved")
+
+    def test_approval_response_has_no_trade_safety_flags(self) -> None:
+        brief = client.get("/finance/recommendation").json()
+        data = client.post(f"/finance/brief/{brief['brief_id']}/approve").json()
+
+        self.assertFalse(data["trades_executed"])
+        self.assertFalse(data["broker_connection"])
+        self.assertTrue(data["manual_record_only"])
 
 
 if __name__ == "__main__":

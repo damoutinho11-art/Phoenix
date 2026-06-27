@@ -123,6 +123,18 @@ export async function postBriefAction(briefId, action) {
   return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
 }
 
+export async function getFinanceLedger() {
+  return apiFetch('/finance/ledger')
+}
+
+export async function postManualFinanceTransaction(payload) {
+  return apiFetch('/finance/ledger/manual-transaction', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function logSession(payload) {
   return apiFetch('/training/log/session', {
     method: 'POST',

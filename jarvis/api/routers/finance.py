@@ -2,8 +2,10 @@
 
 import json
 from datetime import date
+from typing import Literal
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.domains.finance import engine
@@ -25,6 +27,23 @@ def _iso_week_label() -> str:
     return f"W{iso[1]} {iso[0]}"
 
 _CRYPTO_ASSETS = {"btc", "hype", "tao"}
+
+
+class ManualFinanceTransaction(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    brief_id: int | None = Field(default=None, gt=0)
+    asset: str = Field(min_length=1)
+    symbol: str | None = None
+    platform: str = Field(min_length=1)
+    side: Literal["buy"]
+    amount_eur: float = Field(gt=0)
+    units: float = Field(gt=0)
+    price: float = Field(gt=0)
+    currency: str = Field(min_length=1)
+    fee_eur: float = Field(default=0, ge=0)
+    executed_at: str = Field(min_length=1)
+    notes: str | None = None
 
 _CRYPTO_INSTRUMENTS = {
     "btc": {
@@ -211,10 +230,9 @@ def finance_recommendation(
 
     # Auto-save brief (once per ISO week — idempotent on repeated calls)
     week_label = _iso_week_label()
-    brief_id: int | None = None
     if not database.brief_exists_for_week(week_label, "finance"):
         primary = recommendations[0] if recommendations else None
-        brief_id = database.save_brief(
+        database.save_brief(
             week_label=week_label,
             domain="finance",
             action="BUY" if recommendations else "HOLD",
@@ -224,17 +242,12 @@ def finance_recommendation(
             thesis=rationale,
             full_brief_json=json.dumps(response),
         )
-    else:
-        # Brief already exists for this week — surface its id for the approval buttons
-        pending = database.get_pending_briefs()
-        match = next(
-            (b for b in pending if b["week_label"] == week_label and b["domain"] == "finance"),
-            None,
-        )
-        if match:
-            brief_id = match["id"]
 
-    response["brief_id"] = brief_id
+    latest_brief = database.get_latest_brief_for_week(week_label, "finance")
+    response["brief_id"] = latest_brief["id"] if latest_brief else None
+    response["brief_status"] = latest_brief["status"] if latest_brief else None
+    if latest_brief and latest_brief.get("user_action") is not None:
+        response["brief_user_action"] = latest_brief["user_action"]
     response["week_label"] = week_label
     return response
 
@@ -429,7 +442,54 @@ def _brief_action(brief_id: int, status: str, user_action: str) -> dict:
     if not found:
         raise HTTPException(status_code=404, detail=f"Brief {brief_id} not found")
     week = _iso_week_label()
-    return {"status": status, "brief_id": brief_id, "week_label": week, "requires_approval": False}
+    return {
+        "status": status,
+        "brief_id": brief_id,
+        "week_label": week,
+        "requires_approval": False,
+        "trades_executed": False,
+        "broker_connection": False,
+        "manual_record_only": True,
+    }
+
+
+@router.get("/ledger")
+def finance_ledger() -> dict:
+    transactions = [
+        {
+            **row,
+            "manual_record_only": bool(row["manual_record_only"]),
+            "trades_executed": bool(row["trades_executed"]),
+            "broker_connection": bool(row["broker_connection"]),
+        }
+        for row in database.get_finance_transactions(limit=50)
+    ]
+    return {
+        "transactions": transactions,
+        "count": len(transactions),
+        "manual_record_only": True,
+        "trades_executed": False,
+        "broker_connection": False,
+    }
+
+
+@router.post("/ledger/manual-transaction")
+def finance_manual_transaction(payload: ManualFinanceTransaction) -> dict:
+    if payload.brief_id is not None and not database.brief_exists_by_id(payload.brief_id):
+        raise HTTPException(status_code=404, detail=f"Brief {payload.brief_id} not found")
+
+    transaction_id = database.save_finance_transaction(payload.model_dump())
+    return {
+        "transaction_id": transaction_id,
+        "manual_record_only": True,
+        "trades_executed": False,
+        "broker_connection": False,
+        "portfolio_state_updated": False,
+        "message": (
+            "Manual record saved. PHOENIX did not execute a trade. "
+            "Portfolio state was not updated automatically."
+        ),
+    }
 
 
 @router.post("/brief/{brief_id}/approve")

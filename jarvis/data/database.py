@@ -94,6 +94,32 @@ CREATE TABLE IF NOT EXISTS brief_history (
 CREATE INDEX IF NOT EXISTS idx_brief_history_week ON brief_history(week_label);
 CREATE INDEX IF NOT EXISTS idx_brief_history_status ON brief_history(status);
 
+CREATE TABLE IF NOT EXISTS finance_transaction_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    executed_at TEXT NOT NULL,
+    brief_id INTEGER,
+    asset TEXT NOT NULL,
+    symbol TEXT,
+    platform TEXT NOT NULL,
+    side TEXT NOT NULL,
+    amount_eur REAL NOT NULL,
+    units REAL NOT NULL,
+    price REAL NOT NULL,
+    currency TEXT NOT NULL,
+    fee_eur REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    manual_record_only INTEGER NOT NULL DEFAULT 1,
+    trades_executed INTEGER NOT NULL DEFAULT 0,
+    broker_connection INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_finance_transaction_ledger_created
+ON finance_transaction_ledger(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_finance_transaction_ledger_brief
+ON finance_transaction_ledger(brief_id);
+
 CREATE TABLE IF NOT EXISTS budget_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -458,6 +484,26 @@ def brief_exists_for_week(week_label: str, domain: str = "finance") -> bool:
         connection.close()
 
 
+def get_latest_brief_for_week(
+    week_label: str, domain: str = "finance"
+) -> dict[str, Any] | None:
+    """Return the newest brief for one week and domain, regardless of status."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """
+            SELECT * FROM brief_history
+            WHERE week_label = ? AND domain = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (week_label, domain),
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        connection.close()
+
+
 def update_brief_status(brief_id: int, status: str, user_action: str) -> bool:
     """Update a brief's status (approved / deferred / rejected). Returns True if found."""
     connection = get_db()
@@ -499,6 +545,85 @@ def get_pending_briefs() -> list[dict[str, Any]]:
             "SELECT * FROM brief_history WHERE status = 'pending' ORDER BY created_at DESC",
         ).fetchall()
         return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def save_finance_transaction(payload: dict) -> int:
+    """Persist a user-reported manual buy; this function never executes a trade."""
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO finance_transaction_ledger (
+                created_at, executed_at, brief_id, asset, symbol, platform,
+                side, amount_eur, units, price, currency, fee_eur, notes,
+                manual_record_only, trades_executed, broker_connection
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 0)
+            """,
+            (
+                _utc_now(),
+                payload["executed_at"],
+                payload.get("brief_id"),
+                payload["asset"],
+                payload.get("symbol"),
+                payload["platform"],
+                payload["side"],
+                payload["amount_eur"],
+                payload["units"],
+                payload["price"],
+                payload["currency"],
+                payload.get("fee_eur", 0),
+                payload.get("notes"),
+            ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def get_finance_transactions(limit: int = 50) -> list[dict[str, Any]]:
+    """Return recent manual finance records, newest first."""
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM finance_transaction_ledger
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def get_finance_transaction(transaction_id: int) -> dict[str, Any] | None:
+    """Return one manual finance record by id."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT * FROM finance_transaction_ledger WHERE id = ?",
+            (transaction_id,),
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        connection.close()
+
+
+def brief_exists_by_id(brief_id: int) -> bool:
+    """Return whether a brief id exists, regardless of status or domain."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT 1 FROM brief_history WHERE id = ? LIMIT 1",
+            (brief_id,),
+        ).fetchone()
+        return row is not None
     finally:
         connection.close()
 

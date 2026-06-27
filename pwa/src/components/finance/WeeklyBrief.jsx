@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { getFinanceRecommendation, postBriefAction } from '../../api/client'
+import { getFinanceLedger, getFinanceRecommendation, postBriefAction, postManualFinanceTransaction } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
 const muted = 'rgba(32,216,236,.38)'
+const inputStyle = { width: '100%', boxSizing: 'border-box', border, background: 'rgba(32,216,236,.025)', color: '#c7ecf4', fontFamily: 'var(--mono)', fontSize: 10, padding: '9px 10px', outline: 'none' }
 
 function formatEur(value) {
   const amount = Number(value)
@@ -273,6 +274,143 @@ function RiskControls({ controls }) {
   )
 }
 
+function FormField({ label, children }) {
+  return (
+    <label style={{ display: 'block', minWidth: 0 }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: muted, marginBottom: 4 }}>{label}</div>
+      {children}
+    </label>
+  )
+}
+
+function ManualBuyPanel({ recommendations, briefId }) {
+  const [selectedAsset, setSelectedAsset] = useState(recommendations[0]?.asset || '')
+  const [form, setForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(null)
+  const [transactions, setTransactions] = useState([])
+
+  async function refreshLedger() {
+    try {
+      const ledger = await getFinanceLedger()
+      setTransactions(Array.isArray(ledger.transactions) ? ledger.transactions.slice(0, 5) : [])
+    } catch {
+      setTransactions([])
+    }
+  }
+
+  useEffect(() => {
+    refreshLedger()
+  }, [])
+
+  useEffect(() => {
+    const recommendation = recommendations.find((item) => item.asset === selectedAsset) || recommendations[0]
+    if (!recommendation) return
+    if (recommendation.asset !== selectedAsset) setSelectedAsset(recommendation.asset)
+    const instrument = recommendation.instrument || {}
+    const resolved = instrument.resolved_candidate || {}
+    setForm({
+      asset: recommendation.asset,
+      symbol: resolved.symbol || instrument.ticker || '',
+      platform: instrument.platform || recommendation.route || '',
+      amount_eur: recommendation.amount ?? '',
+      units: '',
+      price: resolved.eur_price ?? '',
+      currency: 'EUR',
+      fee_eur: 0,
+      executed_at: new Date().toISOString().slice(0, 16),
+      notes: '',
+    })
+    setError('')
+    setSaved(null)
+  }, [selectedAsset, recommendations])
+
+  function update(field, value) {
+    setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  async function submit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setSaved(null)
+    try {
+      const result = await postManualFinanceTransaction({
+        brief_id: briefId,
+        asset: form.asset,
+        symbol: form.symbol || null,
+        platform: form.platform,
+        side: 'buy',
+        amount_eur: Number(form.amount_eur),
+        units: Number(form.units),
+        price: Number(form.price),
+        currency: form.currency,
+        fee_eur: Number(form.fee_eur || 0),
+        executed_at: new Date(form.executed_at).toISOString(),
+        notes: form.notes || null,
+      })
+      setSaved(result)
+      setForm((current) => ({ ...current, units: '' }))
+      await refreshLedger()
+    } catch (requestError) {
+      setError(requestError?.message || 'Unable to save manual transaction.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <CornerCard>
+      <form onSubmit={submit} style={{ padding: '13px 14px' }}>
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: 'rgba(199,236,244,.72)', marginBottom: 11 }}>
+          Record a trade you already completed manually in your broker. PHOENIX will not place an order or update portfolio state.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <FormField label="RECOMMENDATION">
+            <select value={selectedAsset} onChange={(event) => setSelectedAsset(event.target.value)} style={inputStyle}>
+              {recommendations.map((item) => <option key={item.asset} value={item.asset}>{item.asset}</option>)}
+            </select>
+          </FormField>
+          <FormField label="SIDE"><input value="BUY" readOnly style={{ ...inputStyle, color: '#4dffb4' }} /></FormField>
+          <FormField label="SYMBOL"><input value={form.symbol || ''} onChange={(event) => update('symbol', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="PLATFORM"><input required value={form.platform || ''} onChange={(event) => update('platform', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="AMOUNT EUR"><input required min="0.01" step="any" type="number" value={form.amount_eur ?? ''} onChange={(event) => update('amount_eur', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="UNITS · ENTER MANUALLY"><input required min="0.00000001" step="any" type="number" value={form.units ?? ''} onChange={(event) => update('units', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="PRICE"><input required min="0.00000001" step="any" type="number" value={form.price ?? ''} onChange={(event) => update('price', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="CURRENCY"><input required value={form.currency || ''} onChange={(event) => update('currency', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="FEE EUR"><input required min="0" step="any" type="number" value={form.fee_eur ?? 0} onChange={(event) => update('fee_eur', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="EXECUTED AT"><input required type="datetime-local" value={form.executed_at || ''} onChange={(event) => update('executed_at', event.target.value)} style={inputStyle} /></FormField>
+        </div>
+        <FormField label="NOTES">
+          <input value={form.notes || ''} onChange={(event) => update('notes', event.target.value)} style={{ ...inputStyle, marginTop: 8 }} placeholder="Optional manual record note" />
+        </FormField>
+        {error && <div style={{ color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8, marginTop: 9 }}>{error}</div>}
+        {saved && (
+          <div style={{ marginTop: 10, padding: '10px 11px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.035)', color: '#4dffb4' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em' }}>TRANSACTION #{saved.transaction_id} RECORDED</div>
+            <div style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>{saved.message}</div>
+          </div>
+        )}
+        <button disabled={saving} type="submit" style={{ marginTop: 11, width: '100%', padding: '11px 0', border: '1px solid #20d8ec', background: 'rgba(32,216,236,.1)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, letterSpacing: '.16em', cursor: saving ? 'wait' : 'pointer' }}>
+          {saving ? 'SAVING MANUAL RECORD…' : 'RECORD MANUAL BUY'}
+        </button>
+      </form>
+      {transactions.length > 0 && (
+        <div style={{ padding: '0 14px 13px' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 7 }}>RECENT MANUAL LEDGER</div>
+          {transactions.map((transaction) => (
+            <div key={transaction.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 8px', borderTop: border, fontFamily: 'var(--mono)', fontSize: 8 }}>
+              <span style={{ color: '#7df0ff' }}>{transaction.symbol || transaction.asset} · {transaction.units} UNITS</span>
+              <span style={{ color: 'rgba(199,236,244,.78)', flexShrink: 0 }}>{formatEur(transaction.amount_eur)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </CornerCard>
+  )
+}
+
 export default function WeeklyBrief({ onBack }) {
   const [rec, setRec] = useState(null)
   const [error, setError] = useState('')
@@ -364,6 +502,12 @@ export default function WeeklyBrief({ onBack }) {
               ? <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{recommendations.map((recommendation, index) => <RecommendationCard key={`${recommendation.asset}-${index}`} recommendation={recommendation} />)}</div>
               : <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: muted, letterSpacing: '.12em' }}>NO BUYS RECOMMENDED THIS WEEK</div>}
           </Section>
+
+          {(rec.brief_status === 'approved' || actionDone === 'approve') && recommendations.length > 0 && (
+            <Section title="RECORD MANUAL BUY">
+              <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} />
+            </Section>
+          )}
 
           <Section title="RECOMMENDATION AUDIT">
             <div style={{ border, background: 'rgba(32,216,236,.025)', padding: '11px 13px', marginBottom: 10 }}>

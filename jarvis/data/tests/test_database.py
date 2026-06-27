@@ -47,7 +47,7 @@ class DatabaseTests(unittest.TestCase):
             }
         finally:
             connection.close()
-        assert {"meal_log", "weight_log", "barcode_cache"} <= names
+        assert {"meal_log", "weight_log", "barcode_cache", "finance_transaction_ledger"} <= names
 
     def test_init_db_is_idempotent(self):
         database.init_db()
@@ -61,6 +61,85 @@ class DatabaseTests(unittest.TestCase):
             assert row["value"] == 1
         finally:
             connection.close()
+
+    def test_get_latest_brief_for_week_returns_newest_status_and_action(self):
+        first_id = database.save_brief(
+            "W26 2026", "finance", "BUY", "btc", 46.15, "lhv_crypto", "first", None
+        )
+        second_id = database.save_brief(
+            "W26 2026", "finance", "BUY", "quality_etf", 69.23, "lightyear", "second", None
+        )
+        database.update_brief_status(second_id, "approved", "approved")
+
+        latest = database.get_latest_brief_for_week("W26 2026")
+
+        assert latest is not None
+        assert latest["id"] == second_id
+        assert latest["id"] != first_id
+        assert latest["status"] == "approved"
+        assert latest["user_action"] == "approved"
+
+    def test_get_latest_brief_for_week_returns_none_when_missing(self):
+        assert database.get_latest_brief_for_week("W99 2099") is None
+
+    def test_save_and_get_finance_transaction(self):
+        brief_id = database.save_brief(
+            "W26 2026", "finance", "BUY", "quality_etf", 69.23, "lightyear", "test", None
+        )
+        transaction_id = database.save_finance_transaction(
+            {
+                "executed_at": "2026-06-27T12:00:00Z",
+                "brief_id": brief_id,
+                "asset": "quality_etf",
+                "symbol": "IWQU.L",
+                "platform": "Lightyear",
+                "side": "buy",
+                "amount_eur": 69.23,
+                "units": 0.91,
+                "price": 75.64,
+                "currency": "EUR",
+                "fee_eur": 0,
+                "notes": "Manual Lightyear buy",
+            }
+        )
+
+        saved = database.get_finance_transaction(transaction_id)
+
+        assert saved is not None
+        assert saved["brief_id"] == brief_id
+        assert saved["asset"] == "quality_etf"
+        assert saved["manual_record_only"] == 1
+        assert saved["trades_executed"] == 0
+        assert saved["broker_connection"] == 0
+
+    def test_get_finance_transactions_and_brief_exists_by_id(self):
+        brief_id = database.save_brief(
+            "W26 2026", "finance", "BUY", "btc", 46.15, "lhv_crypto", "test", None
+        )
+        payload = {
+            "executed_at": "2026-06-27T12:00:00Z",
+            "brief_id": brief_id,
+            "asset": "btc",
+            "symbol": "BTC",
+            "platform": "LHV Crypto",
+            "side": "buy",
+            "amount_eur": 46.15,
+            "units": 0.0004,
+            "price": 115375,
+            "currency": "EUR",
+            "fee_eur": 0,
+            "notes": None,
+        }
+        first_id = database.save_finance_transaction(payload)
+        second_id = database.save_finance_transaction({**payload, "amount_eur": 20})
+
+        rows = database.get_finance_transactions(limit=1)
+
+        assert database.brief_exists_by_id(brief_id) is True
+        assert database.brief_exists_by_id(999999) is False
+        assert len(rows) == 1
+        assert rows[0]["id"] == second_id
+        assert rows[0]["id"] != first_id
 
     def test_empty_date_returns_empty_list(self):
         assert database.get_meals_for_date(date.today()) == []
@@ -153,4 +232,3 @@ class DatabaseTests(unittest.TestCase):
     def test_invalid_date_is_rejected(self):
         with self.assertRaises(ValueError):
             database.get_meals_for_date("not-a-date")
-
