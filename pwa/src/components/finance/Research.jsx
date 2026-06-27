@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getFinanceResearchMemos, postFinanceResearchMemo } from '../../api/client'
+import {
+  getFinanceResearchMemos,
+  getFinanceResearchValidationRecords,
+  postFinanceResearchMemo,
+} from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
 const muted = 'rgba(32,216,236,.38)'
@@ -35,6 +39,13 @@ const verdictColor = {
   INSUFFICIENT_DATA: '#ffd56b',
 }
 
+const validationStatusColor = {
+  PASS: '#4dffb4',
+  WARNING: '#ffd56b',
+  FAIL: '#ff5c7a',
+  UNVERIFIED: '#7df0ff',
+}
+
 function FieldLabel({ children }) {
   return <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.17em', color: muted, marginBottom: 5 }}>{children}</div>
 }
@@ -47,6 +58,7 @@ function formatDate(value) {
 
 export default function Research({ onBack }) {
   const [memos, setMemos] = useState(null)
+  const [validationRecords, setValidationRecords] = useState(null)
   const [safety, setSafety] = useState(null)
   const [loadError, setLoadError] = useState(false)
   const [form, setForm] = useState(initialForm)
@@ -54,19 +66,24 @@ export default function Research({ onBack }) {
   const [submitError, setSubmitError] = useState('')
   const [createdMessage, setCreatedMessage] = useState('')
 
-  const loadMemos = useCallback(async () => {
-    const response = await getFinanceResearchMemos()
-    setMemos(Array.isArray(response.memos) ? response.memos : [])
-    setSafety(response)
+  const loadResearch = useCallback(async () => {
+    const [memoResponse, validationResponse] = await Promise.all([
+      getFinanceResearchMemos(),
+      getFinanceResearchValidationRecords(),
+    ])
+    setMemos(Array.isArray(memoResponse.memos) ? memoResponse.memos : [])
+    setValidationRecords(Array.isArray(validationResponse.records) ? validationResponse.records : [])
+    setSafety(memoResponse)
     setLoadError(false)
   }, [])
 
   useEffect(() => {
-    loadMemos().catch(() => {
+    loadResearch().catch(() => {
       setLoadError(true)
       setMemos([])
+      setValidationRecords([])
     })
-  }, [loadMemos])
+  }, [loadResearch])
 
   function updateField(event) {
     const { name, value } = event.target
@@ -94,7 +111,7 @@ export default function Research({ onBack }) {
       setSafety(response)
       setCreatedMessage(`MEMO ${response.memo_id} SAVED · RESEARCH ONLY`)
       setForm(initialForm)
-      await loadMemos()
+      await loadResearch()
     } catch {
       setSubmitError('Unable to save research memo. Check required fields and try again.')
     } finally {
@@ -217,6 +234,55 @@ export default function Research({ onBack }) {
                 <span>{formatDate(memo.created_at)}</span>
               </div>
               {memo.notes && <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(199,236,244,.5)', whiteSpace: 'pre-wrap' }}>{memo.notes}</div>}
+            </article>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '22px 0 11px', paddingTop: 16, borderTop: border }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: muted }}>VALIDATION RECORDS</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted }}>{validationRecords === null ? '…' : validationRecords.length}</span>
+        </div>
+
+        {validationRecords === null && !loadError && (
+          <div style={{ padding: 20, textAlign: 'center', color: muted, fontFamily: 'var(--mono)', fontSize: 8 }}>LOADING VALIDATION RECORDS…</div>
+        )}
+        {validationRecords?.length === 0 && !loadError && (
+          <div style={{ padding: '20px 14px', border, background: 'rgba(32,216,236,.02)', textAlign: 'center', fontSize: 12, lineHeight: 1.6, color: 'rgba(199,236,244,.55)' }}>
+            No research validation records yet. Evidence checks are research-only audit artifacts.
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {validationRecords?.map(record => (
+            <article key={record.id} style={{ padding: '10px 12px', border, borderLeft: `3px solid ${validationStatusColor[record.status] || '#20d8ec'}`, background: 'rgba(32,216,236,.02)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 14, fontWeight: 700, color: '#fff' }}>{record.field_name}</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{record.check_type} · {String(record.asset || 'UNSCOPED').toUpperCase()}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: validationStatusColor[record.status] || '#7df0ff' }}>{record.status}</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{String(record.confidence).toUpperCase()} CONFIDENCE</div>
+                </div>
+              </div>
+              {(record.primary_value != null || record.secondary_value != null || record.consensus_value != null) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 9 }}>
+                  {[
+                    ['PRIMARY', record.primary_value],
+                    ['SECONDARY', record.secondary_value],
+                    ['CONSENSUS', record.consensus_value],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ padding: '7px 6px', border: '1px solid rgba(32,216,236,.1)', minWidth: 0 }}>
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted, letterSpacing: '.1em' }}>{label}</div>
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: value == null ? muted : '#7df0ff', marginTop: 3, overflowWrap: 'anywhere' }}>{value ?? '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 8, fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>
+                <span>{record.deviation_pct == null ? 'DEVIATION NOT RECORDED' : `DEVIATION ${record.deviation_pct}%`}</span>
+                <span>{formatDate(record.created_at)}</span>
+              </div>
+              {record.notes && <div style={{ marginTop: 7, fontSize: 11, color: 'rgba(199,236,244,.5)' }}>{record.notes}</div>}
             </article>
           ))}
         </div>

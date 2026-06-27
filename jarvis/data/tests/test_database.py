@@ -54,6 +54,7 @@ class DatabaseTests(unittest.TestCase):
             "finance_transaction_ledger",
             "finance_portfolio_snapshots",
             "research_memos",
+            "research_validation_records",
         } <= names
 
     def test_init_db_is_idempotent(self):
@@ -191,6 +192,66 @@ class DatabaseTests(unittest.TestCase):
     def test_create_research_memo_rejects_invalid_status(self):
         with self.assertRaises(ValueError):
             database.create_research_memo(self._research_memo_payload(status="published"))
+
+    def _research_validation_payload(self, **overrides):
+        payload = {
+            "memo_id": None,
+            "asset": "quality_etf",
+            "check_type": "CROSS_SOURCE",
+            "field_name": "expense_ratio",
+            "source_primary": "Issuer factsheet",
+            "source_secondary": "Exchange listing",
+            "primary_value": "0.30%",
+            "secondary_value": "0.30%",
+            "consensus_value": "0.30%",
+            "tolerance_pct": 1.0,
+            "deviation_pct": 0.0,
+            "status": "PASS",
+            "confidence": "high",
+            "notes": "Values agree.",
+            "raw_json": {"period": "current"},
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_create_list_and_get_research_validation_record(self):
+        first_id = database.create_research_validation_record(
+            self._research_validation_payload()
+        )
+        second_id = database.create_research_validation_record(
+            self._research_validation_payload(
+                asset="btc", field_name="market_cap", check_type="MARKET_CAP"
+            )
+        )
+
+        rows = database.list_research_validation_records()
+        first = database.get_research_validation_record(first_id)
+
+        assert [row["id"] for row in rows] == [second_id, first_id]
+        assert first is not None
+        assert first["field_name"] == "expense_ratio"
+        assert first["raw_json"] == {"period": "current"}
+
+    def test_get_research_validation_record_returns_none_for_missing_id(self):
+        assert database.get_research_validation_record(999999) is None
+
+    def test_create_research_validation_record_rejects_invalid_check_type(self):
+        with self.assertRaises(ValueError):
+            database.create_research_validation_record(
+                self._research_validation_payload(check_type="PRICE_TARGET")
+            )
+
+    def test_create_research_validation_record_rejects_invalid_status(self):
+        with self.assertRaises(ValueError):
+            database.create_research_validation_record(
+                self._research_validation_payload(status="APPROVED")
+            )
+
+    def test_create_research_validation_record_rejects_invalid_confidence(self):
+        with self.assertRaises(ValueError):
+            database.create_research_validation_record(
+                self._research_validation_payload(confidence="certain")
+            )
 
     def test_empty_date_returns_empty_list(self):
         assert database.get_meals_for_date(date.today()) == []

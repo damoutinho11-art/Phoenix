@@ -63,6 +63,32 @@ class ResearchMemoPayload(BaseModel):
     notes: str | None = None
 
 
+class ResearchValidationRecordPayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    memo_id: int | None = Field(default=None, gt=0)
+    asset: str | None = None
+    check_type: Literal[
+        "MARKET_CAP",
+        "VALUATION",
+        "CROSS_SOURCE",
+        "SOURCE_CONFIDENCE",
+        "MANUAL_REVIEW",
+    ]
+    field_name: str = Field(min_length=1)
+    source_primary: str | None = None
+    source_secondary: str | None = None
+    primary_value: str | None = None
+    secondary_value: str | None = None
+    consensus_value: str | None = None
+    tolerance_pct: float | None = Field(default=None, ge=0)
+    deviation_pct: float | None = Field(default=None, ge=0)
+    status: Literal["PASS", "WARNING", "FAIL", "UNVERIFIED"]
+    confidence: Literal["high", "medium", "low"]
+    notes: str | None = None
+    raw_json: dict = Field(default_factory=dict)
+
+
 _RESEARCH_SAFETY_FLAGS = {
     "research_only": True,
     "trades_executed": False,
@@ -558,6 +584,31 @@ def finance_create_research_memo(payload: ResearchMemoPayload) -> dict:
     memo_id = database.create_research_memo(payload.model_dump())
     memo = database.get_research_memo(memo_id)
     return {"memo_id": memo_id, "memo": memo, **_RESEARCH_SAFETY_FLAGS}
+
+
+@router.get("/research/validation-records")
+def finance_research_validation_records() -> dict:
+    records = database.list_research_validation_records(limit=100)
+    return {"records": records, "count": len(records), **_RESEARCH_SAFETY_FLAGS}
+
+
+@router.get("/research/validation-records/{record_id}")
+def finance_research_validation_record(record_id: int) -> dict:
+    record = database.get_research_validation_record(record_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404, detail=f"Research validation record {record_id} not found"
+        )
+    return {"record": record, **_RESEARCH_SAFETY_FLAGS}
+
+
+@router.post("/research/validation-records")
+def finance_create_research_validation_record(
+    payload: ResearchValidationRecordPayload,
+) -> dict:
+    record_id = database.create_research_validation_record(payload.model_dump())
+    record = database.get_research_validation_record(record_id)
+    return {"record_id": record_id, "record": record, **_RESEARCH_SAFETY_FLAGS}
 
 
 @router.get("/performance/history")

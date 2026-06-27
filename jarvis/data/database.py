@@ -171,6 +171,37 @@ ON research_memos(created_at);
 CREATE INDEX IF NOT EXISTS idx_research_memos_status
 ON research_memos(status);
 
+CREATE TABLE IF NOT EXISTS research_validation_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    memo_id INTEGER,
+    asset TEXT,
+    check_type TEXT NOT NULL CHECK (
+        check_type IN (
+            'MARKET_CAP', 'VALUATION', 'CROSS_SOURCE',
+            'SOURCE_CONFIDENCE', 'MANUAL_REVIEW'
+        )
+    ),
+    field_name TEXT NOT NULL,
+    source_primary TEXT,
+    source_secondary TEXT,
+    primary_value TEXT,
+    secondary_value TEXT,
+    consensus_value TEXT,
+    tolerance_pct REAL,
+    deviation_pct REAL,
+    status TEXT NOT NULL CHECK (status IN ('PASS', 'WARNING', 'FAIL', 'UNVERIFIED')),
+    confidence TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low')),
+    notes TEXT,
+    raw_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_research_validation_records_created
+ON research_validation_records(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_research_validation_records_memo
+ON research_validation_records(memo_id);
+
 CREATE TABLE IF NOT EXISTS persistence_markers (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -955,6 +986,110 @@ def get_research_memo(memo_id: int) -> dict[str, Any] | None:
             "SELECT * FROM research_memos WHERE id = ?", (memo_id,)
         ).fetchone()
         return _decode_research_memo(row)
+    finally:
+        connection.close()
+
+
+_RESEARCH_VALIDATION_CHECK_TYPES = {
+    "MARKET_CAP",
+    "VALUATION",
+    "CROSS_SOURCE",
+    "SOURCE_CONFIDENCE",
+    "MANUAL_REVIEW",
+}
+_RESEARCH_VALIDATION_STATUSES = {"PASS", "WARNING", "FAIL", "UNVERIFIED"}
+_RESEARCH_VALIDATION_CONFIDENCES = {"high", "medium", "low"}
+
+
+def _decode_research_validation_record(
+    row: sqlite3.Row | None,
+) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    record = dict(row)
+    record["raw_json"] = json.loads(record["raw_json"])
+    return record
+
+
+def create_research_validation_record(payload: dict) -> int:
+    """Persist an evidence/audit record with no finance execution side effects."""
+    check_type = payload["check_type"]
+    status = payload["status"]
+    confidence = payload["confidence"]
+    if check_type not in _RESEARCH_VALIDATION_CHECK_TYPES:
+        raise ValueError(f"Invalid research validation check type: {check_type}")
+    if status not in _RESEARCH_VALIDATION_STATUSES:
+        raise ValueError(f"Invalid research validation status: {status}")
+    if confidence not in _RESEARCH_VALIDATION_CONFIDENCES:
+        raise ValueError(f"Invalid research validation confidence: {confidence}")
+
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO research_validation_records (
+                created_at, memo_id, asset, check_type, field_name,
+                source_primary, source_secondary, primary_value, secondary_value,
+                consensus_value, tolerance_pct, deviation_pct, status, confidence,
+                notes, raw_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                _utc_now(),
+                payload.get("memo_id"),
+                payload.get("asset"),
+                check_type,
+                payload["field_name"],
+                payload.get("source_primary"),
+                payload.get("source_secondary"),
+                payload.get("primary_value"),
+                payload.get("secondary_value"),
+                payload.get("consensus_value"),
+                payload.get("tolerance_pct"),
+                payload.get("deviation_pct"),
+                status,
+                confidence,
+                payload.get("notes"),
+                json.dumps(payload.get("raw_json") or {}),
+            ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def list_research_validation_records(limit: int = 100) -> list[dict[str, Any]]:
+    """Return research validation records newest first."""
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM research_validation_records
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [
+            record
+            for row in rows
+            if (record := _decode_research_validation_record(row))
+        ]
+    finally:
+        connection.close()
+
+
+def get_research_validation_record(record_id: int) -> dict[str, Any] | None:
+    """Return one research validation record by id."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT * FROM research_validation_records WHERE id = ?", (record_id,)
+        ).fetchone()
+        return _decode_research_validation_record(row)
     finally:
         connection.close()
 

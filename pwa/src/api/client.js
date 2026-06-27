@@ -139,6 +139,22 @@ export async function postFinanceResearchMemo(payload) {
   })
 }
 
+export async function getFinanceResearchValidationRecords() {
+  return apiFetch('/finance/research/validation-records')
+}
+
+export async function getFinanceResearchValidationRecord(recordId) {
+  return apiFetch(`/finance/research/validation-records/${recordId}`)
+}
+
+export async function postFinanceResearchValidationRecord(payload) {
+  return apiFetch('/finance/research/validation-records', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function postBriefAction(briefId, action) {
   return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
 }
