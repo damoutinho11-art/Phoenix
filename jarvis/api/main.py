@@ -1,11 +1,13 @@
 """J.A.R.V.I.S. FastAPI application entry point."""
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
 load_dotenv()  # loads .env from project root if present; no-op otherwise
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,23 +16,23 @@ from jarvis.data.database import init_db
 
 
 async def _keep_alive():
-    import asyncio
-    import httpx
-    while True:
-        await asyncio.sleep(300)
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.get("http://localhost:8000/health")
-        except Exception:
-            pass
+    """Ping /health every 10 minutes so Railway doesn't sleep the dyno."""
+    await asyncio.sleep(60)  # wait for startup
+    async with httpx.AsyncClient() as client:
+        while True:
+            try:
+                await client.get("http://localhost:8000/health", timeout=10)
+            except Exception:
+                pass
+            await asyncio.sleep(600)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    import asyncio
     init_db()
-    asyncio.create_task(_keep_alive())
+    task = asyncio.create_task(_keep_alive())
     yield
+    task.cancel()
 
 
 # Initialize at import time for direct TestClient usage that does not enter the
