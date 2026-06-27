@@ -4,6 +4,7 @@ import {
   getFinanceResearchMemo,
   getFinanceResearchValidationRecords,
   postFinanceResearchMemo,
+  postFinanceResearchDraftMemo,
 } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
@@ -76,6 +77,10 @@ export default function Research({ onBack }) {
   const [selectedMemoId, setSelectedMemoId] = useState(null)
   const [selectedMemoDetail, setSelectedMemoDetail] = useState(null)
   const [detailError, setDetailError] = useState(false)
+  const [draftForm, setDraftForm] = useState({ asset: '', sleeve: '' })
+  const [drafting, setDrafting] = useState(false)
+  const [draftResult, setDraftResult] = useState(null)
+  const [draftError, setDraftError] = useState('')
 
   const loadResearch = useCallback(async () => {
     const [memoResponse, validationResponse] = await Promise.all([
@@ -147,6 +152,27 @@ export default function Research({ onBack }) {
     }
   }
 
+  async function handleDraftSubmit(event) {
+    event.preventDefault()
+    if (!draftForm.asset.trim()) return
+    setDrafting(true)
+    setDraftError('')
+    setDraftResult(null)
+    try {
+      const response = await postFinanceResearchDraftMemo({
+        asset: draftForm.asset.trim(),
+        sleeve: draftForm.sleeve.trim() || null,
+      })
+      setDraftResult(response)
+      setDraftForm({ asset: '', sleeve: '' })
+      await loadResearch()
+    } catch {
+      setDraftError('Unable to generate draft memo. Check asset name and try again.')
+    } finally {
+      setDrafting(false)
+    }
+  }
+
   const safetyConfirmed = safety?.research_only === true
     && safety?.trades_executed === false
     && safety?.portfolio_state_updated === false
@@ -166,6 +192,32 @@ export default function Research({ onBack }) {
       <div style={{ margin: '14px 16px 0', padding: '9px 11px', border: '1px solid rgba(77,255,180,.22)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: '#4dffb4', lineHeight: 1.6 }}>
         RESEARCH ONLY · NO TRADES EXECUTED · NO PORTFOLIO UPDATE
       </div>
+
+      <form onSubmit={handleDraftSubmit} style={{ padding: '16px', borderBottom: border }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: muted, marginBottom: 8 }}>DRAFT MEMO FROM PORTFOLIO CONTEXT</div>
+        <div style={{ marginBottom: 10, fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.6)' }}>
+          Generates a draft memo from local PHOENIX data only. No external sources. Draft only — requires human review.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <label>
+            <FieldLabel>ASSET *</FieldLabel>
+            <input required value={draftForm.asset} onChange={(e) => setDraftForm(f => ({ ...f, asset: e.target.value }))} placeholder="btc, quality_etf…" style={fieldStyle} />
+          </label>
+          <label>
+            <FieldLabel>SLEEVE (OPTIONAL)</FieldLabel>
+            <input value={draftForm.sleeve} onChange={(e) => setDraftForm(f => ({ ...f, sleeve: e.target.value }))} placeholder="optional" style={fieldStyle} />
+          </label>
+        </div>
+        {draftError && <div style={{ marginTop: 8, color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8 }}>{draftError}</div>}
+        {draftResult && (
+          <div style={{ marginTop: 8, padding: '8px 10px', border: '1px solid rgba(77,255,180,.25)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4', lineHeight: 1.6 }}>
+            DRAFT MEMO #{draftResult.memo_id} CREATED · DRAFT ONLY — REQUIRES HUMAN REVIEW
+          </div>
+        )}
+        <button type="submit" disabled={drafting} style={{ width: '100%', marginTop: 10, padding: '10px 0', border, background: 'rgba(32,216,236,.06)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', cursor: drafting ? 'wait' : 'pointer' }}>
+          {drafting ? 'DRAFTING…' : 'DRAFT MEMO'}
+        </button>
+      </form>
 
       <form onSubmit={handleSubmit} style={{ padding: '16px', borderBottom: border }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: muted, marginBottom: 12 }}>CREATE RESEARCH MEMO</div>

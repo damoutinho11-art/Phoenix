@@ -139,6 +139,14 @@ export async function postFinanceResearchMemo(payload) {
   })
 }
 
+export async function postFinanceResearchDraftMemo(payload) {
+  return apiFetch('/finance/research/draft-memo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function getFinanceResearchValidationRecords() {
   return apiFetch('/finance/research/validation-records')
 }

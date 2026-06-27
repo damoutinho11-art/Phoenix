@@ -63,6 +63,15 @@ class ResearchMemoPayload(BaseModel):
     notes: str | None = None
 
 
+class DraftMemoPayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    asset: str = Field(min_length=1)
+    sleeve: str | None = None
+    title: str | None = None
+    source_context: str | None = None
+
+
 class ResearchValidationRecordPayload(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -140,6 +149,103 @@ _RESEARCH_SAFETY_FLAGS = {
     "portfolio_state_updated": False,
     "recommendation_overridden": False,
 }
+
+_DRAFT_SAFETY_FLAGS = {
+    **_RESEARCH_SAFETY_FLAGS,
+    "draft_only": True,
+}
+
+_CRYPTO_DRAFT_RISKS = [
+    "Price volatility — high correlation to broader crypto market",
+    "Regulatory risk — evolving regulatory environment",
+    "Liquidity risk — market depth may be thin",
+    "Insufficient research — draft generated from portfolio context only",
+]
+
+_ETF_DRAFT_RISKS = [
+    "Market risk — exposure to equity market drawdowns",
+    "Tracking error — possible divergence from benchmark",
+    "Currency risk — exposure to non-EUR assets",
+    "Insufficient research — draft generated from portfolio context only",
+]
+
+_GENERIC_DRAFT_RISKS = [
+    "Insufficient research — draft generated from portfolio context only",
+    "No external source validation performed",
+]
+
+
+def _build_draft_memo_content(
+    asset: str,
+    sleeve: str | None,
+    title: str | None,
+    source_context: str | None,
+    constitution: dict,
+    portfolio_state: dict,
+) -> dict:
+    """Build draft memo fields from local PHOENIX context only.
+
+    Does NOT call external APIs, does NOT mutate state, does NOT execute trades.
+    Returns a payload dict suitable for create_research_memo().
+    """
+    holdings = portfolio_state.get("holdings", {})
+    current_eur = holdings.get(asset, 0.0) or 0.0
+    all_values = [v for v in holdings.values() if isinstance(v, (int, float))]
+    total_eur = sum(all_values) if all_values else 0.0
+
+    target_weights = constitution.get("target_weights", {})
+    target_weight_pct = round((target_weights.get(asset, 0.0) or 0.0) * 100, 1)
+    current_weight_pct = round((current_eur / total_eur * 100) if total_eur > 0 else 0.0, 1)
+    gap_pct = round(target_weight_pct - current_weight_pct, 1)
+    route = constitution.get("asset_routes", {}).get(asset, "unknown")
+    portfolio_as_of = portfolio_state.get("as_of", "unknown")
+
+    existing_memo = database.find_active_research_memo_for_leg(asset, sleeve)
+    existing_note = (
+        f"Existing active memo found: '{existing_memo['title']}' (id={existing_memo['id']})."
+        if existing_memo
+        else "No existing active research memo found."
+    )
+
+    context_lines = [
+        f"Asset: {asset}",
+        f"Portfolio sleeve/lane: {sleeve or asset}",
+        f"Current allocation: €{current_eur:.2f} ({current_weight_pct:.1f}% of portfolio as of {portfolio_as_of})",
+        f"Target weight: {target_weight_pct:.1f}%",
+        f"Allocation gap: {gap_pct:+.1f}%",
+        f"Route: {route}",
+        existing_note,
+    ]
+    if source_context:
+        context_lines.append(f"Analyst note: {source_context}")
+
+    thesis = (
+        "[GENERATED DRAFT — REQUIRES HUMAN REVIEW]\n\n"
+        + "\n".join(context_lines)
+        + "\n\nThis draft was generated from local PHOENIX portfolio context only. "
+        "No external sources were checked. Human review and evidence validation are required before use."
+    )
+
+    if asset in _CRYPTO_ASSETS:
+        risks = _CRYPTO_DRAFT_RISKS
+    elif route and route != "unknown":
+        risks = _ETF_DRAFT_RISKS
+    else:
+        risks = _GENERIC_DRAFT_RISKS
+
+    return {
+        "asset": asset,
+        "sleeve": sleeve,
+        "title": title or f"Draft: {asset} research memo",
+        "thesis": thesis,
+        "risks": list(risks),
+        "data_confidence": "LOW",
+        "verdict": "INSUFFICIENT_DATA",
+        "sources": [],
+        "validation": {},
+        "status": "draft",
+        "notes": "Generated draft. Requires human review.",
+    }
 
 _CRYPTO_INSTRUMENTS = {
     "btc": {
@@ -659,6 +765,34 @@ def finance_create_research_memo(payload: ResearchMemoPayload) -> dict:
     memo_id = database.create_research_memo(payload.model_dump())
     memo = database.get_research_memo(memo_id)
     return {"memo_id": memo_id, "memo": memo, **_RESEARCH_SAFETY_FLAGS}
+
+
+@router.post("/research/draft-memo")
+def finance_draft_research_memo(
+    payload: DraftMemoPayload,
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+) -> dict:
+    """Generate a structured draft research memo from local PHOENIX context.
+
+    Advisory only — no trades, no state mutations, no external API calls.
+    The draft is stored with status=draft and must be reviewed and promoted by the user.
+    """
+    content = _build_draft_memo_content(
+        asset=payload.asset,
+        sleeve=payload.sleeve,
+        title=payload.title,
+        source_context=payload.source_context,
+        constitution=constitution,
+        portfolio_state=portfolio_state,
+    )
+    memo_id = database.create_research_memo(content)
+    memo = database.get_research_memo(memo_id)
+    return {
+        "memo_id": memo_id,
+        "memo": memo,
+        **_DRAFT_SAFETY_FLAGS,
+    }
 
 
 @router.get("/research/validation-records")
