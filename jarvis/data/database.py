@@ -120,6 +120,13 @@ ON finance_transaction_ledger(created_at);
 CREATE INDEX IF NOT EXISTS idx_finance_transaction_ledger_brief
 ON finance_transaction_ledger(brief_id);
 
+CREATE TABLE IF NOT EXISTS persistence_markers (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS budget_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -756,6 +763,92 @@ def get_budget_months() -> list[str]:
         return [r["month"] for r in rows]
     finally:
         connection.close()
+
+
+def set_persistence_marker(key: str, value: str) -> dict[str, Any]:
+    """Upsert a key/value persistence marker; returns the stored row."""
+    now = _utc_now()
+    connection = get_db()
+    try:
+        connection.execute(
+            """
+            INSERT INTO persistence_markers (key, value, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+            """,
+            (key, value, now, now),
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT * FROM persistence_markers WHERE key = ?", (key,)
+        ).fetchone()
+        return dict(row)
+    finally:
+        connection.close()
+
+
+def get_persistence_marker(key: str) -> dict[str, Any] | None:
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT * FROM persistence_markers WHERE key = ?", (key,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        connection.close()
+
+
+def get_database_diagnostics() -> dict[str, Any]:
+    """Return safe read-only diagnostics about the local SQLite database."""
+    db_exists = DB_PATH.exists()
+    db_size = DB_PATH.stat().st_size if db_exists else 0
+
+    connection = get_db()
+    try:
+        def _count(table: str) -> int:
+            try:
+                return connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            except Exception:
+                return -1
+
+        table_counts = {
+            "brief_history": _count("brief_history"),
+            "finance_transaction_ledger": _count("finance_transaction_ledger"),
+            "persistence_markers": _count("persistence_markers"),
+            "budget_transactions": _count("budget_transactions"),
+            "meal_log": _count("meal_log"),
+            "weight_log": _count("weight_log"),
+        }
+
+        try:
+            cols = [
+                row[1]
+                for row in connection.execute(
+                    "PRAGMA table_info(finance_transaction_ledger)"
+                ).fetchall()
+            ]
+        except Exception:
+            cols = []
+
+        marker = _row_to_dict(
+            connection.execute(
+                "SELECT * FROM persistence_markers WHERE key = ?",
+                ("production_persistence_probe",),
+            ).fetchone()
+        )
+    finally:
+        connection.close()
+
+    return {
+        "db_path": str(DB_PATH),
+        "db_exists": db_exists,
+        "db_size_bytes": db_size,
+        "table_counts": table_counts,
+        "finance_transaction_ledger_columns": cols,
+        "persistence_marker": marker,
+    }
 
 
 def get_meal_history(days: int = 14, target_calories: float = 2200.0) -> list[dict[str, Any]]:
