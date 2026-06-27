@@ -155,6 +155,23 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
             app.dependency_overrides.clear()
 
 
+class FinancePerformanceHistoryRouteTests(unittest.TestCase):
+    def test_performance_history_returns_real_empty_contract(self) -> None:
+        response = client.get("/finance/performance/history")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "snapshots": [],
+                "count": 0,
+                "source": "real_sqlite",
+                "message": "No real performance snapshots recorded yet.",
+                "mock_data": False,
+            },
+        )
+
+
 class FinanceBriefIdentityTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()

@@ -119,6 +119,10 @@ export async function getFinanceBriefHistory() {
   return apiFetch('/finance/brief/history')
 }
 
+export async function getFinancePerformanceHistory() {
+  return apiFetch('/finance/performance/history')
+}
+
 export async function postBriefAction(briefId, action) {
   return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
 }

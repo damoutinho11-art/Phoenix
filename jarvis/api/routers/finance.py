@@ -514,6 +514,22 @@ def finance_brief_history() -> dict:
     return {"history": rows, "count": len(rows)}
 
 
+@router.get("/performance/history")
+def finance_performance_history() -> dict:
+    """Return real recorded performance snapshots.
+
+    No snapshots are fabricated. Until manual transactions are recorded and
+    applied, this endpoint returns an empty list.
+    """
+    return {
+        "snapshots": [],
+        "count": 0,
+        "source": "real_sqlite",
+        "message": "No real performance snapshots recorded yet.",
+        "mock_data": False,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Apply-gate helpers (pure — never touch the filesystem)
 # ---------------------------------------------------------------------------
