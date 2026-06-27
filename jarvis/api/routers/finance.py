@@ -795,6 +795,46 @@ def finance_draft_research_memo(
     }
 
 
+_QUALITY_GATE_SAFETY_FLAGS = {
+    "research_only": True,
+    "quality_gate_only": True,
+    "investment_approval": False,
+    "trades_executed": False,
+    "broker_connection": False,
+    "portfolio_state_updated": False,
+    "recommendation_overridden": False,
+}
+
+
+@router.post("/research/memos/{memo_id}/quality-gate")
+def finance_research_memo_quality_gate(memo_id: int) -> dict:
+    """Run the research quality gate for one memo.
+
+    Evaluates memo + validation records against hard gates.
+    May promote status to 'active' if all gates pass (VALIDATED).
+    Advisory only — does not approve trades or mutate portfolio state.
+    """
+    try:
+        result = database.evaluate_research_memo_quality(memo_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
+    return {**result, **_QUALITY_GATE_SAFETY_FLAGS}
+
+
+@router.post("/research/quality-gate/run")
+def finance_research_quality_gate_run() -> dict:
+    """Run the research quality gate for all non-archived memos.
+
+    Advisory only — does not approve trades or mutate portfolio state.
+    """
+    results = database.run_quality_gate_for_all()
+    return {
+        "results": results,
+        "total_evaluated": len(results),
+        **_QUALITY_GATE_SAFETY_FLAGS,
+    }
+
+
 @router.get("/research/validation-records")
 def finance_research_validation_records() -> dict:
     records = database.list_research_validation_records(limit=100)

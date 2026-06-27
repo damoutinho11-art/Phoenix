@@ -157,33 +157,40 @@ def test_no_memo_gate_summary_legs_with_research_is_zero() -> None:
     assert gate["legs_without_research"] == gate["total_recommendation_legs"]
 
 
-# --- Active memo matched by asset ---
+# --- VALIDATED memo attaches (quality gate must pass first) ---
 
-def test_active_memo_matched_by_asset() -> None:
-    _create_active_memo("btc")
+def _create_validated_memo(asset: str, verdict: str = "WATCH") -> int:
+    """Create a memo with 2 PASS records and promote it through the quality gate."""
+    memo_id = _create_active_memo(asset, verdict=verdict)
+    _add_validation_record(memo_id, "PASS")
+    _add_validation_record(memo_id, "PASS")
+    client.post(f"/finance/research/memos/{memo_id}/quality-gate")
+    return memo_id
+
+
+def test_validated_memo_matched_by_asset() -> None:
+    memo_id = _create_validated_memo("btc")
     data = _get_recommendation()
 
     btc_leg = next((l for l in data["research_context"] if l["asset"] == "btc"), None)
     assert btc_leg is not None
-    assert btc_leg["memo_id"] is not None
+    assert btc_leg["memo_id"] == memo_id
     assert btc_leg["memo_title"] == "btc research memo"
     assert btc_leg["verdict"] == "WATCH"
 
 
-def test_active_memo_increments_legs_with_research() -> None:
-    _create_active_memo("btc")
+def test_validated_memo_increments_legs_with_research() -> None:
+    _create_validated_memo("btc")
     data = _get_recommendation()
     gate = data["research_gate_summary"]
 
     assert gate["legs_with_research"] >= 1
 
 
-# --- EVIDENCE_STRONG ---
+# --- EVIDENCE_STRONG (requires VALIDATED quality gate) ---
 
 def test_evidence_strong_status_when_all_pass() -> None:
-    memo_id = _create_active_memo("btc")
-    _add_validation_record(memo_id, "PASS")
-    _add_validation_record(memo_id, "PASS")
+    memo_id = _create_validated_memo("btc")
 
     data = _get_recommendation()
     btc_leg = next((l for l in data["research_context"] if l["asset"] == "btc"), None)
@@ -192,27 +199,31 @@ def test_evidence_strong_status_when_all_pass() -> None:
     assert btc_leg["research_warning"] is None
 
 
-# --- BLOCKED_BY_FAIL ---
+# --- FAIL memos are REJECTED by quality gate and do NOT attach ---
 
-def test_failed_validation_produces_blocked_by_fail_warning() -> None:
+def test_failed_validation_memo_does_not_attach_after_gate() -> None:
+    # Quality gate: FAIL record → REJECTED → stays draft → not attached
     memo_id = _create_active_memo("btc")
     _add_validation_record(memo_id, "FAIL")
+    client.post(f"/finance/research/memos/{memo_id}/quality-gate")
 
     data = _get_recommendation()
     btc_leg = next((l for l in data["research_context"] if l["asset"] == "btc"), None)
 
-    assert btc_leg["evidence_status"] == "BLOCKED_BY_FAIL"
-    assert btc_leg["research_warning"] == "Research validation failed. Manual review required before acting."
+    assert btc_leg["evidence_status"] == "NO_EVIDENCE"
+    assert btc_leg["memo_id"] is None
 
 
-def test_blocked_leg_counted_in_gate_summary() -> None:
+def test_fail_memo_not_counted_in_legs_blocked_summary() -> None:
+    # Rejected memos don't attach — legs_blocked_by_failed_research counts attached legs only
     memo_id = _create_active_memo("btc")
     _add_validation_record(memo_id, "FAIL")
+    client.post(f"/finance/research/memos/{memo_id}/quality-gate")
 
     data = _get_recommendation()
     gate = data["research_gate_summary"]
 
-    assert gate["legs_blocked_by_failed_research"] >= 1
+    assert gate["legs_blocked_by_failed_research"] == 0
 
 
 # --- Safety: amounts and routes unchanged ---

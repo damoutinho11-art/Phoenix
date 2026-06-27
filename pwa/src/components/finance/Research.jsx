@@ -5,6 +5,8 @@ import {
   getFinanceResearchValidationRecords,
   postFinanceResearchMemo,
   postFinanceResearchDraftMemo,
+  postFinanceResearchMemoQualityGate,
+  postFinanceResearchQualityGateAll,
 } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
@@ -55,6 +57,13 @@ const evidenceStatusMeta = {
   BLOCKED_BY_FAIL: { label: 'Blocked by failed validation', color: '#ff5c7a' },
 }
 
+const qualityStatusMeta = {
+  UNREVIEWED: { label: 'UNREVIEWED', color: muted },
+  NEEDS_MORE_EVIDENCE: { label: 'NEEDS MORE EVIDENCE', color: '#ffd56b' },
+  VALIDATED: { label: 'VALIDATED', color: '#4dffb4' },
+  REJECTED: { label: 'REJECTED', color: '#ff5c7a' },
+}
+
 function FieldLabel({ children }) {
   return <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.17em', color: muted, marginBottom: 5 }}>{children}</div>
 }
@@ -81,6 +90,9 @@ export default function Research({ onBack }) {
   const [drafting, setDrafting] = useState(false)
   const [draftResult, setDraftResult] = useState(null)
   const [draftError, setDraftError] = useState('')
+  const [qualityRunning, setQualityRunning] = useState(null)
+  const [qualityAllRunning, setQualityAllRunning] = useState(false)
+  const [qualityAllResult, setQualityAllResult] = useState(null)
 
   const loadResearch = useCallback(async () => {
     const [memoResponse, validationResponse] = await Promise.all([
@@ -173,6 +185,32 @@ export default function Research({ onBack }) {
     }
   }
 
+  async function handleQualityGate(memoId) {
+    setQualityRunning(memoId)
+    try {
+      await postFinanceResearchMemoQualityGate(memoId)
+      await loadResearch()
+    } catch {
+      // silent — list refresh will show current state
+    } finally {
+      setQualityRunning(null)
+    }
+  }
+
+  async function handleQualityGateAll() {
+    setQualityAllRunning(true)
+    setQualityAllResult(null)
+    try {
+      const response = await postFinanceResearchQualityGateAll()
+      setQualityAllResult(response.total_evaluated)
+      await loadResearch()
+    } catch {
+      setQualityAllResult(0)
+    } finally {
+      setQualityAllRunning(false)
+    }
+  }
+
   const safetyConfirmed = safety?.research_only === true
     && safety?.trades_executed === false
     && safety?.portfolio_state_updated === false
@@ -191,6 +229,23 @@ export default function Research({ onBack }) {
 
       <div style={{ margin: '14px 16px 0', padding: '9px 11px', border: '1px solid rgba(77,255,180,.22)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: '#4dffb4', lineHeight: 1.6 }}>
         RESEARCH ONLY · NO TRADES EXECUTED · NO PORTFOLIO UPDATE
+      </div>
+
+      <div style={{ margin: '10px 16px 0', padding: '9px 11px', border, background: 'rgba(32,216,236,.015)' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, letterSpacing: '.12em', marginBottom: 7 }}>PHOENIX validates research quality. This does not approve a trade.</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={handleQualityGateAll}
+            disabled={qualityAllRunning}
+            style={{ padding: '7px 12px', border, background: 'rgba(32,216,236,.07)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', cursor: qualityAllRunning ? 'wait' : 'pointer' }}
+          >
+            {qualityAllRunning ? 'EVALUATING…' : 'RUN ALL QUALITY GATES'}
+          </button>
+          {qualityAllResult !== null && (
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4' }}>{qualityAllResult} MEMO(S) EVALUATED</span>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleDraftSubmit} style={{ padding: '16px', borderBottom: border }}>
@@ -326,6 +381,29 @@ export default function Research({ onBack }) {
                       </button>
                     </div>
                     <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted, marginTop: 4, letterSpacing: '.1em' }}>RESEARCH TRUST ONLY · NOT A TRADE SIGNAL</div>
+                    {(() => {
+                      const qStatus = memo.research_quality_status || 'UNREVIEWED'
+                      const qMeta = qualityStatusMeta[qStatus] || qualityStatusMeta.UNREVIEWED
+                      const isRunning = qualityRunning === memo.id
+                      return (
+                        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <div>
+                            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: qMeta.color, letterSpacing: '.1em' }}>{qMeta.label}</span>
+                            {memo.research_quality_reason && qStatus !== 'UNREVIEWED' && (
+                              <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted, marginTop: 2, lineHeight: 1.5 }}>{memo.research_quality_reason}</div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleQualityGate(memo.id)}
+                            disabled={isRunning}
+                            style={{ background: 'none', border, padding: '4px 8px', cursor: isRunning ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#20d8ec', flexShrink: 0 }}
+                          >
+                            {isRunning ? 'EVALUATING…' : 'RUN QUALITY GATE'}
+                          </button>
+                        </div>
+                      )
+                    })()}
 
                     {selectedMemoId === memo.id && !selectedMemoDetail && !detailError && (
                       <div style={{ marginTop: 9, fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>LOADING LINKED EVIDENCE…</div>

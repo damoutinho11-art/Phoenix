@@ -139,6 +139,14 @@ export async function postFinanceResearchMemo(payload) {
   })
 }
 
+export async function postFinanceResearchMemoQualityGate(memoId) {
+  return apiFetch(`/finance/research/memos/${memoId}/quality-gate`, { method: 'POST' })
+}
+
+export async function postFinanceResearchQualityGateAll() {
+  return apiFetch('/finance/research/quality-gate/run', { method: 'POST' })
+}
+
 export async function postFinanceResearchDraftMemo(payload) {
   return apiFetch('/finance/research/draft-memo', {
     method: 'POST',

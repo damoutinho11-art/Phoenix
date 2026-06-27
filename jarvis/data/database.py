@@ -270,6 +270,28 @@ def _migrate_finance_transaction_ledger(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+def _migrate_research_memos_quality_columns(connection: sqlite3.Connection) -> None:
+    """Add research quality gate columns to research_memos if not present."""
+    existing = {
+        row[1]
+        for row in connection.execute(
+            "PRAGMA table_info(research_memos)"
+        ).fetchall()
+    }
+    new_cols = [
+        ("research_quality_status", "TEXT NOT NULL DEFAULT 'UNREVIEWED'"),
+        ("research_quality_reason", "TEXT"),
+        ("research_quality_checked_at", "TEXT"),
+        ("research_quality_summary_json", "TEXT"),
+    ]
+    for col_name, col_def in new_cols:
+        if col_name not in existing:
+            connection.execute(
+                f"ALTER TABLE research_memos ADD COLUMN {col_name} {col_def}"
+            )
+    connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
@@ -277,6 +299,7 @@ def init_db() -> None:
         connection.executescript(_SCHEMA)
         connection.commit()
         _migrate_finance_transaction_ledger(connection)
+        _migrate_research_memos_quality_columns(connection)
     finally:
         connection.close()
 
@@ -915,6 +938,8 @@ def _decode_research_memo(row: sqlite3.Row | None) -> dict[str, Any] | None:
     memo["risks"] = json.loads(memo["risks"])
     memo["sources"] = json.loads(memo.pop("sources_json"))
     memo["validation"] = json.loads(memo.pop("validation_json"))
+    raw_quality = memo.pop("research_quality_summary_json", None)
+    memo["research_quality_summary"] = json.loads(raw_quality) if raw_quality else None
     return memo
 
 
@@ -1165,8 +1190,9 @@ def get_research_memo_evidence_summary(memo_id: int) -> dict[str, Any]:
 def find_active_research_memo_for_leg(
     asset: str | None, sleeve: str | None
 ) -> dict[str, Any] | None:
-    """Return the latest active memo for a recommendation leg.
+    """Return the latest VALIDATED active memo for a recommendation leg.
 
+    A memo attaches only when status = 'active' AND research_quality_status = 'VALIDATED'.
     Priority: exact asset match > sleeve match > None.
     Never mutates portfolio state or executes trades.
     """
@@ -1176,7 +1202,9 @@ def find_active_research_memo_for_leg(
             row = connection.execute(
                 """
                 SELECT * FROM research_memos
-                WHERE status = 'active' AND asset = ?
+                WHERE status = 'active'
+                  AND research_quality_status = 'VALIDATED'
+                  AND asset = ?
                 ORDER BY created_at DESC, id DESC
                 LIMIT 1
                 """,
@@ -1189,7 +1217,9 @@ def find_active_research_memo_for_leg(
             row = connection.execute(
                 """
                 SELECT * FROM research_memos
-                WHERE status = 'active' AND sleeve = ?
+                WHERE status = 'active'
+                  AND research_quality_status = 'VALIDATED'
+                  AND sleeve = ?
                 ORDER BY created_at DESC, id DESC
                 LIMIT 1
                 """,
@@ -1201,6 +1231,195 @@ def find_active_research_memo_for_leg(
         return None
     finally:
         connection.close()
+
+
+_QUALITY_GATE_STATUSES = {"UNREVIEWED", "NEEDS_MORE_EVIDENCE", "VALIDATED", "REJECTED"}
+
+
+def update_research_memo_quality(
+    memo_id: int,
+    quality_status: str,
+    quality_reason: str,
+    quality_summary: dict,
+    new_status: str | None = None,
+) -> bool:
+    """Write quality gate result to a memo. Returns True if the row was found.
+
+    If new_status is provided (e.g. 'active' for VALIDATED), the lifecycle status
+    column is also updated. Never mutates portfolio_state or executes trades.
+    """
+    now = _utc_now()
+    connection = get_db()
+    try:
+        if new_status is not None:
+            cursor = connection.execute(
+                """
+                UPDATE research_memos
+                SET research_quality_status = ?,
+                    research_quality_reason = ?,
+                    research_quality_checked_at = ?,
+                    research_quality_summary_json = ?,
+                    status = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    quality_status,
+                    quality_reason,
+                    now,
+                    json.dumps(quality_summary),
+                    new_status,
+                    now,
+                    memo_id,
+                ),
+            )
+        else:
+            cursor = connection.execute(
+                """
+                UPDATE research_memos
+                SET research_quality_status = ?,
+                    research_quality_reason = ?,
+                    research_quality_checked_at = ?,
+                    research_quality_summary_json = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    quality_status,
+                    quality_reason,
+                    now,
+                    json.dumps(quality_summary),
+                    now,
+                    memo_id,
+                ),
+            )
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+def evaluate_research_memo_quality(memo_id: int) -> dict[str, Any]:
+    """Apply the research quality gate to one memo and persist the result.
+
+    Gate rules (applied in order):
+      1. Archived → skip (no change).
+      2. No validation records → NEEDS_MORE_EVIDENCE.
+      3. Any FAIL record → REJECTED; status stays draft.
+      4. Fewer than 2 records → NEEDS_MORE_EVIDENCE.
+      5. verdict == INSUFFICIENT_DATA → NEEDS_MORE_EVIDENCE.
+      6. data_confidence == LOW → NEEDS_MORE_EVIDENCE.
+      7. Thesis or risks missing → NEEDS_MORE_EVIDENCE.
+      8. Any WARNING or UNVERIFIED record → NEEDS_MORE_EVIDENCE.
+      9. At least 2 PASS records, all hard gates pass → VALIDATED; status = active.
+
+    Never mutates portfolio_state.json or executes trades.
+    """
+    memo = get_research_memo(memo_id)
+    if memo is None:
+        raise ValueError(f"Research memo {memo_id} not found")
+
+    def _result(quality_status: str, reason: str, summary: dict, applied: bool) -> dict[str, Any]:
+        updated = get_research_memo(memo_id)
+        return {
+            "memo_id": memo_id,
+            "quality_status": quality_status,
+            "quality_reason": reason,
+            "gate_applied": applied,
+            "quality_summary": summary,
+            "memo": updated,
+        }
+
+    # Rule 1: archived memos are not touched by the gate
+    if memo["status"] == "archived":
+        existing_status = memo.get("research_quality_status", "UNREVIEWED")
+        return _result(existing_status, "Archived memo: quality gate not applied.", {}, False)
+
+    records = list_research_validation_records_by_memo_id(memo_id)
+    pass_count = sum(1 for r in records if r["status"] == "PASS")
+    fail_count = sum(1 for r in records if r["status"] == "FAIL")
+    warning_count = sum(1 for r in records if r["status"] == "WARNING")
+    unverified_count = sum(1 for r in records if r["status"] == "UNVERIFIED")
+    total = len(records)
+
+    summary = {
+        "total_records": total,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "warning_count": warning_count,
+        "unverified_count": unverified_count,
+    }
+
+    def _needs(reason: str) -> dict[str, Any]:
+        update_research_memo_quality(memo_id, "NEEDS_MORE_EVIDENCE", reason, summary)
+        return _result("NEEDS_MORE_EVIDENCE", reason, summary, True)
+
+    def _reject(reason: str) -> dict[str, Any]:
+        update_research_memo_quality(memo_id, "REJECTED", reason, summary)
+        return _result("REJECTED", reason, summary, True)
+
+    def _validated() -> dict[str, Any]:
+        reason = (
+            "All quality gates passed: ≥2 PASS records, no FAIL/WARNING/UNVERIFIED, "
+            "valid verdict and confidence, thesis and risks present."
+        )
+        update_research_memo_quality(memo_id, "VALIDATED", reason, summary, new_status="active")
+        return _result("VALIDATED", reason, summary, True)
+
+    # Rule 2
+    if total == 0:
+        return _needs("No validation records attached.")
+
+    # Rule 3
+    if fail_count > 0:
+        return _reject(f"{fail_count} validation record(s) with status FAIL.")
+
+    # Rule 4
+    if total < 2:
+        return _needs(f"Only {total} validation record(s). At least 2 required.")
+
+    # Rule 5
+    if memo.get("verdict") == "INSUFFICIENT_DATA":
+        return _needs("Memo verdict is INSUFFICIENT_DATA.")
+
+    # Rule 6
+    if (memo.get("data_confidence") or "").upper() == "LOW":
+        return _needs("Data confidence is LOW.")
+
+    # Rule 7
+    if not (memo.get("thesis") or "").strip():
+        return _needs("Thesis is missing or empty.")
+    if not (memo.get("risks") or []):
+        return _needs("Risks list is missing or empty.")
+
+    # Rule 8
+    if warning_count > 0:
+        return _needs(f"{warning_count} validation record(s) with WARNING status.")
+    if unverified_count > 0:
+        return _needs(f"{unverified_count} validation record(s) with UNVERIFIED status.")
+
+    # Rule 9 (redundant guard — all records are PASS by this point)
+    if pass_count < 2:
+        return _needs(f"Only {pass_count} PASS record(s). At least 2 required.")
+
+    return _validated()
+
+
+def run_quality_gate_for_all() -> list[dict[str, Any]]:
+    """Evaluate the quality gate for all non-archived memos.
+
+    Never mutates portfolio_state.json or executes trades.
+    """
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT id FROM research_memos WHERE status != 'archived' ORDER BY id ASC"
+        ).fetchall()
+        memo_ids = [row["id"] for row in rows]
+    finally:
+        connection.close()
+
+    return [evaluate_research_memo_quality(mid) for mid in memo_ids]
 
 
 def brief_exists_by_id(brief_id: int) -> bool:
