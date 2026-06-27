@@ -8,7 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.etf_scoring import load_etf_universe
-from jarvis.domains.finance.market_data import detect_market_regime, update_portfolio_state_prices
+from jarvis.domains.finance.market_data import (
+    detect_market_regime,
+    resolve_best_etf_candidate_with_broker_check,
+    update_portfolio_state_prices,
+)
 from jarvis.data import database
 
 router = APIRouter()
@@ -50,11 +54,48 @@ _CRYPTO_INSTRUMENTS = {
 }
 
 
-def _instrument_for(asset: str, etf_universe: dict) -> dict:
+def _instrument_for(
+    asset: str,
+    etf_universe: dict,
+    etf_resolutions: dict[str, dict] | None = None,
+) -> dict:
     if asset in _CRYPTO_INSTRUMENTS:
         return dict(_CRYPTO_INSTRUMENTS[asset])
     instrument = etf_universe.get(asset, {}).get("instrument")
-    return dict(instrument) if isinstance(instrument, dict) else {}
+    metadata = dict(instrument) if isinstance(instrument, dict) else {}
+    resolution = (etf_resolutions or {}).get(asset)
+    if resolution is None:
+        return metadata
+    return {
+        **metadata,
+        "resolved_candidate": resolution.get("selected_candidate"),
+        "candidates": resolution.get("candidates") or [],
+        "market_data_source": resolution.get("source", "yfinance"),
+        "broker_source": resolution.get(
+            "broker_source", "lightyear_public_fund_screener"
+        ),
+        "broker_verification": resolution.get("broker_verification", "not_verified"),
+        "confirmation_required": resolution.get("confirmation_required", True),
+        "resolution_reason": resolution.get("reason"),
+    }
+
+
+def _safe_etf_resolution(sleeve_key: str) -> dict:
+    try:
+        return resolve_best_etf_candidate_with_broker_check(sleeve_key)
+    except Exception as exc:
+        return {
+            "selected_candidate": None,
+            "candidates": [],
+            "source": "yfinance",
+            "broker_source": "lightyear_public_fund_screener",
+            "broker_verification": "not_verified",
+            "confirmation_required": True,
+            "lightyear_available": "unknown",
+            "confidence": "unresolved",
+            "reason": "ETF candidate resolution failed softly; manual confirmation required.",
+            "error": str(exc),
+        }
 
 
 @router.get("/summary")
@@ -98,6 +139,12 @@ def finance_recommendation(
     ticket = result["approval_ticket"]
     mandate = ticket["weekly_dual_lane_mandate"]
     etf_universe = load_etf_universe(engine.DEFAULT_ETF_UNIVERSE_PATH)
+    verdict = result.get("etf_scoring_verdict") or {}
+    etf_resolutions = {
+        sleeve.get("sleeve"): _safe_etf_resolution(sleeve.get("sleeve", ""))
+        for sleeve in (verdict.get("sleeves") or [])
+        if sleeve.get("sleeve")
+    }
 
     recommendations = [
         {
@@ -105,7 +152,7 @@ def finance_recommendation(
             "amount": amount,
             "lane": "crypto" if asset in _CRYPTO_ASSETS else "etf",
             "route": constitution["asset_routes"].get(asset),
-            "instrument": _instrument_for(asset, etf_universe),
+            "instrument": _instrument_for(asset, etf_universe, etf_resolutions),
         }
         for asset, amount in ticket["executable_allocation"].items()
         if amount > 0
@@ -126,13 +173,14 @@ def finance_recommendation(
     rationale = "; ".join(rationale_parts) or "No buys recommended this week."
     dyn = result.get("dynamic_context", {})
     news_thesis = ""
-    verdict = result.get("etf_scoring_verdict") or {}
     verdict_with_instruments = {
         **verdict,
         "sleeves": [
             {
                 **sleeve,
-                "instrument": _instrument_for(sleeve.get("sleeve", ""), etf_universe),
+                "instrument": _instrument_for(
+                    sleeve.get("sleeve", ""), etf_universe, etf_resolutions
+                ),
             }
             for sleeve in (verdict.get("sleeves") or [])
         ],

@@ -50,6 +50,88 @@ function CornerCard({ children }) {
   )
 }
 
+function marketPrice(value, currency) {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? `${amount.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${currency || ''}`.trim() : '—'
+}
+
+function LightyearStatus({ candidate }) {
+  const verified = candidate?.lightyear_available === true && candidate?.lightyear_confidence === 'high'
+  const unavailable = candidate?.lightyear_available === false
+  return (
+    <div style={{ color: verified ? '#4dffb4' : unavailable ? '#ff5c7a' : '#ffd56b' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em' }}>
+        {verified ? 'LIGHTYEAR PUBLIC CATALOGUE VERIFIED' : unavailable ? 'NOT FOUND IN LIGHTYEAR PUBLIC CATALOGUE' : 'LIGHTYEAR AVAILABILITY NOT VERIFIED'}
+      </div>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{humanize(candidate?.lightyear_confidence)}</div>
+      {candidate?.lightyear_url && verified && (
+        <a href={candidate.lightyear_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', color: '#20d8ec', fontFamily: 'var(--mono)', fontSize: 7, marginTop: 5 }}>OPEN PUBLIC LIGHTYEAR PAGE ↗</a>
+      )}
+    </div>
+  )
+}
+
+function ResolvedInstrument({ instrument }) {
+  const candidate = instrument?.resolved_candidate
+  if (!candidate) {
+    return (
+      <div style={{ marginTop: 10, padding: '10px 11px', border: '1px solid rgba(255,213,107,.25)', color: '#ffd56b', fontSize: 12 }}>
+        ETF candidate unresolved. Manual confirmation required.
+      </div>
+    )
+  }
+  const verified = candidate.lightyear_available === true && candidate.lightyear_confidence === 'high'
+  return (
+    <div style={{ marginTop: 10, padding: '11px 12px', border, background: 'rgba(32,216,236,.025)' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted }}>RESOLVED ETF CANDIDATE</div>
+      <div style={{ fontFamily: 'var(--display)', fontSize: 17, fontWeight: 700, color: '#7df0ff', marginTop: 5 }}>{candidate.symbol || '—'}</div>
+      <div style={{ fontSize: 12, color: 'rgba(199,236,244,.82)', marginTop: 2 }}>{candidate.label || '—'}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 9 }}>
+        <Stat label="MARKET PRICE" value={marketPrice(candidate.raw_price, candidate.currency)} />
+        <Stat label="EUR PRICE" value={formatEur(candidate.eur_price)} />
+        <Stat label="MARKET SOURCE" value={instrument.market_data_source || candidate.source || '—'} />
+        <Stat label="BROKER SOURCE" value={instrument.broker_source || '—'} />
+      </div>
+      <div style={{ marginTop: 9 }}><LightyearStatus candidate={candidate} /></div>
+      {!verified && <div style={{ marginTop: 8, color: '#ffd56b', fontSize: 12 }}>Lightyear availability not verified. Manual confirmation required.</div>}
+    </div>
+  )
+}
+
+function CandidateComparison({ candidates }) {
+  const values = Array.isArray(candidates) ? candidates : []
+  if (values.length === 0) return null
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: border }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 8 }}>INSTRUMENT CANDIDATE COMPARISON</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {values.map((candidate, index) => {
+          const score = candidate?.score_components?.total_score
+          const verified = candidate.lightyear_available === true && candidate.lightyear_confidence === 'high'
+          return (
+            <div key={`${candidate.symbol || 'candidate'}-${index}`} style={{ padding: '9px 10px', border: `1px solid ${candidate.selected ? 'rgba(77,255,180,.35)' : 'rgba(32,216,236,.14)'}`, background: candidate.selected ? 'rgba(77,255,180,.025)' : 'rgba(0,0,0,.35)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 14, fontWeight: 700, color: candidate.selected ? '#4dffb4' : '#7df0ff' }}>{candidate.symbol || '—'}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(199,236,244,.7)', overflowWrap: 'anywhere' }}>{candidate.label || '—'}</div>
+                </div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: candidate.selected ? '#4dffb4' : muted, flexShrink: 0 }}>{candidate.selected ? 'SELECTED' : 'NOT SELECTED'}</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '5px 8px', marginTop: 7, fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>
+                <span>YFINANCE · {humanize(candidate.fetch_status)}</span>
+                <span>SCORE · {Number.isFinite(Number(score)) ? Number(score).toFixed(0) : '—'}</span>
+                <span>PRICE · {marketPrice(candidate.raw_price, candidate.currency)}</span>
+                <span style={{ color: verified ? '#4dffb4' : candidate.lightyear_available === false ? '#ff5c7a' : '#ffd56b' }}>LIGHTYEAR · {verified ? 'VERIFIED' : candidate.lightyear_available === false ? 'NOT FOUND' : 'UNKNOWN'}</span>
+              </div>
+              <div style={{ fontSize: 10, lineHeight: 1.45, color: 'rgba(199,236,244,.68)', marginTop: 7 }}>{candidate.reason || candidate.error || 'No candidate reason returned.'}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function RecommendationCard({ recommendation }) {
   const instrument = recommendation.instrument && typeof recommendation.instrument === 'object' ? recommendation.instrument : {}
   const identifiers = [
@@ -78,6 +160,7 @@ function RecommendationCard({ recommendation }) {
             {identifiers.map(([label, value]) => <Stat key={label} label={label} value={value} />)}
           </div>
         )}
+        {recommendation.lane === 'etf' && <ResolvedInstrument instrument={instrument} />}
         {instrument.confirmation_required && (
           <div style={{ marginTop: 10, padding: '9px 10px', border: '1px solid rgba(255,213,107,.3)', background: 'rgba(255,213,107,.04)', color: '#ffd56b' }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', marginBottom: 4 }}>NEEDS CONFIRMATION</div>
@@ -153,6 +236,7 @@ function EtfCandidateCard({ candidate }) {
         </div>
       </div>
       <div style={{ marginTop: 9, paddingTop: 9, borderTop: border, fontSize: 12, lineHeight: 1.5, color: 'rgba(199,236,244,.78)' }}>{candidate.reason || 'No reason returned.'}</div>
+      <CandidateComparison candidates={instrument.candidates} />
     </div>
   )
 }

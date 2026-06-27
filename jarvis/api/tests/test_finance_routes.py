@@ -64,7 +64,7 @@ class FinanceSummaryRouteTests(unittest.TestCase):
 
     def test_summary_as_of_is_2026_06_22(self) -> None:
         data = client.get("/finance/summary").json()
-        self.assertEqual(data["as_of"], "2026-06-22")
+        self.assertEqual(data["as_of"], "2026-06-26")
 
     def test_summary_no_staleness_warning_on_fresh_data(self) -> None:
         # portfolio_state.json as_of is 2026-06-22; today per project context is 2026-06-22

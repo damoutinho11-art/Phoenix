@@ -30,7 +30,7 @@ class AllocationEngineDualLaneMandateTests(unittest.TestCase):
         self.assertFalse(ticket["trades_executed"])
         self.assertIn("No broker connection.", ticket["safety_checks"])
 
-    def test_crypto_lane_can_select_non_btc_when_btc_has_no_risk_room(self) -> None:
+    def test_phase_one_crypto_lane_prioritizes_btc_while_hype_is_locked(self) -> None:
         state = copy.deepcopy(self.state)
         state["holdings"]["btc"] = 1600.0
         state["holdings"]["hype"] = 0.0
@@ -45,10 +45,13 @@ class AllocationEngineDualLaneMandateTests(unittest.TestCase):
         result = engine.allocate_weekly_budget(self.constitution, state)
         mandate = result["approval_ticket"]["weekly_dual_lane_mandate"]
 
+        self.assertEqual(self.constitution["crypto_universe"]["btc"]["phase_unlock"], 1)
+        self.assertEqual(self.constitution["crypto_universe"]["hype"]["phase_unlock"], 2)
         self.assertEqual(mandate["crypto_lane"]["status"], "READY_FOR_MANUAL_BUY")
-        self.assertEqual(mandate["crypto_lane"]["asset"], "hype")
+        self.assertEqual(mandate["crypto_lane"]["asset"], "btc")
         self.assertGreater(mandate["crypto_lane"]["amount"], 0)
-        self.assertEqual(result["executable_allocations_cents"].get("btc"), 0)
+        self.assertGreater(result["executable_allocations_cents"].get("btc", 0), 0)
+        self.assertEqual(result["executable_allocations_cents"].get("hype"), 0)
 
     def test_crypto_lane_defers_when_all_crypto_risk_room_is_exhausted(self) -> None:
         state = copy.deepcopy(self.state)
@@ -98,4 +101,3 @@ class AllocationEngineDualLaneMandateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

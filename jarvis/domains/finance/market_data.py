@@ -33,6 +33,26 @@ TICKER_MAP: dict[str, str] = {
     "lhv_growth_euro_bond":      "IEAG.L",
 }
 
+# Candidate instruments are evaluated separately from TICKER_MAP so existing
+# portfolio refresh behavior remains backward-compatible.
+ETF_CANDIDATE_TICKERS: dict[str, list[dict[str, Any]]] = {
+    "global_core_etf": [
+        {"symbol": "VWCE.DE", "label": "Vanguard FTSE All-World UCITS ETF", "keywords": ["VWCE", "FTSE All-World"]},
+        {"symbol": "SPYI.DE", "label": "SPDR MSCI ACWI IMI UCITS ETF", "keywords": ["SPYI", "ACWI IMI"]},
+        {"symbol": "IWDA.L", "label": "iShares Core MSCI World UCITS ETF", "keywords": ["IWDA", "MSCI World"]},
+        {"symbol": "SWRD.L", "label": "SPDR MSCI World UCITS ETF", "keywords": ["SWRD", "MSCI World"]},
+    ],
+    "growth_nasdaq_etf": [
+        {"symbol": "CNDX.L", "label": "iShares Nasdaq 100 UCITS ETF", "keywords": ["CNDX", "Nasdaq 100", "Nasdaq-100"]},
+        {"symbol": "EQQQ.L", "label": "Invesco EQQQ Nasdaq-100 UCITS ETF", "keywords": ["EQQQ", "Nasdaq 100", "Nasdaq-100"]},
+        {"symbol": "SXRV.DE", "label": "iShares Nasdaq 100 UCITS ETF", "keywords": ["SXRV", "Nasdaq 100", "Nasdaq-100"]},
+    ],
+    "quality_etf": [
+        {"symbol": "IWQU.L", "label": "iShares Edge MSCI World Quality Factor UCITS ETF", "keywords": ["IWQU", "MSCI World Quality", "Quality Factor"]},
+        {"symbol": "XDEQ.DE", "label": "Xtrackers MSCI World Quality UCITS ETF", "keywords": ["XDEQ", "MSCI World Quality", "Quality"]},
+    ],
+}
+
 # Keys that have no meaningful market price (cash / reserved slots)
 _SKIP_KEYS = frozenset(
     {"tactical_reserve", "discovery", "lhv_growth_cash_pending_settlement"}
@@ -126,6 +146,200 @@ def fetch_current_prices(keys: list[str]) -> tuple[dict[str, float], list[str]]:
             failed.append(key)
 
     return prices_eur, failed
+
+
+def fetch_etf_candidate_quotes(sleeve_key: str) -> dict[str, Any]:
+    """Fetch every configured ETF candidate without failing the whole sleeve."""
+    configured = ETF_CANDIDATE_TICKERS.get(sleeve_key, [])
+    try:
+        import yfinance as yf
+    except ImportError as exc:
+        return {
+            "sleeve_key": sleeve_key,
+            "source": "yfinance",
+            "candidates": [
+                {
+                    **candidate,
+                    "raw_price": None,
+                    "currency": None,
+                    "eur_price": None,
+                    "source": "yfinance",
+                    "fetch_status": "failed",
+                    "error": str(exc),
+                }
+                for candidate in configured
+            ],
+        }
+
+    fx = _fetch_fx_rates()
+    candidates: list[dict[str, Any]] = []
+    for candidate in configured:
+        quote = {
+            **candidate,
+            "raw_price": None,
+            "currency": None,
+            "eur_price": None,
+            "source": "yfinance",
+            "fetch_status": "failed",
+        }
+        try:
+            info = yf.Ticker(candidate["symbol"]).fast_info
+            raw_value = getattr(info, "last_price", None)
+            if raw_value is None and hasattr(info, "get"):
+                raw_value = info.get("last_price")
+            currency_value = getattr(info, "currency", None)
+            if currency_value is None and hasattr(info, "get"):
+                currency_value = info.get("currency")
+            raw_price = float(raw_value)
+            if raw_price <= 0:
+                raise ValueError("non-positive market price")
+            currency = str(currency_value or "")
+            eur_price = _convert_to_eur(raw_price, currency, fx)
+            quote.update(
+                raw_price=round(raw_price, 6),
+                currency=currency or None,
+                eur_price=round(eur_price, 6) if eur_price is not None else None,
+                fetch_status="ok",
+            )
+        except Exception as exc:
+            quote["error"] = str(exc)
+            log.warning("ETF candidate fetch failed for %s: %s", candidate["symbol"], exc)
+        candidates.append(quote)
+
+    return {"sleeve_key": sleeve_key, "source": "yfinance", "candidates": candidates}
+
+
+def _score_candidate(candidate: dict[str, Any], index: int) -> dict[str, Any]:
+    fetched_price = candidate.get("fetch_status") == "ok" and candidate.get("raw_price") is not None
+    eur_currency = candidate.get("currency") == "EUR"
+    has_eur_price = candidate.get("eur_price") is not None
+    components = {
+        "fetched_price": 100 if fetched_price else 0,
+        "eur_currency": 20 if eur_currency else 0,
+        "eur_price": 10 if has_eur_price else 0,
+        "configured_order": index,
+    }
+    components["total_score"] = components["fetched_price"] + components["eur_currency"] + components["eur_price"]
+    return components
+
+
+def resolve_best_yfinance_candidate(sleeve_key: str) -> dict[str, Any]:
+    """Select a market-data candidate deterministically; broker remains unverified."""
+    result = fetch_etf_candidate_quotes(sleeve_key)
+    candidates = []
+    for index, candidate in enumerate(result.get("candidates", [])):
+        components = _score_candidate(candidate, index)
+        candidates.append({**candidate, "score_components": components, "selected": False})
+
+    eligible = [candidate for candidate in candidates if candidate["score_components"]["fetched_price"] > 0]
+    selected = min(
+        eligible,
+        key=lambda candidate: (
+            -candidate["score_components"]["total_score"],
+            candidate["score_components"]["configured_order"],
+        ),
+        default=None,
+    )
+    if selected:
+        selected["selected"] = True
+        if selected.get("currency") == "EUR" and selected.get("eur_price") is not None:
+            confidence = "high"
+        elif selected.get("eur_price") is not None:
+            confidence = "medium"
+        else:
+            confidence = "low"
+        reason = (
+            f"Selected {selected['symbol']} from available yfinance quotes using "
+            "EUR currency, EUR-convertible price, and configured order."
+        )
+    else:
+        confidence = "unresolved"
+        reason = "No ETF candidate returned a usable yfinance price."
+
+    return {
+        "sleeve_key": sleeve_key,
+        "selected_symbol": selected.get("symbol") if selected else None,
+        "selected_label": selected.get("label") if selected else None,
+        "candidates": candidates,
+        "confidence": confidence,
+        "source": "yfinance",
+        "broker_verification": "not_verified",
+        "confirmation_required": True,
+        "reason": reason,
+    }
+
+
+def resolve_best_etf_candidate_with_broker_check(sleeve_key: str) -> dict[str, Any]:
+    """Combine yfinance quotes with fail-soft public Lightyear verification."""
+    from .lightyear_catalog import verify_lightyear_candidates
+
+    market = resolve_best_yfinance_candidate(sleeve_key)
+    broker = verify_lightyear_candidates(market.get("candidates", []))
+    broker_by_symbol = {
+        candidate.get("symbol"): candidate
+        for candidate in broker.get("candidates", [])
+        if candidate.get("symbol")
+    }
+    combined = []
+    for candidate in market.get("candidates", []):
+        broker_data = broker_by_symbol.get(candidate.get("symbol"), {})
+        combined.append({**candidate, **broker_data, "selected": False})
+
+    eligible = [candidate for candidate in combined if candidate.get("fetch_status") == "ok"]
+    selected = min(
+        eligible,
+        key=lambda candidate: (
+            -int(candidate.get("lightyear_available") is True and candidate.get("lightyear_confidence") == "high"),
+            -candidate.get("score_components", {}).get("total_score", 0),
+            candidate.get("score_components", {}).get("configured_order", 999),
+        ),
+        default=None,
+    )
+    if selected:
+        selected["selected"] = True
+    verified = bool(
+        selected
+        and selected.get("lightyear_available") is True
+        and selected.get("lightyear_confidence") == "high"
+    )
+    reason = (
+        f"Selected {selected['symbol']} with yfinance market data and high-confidence Lightyear catalogue verification."
+        if verified
+        else (
+            f"Selected {selected['symbol']} from yfinance; Lightyear availability is not verified."
+            if selected
+            else "No ETF candidate returned a usable yfinance price."
+        )
+    )
+    for candidate in combined:
+        if candidate.get("fetch_status") != "ok":
+            candidate["reason"] = f"Market data fetch failed: {candidate.get('error', 'unknown error')}"
+        elif candidate is selected:
+            candidate["reason"] = reason
+        elif verified and not (
+            candidate.get("lightyear_available") is True
+            and candidate.get("lightyear_confidence") == "high"
+        ):
+            candidate["reason"] = "Not selected: another candidate has high-confidence Lightyear verification."
+        else:
+            candidate["reason"] = "Not selected: lower deterministic market-data score or configured-order tie-break."
+    return {
+        **market,
+        "selected_symbol": selected.get("symbol") if selected else None,
+        "selected_label": selected.get("label") if selected else None,
+        "selected_candidate": dict(selected) if selected else None,
+        "candidates": combined,
+        "confidence": (
+            "high"
+            if verified
+            else market.get("confidence", "unresolved")
+        ),
+        "broker_source": "lightyear_public_fund_screener",
+        "broker_verification": "verified" if verified else "not_verified",
+        "confirmation_required": True,
+        "lightyear_available": True if verified else "unknown",
+        "reason": reason,
+    }
 
 
 def detect_market_regime(portfolio_state: dict[str, Any] | None = None) -> str:  # noqa: ARG001
