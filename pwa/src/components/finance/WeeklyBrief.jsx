@@ -513,7 +513,6 @@ function ManualBuyPanel({ recommendations, briefId }) {
 export default function WeeklyBrief({ onBack }) {
   const [rec, setRec] = useState(null)
   const [error, setError] = useState('')
-  const [actionDone, setActionDone] = useState(null)
   const [actionError, setActionError] = useState('')
   const [acting, setActing] = useState(false)
 
@@ -535,7 +534,11 @@ export default function WeeklyBrief({ onBack }) {
     setActionError('')
     try {
       await postBriefAction(rec.brief_id, actionName)
-      setActionDone(actionName)
+      setRec((current) => ({
+        ...current,
+        brief_status: actionName === 'approve' ? 'approved' : actionName === 'reject' ? 'rejected' : 'deferred',
+        brief_user_action: actionName,
+      }))
     } catch (requestError) {
       setActionError(requestError?.message || 'Unable to log this action.')
     } finally {
@@ -547,6 +550,8 @@ export default function WeeklyBrief({ onBack }) {
   const warnings = Array.isArray(rec?.warnings) ? rec.warnings : []
   const newsThesis = typeof rec?.news_thesis === 'string' ? rec.news_thesis.trim() : ''
   const canLogApproval = Boolean(rec?.brief_id)
+  const briefStatus = rec?.brief_status || null
+  const isApproved = briefStatus === 'approved'
   const etfVerdict = rec?.etf_scoring_verdict && typeof rec.etf_scoring_verdict === 'object' ? rec.etf_scoring_verdict : {}
   const etfCandidates = Array.isArray(etfVerdict.sleeves) ? etfVerdict.sleeves : []
   const laneMandate = rec?.weekly_dual_lane_mandate && typeof rec.weekly_dual_lane_mandate === 'object' ? rec.weekly_dual_lane_mandate : {}
@@ -602,9 +607,39 @@ export default function WeeklyBrief({ onBack }) {
               : <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: muted, letterSpacing: '.12em' }}>NO BUYS RECOMMENDED THIS WEEK</div>}
           </Section>
 
-          {(rec.brief_status === 'approved' || actionDone === 'approve') && recommendations.length > 0 && (
+          {briefStatus && (
+            <Section title="BRIEF DECISION">
+              <div style={{
+                padding: '12px 14px',
+                border: `1px solid ${isApproved ? 'rgba(77,255,180,.35)' : briefStatus === 'rejected' ? 'rgba(255,92,122,.3)' : 'rgba(32,216,236,.2)'}`,
+                background: isApproved ? 'rgba(77,255,180,.04)' : briefStatus === 'rejected' ? 'rgba(255,92,122,.04)' : 'rgba(32,216,236,.025)',
+              }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: isApproved ? '#4dffb4' : briefStatus === 'rejected' ? '#ff5c7a' : muted }}>
+                  BRIEF {briefStatus.toUpperCase()}
+                </div>
+                <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.82)', marginTop: 6 }}>
+                  {isApproved
+                    ? 'Approved plan. Complete the buy manually in your broker first, then record the exact execution here. PHOENIX did not execute a trade.'
+                    : briefStatus === 'rejected'
+                    ? 'Brief rejected. PHOENIX did not execute a trade.'
+                    : 'Brief deferred. PHOENIX did not execute a trade.'}
+                </div>
+              </div>
+            </Section>
+          )}
+
+          {recommendations.length > 0 && (
             <Section title="RECORD MANUAL BUY">
-              <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} />
+              {isApproved
+                ? <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} />
+                : (
+                  <div style={{ padding: '13px 14px', border, background: 'rgba(32,216,236,.02)', fontFamily: 'var(--mono)', fontSize: 8, lineHeight: 1.6, color: muted, letterSpacing: '.08em' }}>
+                    APPROVE THIS BRIEF BEFORE RECORDING A MANUAL BUY.<br />
+                    <span style={{ color: 'rgba(199,236,244,.55)', letterSpacing: '.04em', fontSize: 10, fontFamily: "'Saira Condensed',sans-serif", fontWeight: 300 }}>
+                      Recording is only for trades already completed manually in your broker.
+                    </span>
+                  </div>
+                )}
             </Section>
           )}
 
@@ -689,20 +724,21 @@ export default function WeeklyBrief({ onBack }) {
 
       {rec && canLogApproval && (
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,.97)', borderTop: border, padding: '14px 18px 24px', backdropFilter: 'blur(12px)', zIndex: 10 }}>
-          {actionDone ? (
-            <div style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.22em', padding: '4px 0', color: actionDone === 'approve' ? '#4dffb4' : actionDone === 'reject' ? '#ff5c7a' : muted }}>
-              {actionDone === 'approve' ? 'BRIEF APPROVED' : actionDone === 'defer' ? 'BRIEF DEFERRED' : 'BRIEF REJECTED'}
-            </div>
-          ) : (
-            <div style={{ maxWidth: 430, margin: '0 auto' }}>
-              {actionError && <div style={{ color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.6fr', gap: 10 }}>
-                <button onClick={() => handleAction('defer')} disabled={acting} style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border, color: muted, background: 'transparent' }}>DEFER</button>
-                <button onClick={() => handleAction('reject')} disabled={acting} style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border: '1px solid rgba(255,92,122,.35)', color: '#ff5c7a', background: 'rgba(255,92,122,.04)' }}>REJECT</button>
-                <button onClick={() => handleAction('approve')} disabled={acting} style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border: '1px solid #20d8ec', color: '#000', background: '#20d8ec', boxShadow: '0 0 16px rgba(32,216,236,.45)' }}>▶ APPROVE</button>
+          <div style={{ maxWidth: 430, margin: '0 auto' }}>
+            {actionError && <div style={{ color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
+            {isApproved && (
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: '#4dffb4', textAlign: 'center', marginBottom: 8 }}>
+                APPROVED · NO TRADE EXECUTED
               </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.6fr', gap: 10 }}>
+              <button onClick={() => handleAction('defer')} disabled={acting} style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border, color: muted, background: 'transparent' }}>DEFER</button>
+              <button onClick={() => handleAction('reject')} disabled={acting} style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border: '1px solid rgba(255,92,122,.35)', color: '#ff5c7a', background: 'rgba(255,92,122,.04)' }}>REJECT</button>
+              <button onClick={() => handleAction('approve')} disabled={acting || isApproved} style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, letterSpacing: '.18em', padding: '13px 0', cursor: (acting || isApproved) ? 'default' : 'pointer', border: '1px solid #20d8ec', color: isApproved ? 'rgba(32,216,236,.45)' : '#000', background: isApproved ? 'rgba(32,216,236,.08)' : '#20d8ec', boxShadow: isApproved ? 'none' : '0 0 16px rgba(32,216,236,.45)' }}>
+                {isApproved ? '✓ APPROVED' : '▶ APPROVE'}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
