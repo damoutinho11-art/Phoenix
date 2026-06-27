@@ -51,20 +51,39 @@ function CornerCard({ children }) {
 }
 
 function RecommendationCard({ recommendation }) {
+  const instrument = recommendation.instrument && typeof recommendation.instrument === 'object' ? recommendation.instrument : {}
+  const identifiers = [
+    ['TICKER', instrument.ticker],
+    ['ISIN', instrument.isin],
+    ['EXCHANGE', instrument.exchange],
+  ].filter(([, value]) => value)
   return (
     <CornerCard>
       <div style={{ padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.06em', color: '#fff' }}>{recommendation.asset}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 19, fontWeight: 700, letterSpacing: '.04em', color: '#fff', overflowWrap: 'anywhere' }}>{instrument.display_name || recommendation.asset}</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, letterSpacing: '.12em', marginTop: 3, overflowWrap: 'anywhere' }}>ASSET KEY · {recommendation.asset}</div>
+            {instrument.candidate_label && <div style={{ fontSize: 11, color: 'rgba(125,188,200,.7)', marginTop: 4 }}>{instrument.candidate_label}</div>}
             <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: '#4dffb4', letterSpacing: '.16em', marginTop: 3 }}>{humanize(recommendation.lane)} LANE</div>
           </div>
           <div style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 700, color: '#7df0ff', textAlign: 'right' }}>{formatEur(recommendation.amount)}</div>
         </div>
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: border }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.18em', color: muted, marginBottom: 4 }}>ROUTE</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.08em', color: '#7df0ff', overflowWrap: 'anywhere' }}>{recommendation.route || '—'}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12, paddingTop: 10, borderTop: border }}>
+          <Stat label="ROUTE" value={recommendation.route || '—'} />
+          <Stat label="PLATFORM" value={instrument.platform || '—'} />
         </div>
+        {identifiers.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(identifiers.length, 2)},minmax(0,1fr))`, gap: 8, marginTop: 8 }}>
+            {identifiers.map(([label, value]) => <Stat key={label} label={label} value={value} />)}
+          </div>
+        )}
+        {instrument.confirmation_required && (
+          <div style={{ marginTop: 10, padding: '9px 10px', border: '1px solid rgba(255,213,107,.3)', background: 'rgba(255,213,107,.04)', color: '#ffd56b' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', marginBottom: 4 }}>NEEDS CONFIRMATION</div>
+            <div style={{ fontSize: 12 }}>Instrument confirmation required before manual buy.</div>
+          </div>
+        )}
       </div>
     </CornerCard>
   )
@@ -107,12 +126,15 @@ function TextList({ items, emptyText = 'NONE REPORTED', color = 'rgba(199,236,24
 
 function EtfCandidateCard({ candidate }) {
   const selected = Boolean(candidate.selected)
+  const instrument = candidate.instrument && typeof candidate.instrument === 'object' ? candidate.instrument : {}
   return (
     <div style={{ border: `1px solid ${selected ? 'rgba(77,255,180,.38)' : 'rgba(32,216,236,.18)'}`, background: selected ? 'rgba(77,255,180,.035)' : 'rgba(32,216,236,.02)', padding: '12px 13px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted }}>RANK {candidate.rank ?? '—'}</div>
           <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: selected ? '#4dffb4' : '#7df0ff', overflowWrap: 'anywhere', marginTop: 3 }}>{candidate.sleeve || '—'}</div>
+          {instrument.display_name && <div style={{ fontSize: 11, color: 'rgba(199,236,244,.78)', marginTop: 4 }}>{instrument.display_name}</div>}
+          {instrument.candidate_label && <div style={{ fontFamily: 'var(--mono)', fontSize: 7, lineHeight: 1.4, color: muted, marginTop: 3 }}>{instrument.candidate_label}</div>}
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: muted }}>FINAL SCORE</div>

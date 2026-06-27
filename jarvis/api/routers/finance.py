@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.domains.finance import engine
+from jarvis.domains.finance.etf_scoring import load_etf_universe
 from jarvis.domains.finance.market_data import detect_market_regime, update_portfolio_state_prices
 from jarvis.data import database
 
@@ -21,44 +22,39 @@ def _iso_week_label() -> str:
 
 _CRYPTO_ASSETS = {"btc", "hype", "tao"}
 
-_ASSET_LABELS_FOR_NEWS = {
-    "btc": "Bitcoin (BTC)",
-    "hype": "Hyperliquid (HYPE)",
-    "tao": "Bittensor (TAO)",
-    "global_core_etf": "VWCE global equity ETF",
-    "growth_nasdaq_etf": "Nasdaq-100 ETF (EQQQ)",
-    "quality_etf": "MSCI World Quality ETF (IWQU)",
-    "emerging_markets_etf": "Emerging Markets ETF",
-    "quality_etf": "Quality Factor ETF",
+_CRYPTO_INSTRUMENTS = {
+    "btc": {
+        "display_name": "Bitcoin",
+        "ticker": "BTC",
+        "isin": None,
+        "exchange": None,
+        "platform": "LHV Crypto",
+        "confirmation_required": False,
+    },
+    "hype": {
+        "display_name": "Hyperliquid",
+        "ticker": "HYPE",
+        "isin": None,
+        "exchange": None,
+        "platform": "LHV Crypto",
+        "confirmation_required": False,
+    },
+    "tao": {
+        "display_name": "Bittensor",
+        "ticker": "TAO",
+        "isin": None,
+        "exchange": None,
+        "platform": "LHV Crypto",
+        "confirmation_required": False,
+    },
 }
 
 
-def _generate_news_thesis(recommendations: list[dict], regime: str, phase: int) -> str:
-    """Call Claude with web search to generate a 2-sentence news-enriched thesis."""
-    assets = [r["asset"] for r in recommendations if r.get("amount", 0) > 0]
-    if not assets:
-        return ""
-    asset_labels = [_ASSET_LABELS_FOR_NEWS.get(a, a) for a in assets]
-    prompt = (
-        f"Market regime: {regime}. Portfolio phase: {phase} (Foundation). "
-        f"This week's recommended buys: {', '.join(asset_labels)}. "
-        "Search for current news on these assets and explain in 2 sentences "
-        "why now is a good time to buy, or flag any risks. "
-        "Be specific — mention actual news or data if found."
-    )
-    try:
-        client = anthropic.Anthropic()
-        result = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=256,
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return " ".join(
-            block.text for block in result.content if hasattr(block, "text")
-        ).strip()
-    except Exception:
-        return ""
+def _instrument_for(asset: str, etf_universe: dict) -> dict:
+    if asset in _CRYPTO_INSTRUMENTS:
+        return dict(_CRYPTO_INSTRUMENTS[asset])
+    instrument = etf_universe.get(asset, {}).get("instrument")
+    return dict(instrument) if isinstance(instrument, dict) else {}
 
 
 @router.get("/summary")
@@ -101,6 +97,7 @@ def finance_recommendation(
     )
     ticket = result["approval_ticket"]
     mandate = ticket["weekly_dual_lane_mandate"]
+    etf_universe = load_etf_universe(engine.DEFAULT_ETF_UNIVERSE_PATH)
 
     recommendations = [
         {
@@ -108,6 +105,7 @@ def finance_recommendation(
             "amount": amount,
             "lane": "crypto" if asset in _CRYPTO_ASSETS else "etf",
             "route": constitution["asset_routes"].get(asset),
+            "instrument": _instrument_for(asset, etf_universe),
         }
         for asset, amount in ticket["executable_allocation"].items()
         if amount > 0
@@ -127,7 +125,18 @@ def finance_recommendation(
 
     rationale = "; ".join(rationale_parts) or "No buys recommended this week."
     dyn = result.get("dynamic_context", {})
-    news_thesis = _generate_news_thesis(recommendations, regime, dyn.get("phase", 1))
+    news_thesis = ""
+    verdict = result.get("etf_scoring_verdict") or {}
+    verdict_with_instruments = {
+        **verdict,
+        "sleeves": [
+            {
+                **sleeve,
+                "instrument": _instrument_for(sleeve.get("sleeve", ""), etf_universe),
+            }
+            for sleeve in (verdict.get("sleeves") or [])
+        ],
+    }
     response = {
         "week_budget": ticket["weekly_budget"],
         "recommendations": recommendations,
@@ -141,7 +150,7 @@ def finance_recommendation(
         "warnings": ticket["warnings"],
         "news_thesis": news_thesis,
         "requires_approval": True,
-        "etf_scoring_verdict": result.get("etf_scoring_verdict") or {},
+        "etf_scoring_verdict": verdict_with_instruments,
         "weekly_dual_lane_mandate": result.get("weekly_dual_lane_mandate") or {},
         "portfolio_mode_details": result.get("portfolio_mode") or {},
         "approval_ticket_summary": {
