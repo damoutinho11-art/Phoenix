@@ -821,6 +821,307 @@ def finance_research_memo_quality_gate(memo_id: int) -> dict:
     return {**result, **_QUALITY_GATE_SAFETY_FLAGS}
 
 
+class GenerateEvidencePayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    run_quality_gate_after: bool = False
+
+
+_GENERATE_EVIDENCE_SAFETY_FLAGS: dict = {
+    "evidence_generation_only": True,
+    "research_only": True,
+    "investment_approval": False,
+    "trades_executed": False,
+    "broker_connection": False,
+    "portfolio_state_updated": False,
+    "recommendation_overridden": False,
+}
+
+
+def _generate_evidence_records(
+    memo_id: int,
+    memo: dict,
+    constitution: dict,
+    portfolio_state: dict,
+    profile: dict,
+) -> tuple[list[dict], int]:
+    """Build validation records from local PHOENIX data only.
+
+    Four checks per memo (market_data_source, broker_source, recommendation_leg_mapping,
+    portfolio_allocation_context). No external APIs, no broker execution, no portfolio mutation.
+    Returns (created_records, skipped_count).
+    """
+    asset = memo.get("asset") or ""
+    target_weights = constitution.get("target_weights", {})
+    asset_routes = constitution.get("asset_routes", {})
+    holdings = portfolio_state.get("holdings", {})
+
+    try:
+        regime = detect_market_regime(portfolio_state)
+    except Exception:
+        regime = "neutral"
+    try:
+        result = engine.allocate_weekly_budget(
+            constitution, portfolio_state, regime=regime, profile=profile
+        )
+        rec_actions = result.get("approval_ticket", {}).get("recommended_actions", [])
+    except Exception:
+        rec_actions = []
+
+    rec_by_asset: dict = {r["asset"]: r for r in rec_actions}
+
+    # Check A — SOURCE_CONFIDENCE: market_data_source
+    if asset in _CRYPTO_ASSETS:
+        check_a: dict = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "SOURCE_CONFIDENCE", "field_name": "market_data_source",
+            "source_primary": "PHOENIX internal knowledge", "source_secondary": None,
+            "primary_value": None, "secondary_value": None, "consensus_value": None,
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "UNVERIFIED", "confidence": "medium",
+            "notes": (
+                f"Crypto asset '{asset}': no yfinance market data in PHOENIX. "
+                "Verify price data source manually."
+            ),
+            "raw_json": {
+                "asset": asset, "asset_type": "crypto",
+                "market_data_source": None, "source": "PHOENIX_internal",
+            },
+        }
+    else:
+        check_a = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "SOURCE_CONFIDENCE", "field_name": "market_data_source",
+            "source_primary": "PHOENIX ETF universe / yfinance", "source_secondary": None,
+            "primary_value": "yfinance", "secondary_value": None, "consensus_value": "yfinance",
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "PASS", "confidence": "medium",
+            "notes": f"ETF/fund asset '{asset}': yfinance is the market data source in PHOENIX.",
+            "raw_json": {
+                "asset": asset, "asset_type": "etf_or_fund",
+                "market_data_source": "yfinance", "source": "PHOENIX_ETF_universe",
+            },
+        }
+
+    # Check B — SOURCE_CONFIDENCE: broker_source
+    route = asset_routes.get(asset)
+    if route:
+        check_b: dict = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "SOURCE_CONFIDENCE", "field_name": "broker_source",
+            "source_primary": "PHOENIX constitution asset_routes", "source_secondary": None,
+            "primary_value": route, "secondary_value": None, "consensus_value": route,
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "PASS", "confidence": "high",
+            "notes": (
+                f"Route '{route}' confirmed in PHOENIX constitution. "
+                "Broker/platform routing verified."
+            ),
+            "raw_json": {"asset": asset, "route": route, "source": "constitution_asset_routes"},
+        }
+    else:
+        check_b = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "SOURCE_CONFIDENCE", "field_name": "broker_source",
+            "source_primary": "PHOENIX constitution asset_routes", "source_secondary": None,
+            "primary_value": None, "secondary_value": None, "consensus_value": None,
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "UNVERIFIED", "confidence": "low",
+            "notes": (
+                f"No route found for '{asset}' in PHOENIX constitution. "
+                "Cannot verify broker/platform."
+            ),
+            "raw_json": {"asset": asset, "route": None, "source": "constitution_asset_routes"},
+        }
+
+    # Check C — CROSS_SOURCE: recommendation_leg_mapping
+    matching_action = rec_by_asset.get(asset)
+    in_targets = asset in target_weights and (target_weights.get(asset) or 0) > 0
+    if matching_action:
+        check_c: dict = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "CROSS_SOURCE", "field_name": "recommendation_leg_mapping",
+            "source_primary": "PHOENIX recommendation engine",
+            "source_secondary": "PHOENIX constitution target_weights",
+            "primary_value": f"amount={matching_action.get('amount', 0):.2f}",
+            "secondary_value": str(target_weights[asset]) if asset in target_weights else None,
+            "consensus_value": f"amount={matching_action.get('amount', 0):.2f}",
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "PASS", "confidence": "high",
+            "notes": (
+                f"Asset '{asset}' matched active recommendation leg: "
+                f"€{matching_action.get('amount', 0):.2f} via route '{matching_action.get('route')}'."
+            ),
+            "raw_json": {
+                "asset": asset, "in_recommendation": True,
+                "amount": matching_action.get("amount"),
+                "route": matching_action.get("route"),
+                "lane": matching_action.get("lane"),
+                "target_weight": target_weights.get(asset),
+            },
+        }
+    elif in_targets:
+        check_c = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "CROSS_SOURCE", "field_name": "recommendation_leg_mapping",
+            "source_primary": "PHOENIX recommendation engine",
+            "source_secondary": "PHOENIX constitution target_weights",
+            "primary_value": None,
+            "secondary_value": str(target_weights[asset]),
+            "consensus_value": None,
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "WARNING", "confidence": "medium",
+            "notes": (
+                f"Asset '{asset}' has target weight {target_weights[asset]} but is not in "
+                "current week's executable allocation. May be deferred or in a future cycle."
+            ),
+            "raw_json": {
+                "asset": asset, "in_recommendation": False,
+                "target_weight": target_weights.get(asset),
+                "recommendation_assets": list(rec_by_asset.keys()),
+            },
+        }
+    else:
+        check_c = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "CROSS_SOURCE", "field_name": "recommendation_leg_mapping",
+            "source_primary": "PHOENIX recommendation engine",
+            "source_secondary": "PHOENIX constitution target_weights",
+            "primary_value": None, "secondary_value": None, "consensus_value": None,
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "UNVERIFIED", "confidence": "low",
+            "notes": (
+                f"Asset '{asset}' not found in PHOENIX recommendations or "
+                "constitution target weights."
+            ),
+            "raw_json": {
+                "asset": asset, "in_recommendation": False,
+                "target_weight": None,
+                "recommendation_assets": list(rec_by_asset.keys()),
+            },
+        }
+
+    # Check D — MANUAL_REVIEW: portfolio_allocation_context
+    target_weight = target_weights.get(asset)
+    current_value = holdings.get(asset)
+    if target_weight is not None and current_value is not None:
+        check_d: dict = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "MANUAL_REVIEW", "field_name": "portfolio_allocation_context",
+            "source_primary": "PHOENIX portfolio_state holdings",
+            "source_secondary": "PHOENIX constitution target_weights",
+            "primary_value": str(current_value),
+            "secondary_value": str(target_weight),
+            "consensus_value": f"target={target_weight},current={current_value}",
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "PASS", "confidence": "high",
+            "notes": (
+                f"Allocation context confirmed: target_weight={target_weight}, "
+                f"current_value=€{current_value}."
+            ),
+            "raw_json": {
+                "asset": asset,
+                "target_weight": target_weight,
+                "current_value_eur": current_value,
+                "portfolio_as_of": portfolio_state.get("as_of"),
+            },
+        }
+    elif target_weight is not None:
+        check_d = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "MANUAL_REVIEW", "field_name": "portfolio_allocation_context",
+            "source_primary": "PHOENIX portfolio_state holdings",
+            "source_secondary": "PHOENIX constitution target_weights",
+            "primary_value": None,
+            "secondary_value": str(target_weight),
+            "consensus_value": None,
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "WARNING", "confidence": "medium",
+            "notes": (
+                f"Target weight {target_weight} found for '{asset}' but no current holdings. "
+                "Asset may not yet be in portfolio."
+            ),
+            "raw_json": {
+                "asset": asset,
+                "target_weight": target_weight,
+                "current_value_eur": None,
+                "portfolio_as_of": portfolio_state.get("as_of"),
+            },
+        }
+    else:
+        check_d = {
+            "memo_id": memo_id, "asset": asset,
+            "check_type": "MANUAL_REVIEW", "field_name": "portfolio_allocation_context",
+            "source_primary": "PHOENIX portfolio_state holdings",
+            "source_secondary": "PHOENIX constitution target_weights",
+            "primary_value": None, "secondary_value": None, "consensus_value": None,
+            "tolerance_pct": None, "deviation_pct": None,
+            "status": "UNVERIFIED", "confidence": "low",
+            "notes": f"No target weight or holding data found for '{asset}' in PHOENIX.",
+            "raw_json": {
+                "asset": asset,
+                "target_weight": None,
+                "current_value_eur": None,
+                "portfolio_as_of": portfolio_state.get("as_of"),
+            },
+        }
+
+    created: list[dict] = []
+    skipped = 0
+    for check in (check_a, check_b, check_c, check_d):
+        if database.research_validation_record_exists(
+            memo_id, check["check_type"], check["field_name"]
+        ):
+            skipped += 1
+            continue
+        record_id = database.create_research_validation_record(check)
+        record = database.get_research_validation_record(record_id)
+        if record is not None:
+            created.append(record)
+
+    return created, skipped
+
+
+@router.post("/research/memos/{memo_id}/generate-evidence")
+def finance_research_generate_evidence(
+    memo_id: int,
+    payload: GenerateEvidencePayload,
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    """Generate validation records from local PHOENIX data.
+
+    Checks: market_data_source, broker_source, recommendation_leg_mapping,
+    portfolio_allocation_context. No external APIs. No broker execution. No state mutation.
+    Quality gate is separate — triggered only when run_quality_gate_after=true.
+    """
+    memo = database.get_research_memo(memo_id)
+    if memo is None:
+        raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
+
+    created_records, skipped_count = _generate_evidence_records(
+        memo_id=memo_id,
+        memo=memo,
+        constitution=constitution,
+        portfolio_state=portfolio_state,
+        profile=profile,
+    )
+
+    response: dict = {
+        "memo_id": memo_id,
+        "generated_count": len(created_records),
+        "skipped_count": skipped_count,
+        "records": created_records,
+        **_GENERATE_EVIDENCE_SAFETY_FLAGS,
+    }
+
+    if payload.run_quality_gate_after:
+        gate_result = database.evaluate_research_memo_quality(memo_id)
+        response["quality_gate_result"] = gate_result
+
+    return response
+
+
 @router.post("/research/quality-gate/run")
 def finance_research_quality_gate_run() -> dict:
     """Run the research quality gate for all non-archived memos.

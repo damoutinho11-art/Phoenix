@@ -1084,6 +1084,25 @@ def create_research_validation_record(payload: dict) -> int:
         connection.close()
 
 
+def research_validation_record_exists(
+    memo_id: int, check_type: str, field_name: str
+) -> bool:
+    """Return True if a record with memo_id + check_type + field_name already exists."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """
+            SELECT 1 FROM research_validation_records
+            WHERE memo_id = ? AND check_type = ? AND field_name = ?
+            LIMIT 1
+            """,
+            (memo_id, check_type, field_name),
+        ).fetchone()
+        return row is not None
+    finally:
+        connection.close()
+
+
 def list_research_validation_records(limit: int = 100) -> list[dict[str, Any]]:
     """Return research validation records newest first."""
     if limit < 1:

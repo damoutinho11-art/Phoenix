@@ -7,6 +7,7 @@ import {
   postFinanceResearchDraftMemo,
   postFinanceResearchMemoQualityGate,
   postFinanceResearchQualityGateAll,
+  postFinanceResearchGenerateEvidence,
 } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
@@ -93,6 +94,8 @@ export default function Research({ onBack }) {
   const [qualityRunning, setQualityRunning] = useState(null)
   const [qualityAllRunning, setQualityAllRunning] = useState(false)
   const [qualityAllResult, setQualityAllResult] = useState(null)
+  const [evidenceRunning, setEvidenceRunning] = useState(null)
+  const [evidenceResults, setEvidenceResults] = useState({})
 
   const loadResearch = useCallback(async () => {
     const [memoResponse, validationResponse] = await Promise.all([
@@ -194,6 +197,19 @@ export default function Research({ onBack }) {
       // silent — list refresh will show current state
     } finally {
       setQualityRunning(null)
+    }
+  }
+
+  async function handleGenerateEvidence(memoId) {
+    setEvidenceRunning(memoId)
+    try {
+      const response = await postFinanceResearchGenerateEvidence(memoId, false)
+      setEvidenceResults(prev => ({ ...prev, [memoId]: response }))
+      await loadResearch()
+    } catch {
+      // silent — user can retry
+    } finally {
+      setEvidenceRunning(null)
     }
   }
 
@@ -400,6 +416,29 @@ export default function Research({ onBack }) {
                             style={{ background: 'none', border, padding: '4px 8px', cursor: isRunning ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#20d8ec', flexShrink: 0 }}
                           >
                             {isRunning ? 'EVALUATING…' : 'RUN QUALITY GATE'}
+                          </button>
+                        </div>
+                      )
+                    })()}
+                    {(() => {
+                      const isGenerating = evidenceRunning === memo.id
+                      const evResult = evidenceResults[memo.id]
+                      return (
+                        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <div>
+                            {evResult && (
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: 6, color: '#4dffb4', letterSpacing: '.1em' }}>
+                                {evResult.generated_count} GENERATED · {evResult.skipped_count} SKIPPED · EVIDENCE FROM EXISTING PHOENIX DATA ONLY
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateEvidence(memo.id)}
+                            disabled={isGenerating}
+                            style={{ background: 'none', border, padding: '4px 8px', cursor: isGenerating ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
+                          >
+                            {isGenerating ? 'GENERATING…' : 'GENERATE EVIDENCE'}
                           </button>
                         </div>
                       )
