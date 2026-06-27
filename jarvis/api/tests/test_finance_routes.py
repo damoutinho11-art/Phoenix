@@ -138,10 +138,35 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         self.assertEqual(recs["btc"]["lane"], "crypto")
         self.assertEqual(recs["quality_etf"]["lane"], "etf")
 
-    def test_recommendation_rationale_is_non_empty_string(self) -> None:
+    def test_recommendation_rationale_uses_valid_euro_symbol(self) -> None:
         data = client.get("/finance/recommendation").json()
         self.assertIsInstance(data["rationale"], str)
-        self.assertGreater(len(data["rationale"]), 0)
+        self.assertIn("€", data["rationale"])
+        self.assertNotIn("â¬", data["rationale"])
+        self.assertEqual(
+            data["rationale"],
+            "Buy BTC €46.15 (crypto lane); "
+            "Buy quality_etf €69.23 (ETF lane)",
+        )
+
+    def test_recommendation_routes_and_safety_contract_are_unchanged(self) -> None:
+        data = client.get("/finance/recommendation").json()
+        recommendations = {
+            item["asset"]: (item["amount"], item["route"])
+            for item in data["recommendations"]
+        }
+        safety_checks = data["approval_ticket_summary"]["safety_checks"]
+
+        self.assertEqual(
+            recommendations,
+            {
+                "btc": (46.15, "lhv_crypto"),
+                "quality_etf": (69.23, "lightyear"),
+            },
+        )
+        self.assertIn("No broker connection.", safety_checks)
+        self.assertIn("No orders created.", safety_checks)
+        self.assertIn("No automatic selling.", safety_checks)
 
     def test_recommendation_missing_portfolio_state_returns_503(self) -> None:
         def _raise() -> dict:

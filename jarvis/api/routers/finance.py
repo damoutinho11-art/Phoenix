@@ -183,11 +183,11 @@ def finance_recommendation(
     rationale_parts = []
     if crypto["status"] == "READY_FOR_MANUAL_BUY":
         rationale_parts.append(
-            f"Buy {crypto['asset'].upper()} €{crypto['amount']:.2f} (crypto lane)"
+            f"Buy {crypto['asset'].upper()} \u20ac{crypto['amount']:.2f} (crypto lane)"
         )
     if stock["status"] == "READY_FOR_MANUAL_BUY":
         rationale_parts.append(
-            f"Buy {stock['asset']} €{stock['amount']:.2f} (ETF lane)"
+            f"Buy {stock['asset']} \u20ac{stock['amount']:.2f} (ETF lane)"
         )
 
     rationale = "; ".join(rationale_parts) or "No buys recommended this week."
