@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getFinanceSummary, getFinanceBrief, postFinanceRefreshPrices } from '../../api/client'
+import { getFinanceSummary, getFinanceBrief, getFinanceRecommendation, postFinanceRefreshPrices } from '../../api/client'
 
 const SLEEVE_COLORS = ['#7df0ff', '#20d8ec', '#0e8a98', '#4dffb4', 'rgba(32,216,236,.5)', '#ffd56b', '#9f7dff']
 
@@ -96,13 +96,41 @@ function bandColor(status) {
 }
 
 // ── Main component ────────────────────────────────────────────
+const _BRIEF_ERROR_STRINGS = [
+  'Unable to generate brief',
+  'Raw recommendation available',
+  'Backend unreachable',
+]
+
+function _isBriefError(text) {
+  return !text || _BRIEF_ERROR_STRINGS.some(s => text.includes(s))
+}
+
+function _recSummaryText(rec) {
+  if (!rec) return ''
+  const recs = Array.isArray(rec.recommendations) ? rec.recommendations : []
+  const recLine = recs.length
+    ? recs.map(r => `${String(r.asset).toUpperCase()} €${Number(r.amount).toFixed(2)}`).join(' + ')
+    : 'No buys recommended this week.'
+  const status = rec.brief_status ? rec.brief_status.toUpperCase() : 'PENDING APPROVAL'
+  return [
+    rec.week_label ? `Week ${rec.week_label} · Budget €${Number(rec.week_budget ?? 0).toFixed(2)}` : '',
+    recLine,
+    `Approval: ${status}`,
+    'No trades executed. Manual approval required.',
+  ].filter(Boolean).join('\n')
+}
+
 export default function FinanceDashboard({ onNav, onQuickAsk }) {
   const [summary, setSummary] = useState(null)
   const [summaryError, setSummaryError] = useState(false)
   const [rawBrief, setRawBrief] = useState('')
+  const [rec, setRec] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
-  const { displayed: briefText, done: briefDone } = useTypewriter(rawBrief, 18)
+
+  const briefToDisplay = _isBriefError(rawBrief) ? _recSummaryText(rec) : rawBrief
+  const { displayed: briefText, done: briefDone } = useTypewriter(briefToDisplay, 18)
 
   useEffect(() => {
     getFinanceSummary()
@@ -110,7 +138,10 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
       .catch(() => setSummaryError(true))
     getFinanceBrief()
       .then(r => setRawBrief(r.brief || ''))
-      .catch(() => setRawBrief('Backend unreachable — set VITE_API_URL in Vercel and redeploy.'))
+      .catch(() => setRawBrief(''))
+    getFinanceRecommendation()
+      .then(setRec)
+      .catch(() => {})
   }, [])
 
   async function handleRefresh() {
