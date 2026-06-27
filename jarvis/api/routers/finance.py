@@ -141,6 +141,15 @@ def finance_recommendation(
         "warnings": ticket["warnings"],
         "news_thesis": news_thesis,
         "requires_approval": True,
+        "etf_scoring_verdict": result.get("etf_scoring_verdict") or {},
+        "weekly_dual_lane_mandate": result.get("weekly_dual_lane_mandate") or {},
+        "portfolio_mode_details": result.get("portfolio_mode") or {},
+        "approval_ticket_summary": {
+            "blocked_actions": ticket.get("blocked_actions") or [],
+            "fallback_actions": ticket.get("fallback_actions") or [],
+            "reserve_actions": ticket.get("reserve_actions") or [],
+            "safety_checks": ticket.get("safety_checks") or [],
+        },
     }
 
     # Auto-save brief (once per ISO week — idempotent on repeated calls)

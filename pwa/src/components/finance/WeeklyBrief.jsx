@@ -88,6 +88,85 @@ function AllocationGrid({ allocations }) {
   )
 }
 
+function TextList({ items, emptyText = 'NONE REPORTED', color = 'rgba(199,236,244,.78)' }) {
+  const values = Array.isArray(items) ? items : []
+  if (values.length === 0) {
+    return <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: muted }}>{emptyText}</div>
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {values.map((item, index) => (
+        <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, lineHeight: 1.45, color }}>
+          <span style={{ color: '#20d8ec', flexShrink: 0 }}>›</span>
+          <span>{typeof item === 'string' ? item : item?.reason || JSON.stringify(item)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EtfCandidateCard({ candidate }) {
+  const selected = Boolean(candidate.selected)
+  return (
+    <div style={{ border: `1px solid ${selected ? 'rgba(77,255,180,.38)' : 'rgba(32,216,236,.18)'}`, background: selected ? 'rgba(77,255,180,.035)' : 'rgba(32,216,236,.02)', padding: '12px 13px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted }}>RANK {candidate.rank ?? '—'}</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: selected ? '#4dffb4' : '#7df0ff', overflowWrap: 'anywhere', marginTop: 3 }}>{candidate.sleeve || '—'}</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: muted }}>FINAL SCORE</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 700, color: '#fff' }}>{Number.isFinite(Number(candidate.final_score)) ? Number(candidate.final_score).toFixed(1) : '—'}</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: selected ? '#4dffb4' : muted }}>{selected ? 'SELECTED' : 'NOT SELECTED'}</div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+        <div style={{ padding: 9, border, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: '#4dffb4', marginBottom: 6 }}>POSITIVE DRIVERS</div>
+          <TextList items={candidate.main_positive_drivers} />
+        </div>
+        <div style={{ padding: 9, border, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: '#ffd56b', marginBottom: 6 }}>PENALTIES</div>
+          <TextList items={candidate.main_penalties} />
+        </div>
+      </div>
+      <div style={{ marginTop: 9, paddingTop: 9, borderTop: border, fontSize: 12, lineHeight: 1.5, color: 'rgba(199,236,244,.78)' }}>{candidate.reason || 'No reason returned.'}</div>
+    </div>
+  )
+}
+
+function LaneCard({ title, lane }) {
+  const data = lane && typeof lane === 'object' ? lane : {}
+  return (
+    <div style={{ border, background: 'rgba(32,216,236,.02)', padding: '12px 13px' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.18em', color: muted }}>{title}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 6 }}>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#7df0ff', overflowWrap: 'anywhere' }}>{data.asset || '—'}</div>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{formatEur(data.amount)}</div>
+      </div>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.09em', color: '#4dffb4', marginTop: 5, overflowWrap: 'anywhere' }}>{humanize(data.status)}</div>
+      <div style={{ fontSize: 12, lineHeight: 1.5, color: 'rgba(199,236,244,.78)', marginTop: 8 }}>{data.reason || 'No lane reason returned.'}</div>
+    </div>
+  )
+}
+
+function RiskControls({ controls }) {
+  const data = controls && typeof controls === 'object' ? controls : {}
+  const rows = [
+    ['BTC MAX', Number.isFinite(Number(data.btc_max)) ? `${(Number(data.btc_max) * 100).toFixed(1)}%` : '—'],
+    ['TOTAL CRYPTO HARD MAX', Number.isFinite(Number(data.total_crypto_hard_max)) ? `${(Number(data.total_crypto_hard_max) * 100).toFixed(1)}%` : '—'],
+    ['BTC BUY ROOM', formatEur(data.btc_buy_room)],
+    ['TOTAL CRYPTO BUY ROOM', formatEur(data.total_crypto_buy_room)],
+    ['WEEKLY BTC CAP', formatEur(data.weekly_btc_cap)],
+    ['WEEKLY TOTAL CRYPTO CAP', formatEur(data.weekly_total_crypto_cap)],
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 8 }}>
+      {rows.map(([label, value]) => <Stat key={label} label={label} value={value} />)}
+    </div>
+  )
+}
+
 export default function WeeklyBrief({ onBack }) {
   const [rec, setRec] = useState(null)
   const [error, setError] = useState('')
@@ -125,6 +204,11 @@ export default function WeeklyBrief({ onBack }) {
   const warnings = Array.isArray(rec?.warnings) ? rec.warnings : []
   const newsThesis = typeof rec?.news_thesis === 'string' ? rec.news_thesis.trim() : ''
   const canLogApproval = Boolean(rec?.brief_id)
+  const etfVerdict = rec?.etf_scoring_verdict && typeof rec.etf_scoring_verdict === 'object' ? rec.etf_scoring_verdict : {}
+  const etfCandidates = Array.isArray(etfVerdict.sleeves) ? etfVerdict.sleeves : []
+  const laneMandate = rec?.weekly_dual_lane_mandate && typeof rec.weekly_dual_lane_mandate === 'object' ? rec.weekly_dual_lane_mandate : {}
+  const portfolioModeDetails = rec?.portfolio_mode_details && typeof rec.portfolio_mode_details === 'object' ? rec.portfolio_mode_details : {}
+  const approvalSummary = rec?.approval_ticket_summary && typeof rec.approval_ticket_summary === 'object' ? rec.approval_ticket_summary : {}
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif", paddingBottom: canLogApproval ? 100 : 0 }}>
@@ -173,6 +257,52 @@ export default function WeeklyBrief({ onBack }) {
             {recommendations.length > 0
               ? <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{recommendations.map((recommendation, index) => <RecommendationCard key={`${recommendation.asset}-${index}`} recommendation={recommendation} />)}</div>
               : <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: muted, letterSpacing: '.12em' }}>NO BUYS RECOMMENDED THIS WEEK</div>}
+          </Section>
+
+          <Section title="RECOMMENDATION AUDIT">
+            <div style={{ border, background: 'rgba(32,216,236,.025)', padding: '11px 13px', marginBottom: 10 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted }}>SELECTED ETF SLEEVE</div>
+              <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#4dffb4', marginTop: 4, overflowWrap: 'anywhere' }}>{etfVerdict.selected_ideal_etf || 'NONE SELECTED'}</div>
+            </div>
+            {etfCandidates.length > 0
+              ? <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>{etfCandidates.map((candidate, index) => <EtfCandidateCard key={`${candidate.sleeve || 'candidate'}-${index}`} candidate={candidate} />)}</div>
+              : <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted, letterSpacing: '.12em' }}>NO ETF SCORING VERDICT RETURNED</div>}
+          </Section>
+
+          <Section title="LANE LOGIC">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <LaneCard title="CRYPTO LANE" lane={laneMandate.crypto_lane} />
+              <LaneCard title="STOCK / FUND / ETF LANE" lane={laneMandate.stock_fund_etf_lane} />
+            </div>
+          </Section>
+
+          <Section title="RISK CONTROLS">
+            <RiskControls controls={laneMandate.risk_controls} />
+            <div style={{ marginTop: 12, border, background: 'rgba(32,216,236,.02)', padding: '11px 12px' }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 7 }}>MANUAL APPROVAL SAFETY CHECKS</div>
+              <TextList items={approvalSummary.safety_checks} emptyText="NO SAFETY CHECKS RETURNED" />
+            </div>
+            {['blocked_actions', 'fallback_actions', 'reserve_actions'].map((key) => {
+              const actions = Array.isArray(approvalSummary[key]) ? approvalSummary[key] : []
+              return actions.length > 0 ? (
+                <div key={key} style={{ marginTop: 8, border: '1px solid rgba(255,213,107,.18)', background: 'rgba(255,213,107,.025)', padding: '10px 12px' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: '#ffd56b', marginBottom: 6 }}>{humanize(key)}</div>
+                  <TextList items={actions} color="rgba(255,213,107,.82)" />
+                </div>
+              ) : null
+            })}
+          </Section>
+
+          <Section title="PORTFOLIO MODE">
+            <CornerCard>
+              <div style={{ padding: '13px 14px' }}>
+                <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#7df0ff', overflowWrap: 'anywhere' }}>{portfolioModeDetails.mode || '—'}</div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginTop: 12, marginBottom: 7 }}>REASONS</div>
+                <TextList items={portfolioModeDetails.reasons} emptyText="NO MODE REASONS RETURNED" />
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginTop: 12, marginBottom: 7 }}>GUIDANCE</div>
+                <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.78)' }}>{portfolioModeDetails.guidance || 'No portfolio mode guidance returned.'}</div>
+              </div>
+            </CornerCard>
           </Section>
 
           <Section title="DYNAMIC ASSET TARGETS">
