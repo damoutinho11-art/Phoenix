@@ -29,11 +29,43 @@ function formatDate(iso) {
   return iso.slice(0, 10)
 }
 
+function parseStoredBrief(brief) {
+  if (!brief?.full_brief_json) return {}
+  if (typeof brief.full_brief_json === 'object') return brief.full_brief_json
+  try {
+    const parsed = JSON.parse(brief.full_brief_json)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function getBriefRecommendations(brief) {
+  const stored = parseStoredBrief(brief)
+  if (Array.isArray(stored.recommendations) && stored.recommendations.length > 0) {
+    return stored.recommendations.filter(item => item && item.asset)
+  }
+  if (!brief?.asset) return []
+  return [{ asset: brief.asset, amount: brief.amount_eur, route: brief.route }]
+}
+
+function getBriefSummary(brief) {
+  const stored = parseStoredBrief(brief)
+  const recommendations = getBriefRecommendations(brief)
+  const assetLabel = recommendations.length > 0
+    ? recommendations.map(item => String(item.asset).toUpperCase()).join(' + ')
+    : '—'
+  const storedBudget = Number(stored.week_budget)
+  const totalAmount = Number.isFinite(storedBudget) ? storedBudget : brief.amount_eur
+  return { recommendations, assetLabel, totalAmount }
+}
+
 // ── Drawer ────────────────────────────────────────────────────
 function Drawer({ brief, onClose }) {
   const statusColor = STATUS_COLOR[brief.status] || muted
   const outcomeNote = brief.outcome_note || null
   const outcomePct  = brief.outcome_pct != null ? brief.outcome_pct : null
+  const { recommendations, assetLabel, totalAmount } = getBriefSummary(brief)
 
   return (
     <>
@@ -45,7 +77,7 @@ function Drawer({ brief, onClose }) {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
               <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
-                {String(brief.asset || '—').toUpperCase()}
+                {assetLabel}
               </div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted, letterSpacing: '.12em', marginTop: 3 }}>
                 {brief.week_label} · {formatDate(brief.created_at)}
@@ -61,18 +93,32 @@ function Drawer({ brief, onClose }) {
               <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#4dffb4' }}>{brief.action || '—'}</div>
             </div>
             <div style={{ background: 'rgba(32,216,236,.025)', border, padding: '10px 12px' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>AMOUNT</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#7df0ff' }}>{formatEur(brief.amount_eur)}</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>TOTAL BUDGET</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#7df0ff' }}>{formatEur(totalAmount)}</div>
             </div>
             <div style={{ background: 'rgba(32,216,236,.025)', border, padding: '10px 12px' }}>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>STATUS</div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: statusColor }}>{STATUS_LABEL[brief.status] || brief.status || '—'}</div>
             </div>
             <div style={{ background: 'rgba(32,216,236,.025)', border, padding: '10px 12px' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>ROUTE</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#7df0ff', overflowWrap: 'anywhere' }}>{brief.route || '—'}</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>RECOMMENDATIONS</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#7df0ff' }}>{recommendations.length}</div>
             </div>
           </div>
+
+          {recommendations.length > 0 && (
+            <div style={{ padding: '10px 13px', border, background: 'rgba(32,216,236,.02)', marginBottom: 12 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: muted, marginBottom: 8 }}>RECOMMENDATION LINES</div>
+              {recommendations.map((recommendation, index) => (
+                <div key={`${recommendation.asset}-${index}`} style={{ padding: '7px 0', borderTop: index === 0 ? 'none' : '1px solid rgba(32,216,236,.1)', fontFamily: 'var(--mono)', fontSize: 10, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+                  <span style={{ color: '#fff' }}>{String(recommendation.asset).toUpperCase()}</span>
+                  <span style={{ color: muted }}> — </span>
+                  <span style={{ color: '#7df0ff' }}>{formatEur(recommendation.amount)}</span>
+                  <span style={{ color: muted }}> — {recommendation.route || 'ROUTE NOT RECORDED'}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Outcome */}
           {(outcomePct != null || outcomeNote) && (
@@ -201,6 +247,7 @@ export default function BriefHistory({ onBack }) {
         {filtered.map(b => {
           const statusColor = STATUS_COLOR[b.status] || muted
           const hasOutcome = b.outcome_pct != null
+          const { assetLabel, totalAmount } = getBriefSummary(b)
           return (
             <div
               key={b.id}
@@ -211,7 +258,7 @@ export default function BriefHistory({ onBack }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: muted }}>{b.week_label}</span>
                   <span style={{ fontFamily: 'var(--display)', fontSize: 10, fontWeight: 700, letterSpacing: '.16em', padding: '2px 7px', border: '1px solid rgba(77,255,180,.35)', color: '#4dffb4', background: 'rgba(77,255,180,.07)' }}>{b.action || '—'}</span>
-                  <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1, overflowWrap: 'anywhere' }}>{String(b.asset || '—').toUpperCase()}</span>
+                  <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1, overflowWrap: 'anywhere' }}>{assetLabel}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                   {hasOutcome
@@ -223,8 +270,8 @@ export default function BriefHistory({ onBack }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.3)', letterSpacing: '.1em' }}>{formatDate(b.created_at)}</span>
-                {b.amount_eur != null && (
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'rgba(199,236,244,.55)' }}>{formatEur(b.amount_eur)}</span>
+                {totalAmount != null && (
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'rgba(199,236,244,.55)' }}>TOTAL {formatEur(totalAmount)}</span>
                 )}
               </div>
             </div>
