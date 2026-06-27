@@ -508,9 +508,13 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
-      setChatState('type instead — speech API unavailable')
       holdingRef.current = false
       setReactorMode('')
+      setChatState('voice unavailable')
+      setMessages(prev => [...prev, {
+        who: 'phoenix',
+        text: 'Voice unavailable — type your message below.',
+      }])
       return
     }
 
@@ -534,10 +538,20 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
       }
     }
 
-    rec.onerror = () => {
+    rec.onerror = e => {
       holdingRef.current = false
       setReactorMode('')
-      setChatState('mic permission needed — type below')
+      if (e.error === 'no-speech') {
+        // onend fires next and shows "didn't catch that"; open chat after 1.5s
+        setTimeout(() => setChatOpen(true), 1500)
+        return
+      }
+      setChatState('voice unavailable')
+      setChatOpen(true)
+      setMessages(prev => [...prev, {
+        who: 'phoenix',
+        text: 'Voice unavailable — type your message below.',
+      }])
     }
 
     rec.onend = () => {
@@ -558,7 +572,12 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
     try { rec.start() } catch (e) {
       holdingRef.current = false
       setReactorMode('')
-      setChatState('mic permission needed')
+      setChatState('voice unavailable')
+      setChatOpen(true)
+      setMessages(prev => [...prev, {
+        who: 'phoenix',
+        text: 'Voice unavailable — type your message below.',
+      }])
     }
   }
 
