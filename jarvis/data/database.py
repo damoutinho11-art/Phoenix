@@ -7,12 +7,16 @@ startup and routers so the domain layer remains deterministic and pure.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-DB_PATH = Path(__file__).resolve().parent / "jarvis.db"
+_DEFAULT_DB_PATH = Path(__file__).resolve().parent / "jarvis.db"
+_ENV_DB_PATH = os.environ.get("JARVIS_DB_PATH")
+DB_PATH: Path = Path(_ENV_DB_PATH) if _ENV_DB_PATH else _DEFAULT_DB_PATH
+_DB_PATH_SOURCE: str = f"env:JARVIS_DB_PATH" if _ENV_DB_PATH else "default"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meal_log (
@@ -843,6 +847,9 @@ def get_database_diagnostics() -> dict[str, Any]:
 
     return {
         "db_path": str(DB_PATH),
+        "db_parent": str(DB_PATH.parent),
+        "db_parent_exists": DB_PATH.parent.exists(),
+        "db_path_source": _DB_PATH_SOURCE,
         "db_exists": db_exists,
         "db_size_bytes": db_size,
         "table_counts": table_counts,
