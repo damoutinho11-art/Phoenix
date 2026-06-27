@@ -13,9 +13,23 @@ from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, fin
 from jarvis.data.database import init_db
 
 
+async def _keep_alive():
+    import asyncio
+    import httpx
+    while True:
+        await asyncio.sleep(300)
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get("http://localhost:8000/health")
+        except Exception:
+            pass
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    import asyncio
     init_db()
+    asyncio.create_task(_keep_alive())
     yield
 
 
@@ -29,13 +43,22 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",
-        "http://localhost:8080",
+        "http://localhost:5174",
+        "http://localhost:5180",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5180",
         "http://100.64.150.26",
         "http://100.64.150.26:5173",
-        "http://100.64.150.26:8080",
+        "http://100.64.150.26:5174",
+        "http://100.64.150.26:5180",
+        "http://192.168.0.25:5173",
+        "http://192.168.0.25:5174",
+        "http://192.168.0.25:5180",
     ],
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|100\.64\.150\.26|192\.168\.0\.25):\d+$",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

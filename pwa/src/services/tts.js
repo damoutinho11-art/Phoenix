@@ -123,8 +123,11 @@ export async function speak(text, { onEnd } = {}) {
 
 export function stopSpeaking() {
   if (currentAudio) {
-    currentAudio.pause()
+    try { currentAudio.pause() } catch {}
     currentAudio = null
+  }
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel() } catch {}
   }
 }
 

@@ -1,150 +1,121 @@
-const MOCK_EVENTS = [
-  { event_id: 'perf-001', event_type: 'performance', title: 'La Traviata', date: '2026-06-25', time_start: '19:00', time_end: '22:00', location: 'Opera House', role: 'Solo Bassoon' },
-  { event_id: 'reh-002', event_type: 'rehearsal', title: 'Dress Rehearsal', date: '2026-06-23', time_start: '18:00', time_end: '22:30', location: 'Opera House', role: 'Solo Bassoon' },
-  { event_id: 'reh-001', event_type: 'rehearsal', title: 'La Traviata Rehearsal', date: '2026-06-24', time_start: '10:00', time_end: '13:00', location: 'Opera House', role: 'Solo Bassoon' },
-  { event_id: 'travel-001', event_type: 'travel', title: 'Travel to Tallinn', date: '2026-06-26', time_start: '08:00', time_end: '12:00', location: null, role: null },
-  { event_id: 'unk-001', event_type: 'masterclass', title: 'Guest Masterclass', date: '2026-06-27', time_start: '14:00', time_end: '17:00', location: 'Opera House', role: null },
+import { useState } from 'react'
+
+const VIOLET = '#9f7dff'
+const VIOLET_BR = '#d8ccff'
+const BORDER = 'rgba(32,216,236,.18)'
+const MUTED = 'rgba(32,216,236,.38)'
+const TEXT_DIM = 'rgba(181,178,216,.58)'
+const CYAN = '#20d8ec'
+const GOLD = '#ffd56b'
+const POS = '#4dffb4'
+const LIME = '#9dff6f'
+
+// Prototype week data
+const PROTO_WEEK = [
+  { dow: 'MON', num: 22, pills: [{ label: 'REH', type: 'work' }, { label: 'UPPER', type: 'train' }] },
+  { dow: 'TUE', num: 23, pills: [{ label: 'SHOW', type: 'work' }] },
+  { dow: 'WED', num: 24, active: true, pills: [{ label: 'REH', type: 'work' }, { label: 'ME LOW', type: 'train' }, { label: 'MEAL', type: 'food' }] },
+  { dow: 'THU', num: 25, pills: [{ label: 'FOCUS', type: 'default' }] },
+  { dow: 'FRI', num: 26, pills: [{ label: 'JUMP', type: 'train' }] },
+  { dow: 'SAT', num: 27, pills: [{ label: 'SHOW', type: 'work' }] },
+  { dow: 'SUN', num: 28, pills: [{ label: 'REST', type: 'default' }] },
 ]
 
-const WEEK_TRAINING = [
-  { label: 'LOWER', type: 'high_intensity', full: 'High Intensity (Lower)' },
-  { label: 'UPPER', type: 'general',        full: 'Upper Body (General)' },
-  { label: 'LOWER', type: 'high_intensity', full: 'High Intensity (Lower)' },
-  { label: 'UPPER', type: 'general',        full: 'Upper Body (General)' },
-  { label: 'REST',  type: 'rest',           full: 'Rest' },
-  { label: 'JUMP',  type: 'jump',           full: 'Jump Session' },
-  { label: 'ISO',   type: 'iso_only',       full: 'ISO Only' },
+const SUGGESTIONS = [
+  { text: 'Move meal prep before late show',    tag: 'SMART' },
+  { text: 'Keep Friday jump session short',     tag: 'RECOVERY' },
+  { text: 'Schedule finance review Sunday',     tag: '15M' },
 ]
 
-const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-
-function getWeekDates() {
-  const today = new Date()
-  const dow = today.getDay()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - ((dow + 6) % 7))
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
-}
-
-function isoDate(d) { return d.toISOString().slice(0, 10) }
-
-function eventTypeColor(type) {
-  if (type === 'performance') return 'var(--accent-calendar)'
-  if (type === 'rehearsal') return '#bb9dff'
-  if (type === 'travel') return 'var(--muted)'
-  return 'var(--dim)'
+function pillStyle(type) {
+  if (type === 'work')  return { borderColor: 'rgba(255,213,107,.24)', color: GOLD }
+  if (type === 'train') return { borderColor: 'rgba(77,255,180,.24)',  color: POS }
+  if (type === 'food')  return { borderColor: 'rgba(157,255,111,.24)', color: LIME }
+  return { borderColor: `rgba(159,125,255,.18)`, color: TEXT_DIM }
 }
 
 export default function WeekView({ onBack, onEvent }) {
-  const weekDates = getWeekDates()
-  const today = isoDate(new Date())
-
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 8px', borderBottom: '1px solid var(--line)' }}>
-        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
-        <span style={{ fontFamily: 'var(--display)', fontSize: 16, color: 'var(--accent-calendar)', letterSpacing: '.1em' }}>WEEK VIEW</span>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(226,222,255,.94)', fontFamily: "'Saira Condensed',sans-serif" }}>
+      {/* TOP BAR */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: VIOLET_BR, filter: 'drop-shadow(0 0 8px rgba(159,125,255,.25))' }}>WEEK VIEW</span>
+        </div>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: VIOLET, border: `1px solid rgba(159,125,255,.32)`, background: 'rgba(159,125,255,.055)', padding: '2px 8px' }}>WK 26</span>
       </div>
 
-      {/* Read-only notice */}
-      <div style={{ margin: '10px 16px', fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(159,125,255,.5)' }}>
-        Read-only — Plaan sync pending · Mock data displayed
-      </div>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', gap: 14, padding: '0 16px 12px' }}>
-        {[
-          ['var(--accent-calendar)', 'PERFORMANCE'],
-          ['#bb9dff', 'REHEARSAL'],
-          ['var(--accent-training)', 'TRAINING'],
-          ['var(--muted)', 'OTHER'],
-        ].map(([c, l]) => (
-          <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, background: c }} />
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--dim)' }}>{l}</span>
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* HERO 2-COL */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ padding: '16px 18px', borderRight: `1px solid ${BORDER}` }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: MUTED, marginBottom: 5 }}>LOAD</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 34, fontWeight: 700, lineHeight: 1, background: `linear-gradient(135deg,#fff,${VIOLET})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>72%</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: TEXT_DIM, letterSpacing: '.1em', marginTop: 5, lineHeight: 1.55 }}>balanced week</div>
           </div>
-        ))}
-      </div>
+          <div style={{ padding: '16px 18px' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: MUTED, marginBottom: 5 }}>FREE BLOCKS</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 34, fontWeight: 700, lineHeight: 1, color: '#fff' }}>9</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: TEXT_DIM, letterSpacing: '.1em', marginTop: 5, lineHeight: 1.55 }}>available slots</div>
+          </div>
+        </div>
 
-      {/* 7-column grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, padding: '0 8px 24px' }}>
-        {weekDates.map((d, i) => {
-          const ds = isoDate(d)
-          const isToday = ds === today
-          const dayEvents = MOCK_EVENTS.filter(e => e.date === ds)
-          const training = WEEK_TRAINING[i]
-          const hasTraining = training.type !== 'rest'
-
-          return (
-            <div key={ds} style={{
-              background: isToday ? 'rgba(159,125,255,.12)' : 'rgba(1,10,13,.5)',
-              border: `1px solid ${isToday ? 'rgba(159,125,255,.4)' : 'var(--line)'}`,
-              padding: '6px 3px', minHeight: 130,
-              display: 'flex', flexDirection: 'column', gap: 3,
-            }}>
-              {/* Day label */}
-              <div style={{ textAlign: 'center', marginBottom: 3 }}>
-                <div style={{ fontFamily: 'var(--display)', fontSize: 8, color: isToday ? 'var(--accent-calendar)' : 'var(--dim)', letterSpacing: '.06em' }}>
-                  {DAY_NAMES[i]}
-                </div>
-                <div style={{ fontFamily: 'var(--display)', fontSize: 13, color: isToday ? 'var(--text)' : 'var(--muted)' }}>
-                  {d.getDate()}
-                </div>
-              </div>
-
-              {/* Training block */}
-              {hasTraining && (
-                <div style={{
-                  background: 'rgba(255,143,46,.15)', border: '1px solid rgba(255,143,46,.3)',
-                  padding: '2px 3px',
-                }}>
-                  <div style={{ fontFamily: 'var(--display)', fontSize: 7, color: 'var(--accent-training)', letterSpacing: '.04em', textAlign: 'center' }}>
-                    {training.label}
-                  </div>
-                </div>
-              )}
-
-              {/* Event blocks */}
-              {dayEvents.map(ev => {
-                const ec = eventTypeColor(ev.event_type)
-                return (
-                  <button
-                    key={ev.event_id}
-                    onClick={() => onEvent(ev)}
-                    style={{
-                      background: ev.event_type === 'performance'
-                        ? 'rgba(159,125,255,.13)' : ev.event_type === 'rehearsal'
-                        ? 'rgba(187,157,255,.13)' : 'rgba(132,212,226,.07)',
-                      border: `1px solid ${ev.event_type === 'performance' ? 'rgba(159,125,255,.4)' : ev.event_type === 'rehearsal' ? 'rgba(187,157,255,.4)' : 'rgba(132,212,226,.2)'}`,
-                      padding: '2px 3px', cursor: 'pointer',
-                      textAlign: 'left', width: '100%',
-                    }}
-                  >
-                    <div style={{ fontFamily: 'var(--display)', fontSize: 7, color: ec, letterSpacing: '.03em', lineHeight: 1.2 }}>
-                      {ev.title.length > 10 ? ev.title.slice(0, 9) + '…' : ev.title}
+        {/* WEEK MAP */}
+        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>WEEK MAP</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: VIOLET }}>JUN 22–28</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
+            {PROTO_WEEK.map(day => (
+              <div
+                key={day.dow + day.num}
+                style={{ minHeight: 112, border: `1px solid ${day.active ? 'rgba(159,125,255,.44)' : 'rgba(32,216,236,.12)'}`, background: day.active ? 'rgba(159,125,255,.07)' : 'rgba(159,125,255,.025)', padding: '7px 5px', cursor: 'pointer' }}
+                onClick={() => {
+                  if (onEvent) {
+                    onEvent({ event_id: `day-${day.num}`, event_type: 'rehearsal', title: day.pills[0]?.label || 'Event', date: `2026-06-${String(day.num).padStart(2,'0')}`, time_start: null, time_end: null, location: null, role: null })
+                  }
+                }}
+              >
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED, letterSpacing: '.1em', marginBottom: 6 }}>{day.dow}</div>
+                <div style={{ fontFamily: 'var(--display)', fontSize: 18, color: VIOLET_BR }}>{day.num}</div>
+                {day.pills.map((pill, pi) => {
+                  const ps = pillStyle(pill.type)
+                  return (
+                    <div key={pi} style={{ fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.08em', padding: '3px 4px', marginTop: 5, border: `1px solid ${ps.borderColor}`, color: ps.color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      {pill.label}
                     </div>
-                    {ev.time_start && (
-                      <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: 'var(--muted)' }}>
-                        {ev.time_start}
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
 
-              {!hasTraining && dayEvents.length === 0 && (
-                <div style={{ textAlign: 'center', marginTop: 'auto', paddingBottom: 4 }}>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--line)' }}>—</span>
-                </div>
-              )}
-            </div>
-          )
-        })}
+        {/* PHOENIX SUGGESTIONS */}
+        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>PHOENIX SUGGESTIONS</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: VIOLET }}>3</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {SUGGESTIONS.map(s => (
+              <div key={s.text} style={{ padding: '10px 12px', border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(159,125,255,.025)', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13 }}>{s.text}</span>
+                <b style={{ fontFamily: 'var(--mono)', fontSize: 8, color: VIOLET, letterSpacing: '.12em' }}>{s.tag}</b>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* PHOENIX WEEK LOGIC */}
+        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${VIOLET}`, background: 'rgba(159,125,255,.025)' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(159,125,255,.52)', marginBottom: 6 }}>PHOENIX WEEK LOGIC</div>
+          <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(226,222,255,.78)' }}>
+            Week view is where PHOENIX should prevent overload: too much work, too much training, too little food, or no review time.
+          </div>
+        </div>
       </div>
     </div>
   )

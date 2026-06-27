@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import Message from './Message'
-import StatusBar from './StatusBar'
+import './Chat.css'
 import BarcodeScanner from './BarcodeScanner'
 import { useJarvis } from '../hooks/useJarvis'
 import { stopSpeaking } from '../services/tts'
+
+function renderMarkdown(text) {
+  return text.split(/\*\*/).map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+  )
+}
 
 export default function Chat({ prefill, onPrefillConsumed }) {
   const { messages, apiStatus, loading, greet, send, lookupBarcodeItem } = useJarvis()
@@ -46,24 +51,42 @@ export default function Chat({ prefill, onPrefillConsumed }) {
 
   const canSend = !!input.trim() && !loading
 
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
-      background: 'transparent', maxWidth: 680, margin: '0 auto', width: '100%',
-    }}>
-      <StatusBar apiStatus={apiStatus} loading={loading} />
+  const statusClass = apiStatus === 'ok' ? 'ok' : apiStatus === 'error' ? 'err' : 'idle'
+  const statusLabel = loading ? 'thinking…' : apiStatus === 'ok' ? 'online' : apiStatus === 'error' ? 'unreachable' : 'connecting'
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column' }}>
-        {messages.map(msg => (
-          <Message key={msg.id} role={msg.role} text={msg.text} />
-        ))}
+  return (
+    <div className="chat-screen" aria-live="polite">
+
+      {/* ── Head (global-chat-head) ── */}
+      <div className="chat-screen-head">
+        <div>
+          <div className="chat-screen-title">PHOENIX</div>
+          <div className="chat-screen-context">jarvis · {statusLabel}</div>
+        </div>
+        <div className="chat-status-indicator">
+          <span className={`chat-status-dot ${statusClass}`} />
+          <span>J.A.R.V.I.S.</span>
+        </div>
+      </div>
+
+      {/* ── Stream (global-chat-stream) ── */}
+      <div className="chat-screen-stream">
+        {messages.map(msg => {
+          const isPhoenix = msg.role === 'jarvis'
+          return (
+            <div key={msg.id} className={`chat-msg ${isPhoenix ? 'phoenix' : 'user'}`}>
+              <div className="chat-bubble">
+                <span className="chat-label">{isPhoenix ? 'PHOENIX' : 'YOU'}</span>
+                {renderMarkdown(msg.text)}
+              </div>
+            </div>
+          )
+        })}
         {loading && messages.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
-            <div className="glass" style={{ padding: '10px 14px', maxWidth: '85%' }}>
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.12em', color: 'var(--cyan)', display: 'block', marginBottom: 4 }}>
-                JARVIS
-              </span>
-              <span style={{ color: 'var(--muted)', fontFamily: 'var(--mono)' }}>…</span>
+          <div className="chat-msg phoenix">
+            <div className="chat-bubble">
+              <span className="chat-label">PHOENIX</span>
+              <span className="chat-bubble-loading">…</span>
             </div>
           </div>
         )}
@@ -80,64 +103,40 @@ export default function Chat({ prefill, onPrefillConsumed }) {
         />
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: 'flex', gap: 8, padding: '12px 16px',
-          borderTop: '1px solid var(--line)',
-          background: 'rgba(1,6,8,.9)',
-          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-        }}
-      >
+      {/* ── Input row (global-chat-input-row) ── */}
+      <form className="chat-input-row" onSubmit={handleSubmit}>
         <button
           type="button"
           aria-label="Stop audio"
+          className="chat-action-btn"
           onClick={() => stopSpeaking()}
-          className="action ghost"
-          style={{ padding: '10px 12px', flexShrink: 0 }}
         >
           ⬛
         </button>
         <button
           type="button"
           aria-label="Scan barcode"
+          className={`chat-action-btn${scannerOpen ? ' active' : ''}`}
           onClick={() => setScannerOpen(open => !open)}
           disabled={loading}
-          className={`action${scannerOpen ? '' : ' ghost'}`}
-          style={scannerOpen ? { borderColor: 'var(--cyan)', color: 'var(--cyan)', padding: '10px 12px' } : { padding: '10px 12px' }}
         >
           ▣
         </button>
         <input
+          className="chat-input"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="portfolio · meals · weight · status"
+          placeholder="ASK ABOUT THIS SCREEN..."
+          autoComplete="off"
           disabled={loading}
-          style={{
-            flex: 1,
-            background: 'rgba(1,10,13,.7)',
-            border: '1px solid var(--line)',
-            padding: '10px 14px',
-            color: 'var(--text)', fontSize: 14,
-            fontFamily: 'var(--body)', outline: 'none',
-            caretColor: 'var(--cyan)',
-          }}
         />
         <button
           type="submit"
+          className="chat-send"
           disabled={!canSend}
-          style={{
-            background: canSend ? 'var(--cyan)' : 'rgba(1,10,13,.7)',
-            border: `1px solid ${canSend ? 'var(--cyan)' : 'var(--line)'}`,
-            padding: '10px 18px',
-            color: canSend ? '#010608' : 'var(--dim)',
-            fontSize: 12, fontFamily: 'var(--display)',
-            letterSpacing: '.08em', cursor: canSend ? 'pointer' : 'default',
-            transition: 'background .15s, color .15s',
-          }}
         >
-          SEND
+          Send
         </button>
       </form>
     </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Chat from './components/Chat'
-import HomeScreen from './components/HomeScreen'
+import PhoenixOpeningScreen from './components/PhoenixOpeningScreen'
 import BottomNav from './components/BottomNav'
 import NutritionDashboard from './components/nutrition/NutritionDashboard'
 import RecipeList from './components/nutrition/RecipeList'
@@ -36,15 +36,37 @@ export default function App() {
     if (t === 'calendar') { setCalendarScreen('dashboard'); setCalendarEvent(null) }
   }
 
+  function openPhoenixDomain(domain) {
+    if (domain === 'finance') {
+      switchTab('finance')
+      return
+    }
+
+    if (domain === 'training') {
+      switchTab('training')
+      return
+    }
+
+    if (domain === 'recovery' || domain === 'nutrition') {
+      switchTab('nutrition')
+      return
+    }
+
+    if (domain === 'calendar') {
+      switchTab('calendar')
+      return
+    }
+
+    setChatPrefill(null)
+    setTab('chat')
+  }
+
   function handleQuickAsk(message) {
     setChatPrefill(message)
     setTab('chat')
   }
 
   function renderContent() {
-    if (tab === 'home') return (
-      <HomeScreen onOpenCockpit={() => { setChatPrefill(null); setTab('chat') }} />
-    )
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
     if (tab === 'training') {
       if (trainingScreen === 'active-session')
@@ -124,6 +146,14 @@ export default function App() {
       default:
         return null
     }
+  }
+
+  if (tab === 'home') {
+    return (
+      <PhoenixOpeningScreen
+        onOpenDomain={openPhoenixDomain}
+      />
+    )
   }
 
   return (

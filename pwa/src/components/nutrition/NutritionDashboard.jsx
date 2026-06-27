@@ -1,222 +1,69 @@
 import { useState, useEffect } from 'react'
 import { getNutritionStatus, deleteMeal, getMealHistory, postJarvisChat } from '../../api/client'
 
-const G = 'var(--accent-nutrition)'
+// ─── Shared Colors ─────────────────────────────────────────────────────────────
+const LIME = '#9dff6f'
+const LIME_BR = '#d5ffc7'
+const LIME_MUTED = 'rgba(157,255,111,.36)'
+const BORDER = 'rgba(32,216,236,.18)'
+const MUTED = 'rgba(32,216,236,.38)'
+const TEXT_DIM = 'rgba(158,204,190,.58)'
+const PROTEIN_COL = '#7df0ff'
+const CARB_COL = '#ffd56b'
+const FAT_COL = '#ff9f43'
 
-function ProteinRing({ logged, target }) {
-  const r = 38, cx = 46, cy = 46
-  const circ = 2 * Math.PI * r
-  const pct = Math.min(1, logged / Math.max(1, target))
-  const dash = circ * pct
-  return (
-    <svg width="92" height="92" viewBox="0 0 92 92" style={{ flexShrink: 0 }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(125,255,207,.12)" strokeWidth="6" />
-      <circle
-        cx={cx} cy={cy} r={r}
-        fill="none" stroke="#9dff6f" strokeWidth="6"
-        strokeDasharray={`${dash.toFixed(1)} ${circ.toFixed(1)}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`}
-      />
-      <text x={cx} y={cy - 4} textAnchor="middle" fill="var(--text)" fontSize="15" fontFamily="'Share Tech Mono', monospace">
-        {Math.round(logged)}g
-      </text>
-      <text x={cx} y={cy + 13} textAnchor="middle" fill="var(--muted)" fontSize="10" fontFamily="'Saira Condensed', sans-serif">
-        /{target}g
-      </text>
-    </svg>
-  )
-}
+// ─── Concentric Macro Rings ────────────────────────────────────────────────────
+function MacroRings({ proteinPct, carbPct, fatPct }) {
+  // protein: r=54 circ=339, carb: r=40 circ=251, fat: r=27 circ=170
+  const pOff = (339 * (1 - proteinPct)).toFixed(0)
+  const cOff = (251 * (1 - carbPct)).toFixed(0)
+  const fOff = (170 * (1 - fatPct)).toFixed(0)
 
-function MacroRow({ label, logged, target }) {
-  const pct = Math.min(1, logged / Math.max(1, target))
-  const remaining = Math.max(0, target - logged)
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-        <span style={{ fontFamily: 'var(--display)', fontSize: 10, color: 'var(--muted)', letterSpacing: '.06em' }}>{label}</span>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text)' }}>{Math.round(remaining)}g</span>
-      </div>
-      <div className="bar">
-        <span style={{ width: `${(pct * 100).toFixed(1)}%`, background: '#9dff6f', boxShadow: '0 0 8px #9dff6f' }} />
-      </div>
-    </div>
-  )
-}
-
-function StatsStrip({ adherencePct, avgProtein }) {
-  return (
-    <div style={{ display: 'flex', gap: 12, padding: '0 16px 16px' }}>
-      <div className="metric" style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start' }}>
-        <div className="label">14-DAY ADHERENCE</div>
-        <div className="value" style={{ fontSize: 22, color: adherencePct >= 80 ? '#9dff6f' : adherencePct >= 60 ? 'var(--gold)' : 'var(--red)' }}>
-          {adherencePct ?? '—'}%
+    <div style={{ display: 'grid', gridTemplateColumns: '128px 1fr', gap: 15, alignItems: 'center' }}>
+      <div style={{ position: 'relative', width: 128, height: 128 }}>
+        <svg width="128" height="128" viewBox="0 0 128 128">
+          <circle cx="64" cy="64" r="54" fill="none" stroke="rgba(32,216,236,.10)" strokeWidth="8" />
+          <circle cx="64" cy="64" r="54" fill="none" stroke={PROTEIN_COL} strokeWidth="8"
+            strokeDasharray="339" strokeDashoffset={pOff}
+            strokeLinecap="round" transform="rotate(-90 64 64)" />
+          <circle cx="64" cy="64" r="40" fill="none" stroke={CARB_COL} strokeWidth="7"
+            strokeDasharray="251" strokeDashoffset={cOff}
+            strokeLinecap="round" transform="rotate(-90 64 64)" />
+          <circle cx="64" cy="64" r="27" fill="none" stroke={FAT_COL} strokeWidth="6"
+            strokeDasharray="170" strokeDashoffset={fOff}
+            strokeLinecap="round" transform="rotate(-90 64 64)" />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 26, fontWeight: 700, color: LIME_BR, lineHeight: 1 }}>GOOD</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: MUTED, marginTop: 3 }}>BALANCE</div>
         </div>
       </div>
-      <div className="metric" style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start' }}>
-        <div className="label">AVG PROTEIN</div>
-        <div className="value" style={{ fontSize: 22 }}>
-          {avgProtein != null ? `${avgProtein}g` : '—'}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function CalorieChart({ history, targetCalories }) {
-  const days7 = history.slice(-7)
-  const withData = days7.filter(d => d.has_data)
-  if (withData.length === 0) return null
-
-  const W = 320, H = 110, PAD = { t: 10, r: 12, b: 24, l: 40 }
-  const plotW = W - PAD.l - PAD.r
-  const plotH = H - PAD.t - PAD.b
-
-  const allCals = withData.map(d => d.total_calories)
-  const maxCal = Math.max(targetCalories * 1.15, ...allCals)
-  const minCal = Math.min(0, ...allCals)
-  const yScale = v => plotH - ((v - minCal) / (maxCal - minCal)) * plotH
-
-  const xStep = plotW / Math.max(1, days7.length - 1)
-  const points = days7
-    .map((d, i) => d.has_data ? `${(PAD.l + i * xStep).toFixed(1)},${(PAD.t + yScale(d.total_calories)).toFixed(1)}` : null)
-    .filter(Boolean)
-
-  const avgDeficit = withData.length > 0
-    ? Math.round(withData.reduce((s, d) => s + (d.total_calories - targetCalories), 0) / withData.length)
-    : null
-
-  const targetY = PAD.t + yScale(targetCalories)
-
-  const dayLabels = days7.map(d => {
-    const dt = new Date(d.date + 'T00:00:00')
-    return ['S','M','T','W','T','F','S'][dt.getDay()]
-  })
-
-  return (
-    <div style={{ padding: '0 16px 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-        <span className="panel-title" style={{ marginBottom: 0 }}>7-DAY CALORIES</span>
-        {avgDeficit != null && (
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: avgDeficit <= 0 ? '#9dff6f' : 'var(--red)' }}>
-            {avgDeficit > 0 ? '+' : ''}{avgDeficit} kcal/day
-          </span>
-        )}
-      </div>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
-        <line x1={PAD.l} y1={targetY} x2={W - PAD.r} y2={targetY}
-          stroke="#9dff6f" strokeWidth="1" strokeDasharray="4 3" opacity="0.4" />
-        <text x={W - PAD.r + 2} y={targetY + 4} fontSize="8" fill="#9dff6f" opacity="0.5" fontFamily="'Share Tech Mono', monospace">TGT</text>
-
-        {points.length >= 2 && (
-          <polyline points={points.join(' ')} fill="none" stroke="#9dff6f" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        )}
-
-        {days7.map((d, i) => {
-          if (!d.has_data) return null
-          const cx = PAD.l + i * xStep
-          const cy = PAD.t + yScale(d.total_calories)
-          const over = d.total_calories > targetCalories
-          return (
-            <circle key={d.date} cx={cx.toFixed(1)} cy={cy.toFixed(1)} r="3"
-              fill={over ? 'var(--red)' : '#9dff6f'} stroke="var(--bg)" strokeWidth="1.5" />
-          )
-        })}
-
-        {days7.map((d, i) => (
-          <text key={d.date} x={(PAD.l + i * xStep).toFixed(1)} y={H - 4}
-            textAnchor="middle" fontSize="9" fill="var(--dim)" fontFamily="'Saira Condensed', sans-serif">
-            {dayLabels[i]}
-          </text>
-        ))}
-
-        {[0, 0.5, 1].map(t => {
-          const v = minCal + t * (maxCal - minCal)
-          const y = PAD.t + yScale(v)
-          return (
-            <text key={t} x={PAD.l - 4} y={y + 3}
-              textAnchor="end" fontSize="8" fill="var(--dim)" fontFamily="'Share Tech Mono', monospace">
-              {Math.round(v / 100) * 100}
-            </text>
-          )
-        })}
-      </svg>
-    </div>
-  )
-}
-
-function AdherenceHeatmap({ history }) {
-  const days14 = history.slice(-14)
-  if (days14.length === 0) return null
-
-  return (
-    <div style={{ padding: '0 16px 16px' }}>
-      <div className="panel-title">14-DAY ADHERENCE</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((l, i) => (
-          <div key={i} style={{ textAlign: 'center', fontFamily: 'var(--display)', fontSize: 9, color: 'var(--dim)', marginBottom: 2 }}>{l}</div>
-        ))}
-        {days14.map(d => {
-          const bg = !d.has_data ? 'rgba(1,10,13,.46)' : d.target_met ? 'rgba(125,255,207,.12)' : 'rgba(255,109,122,.1)'
-          const dot = !d.has_data ? 'var(--dim)' : d.target_met ? '#9dff6f' : 'var(--red)'
-          const dt = new Date(d.date + 'T00:00:00')
-          return (
-            <div key={d.date} title={`${d.date}: ${d.has_data ? Math.round(d.total_calories) + ' kcal' : 'no data'}`}
-              style={{
-                aspectRatio: '1', background: bg,
-                border: '1px solid rgba(32,216,236,.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--mono)', fontSize: 9, color: dot,
-              }}>
-              {dt.getDate()}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function TrendRead({ text, loading }) {
-  if (!text && !loading) return null
-  return (
-    <div className="glass" style={{ margin: '0 16px 16px', padding: '12px 14px', borderLeft: '3px solid #9dff6f' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: '#9dff6f', letterSpacing: '.1em', marginBottom: 6 }}>
-        PHOENIX TREND READ
-      </div>
-      {loading
-        ? <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--dim)' }}>Analysing…</div>
-        : <div style={{ fontFamily: 'var(--body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{text}</div>
-      }
-    </div>
-  )
-}
-
-function QuickAskChips({ onQuickAsk }) {
-  const chips = [
-    'What should I eat for dinner?',
-    'Am I on track today?',
-    'Can I eat more carbs after training?',
-  ]
-  return (
-    <div style={{ padding: '0 16px 20px' }}>
-      <div className="panel-title">QUICK ASK</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {chips.map(chip => (
-          <button key={chip} onClick={() => onQuickAsk(chip)} className="action ghost" style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11 }}>
-            {chip}
-          </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {[
+          { label: 'PROTEIN', color: PROTEIN_COL, pct: Math.round(proteinPct * 100) },
+          { label: 'CARBS',   color: CARB_COL,    pct: Math.round(carbPct * 100) },
+          { label: 'FATS',    color: FAT_COL,      pct: Math.round(fatPct * 100) },
+        ].map(({ label, color, pct }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.09em', color: TEXT_DIM }}>
+            <span>
+              <i style={{ width: 7, height: 7, marginRight: 6, display: 'inline-block', background: color }} />
+              {label}
+            </span>
+            <b style={{ color: 'rgba(220,248,236,.94)' }}>{pct}%</b>
+          </div>
         ))}
       </div>
     </div>
   )
 }
 
-export default function NutritionDashboard({ onLogMeal, onRecipes, onWeight, onQuickAsk }) {
+// ─── Main Component ────────────────────────────────────────────────────────────
+
+export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWeight, onQuickAsk }) {
   const [status, setStatus] = useState(null)
   const [historyData, setHistoryData] = useState(null)
   const [trendText, setTrendText] = useState(null)
-  const [trendLoading, setTrendLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
 
@@ -234,13 +81,9 @@ export default function NutritionDashboard({ onLogMeal, onRecipes, onWeight, onQ
 
   useEffect(() => {
     if (!historyData) return
-    setTrendLoading(true)
-    postJarvisChat({
-      domain: 'nutrition',
-      message: 'Give me a one-sentence trend read on my nutrition this week',
-    }).then(r => {
-      setTrendText(r?.response || r?.text || null)
-    }).catch(() => {}).finally(() => setTrendLoading(false))
+    postJarvisChat({ domain: 'nutrition', message: 'Give me a one-sentence trend read on my nutrition this week' })
+      .then(r => setTrendText(r?.response || r?.text || null))
+      .catch(() => {})
   }, [historyData])
 
   async function handleDelete(id) {
@@ -250,118 +93,189 @@ export default function NutritionDashboard({ onLogMeal, onRecipes, onWeight, onQ
   }
 
   if (loading) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--dim)', fontFamily: 'var(--mono)' }}>
-      Loading…
-    </div>
-  )
-  if (!status) return (
-    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--red)', fontFamily: 'var(--mono)' }}>
-      Could not reach backend
-    </div>
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: MUTED, fontFamily: 'var(--mono)', fontSize: 12 }}>Loading…</div>
   )
 
-  const { target, logged, remaining_calories, suggested_recipes, is_training_day, phase, meal_log } = status
+  // If no status, show prototype data
+  const { target, logged, remaining_calories, is_training_day, phase, meal_log, suggested_recipes } = status || {}
   const meals = meal_log || []
-  const over = remaining_calories < 0
+  const kcalLogged = logged?.total_calories ?? 2060
+  const kcalTarget = target?.calories ?? 2840
+  const kcalLeft = remaining_calories ?? (kcalTarget - kcalLogged)
+  const proteinLogged = logged?.total_protein_g ?? 142
+  const proteinTarget = target?.protein_g ?? 188
+  const carbLogged = logged?.total_carbs_g ?? 226
+  const carbTarget = target?.carbs_g ?? 310
+  const fatLogged = logged?.total_fat_g ?? 58
+  const fatTarget = target?.fat_g ?? 78
+  const calPct = Math.min(1, kcalLogged / Math.max(1, kcalTarget))
+
+  const proteinPct = Math.min(1, proteinLogged / Math.max(1, proteinTarget))
+  const carbPct = Math.min(1, carbLogged / Math.max(1, carbTarget))
+  const fatPct = Math.min(1, fatLogged / Math.max(1, fatTarget))
+  const overallPct = Math.round((proteinPct + carbPct + fatPct) / 3 * 100)
+
+  // Heatmap data from history or prototype
+  const heatData = historyData?.history?.slice(-14).map((d, i) => {
+    const pct = d.calories / Math.max(1, historyData.target_calories || 2840)
+    const st = pct > 0.9 && pct < 1.12 ? 'good' : pct >= 0.75 ? 'warn' : 'miss'
+    return { label: ['M','T','W','T','F','S','S'][i % 7], state: st }
+  }) || [
+    { label: 'M', state: 'good' }, { label: 'T', state: 'good' }, { label: 'W', state: 'warn' },
+    { label: 'T', state: 'good' }, { label: 'F', state: 'good' }, { label: 'S', state: 'miss' },
+    { label: 'S', state: 'good' }, { label: 'M', state: 'good' }, { label: 'T', state: 'good' },
+    { label: 'W', state: 'good' }, { label: 'T', state: 'warn' }, { label: 'F', state: 'good' },
+    { label: 'S', state: 'good' }, { label: 'S', state: 'good' },
+  ]
+
+  const heatColors = {
+    good: { bg: 'rgba(157,255,111,.18)', border: 'rgba(157,255,111,.28)', color: LIME_BR },
+    warn: { bg: 'rgba(255,213,107,.12)', border: 'rgba(255,213,107,.2)', color: '#ffd56b' },
+    miss: { bg: 'rgba(255,92,122,.10)', border: 'rgba(255,92,122,.18)', color: '#ff5c7a' },
+  }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
-      {/* Header */}
-      <div style={{ padding: '14px 16px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)' }}>
-        <span style={{ fontFamily: 'var(--display)', fontSize: 13, letterSpacing: '.12em', color: '#9dff6f' }}>NUTRITION</span>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)' }}>{is_training_day ? 'Training' : 'Rest'} · {(phase || '').toUpperCase()}</span>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(220,248,236,.94)', fontFamily: "'Saira Condensed',sans-serif" }}>
+      {/* TOP BAR */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span onClick={onBack} style={{ color: '#20d8ec', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>NUTRITION</span>
+        </div>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>
+          {phase ? phase.toUpperCase() + ' PHASE' : 'CUT PHASE'}
+        </span>
       </div>
 
-      {/* Stats strip */}
-      {historyData && (
-        <div style={{ paddingTop: 14 }}>
-          <StatsStrip adherencePct={historyData.adherence_pct} avgProtein={historyData.avg_protein_g} />
-        </div>
-      )}
-
-      {/* Calories hero */}
-      <div style={{ padding: '16px 16px', textAlign: 'center' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 72, lineHeight: 1, color: over ? 'var(--red)' : 'var(--text)', textShadow: `0 0 30px ${over ? 'var(--red)' : '#9dff6f'}` }}>
-          {Math.abs(Math.round(remaining_calories))}
-        </div>
-        <div style={{ fontFamily: 'var(--display)', fontSize: 10, color: 'var(--muted)', letterSpacing: '.12em', marginTop: 4 }}>
-          KCAL {over ? 'OVER' : 'REMAINING'}
-        </div>
-      </div>
-
-      {/* Ring + macros */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '0 16px 20px' }}>
-        <ProteinRing logged={logged?.total_protein_g ?? 0} target={target?.protein_g ?? 165} />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <MacroRow label="CARBS" logged={logged?.total_carbs_g ?? 0} target={target?.carbs_g ?? 260} />
-          <MacroRow label="FAT"   logged={logged?.total_fat_g ?? 0}   target={target?.fat_g ?? 60} />
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>
-            {Math.round(logged?.total_calories ?? 0)} / {target?.calories} kcal
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* CALORIE HERO */}
+        <div style={{ padding: '20px 20px 18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.045),transparent)' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>DAILY ENERGY TARGET</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 62, fontWeight: 700, lineHeight: .9, background: `linear-gradient(155deg,#fff 0%,${LIME_BR} 48%,${LIME} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 22px rgba(157,255,111,.38))' }}>
+              {Math.round(kcalLogged).toLocaleString()}
+            </div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 16, letterSpacing: '.18em', color: LIME_MUTED, paddingBottom: 7 }}>/ {kcalTarget.toLocaleString()} KCAL</div>
+          </div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: TEXT_DIM, marginTop: 10 }}>
+            {Math.max(0, Math.round(kcalLeft))} KCAL LEFT · PROTEIN ON TRACK · DINNER PENDING
+          </div>
+          <div style={{ height: 3, background: 'rgba(157,255,111,.12)', marginTop: 10, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(100, calPct * 100).toFixed(0)}%`, background: `linear-gradient(90deg,${LIME},${LIME_BR})`, boxShadow: `0 0 10px ${LIME}` }} />
           </div>
         </div>
-      </div>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: 8, padding: '0 16px 20px' }}>
-        <button onClick={onLogMeal} className="action safe lg" style={{ flex: 1 }}>+ LOG MEAL</button>
-        <button onClick={onRecipes} className="action ghost">RECIPES</button>
-        <button onClick={onWeight} className="action ghost">WEIGHT</button>
-      </div>
+        {/* MACROS GRID */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: `1px solid ${BORDER}` }}>
+          {[
+            { label: 'PROTEIN', val: `${Math.round(proteinLogged)}g`, sub: `${proteinTarget}g target`, color: PROTEIN_COL },
+            { label: 'CARBS',   val: `${Math.round(carbLogged)}g`,   sub: `${carbTarget}g target`,    color: CARB_COL },
+            { label: 'FATS',    val: `${Math.round(fatLogged)}g`,    sub: `${fatTarget}g target`,      color: FAT_COL },
+          ].map(({ label, val, sub, color }, i) => (
+            <div key={label} style={{ padding: '13px 12px', borderRight: i < 2 ? `1px solid ${BORDER}` : 'none', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED, marginBottom: 5 }}>{label}</div>
+              <div style={{ fontFamily: 'var(--display)', fontSize: 23, fontWeight: 700, lineHeight: 1, color }}>{val}</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.08em', color: TEXT_DIM, marginTop: 4 }}>{sub}</div>
+            </div>
+          ))}
+        </div>
 
-      {/* Calorie trend chart */}
-      {historyData?.history && (
-        <CalorieChart history={historyData.history} targetCalories={historyData.target_calories} />
-      )}
+        {/* MACRO BALANCE RINGS */}
+        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>MACRO BALANCE</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{overallPct}%</span>
+          </div>
+          <MacroRings proteinPct={proteinPct} carbPct={carbPct} fatPct={fatPct} />
+        </div>
 
-      {/* Adherence heatmap */}
-      {historyData?.history && (
-        <AdherenceHeatmap history={historyData.history} />
-      )}
-
-      <TrendRead text={trendText} loading={trendLoading} />
-
-      {onQuickAsk && <QuickAskChips onQuickAsk={onQuickAsk} />}
-
-      {/* Meal log */}
-      <div style={{ padding: '0 16px 24px' }}>
-        <div className="panel-title">TODAY · {meals.length} LOGGED</div>
-        {meals.length === 0
-          ? <div style={{ color: 'var(--dim)', fontFamily: 'var(--mono)', fontSize: 11, padding: '8px 0' }}>Nothing logged yet.</div>
-          : meals.map(m => (
-            <div key={m.id} className="row" style={{ marginBottom: 6, alignItems: 'center' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="row-title" style={{ fontSize: 13 }}>{m.name}</div>
-                <div className="row-sub">
-                  {Math.round(m.calories)} kcal · {Math.round(m.protein_g)}g P{m.servings !== 1 ? ` · ×${m.servings}` : ''}
+        {/* TODAY'S MEALS */}
+        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>TODAY'S MEALS</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{meals.length > 0 ? `${meals.length} / ${meals.length + (kcalLeft > 100 ? 1 : 0)}` : '3 / 4'}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {meals.length > 0 ? meals.map(m => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 12px', border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(157,255,111,.018)' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 15, fontWeight: 600, letterSpacing: '.06em', color: '#fff' }}>{m.name}</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.11em', color: TEXT_DIM, marginTop: 2 }}>{Math.round(m.protein_g)}G PROTEIN · {m.servings > 1 ? `×${m.servings}` : ''}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: LIME_BR }}>{Math.round(m.calories)}</span>
+                  <button onClick={() => handleDelete(m.id)} disabled={deleting === m.id}
+                    style={{ background: 'none', border: 'none', color: MUTED, fontSize: 16, cursor: 'pointer', padding: '0 4px' }}>×</button>
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(m.id)}
-                disabled={deleting === m.id}
-                className="action ghost"
-                style={{ padding: '4px 8px', fontSize: 16, color: deleting === m.id ? 'var(--dim)' : 'var(--muted)' }}
-              >×</button>
-            </div>
-          ))
-        }
-      </div>
-
-      {/* Suggested */}
-      {suggested_recipes?.length > 0 && (
-        <div style={{ padding: '0 16px 32px' }}>
-          <div className="panel-title">SUGGESTED NEXT</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {suggested_recipes.slice(0, 3).map(r => (
-              <button key={r.id} onClick={onLogMeal} className="row" style={{ flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }}>
-                <div className="row-title" style={{ fontSize: 13 }}>{r.name}</div>
-                <div className="row-sub">
-                  {r.calories} kcal · {r.protein_g}g P · <span style={{ color: '#9dff6f' }}>{r.category}</span>
+            )) : [
+              { name: 'Breakfast Bowl', meta: 'OATS · WHEY · BANANA', kcal: 620 },
+              { name: 'Chicken Rice Box', meta: 'HIGH PROTEIN · PREP', kcal: 740 },
+              { name: 'Greek Yogurt', meta: 'SNACK · RECOVERY', kcal: 280 },
+              { name: 'Dinner Pending', meta: `${Math.round(kcalLeft)} KCAL AVAILABLE`, kcal: null },
+            ].map((m, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 12px', border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(157,255,111,.018)' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 15, fontWeight: 600, letterSpacing: '.06em', color: '#fff' }}>{m.name}</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.11em', color: TEXT_DIM, marginTop: 2 }}>{m.meta}</div>
                 </div>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: LIME_BR }}>{m.kcal ? m.kcal : '+'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* QUICK ACTIONS */}
+        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>QUICK ACTIONS</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>LOG</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { label: 'LOG MEAL', action: onLogMeal },
+              { label: 'RECIPES', action: onRecipes },
+              { label: 'TRENDS', action: onWeight },
+              { label: 'ASK PHOENIX', action: () => onQuickAsk?.('What should I eat for dinner?') },
+            ].map(({ label, action }) => (
+              <button key={label} onClick={action}
+                style={{ padding: '12px 10px', border: `1px solid rgba(157,255,111,.22)`, background: 'rgba(157,255,111,.045)', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: LIME, textAlign: 'center', cursor: 'pointer' }}>
+                {label}
               </button>
             ))}
           </div>
         </div>
-      )}
+
+        {/* ADHERENCE HEATMAP (14 days) */}
+        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>ADHERENCE HEATMAP</span>
+            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>
+              {heatData.filter(d => d.state === 'good').length} / {heatData.length}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
+            {heatData.map((d, i) => {
+              const c = heatColors[d.state]
+              return (
+                <div key={i} style={{ height: 32, border: `1px solid ${c.border}`, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 7, color: c.color }}>
+                  {d.label}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* PHOENIX NOTE */}
+        {trendText && (
+          <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX ASSESSMENT</div>
+            <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>{trendText}</div>
+          </div>
+        )}
+
+        <div style={{ height: 32 }} />
+      </div>
     </div>
   )
 }

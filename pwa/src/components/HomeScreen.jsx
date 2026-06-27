@@ -410,7 +410,7 @@ const ARC_REACTOR_SVG = `<svg viewBox="0 0 600 600" shape-rendering="geometricPr
   <circle cx="300" cy="300" r="300" fill="url(#vigRing)"/>
 </svg>`
 
-export default function HomeScreen({ onOpenCockpit }) {
+export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
   const [time, setTime] = useState(() =>
     new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   )
@@ -436,6 +436,7 @@ export default function HomeScreen({ onOpenCockpit }) {
   const holdingRef         = useRef(false)
   const recognitionRef     = useRef(null)
   const finalTranscriptRef = useRef('')
+  const latestTranscriptRef = useRef('')
 
   // ── Clock ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -500,15 +501,20 @@ export default function HomeScreen({ onOpenCockpit }) {
     stopSpeaking() // skip morning brief if still playing
     holdingRef.current     = true
     finalTranscriptRef.current = ''
+    latestTranscriptRef.current = ''
     setReactorMode('listening')
     setChatState('listening')
     setChatOpen(true)
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
-      setChatState('type instead — speech API unavailable')
       holdingRef.current = false
       setReactorMode('')
+      setChatState('voice unavailable')
+      setMessages(prev => [...prev, {
+        who: 'phoenix',
+        text: 'Voice unavailable — type your message below.',
+      }])
       return
     }
 
@@ -524,19 +530,34 @@ export default function HomeScreen({ onOpenCockpit }) {
         if (e.results[i].isFinal) finalTranscriptRef.current += e.results[i][0].transcript
         else interim += e.results[i][0].transcript
       }
-      const shown = finalTranscriptRef.current || interim
-      if (shown) setChatState('hearing: ' + shown.slice(0, 28))
+      const shown = (finalTranscriptRef.current || interim || '').trim()
+      latestTranscriptRef.current = shown
+      if (shown) {
+        setChatState('hearing: ' + shown.slice(0, 28))
+        setDockResponse('Hearing: ' + shown)
+      }
     }
 
-    rec.onerror = () => {
+    rec.onerror = e => {
       holdingRef.current = false
       setReactorMode('')
-      setChatState('mic permission needed — type below')
+      if (e.error === 'no-speech') {
+        // onend fires next and shows "didn't catch that"; open chat after 1.5s
+        setTimeout(() => setChatOpen(true), 1500)
+        return
+      }
+      setChatState('voice unavailable')
+      setChatOpen(true)
+      setMessages(prev => [...prev, {
+        who: 'phoenix',
+        text: 'Voice unavailable — type your message below.',
+      }])
     }
 
     rec.onend = () => {
-      const text = finalTranscriptRef.current.trim()
+      const text = (finalTranscriptRef.current || latestTranscriptRef.current || '').trim()
       finalTranscriptRef.current = ''
+      latestTranscriptRef.current = ''
       holdingRef.current = false
       setReactorMode('')
       if (text) {
@@ -551,7 +572,12 @@ export default function HomeScreen({ onOpenCockpit }) {
     try { rec.start() } catch (e) {
       holdingRef.current = false
       setReactorMode('')
-      setChatState('mic permission needed')
+      setChatState('voice unavailable')
+      setChatOpen(true)
+      setMessages(prev => [...prev, {
+        who: 'phoenix',
+        text: 'Voice unavailable — type your message below.',
+      }])
     }
   }
 
@@ -575,13 +601,27 @@ export default function HomeScreen({ onOpenCockpit }) {
       const reply = r?.response || 'I am here.'
       setMessages(prev => [...prev, { who: 'phoenix', text: reply }])
       setDockResponse(reply)
-      setReactorMode('')
-      setChatState('standing by')
-    } catch {
-      const err = 'Connection error. Try again.'
+      setReactorMode('speaking')
+      setChatState('speaking')
+      speak(reply, {
+        onEnd: () => {
+          setReactorMode('')
+          setChatState('standing by')
+        },
+      })
+    } catch (error) {
+      console.error('PHOENIX backend chat failed:', error)
+      const err = 'Backend offline. Start the JARVIS server, then try again.'
       setMessages(prev => [...prev, { who: 'phoenix', text: err }])
-      setReactorMode('')
-      setChatState('standing by')
+      setDockResponse(err)
+      setReactorMode('speaking')
+      setChatState('backend offline')
+      speak(err, {
+        onEnd: () => {
+          setReactorMode('')
+          setChatState('standing by')
+        },
+      })
     }
   }
 
@@ -619,22 +659,22 @@ export default function HomeScreen({ onOpenCockpit }) {
       </div>
 
       {/* Side stats */}
-      <div className="side l up">
+      <div className="side l up" role="button" tabIndex={0} onClick={() => onOpenDomain?.('finance')}>
         FINANCE<br />
         <span className="v">{financeText}</span><br />
         <span className="bar"><span className="barfill" style={{ width: 22 }} /></span>
       </div>
-      <div className="side l dn">
+      <div className="side l dn" role="button" tabIndex={0} onClick={() => onOpenDomain?.('training')}>
         TRAINING<br />
         <span className="g">{trainingText}</span><br />
         <span className="bar"><span className="barfill" style={{ width: 10 }} /></span>
       </div>
-      <div className="side r up">
+      <div className="side r up" role="button" tabIndex={0} onClick={() => onOpenDomain?.('nutrition')}>
         RECOVERY<br />
         <span className={recoveryOk ? 'v' : 'red'}>{recoveryText}</span><br />
         <span className="bar"><span className="barfill" style={{ width: 20 }} /></span>
       </div>
-      <div className="side r dn">
+      <div className="side r dn" role="button" tabIndex={0} onClick={() => onOpenDomain?.('calendar')}>
         CALENDAR<br />
         <span className="v">{calendarText}</span><br />
         <span className="bar"><span className="barfill" style={{ width: 15 }} /></span>
@@ -656,7 +696,10 @@ export default function HomeScreen({ onOpenCockpit }) {
           onKeyDown={e => { if ((e.key === ' ' || e.key === 'Enter') && !holdingRef.current) { e.preventDefault(); startListening() } }}
           onKeyUp={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); stopListening() } }}
         >
-          <div dangerouslySetInnerHTML={{ __html: ARC_REACTOR_SVG }} />
+          <img className="reactor-core-img" src="/phoenix/reactor_core_centered_crop_v230.png" alt="" aria-hidden="true" />
+          <div className="ironman-energy-layer" aria-hidden="true" />
+          <div className="hold-progress-ring" aria-hidden="true" />
+          <div className="two-arc-energy" aria-hidden="true" />
         </div>
 
         {/* Wordmark */}
@@ -729,12 +772,7 @@ export default function HomeScreen({ onOpenCockpit }) {
         </div>
       </div>
 
-      {/* Cockpit link → opens chat tab */}
-      {!chatOpen && (
-        <button className="cockpit-link" onClick={onOpenCockpit}>
-          Open Cockpit
-        </button>
-      )}
+      {/* Bottom-right cockpit shortcut intentionally removed in PHOENIX final home. */}
     </div>
   )
 }

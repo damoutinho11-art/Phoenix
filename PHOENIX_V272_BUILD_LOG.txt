@@ -1,0 +1,30 @@
+STDOUT:
+
+> jarvis-pwa@0.1.0 build
+> vite build
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 283 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mregisterSW.js              [39m[1m[2m  0.13 kB[22m[1m[22m
+[2mdist/[22m[32mmanifest.webmanifest       [39m[1m[2m  0.43 kB[22m[1m[22m
+[2mdist/[22m[32mindex.html                 [39m[1m[2m  1.36 kB[22m[1m[22m[2m │ gzip:   0.58 kB[22m
+[2mdist/[22m[2massets/[22m[35mindex-gLE--lb0.css  [39m[1m[2m  0.22 kB[22m[1m[22m[2m │ gzip:   0.16 kB[22m
+[2mdist/[22m[2massets/[22m[36mindex-D99MciHB.js   [39m[1m[2m274.85 kB[22m[1m[22m[2m │ gzip:  78.17 kB[22m
+[2mdist/[22m[2massets/[22m[36mindex-S8vgl5Ss.js   [39m[1m[2m415.29 kB[22m[1m[22m[2m │ gzip: 108.67 kB[22m
+[32m✓ built in 3.18s[39m
+
+[36mPWA v0.20.5[39m
+mode      [35mgenerateSW[39m
+precache  [32m12 entries[39m [2m(3173.76 KiB)[22m
+files generated
+  [2mdist/sw.js[22m
+  [2mdist/workbox-774a133b.js[22m
+
+
+STDERR:
+
+
+RETURN_CODE=0

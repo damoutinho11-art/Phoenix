@@ -1,40 +1,14 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-
-# PWA generated dependencies and build output
+.env
+*.env
+pwa/.env
+node_modules/
 pwa/node_modules/
+dist/
 pwa/dist/
-
-# Pytest
-.pytest_cache/
-
-# Virtual environments
+dev-dist/
+pwa/dev-dist/
+__pycache__/
+*.pyc
 .venv/
 venv/
-env/
-
-# Real financial data - NEVER commit (template: portfolio_state.example.json)
-jarvis/domains/finance/portfolio_state.json
-
-# Real market data (example committed instead)
-jarvis/domains/finance/data/market_data.json
-
-# OS / editor cruft
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/.env
-
-# API keys - never commit
-.env
-
-# Local J.A.R.V.I.S. persistence
-jarvis/data/jarvis.db
-jarvis/data/jarvis.db-shm
-jarvis/data/jarvis.db-wal
-
-# Review zips
-*.zip

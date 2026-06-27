@@ -1,0 +1,19 @@
+/* Wrapper only.
+   The exact finalized PHOENIX v2.64 visual design lives in public/phoenix/opening.html. */
+
+.phoenix-opening-shell {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: #010608;
+}
+
+.phoenix-opening-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #010608;
+}

@@ -68,15 +68,17 @@ export default function BudgetDashboard({ onBack, onUpload }) {
   const maxExpense = expenses.length ? Math.max(...expenses.map(([, v]) => v.total)) : 1
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--body)' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif" }}>
       {/* Header */}
-      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--line)' }}>
-        <button onClick={onBack} className="action ghost" style={{ padding: '6px 10px', fontSize: 14 }}>←</button>
-        <span style={{ fontFamily: 'var(--display)', fontSize: 13, color: 'var(--gold)', letterSpacing: '.12em' }}>BUDGET</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={prevMonth} className="action ghost" style={{ padding: '4px 8px' }}>‹</button>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text)' }}>{fmtMonth(month)}</span>
-          <button onClick={nextMonth} className="action ghost" style={{ padding: '4px 8px' }}>›</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: '1px solid rgba(255,213,107,.18)', position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span onClick={onBack} style={{ color: '#ffd56b', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: '#ffd56b' }}>BUDGET</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={prevMonth} style={{ background: 'none', border: 'none', color: '#ffd56b', fontSize: 16, cursor: 'pointer', padding: '2px 6px' }}>‹</button>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'rgba(255,213,107,.7)', letterSpacing: '.1em' }}>{fmtMonth(month)}</span>
+          <button onClick={nextMonth} style={{ background: 'none', border: 'none', color: '#ffd56b', fontSize: 16, cursor: 'pointer', padding: '2px 6px' }}>›</button>
         </div>
       </div>
 
