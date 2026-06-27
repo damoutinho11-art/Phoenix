@@ -516,16 +516,20 @@ def finance_brief_history() -> dict:
 
 @router.get("/performance/history")
 def finance_performance_history() -> dict:
-    """Return real recorded performance snapshots.
-
-    No snapshots are fabricated. Until manual transactions are recorded and
-    applied, this endpoint returns an empty list.
-    """
+    """Return real recorded performance snapshots, newest first."""
+    snapshots = database.list_finance_portfolio_snapshots(limit=100)
+    for snapshot in snapshots:
+        snapshot["trades_executed"] = False
+        snapshot["broker_connection"] = False
     return {
-        "snapshots": [],
-        "count": 0,
+        "snapshots": snapshots,
+        "count": len(snapshots),
         "source": "real_sqlite",
-        "message": "No real performance snapshots recorded yet.",
+        "message": (
+            "Real performance snapshots recorded from explicit portfolio applies."
+            if snapshots
+            else "No real performance snapshots recorded yet."
+        ),
         "mock_data": False,
     }
 
@@ -655,6 +659,11 @@ def finance_ledger_apply(transaction_id: int) -> dict:
 
     snapshot = json.dumps({"before": before, "after": after})
     database.mark_finance_transaction_applied(transaction_id, snapshot)
+    performance_snapshot = database.create_finance_portfolio_snapshot(
+        trigger="ledger_apply",
+        transaction_id=transaction_id,
+        notes="Created after explicit manual transaction apply.",
+    )
 
     applied_row = database.get_finance_transaction(transaction_id)
     return {
@@ -664,6 +673,7 @@ def finance_ledger_apply(transaction_id: int) -> dict:
         "manual_record_only": True,
         "trades_executed": False,
         "broker_connection": False,
+        "performance_snapshot_id": performance_snapshot["id"],
         "before": before,
         "after": after,
         "message": (

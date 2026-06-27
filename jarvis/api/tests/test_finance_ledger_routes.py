@@ -18,7 +18,9 @@ _PORTFOLIO_STATE = {
     "holdings": {
         "quality_etf": 0.0,
         "btc": 100.0,
+        "tactical_reserve": 5.0,
     },
+    "legacy_holdings": {"lhv_growth_euro_bond": 20.0},
     "units": {
         "quality_etf": 0.0,
         "btc": 0.001,
@@ -162,6 +164,18 @@ def test_approval_routes_keep_no_trade_safety_flags(brief_id: int, action: str) 
 # Apply-gate tests
 # ---------------------------------------------------------------------------
 
+def test_performance_history_empty_state_is_honest(apply_env: dict) -> None:
+    response = client.get("/finance/performance/history")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "snapshots": [],
+        "count": 0,
+        "source": "real_sqlite",
+        "message": "No real performance snapshots recorded yet.",
+        "mock_data": False,
+    }
+
 def test_apply_preview_returns_200(apply_env: dict) -> None:
     tx_id = apply_env["tx_id"]
     response = client.get(f"/finance/ledger/{tx_id}/apply-preview")
@@ -187,6 +201,12 @@ def test_apply_preview_does_not_mutate_portfolio_state(apply_env: dict) -> None:
     client.get(f"/finance/ledger/{tx_id}/apply-preview")
 
     assert state_path.read_text(encoding="utf-8") == before_content
+
+
+def test_apply_preview_creates_no_performance_snapshot(apply_env: dict) -> None:
+    client.get(f"/finance/ledger/{apply_env['tx_id']}/apply-preview")
+
+    assert database.list_finance_portfolio_snapshots() == []
 
 
 def test_apply_returns_200(apply_env: dict) -> None:
@@ -243,6 +263,58 @@ def test_apply_marks_transaction_applied(apply_env: dict) -> None:
     assert database.finance_transaction_is_applied(tx_id)
 
 
+def test_first_apply_creates_one_real_snapshot(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+
+    response = client.post(f"/finance/ledger/{tx_id}/apply")
+    snapshots = database.list_finance_portfolio_snapshots()
+
+    assert response.status_code == 200
+    assert len(snapshots) == 1
+    assert snapshots[0]["transaction_id"] == tx_id
+    assert snapshots[0]["source"] == "real_portfolio_state"
+    assert snapshots[0]["trigger"] == "ledger_apply"
+    assert snapshots[0]["cash_eur"] == 5.0
+    assert snapshots[0]["invested_value_eur"] == 189.23
+    assert snapshots[0]["total_value_eur"] == 194.23
+
+
+def test_snapshot_creation_is_idempotent_by_transaction_id(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    client.post(f"/finance/ledger/{tx_id}/apply")
+
+    reused = database.create_finance_portfolio_snapshot(
+        trigger="ledger_apply", transaction_id=tx_id
+    )
+
+    snapshots = database.list_finance_portfolio_snapshots()
+    assert len(snapshots) == 1
+    assert reused["id"] == snapshots[0]["id"]
+
+
+def test_snapshots_without_transaction_id_may_coexist(apply_env: dict) -> None:
+    first = database.create_finance_portfolio_snapshot(trigger="manual")
+    second = database.create_finance_portfolio_snapshot(trigger="system")
+
+    assert first["id"] != second["id"]
+    assert len(database.list_finance_portfolio_snapshots()) == 2
+
+
+def test_snapshot_uses_null_when_values_are_not_safely_derivable(apply_env: dict) -> None:
+    state_path: Path = apply_env["state_path"]
+    state_path.write_text(
+        json.dumps({"as_of": "2026-06-27", "holdings": {"btc": None}}),
+        encoding="utf-8",
+    )
+
+    snapshot = database.create_finance_portfolio_snapshot(trigger="manual")
+
+    assert snapshot["total_value_eur"] is None
+    assert snapshot["cash_eur"] is None
+    assert snapshot["invested_value_eur"] is None
+    assert snapshot["allocation"] == {}
+
+
 def test_apply_twice_returns_409(apply_env: dict) -> None:
     tx_id = apply_env["tx_id"]
     client.post(f"/finance/ledger/{tx_id}/apply")
@@ -250,6 +322,24 @@ def test_apply_twice_returns_409(apply_env: dict) -> None:
     response = client.post(f"/finance/ledger/{tx_id}/apply")
 
     assert response.status_code == 409
+    assert len(database.list_finance_portfolio_snapshots()) == 1
+
+
+def test_performance_history_returns_real_snapshot_after_apply(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    client.post(f"/finance/ledger/{tx_id}/apply")
+
+    response = client.get("/finance/performance/history")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["count"] == 1
+    assert data["mock_data"] is False
+    assert data["source"] == "real_sqlite"
+    assert data["snapshots"][0]["transaction_id"] == tx_id
+    assert data["snapshots"][0]["total_value_eur"] == 194.23
+    assert data["snapshots"][0]["trades_executed"] is False
+    assert data["snapshots"][0]["broker_connection"] is False
 
 
 def test_preview_applied_transaction_returns_409(apply_env: dict) -> None:

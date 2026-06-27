@@ -7,6 +7,7 @@ startup and routers so the domain layer remains deterministic and pure.
 from __future__ import annotations
 
 import json
+import math
 import os
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
@@ -123,6 +124,27 @@ ON finance_transaction_ledger(created_at);
 
 CREATE INDEX IF NOT EXISTS idx_finance_transaction_ledger_brief
 ON finance_transaction_ledger(brief_id);
+
+CREATE TABLE IF NOT EXISTS finance_portfolio_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    trigger TEXT NOT NULL,
+    transaction_id INTEGER,
+    total_value_eur REAL,
+    cash_eur REAL,
+    invested_value_eur REAL,
+    holdings_json TEXT NOT NULL,
+    allocation_json TEXT NOT NULL,
+    notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_finance_portfolio_snapshots_created
+ON finance_portfolio_snapshots(created_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_finance_portfolio_snapshots_transaction
+ON finance_portfolio_snapshots(transaction_id)
+WHERE transaction_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS persistence_markers (
     key TEXT PRIMARY KEY,
@@ -679,6 +701,144 @@ def mark_finance_transaction_applied(
         )
         connection.commit()
         return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+_CASH_HOLDING_KEYS = {
+    "tactical_reserve",
+    "lhv_growth_cash_pending_settlement",
+}
+
+
+def _snapshot_values(portfolio_state: dict) -> tuple[float | None, float | None, float | None, dict]:
+    """Return conservative total, cash, invested and allocation values."""
+    holdings = portfolio_state.get("holdings")
+    legacy_holdings = portfolio_state.get("legacy_holdings", {})
+    if not isinstance(holdings, dict) or not isinstance(legacy_holdings, dict):
+        return None, None, None, {}
+
+    combined = {**holdings, **legacy_holdings}
+    numeric_values: dict[str, float] = {}
+    for key, value in combined.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None, None, None, {}
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            return None, None, None, {}
+        numeric_values[key] = numeric
+
+    total = round(sum(numeric_values.values()), 2)
+    invested = round(
+        sum(value for key, value in numeric_values.items() if key not in _CASH_HOLDING_KEYS),
+        2,
+    )
+    cash_values = [
+        value for key, value in numeric_values.items() if key in _CASH_HOLDING_KEYS
+    ]
+    cash = round(sum(cash_values), 2) if cash_values else None
+    allocation = (
+        {key: round(value / total * 100, 6) for key, value in numeric_values.items()}
+        if total > 0
+        else {}
+    )
+    return total, cash, invested, allocation
+
+
+def _decode_finance_snapshot(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    snapshot = dict(row)
+    snapshot["holdings"] = json.loads(snapshot.pop("holdings_json"))
+    snapshot["allocation"] = json.loads(snapshot.pop("allocation_json"))
+    return snapshot
+
+
+def create_finance_portfolio_snapshot(
+    trigger: str, transaction_id: int | None = None, notes: str | None = None
+) -> dict[str, Any]:
+    """Snapshot the current canonical portfolio state without fabricating values."""
+    connection = get_db()
+    try:
+        if transaction_id is not None:
+            existing = connection.execute(
+                "SELECT * FROM finance_portfolio_snapshots WHERE transaction_id = ?",
+                (transaction_id,),
+            ).fetchone()
+            decoded = _decode_finance_snapshot(existing)
+            if decoded is not None:
+                return decoded
+
+        from jarvis.domains.finance import engine
+
+        portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+        total, cash, invested, allocation = _snapshot_values(portfolio_state)
+        holdings = {
+            "holdings": portfolio_state.get("holdings", {}),
+            "legacy_holdings": portfolio_state.get("legacy_holdings", {}),
+        }
+        try:
+            cursor = connection.execute(
+                """
+                INSERT INTO finance_portfolio_snapshots (
+                    created_at, source, trigger, transaction_id, total_value_eur,
+                    cash_eur, invested_value_eur, holdings_json, allocation_json, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    _utc_now(),
+                    "real_portfolio_state",
+                    trigger,
+                    transaction_id,
+                    total,
+                    cash,
+                    invested,
+                    json.dumps(holdings),
+                    json.dumps(allocation),
+                    notes,
+                ),
+            )
+            connection.commit()
+            snapshot_id = int(cursor.lastrowid)
+        except sqlite3.IntegrityError:
+            if transaction_id is None:
+                raise
+            connection.rollback()
+            existing = connection.execute(
+                "SELECT * FROM finance_portfolio_snapshots WHERE transaction_id = ?",
+                (transaction_id,),
+            ).fetchone()
+            decoded = _decode_finance_snapshot(existing)
+            if decoded is None:
+                raise
+            return decoded
+
+        row = connection.execute(
+            "SELECT * FROM finance_portfolio_snapshots WHERE id = ?", (snapshot_id,)
+        ).fetchone()
+        result = _decode_finance_snapshot(row)
+        if result is None:
+            raise RuntimeError("Finance portfolio snapshot was not persisted")
+        return result
+    finally:
+        connection.close()
+
+
+def list_finance_portfolio_snapshots(limit: int = 100) -> list[dict[str, Any]]:
+    """Return real portfolio snapshots newest first."""
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM finance_portfolio_snapshots
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [snapshot for row in rows if (snapshot := _decode_finance_snapshot(row))]
     finally:
         connection.close()
 

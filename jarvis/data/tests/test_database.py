@@ -47,7 +47,13 @@ class DatabaseTests(unittest.TestCase):
             }
         finally:
             connection.close()
-        assert {"meal_log", "weight_log", "barcode_cache", "finance_transaction_ledger"} <= names
+        assert {
+            "meal_log",
+            "weight_log",
+            "barcode_cache",
+            "finance_transaction_ledger",
+            "finance_portfolio_snapshots",
+        } <= names
 
     def test_init_db_is_idempotent(self):
         database.init_db()

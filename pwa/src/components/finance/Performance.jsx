@@ -4,6 +4,22 @@ import { getFinancePerformanceHistory } from '../../api/client'
 const border = '1px solid rgba(32,216,236,.18)'
 const muted = 'rgba(32,216,236,.38)'
 
+function formatEur(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return 'NOT RECORDED'
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+  })
+}
+
+function formatTimestamp(value) {
+  if (!value) return 'TIMESTAMP UNAVAILABLE'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString()
+}
+
 export default function Performance({ onBack }) {
   const [snapshots, setSnapshots] = useState(null)
   const [loadError, setLoadError] = useState(false)
@@ -72,16 +88,30 @@ export default function Performance({ onBack }) {
 
       {!loading && !loadError && snapshots.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 18 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: muted }}>
+            {snapshots.length} REAL SNAPSHOT{snapshots.length === 1 ? '' : 'S'} · NEWEST FIRST
+          </div>
           {snapshots.map((snapshot, index) => (
             <div key={snapshot.id ?? index} style={{ padding: '12px 14px', border, background: 'rgba(32,216,236,.02)' }}>
-              {Object.entries(snapshot).map(([key, value]) => (
-                <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 5 }}>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: muted }}>{key.toUpperCase()}</span>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: '#7df0ff', textAlign: 'right', overflowWrap: 'anywhere' }}>
-                    {value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value)}
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: '#7df0ff', letterSpacing: '.08em', marginBottom: 10 }}>
+                {formatTimestamp(snapshot.created_at)}
+              </div>
+              {[
+                ['TOTAL VALUE', snapshot.total_value_eur],
+                ['INVESTED VALUE', snapshot.invested_value_eur],
+                ['CASH', snapshot.cash_eur],
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 6 }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: muted }}>{label}</span>
+                  <span style={{ fontFamily: 'var(--display)', fontSize: 14, color: value == null ? muted : '#7df0ff', textAlign: 'right' }}>
+                    {formatEur(value)}
                   </span>
                 </div>
               ))}
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, letterSpacing: '.1em', marginTop: 9 }}>
+                {snapshot.trigger === 'ledger_apply' ? 'EXPLICIT LEDGER APPLY' : String(snapshot.trigger || 'RECORDED SNAPSHOT').toUpperCase()}
+                {snapshot.transaction_id != null ? ` · TRANSACTION ${snapshot.transaction_id}` : ''}
+              </div>
             </div>
           ))}
         </div>
