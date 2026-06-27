@@ -1094,6 +1094,74 @@ def get_research_validation_record(record_id: int) -> dict[str, Any] | None:
         connection.close()
 
 
+def list_research_validation_records_by_memo_id(
+    memo_id: int, limit: int = 100
+) -> list[dict[str, Any]]:
+    """Return validation records linked to one memo, newest first."""
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM research_validation_records
+            WHERE memo_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (memo_id, limit),
+        ).fetchall()
+        return [
+            record
+            for row in rows
+            if (record := _decode_research_validation_record(row))
+        ]
+    finally:
+        connection.close()
+
+
+def get_research_memo_evidence_summary(memo_id: int) -> dict[str, Any]:
+    """Compute a research-only evidence summary for one memo."""
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT status, COUNT(*) AS count
+            FROM research_validation_records
+            WHERE memo_id = ?
+            GROUP BY status
+            """,
+            (memo_id,),
+        ).fetchall()
+    finally:
+        connection.close()
+
+    counts = {row["status"]: int(row["count"]) for row in rows}
+    pass_count = counts.get("PASS", 0)
+    warning_count = counts.get("WARNING", 0)
+    fail_count = counts.get("FAIL", 0)
+    unverified_count = counts.get("UNVERIFIED", 0)
+    total_records = pass_count + warning_count + fail_count + unverified_count
+
+    if total_records == 0:
+        evidence_status = "NO_EVIDENCE"
+    elif fail_count > 0:
+        evidence_status = "BLOCKED_BY_FAIL"
+    elif warning_count > 0 or unverified_count > 0:
+        evidence_status = "NEEDS_RESEARCH"
+    else:
+        evidence_status = "EVIDENCE_STRONG"
+
+    return {
+        "pass_count": pass_count,
+        "warning_count": warning_count,
+        "fail_count": fail_count,
+        "unverified_count": unverified_count,
+        "total_records": total_records,
+        "evidence_status": evidence_status,
+    }
+
+
 def brief_exists_by_id(brief_id: int) -> bool:
     """Return whether a brief id exists, regardless of status or domain."""
     connection = get_db()

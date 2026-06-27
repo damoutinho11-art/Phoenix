@@ -82,6 +82,61 @@ def test_list_and_fetch_research_memos() -> None:
     _assert_safety_flags(detail.json())
 
 
+def test_memo_list_and_detail_include_linked_evidence_summary() -> None:
+    created = client.post("/finance/research/memos", json=_payload()).json()
+    memo_id = created["memo_id"]
+    database.create_research_validation_record(
+        {
+            "memo_id": memo_id,
+            "asset": "quality_etf",
+            "check_type": "CROSS_SOURCE",
+            "field_name": "expense_ratio",
+            "source_primary": "Issuer factsheet",
+            "source_secondary": "Exchange listing",
+            "primary_value": "0.30%",
+            "secondary_value": "0.30%",
+            "consensus_value": "0.30%",
+            "tolerance_pct": 1.0,
+            "deviation_pct": 0.0,
+            "status": "PASS",
+            "confidence": "high",
+            "notes": None,
+            "raw_json": {},
+        }
+    )
+
+    listing = client.get("/finance/research/memos").json()
+    detail = client.get(f"/finance/research/memos/{memo_id}").json()
+
+    assert listing["memos"][0]["evidence_summary"]["evidence_status"] == "EVIDENCE_STRONG"
+    assert detail["evidence_summary"]["pass_count"] == 1
+    assert detail["evidence_summary"]["total_records"] == 1
+    assert len(detail["validation_records"]) == 1
+    assert detail["validation_records"][0]["memo_id"] == memo_id
+    _assert_safety_flags(listing)
+    _assert_safety_flags(detail)
+
+
+def test_memo_detail_without_records_reports_no_evidence() -> None:
+    memo_id = client.post("/finance/research/memos", json=_payload()).json()["memo_id"]
+
+    detail = client.get(f"/finance/research/memos/{memo_id}").json()
+
+    assert detail["validation_records"] == []
+    assert detail["evidence_summary"]["evidence_status"] == "NO_EVIDENCE"
+
+
+def test_fetching_linked_memo_evidence_does_not_mutate_portfolio_state() -> None:
+    memo_id = client.post("/finance/research/memos", json=_payload()).json()["memo_id"]
+    portfolio_path = engine.DEFAULT_PORTFOLIO_STATE_PATH
+    before = portfolio_path.read_bytes()
+
+    response = client.get(f"/finance/research/memos/{memo_id}")
+
+    assert response.status_code == 200
+    assert portfolio_path.read_bytes() == before
+
+
 def test_missing_research_memo_returns_404() -> None:
     assert client.get("/finance/research/memos/999999").status_code == 404
 

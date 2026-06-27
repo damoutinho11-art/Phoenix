@@ -568,6 +568,10 @@ def finance_brief_history() -> dict:
 @router.get("/research/memos")
 def finance_research_memos() -> dict:
     memos = database.list_research_memos(limit=50)
+    for memo in memos:
+        memo["evidence_summary"] = database.get_research_memo_evidence_summary(
+            memo["id"]
+        )
     return {"memos": memos, "count": len(memos), **_RESEARCH_SAFETY_FLAGS}
 
 
@@ -576,7 +580,14 @@ def finance_research_memo(memo_id: int) -> dict:
     memo = database.get_research_memo(memo_id)
     if memo is None:
         raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
-    return {"memo": memo, **_RESEARCH_SAFETY_FLAGS}
+    validation_records = database.list_research_validation_records_by_memo_id(memo_id)
+    evidence_summary = database.get_research_memo_evidence_summary(memo_id)
+    return {
+        "memo": memo,
+        "validation_records": validation_records,
+        "evidence_summary": evidence_summary,
+        **_RESEARCH_SAFETY_FLAGS,
+    }
 
 
 @router.post("/research/memos")

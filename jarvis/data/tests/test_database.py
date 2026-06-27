@@ -253,6 +253,84 @@ class DatabaseTests(unittest.TestCase):
                 self._research_validation_payload(confidence="certain")
             )
 
+    def test_list_research_validation_records_by_memo_id(self):
+        memo_id = database.create_research_memo(self._research_memo_payload())
+        linked_id = database.create_research_validation_record(
+            self._research_validation_payload(memo_id=memo_id)
+        )
+        database.create_research_validation_record(
+            self._research_validation_payload(memo_id=None, field_name="unlinked")
+        )
+
+        rows = database.list_research_validation_records_by_memo_id(memo_id)
+
+        assert [row["id"] for row in rows] == [linked_id]
+
+    def test_research_memo_evidence_summary_with_no_records(self):
+        memo_id = database.create_research_memo(self._research_memo_payload())
+
+        summary = database.get_research_memo_evidence_summary(memo_id)
+
+        assert summary == {
+            "pass_count": 0,
+            "warning_count": 0,
+            "fail_count": 0,
+            "unverified_count": 0,
+            "total_records": 0,
+            "evidence_status": "NO_EVIDENCE",
+        }
+
+    def test_research_memo_evidence_summary_all_pass_is_strong(self):
+        memo_id = database.create_research_memo(self._research_memo_payload())
+        database.create_research_validation_record(
+            self._research_validation_payload(memo_id=memo_id, status="PASS")
+        )
+        database.create_research_validation_record(
+            self._research_validation_payload(
+                memo_id=memo_id, status="PASS", field_name="holdings"
+            )
+        )
+
+        summary = database.get_research_memo_evidence_summary(memo_id)
+
+        assert summary["pass_count"] == 2
+        assert summary["total_records"] == 2
+        assert summary["evidence_status"] == "EVIDENCE_STRONG"
+
+    def test_research_memo_evidence_summary_warning_or_unverified_needs_research(self):
+        memo_id = database.create_research_memo(self._research_memo_payload())
+        database.create_research_validation_record(
+            self._research_validation_payload(memo_id=memo_id, status="WARNING")
+        )
+        database.create_research_validation_record(
+            self._research_validation_payload(
+                memo_id=memo_id, status="UNVERIFIED", field_name="holdings"
+            )
+        )
+
+        summary = database.get_research_memo_evidence_summary(memo_id)
+
+        assert summary["warning_count"] == 1
+        assert summary["unverified_count"] == 1
+        assert summary["evidence_status"] == "NEEDS_RESEARCH"
+
+    def test_research_memo_evidence_summary_any_fail_is_blocked(self):
+        memo_id = database.create_research_memo(self._research_memo_payload())
+        database.create_research_validation_record(
+            self._research_validation_payload(memo_id=memo_id, status="PASS")
+        )
+        database.create_research_validation_record(
+            self._research_validation_payload(
+                memo_id=memo_id, status="FAIL", field_name="holdings"
+            )
+        )
+
+        summary = database.get_research_memo_evidence_summary(memo_id)
+
+        assert summary["pass_count"] == 1
+        assert summary["fail_count"] == 1
+        assert summary["evidence_status"] == "BLOCKED_BY_FAIL"
+
     def test_empty_date_returns_empty_list(self):
         assert database.get_meals_for_date(date.today()) == []
 

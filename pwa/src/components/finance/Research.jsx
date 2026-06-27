@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   getFinanceResearchMemos,
+  getFinanceResearchMemo,
   getFinanceResearchValidationRecords,
   postFinanceResearchMemo,
 } from '../../api/client'
@@ -46,6 +47,13 @@ const validationStatusColor = {
   UNVERIFIED: '#7df0ff',
 }
 
+const evidenceStatusMeta = {
+  NO_EVIDENCE: { label: 'No evidence attached yet', color: muted },
+  EVIDENCE_STRONG: { label: 'Evidence strong', color: '#4dffb4' },
+  NEEDS_RESEARCH: { label: 'Needs more research', color: '#ffd56b' },
+  BLOCKED_BY_FAIL: { label: 'Blocked by failed validation', color: '#ff5c7a' },
+}
+
 function FieldLabel({ children }) {
   return <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.17em', color: muted, marginBottom: 5 }}>{children}</div>
 }
@@ -65,6 +73,9 @@ export default function Research({ onBack }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [createdMessage, setCreatedMessage] = useState('')
+  const [selectedMemoId, setSelectedMemoId] = useState(null)
+  const [selectedMemoDetail, setSelectedMemoDetail] = useState(null)
+  const [detailError, setDetailError] = useState(false)
 
   const loadResearch = useCallback(async () => {
     const [memoResponse, validationResponse] = await Promise.all([
@@ -88,6 +99,23 @@ export default function Research({ onBack }) {
   function updateField(event) {
     const { name, value } = event.target
     setForm(current => ({ ...current, [name]: value }))
+  }
+
+  async function toggleMemoEvidence(memoId) {
+    if (selectedMemoId === memoId) {
+      setSelectedMemoId(null)
+      setSelectedMemoDetail(null)
+      setDetailError(false)
+      return
+    }
+    setSelectedMemoId(memoId)
+    setSelectedMemoDetail(null)
+    setDetailError(false)
+    try {
+      setSelectedMemoDetail(await getFinanceResearchMemo(memoId))
+    } catch {
+      setDetailError(true)
+    }
   }
 
   async function handleSubmit(event) {
@@ -234,6 +262,57 @@ export default function Research({ onBack }) {
                 <span>{formatDate(memo.created_at)}</span>
               </div>
               {memo.notes && <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(199,236,244,.5)', whiteSpace: 'pre-wrap' }}>{memo.notes}</div>}
+              {(() => {
+                const status = memo.evidence_summary?.evidence_status || 'NO_EVIDENCE'
+                const meta = evidenceStatusMeta[status] || evidenceStatusMeta.NO_EVIDENCE
+                return (
+                  <div style={{ marginTop: 10, paddingTop: 9, borderTop: '1px solid rgba(32,216,236,.1)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: meta.color }}>{meta.label}</span>
+                      <button type="button" onClick={() => toggleMemoEvidence(memo.id)} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: '#20d8ec' }}>
+                        {selectedMemoId === memo.id ? 'HIDE EVIDENCE' : 'VIEW EVIDENCE'}
+                      </button>
+                    </div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted, marginTop: 4, letterSpacing: '.1em' }}>RESEARCH TRUST ONLY · NOT A TRADE SIGNAL</div>
+
+                    {selectedMemoId === memo.id && !selectedMemoDetail && !detailError && (
+                      <div style={{ marginTop: 9, fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>LOADING LINKED EVIDENCE…</div>
+                    )}
+                    {selectedMemoId === memo.id && detailError && (
+                      <div style={{ marginTop: 9, fontFamily: 'var(--mono)', fontSize: 7, color: '#ff5c7a' }}>UNABLE TO LOAD LINKED EVIDENCE</div>
+                    )}
+                    {selectedMemoId === memo.id && selectedMemoDetail && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 4, marginBottom: 8 }}>
+                          {[
+                            ['PASS', selectedMemoDetail.evidence_summary?.pass_count],
+                            ['WARN', selectedMemoDetail.evidence_summary?.warning_count],
+                            ['FAIL', selectedMemoDetail.evidence_summary?.fail_count],
+                            ['OPEN', selectedMemoDetail.evidence_summary?.unverified_count],
+                          ].map(([label, value]) => (
+                            <div key={label} style={{ padding: '6px 3px', border: '1px solid rgba(32,216,236,.1)', textAlign: 'center' }}>
+                              <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted }}>{label}</div>
+                              <div style={{ fontFamily: 'var(--display)', fontSize: 13, color: '#7df0ff', marginTop: 2 }}>{value ?? 0}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {selectedMemoDetail.validation_records?.length === 0 && (
+                          <div style={{ fontSize: 11, color: 'rgba(199,236,244,.5)' }}>No validation records are linked to this memo.</div>
+                        )}
+                        {selectedMemoDetail.validation_records?.map(record => (
+                          <div key={record.id} style={{ padding: '7px 0', borderTop: '1px solid rgba(32,216,236,.08)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: '#fff' }}>{record.field_name}</span>
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: validationStatusColor[record.status] || '#7df0ff' }}>{record.status}</span>
+                            </div>
+                            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{record.check_type} · {String(record.confidence).toUpperCase()} CONFIDENCE</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </article>
           ))}
         </div>
