@@ -1264,7 +1264,13 @@ def _synthesize_memo_from_evidence(
             f"Evidence incomplete: {warning_count} WARNING, {unverified_count} UNVERIFIED. "
             "Resolve open checks before re-synthesizing."
         )
-        evidence_risks = [_SYNTHESIS_EVIDENCE_RISKS["warning"]] + evidence_risks
+        if warning_count > 0 and unverified_count > 0:
+            _unresolved_risk = "Unresolved WARNING and UNVERIFIED evidence — further review required"
+        elif warning_count > 0:
+            _unresolved_risk = "Unresolved WARNING evidence — further review required"
+        else:
+            _unresolved_risk = "Unresolved UNVERIFIED evidence — external confirmation needed"
+        evidence_risks = [_unresolved_risk] + evidence_risks
 
     elif pass_count < 2:
         # Rule C: fewer than 2 PASS

@@ -1415,10 +1415,11 @@ def update_research_memo_content(
                 risks = ?,
                 verdict = ?,
                 data_confidence = ?,
-                notes = ?
+                notes = ?,
+                updated_at = ?
             WHERE id = ?
             """,
-            (thesis, json.dumps(risks), verdict, data_confidence, notes, memo_id),
+            (thesis, json.dumps(risks), verdict, data_confidence, notes, _utc_now(), memo_id),
         )
         connection.commit()
         return cursor.rowcount > 0

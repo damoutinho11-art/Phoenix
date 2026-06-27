@@ -326,6 +326,90 @@ def test_risks_updated_after_synthesis() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Risk wording precision (Rule B variants)
+# ---------------------------------------------------------------------------
+
+def test_only_unverified_risk_says_unverified_not_warning() -> None:
+    # BTC production case: 3 PASS + 1 UNVERIFIED, 0 WARNING → risk must not mention WARNING
+    memo_id = _create_memo(asset="btc")
+    _add_record(memo_id, "PASS")
+    _add_record(memo_id, "PASS")
+    _add_record(memo_id, "PASS")
+    _add_record(memo_id, "UNVERIFIED")
+
+    _synthesize(memo_id)
+    memo = database.get_research_memo(memo_id)
+
+    unresolved_risks = [r for r in memo["risks"] if "Unresolved" in r or "UNVERIFIED" in r or "WARNING" in r]
+    assert unresolved_risks, "Must have at least one unresolved evidence risk"
+    for risk in unresolved_risks:
+        assert "WARNING" not in risk, f"Risk incorrectly mentions WARNING when only UNVERIFIED present: {risk!r}"
+    assert any("UNVERIFIED" in r for r in unresolved_risks), "Risk must mention UNVERIFIED"
+
+
+def test_only_warning_risk_says_warning_not_unverified() -> None:
+    memo_id = _create_memo()
+    _add_record(memo_id, "PASS")
+    _add_record(memo_id, "PASS")
+    _add_record(memo_id, "WARNING")
+
+    _synthesize(memo_id)
+    memo = database.get_research_memo(memo_id)
+
+    unresolved_risks = [r for r in memo["risks"] if "Unresolved" in r or "WARNING" in r or "UNVERIFIED" in r]
+    assert unresolved_risks
+    for risk in unresolved_risks:
+        assert "UNVERIFIED" not in risk, f"Risk incorrectly mentions UNVERIFIED when only WARNING present: {risk!r}"
+    assert any("WARNING" in r for r in unresolved_risks)
+
+
+def test_both_warning_and_unverified_risk_mentions_both() -> None:
+    memo_id = _create_memo()
+    _add_record(memo_id, "PASS")
+    _add_record(memo_id, "WARNING")
+    _add_record(memo_id, "UNVERIFIED")
+
+    _synthesize(memo_id)
+    memo = database.get_research_memo(memo_id)
+
+    unresolved_risks = [r for r in memo["risks"] if "Unresolved" in r or "WARNING" in r or "UNVERIFIED" in r]
+    assert unresolved_risks
+    combined = " ".join(unresolved_risks)
+    assert "WARNING" in combined
+    assert "UNVERIFIED" in combined
+
+
+def test_no_warning_no_unverified_no_unresolved_risk() -> None:
+    # Rule D: all PASS, clean — no unresolved evidence risk should appear
+    memo_id = _create_memo()
+    _add_record(memo_id, "PASS")
+    _add_record(memo_id, "PASS")
+
+    _synthesize(memo_id)
+    memo = database.get_research_memo(memo_id)
+
+    unresolved_risks = [r for r in memo["risks"] if "Unresolved" in r]
+    assert unresolved_risks == [], f"Unexpected unresolved risk in clean PASS result: {unresolved_risks}"
+
+
+# ---------------------------------------------------------------------------
+# updated_at stamped on content synthesis
+# ---------------------------------------------------------------------------
+
+def test_synthesis_updates_updated_at() -> None:
+    import time
+    memo_id = _create_memo()
+    before = database.get_research_memo(memo_id)["updated_at"]
+
+    time.sleep(0.05)  # ensure clock advances
+    _synthesize(memo_id)
+
+    after = database.get_research_memo(memo_id)["updated_at"]
+    assert after != before, "updated_at must change after synthesis"
+    assert after > before, "updated_at must advance after synthesis"
+
+
+# ---------------------------------------------------------------------------
 # Response shape
 # ---------------------------------------------------------------------------
 
