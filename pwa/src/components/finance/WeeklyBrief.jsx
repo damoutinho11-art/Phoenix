@@ -559,7 +559,7 @@ export default function WeeklyBrief({ onBack }) {
   const approvalSummary = rec?.approval_ticket_summary && typeof rec.approval_ticket_summary === 'object' ? rec.approval_ticket_summary : {}
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif", paddingBottom: canLogApproval ? 100 : 0 }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif", paddingBottom: canLogApproval ? 220 : 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: 'rgba(0,0,0,.95)', backdropFilter: 'blur(12px)', zIndex: 5 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: '#20d8ec', fontSize: 16, cursor: 'pointer', marginRight: 10 }}>←</span>
@@ -723,7 +723,7 @@ export default function WeeklyBrief({ onBack }) {
       )}
 
       {rec && canLogApproval && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,.97)', borderTop: border, padding: '14px 18px 24px', backdropFilter: 'blur(12px)', zIndex: 10 }}>
+        <div style={{ position: 'fixed', bottom: 88, left: 0, right: 0, background: 'rgba(0,0,0,.97)', borderTop: border, borderBottom: border, padding: '14px 18px 14px', backdropFilter: 'blur(12px)', zIndex: 10 }}>
           <div style={{ maxWidth: 430, margin: '0 auto' }}>
             {actionError && <div style={{ color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
             {isApproved && (
