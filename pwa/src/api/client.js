@@ -147,6 +147,14 @@ export async function postFinanceResearchQualityGateAll() {
   return apiFetch('/finance/research/quality-gate/run', { method: 'POST' })
 }
 
+export async function postFinanceResearchSynthesizeMemo(memoId, runQualityGateAfter = false) {
+  return apiFetch(`/finance/research/memos/${memoId}/synthesize-from-evidence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ run_quality_gate_after: runQualityGateAfter }),
+  })
+}
+
 export async function postFinanceResearchGenerateEvidence(memoId, runQualityGateAfter = false) {
   return apiFetch(`/finance/research/memos/${memoId}/generate-evidence`, {
     method: 'POST',

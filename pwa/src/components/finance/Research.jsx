@@ -8,6 +8,7 @@ import {
   postFinanceResearchMemoQualityGate,
   postFinanceResearchQualityGateAll,
   postFinanceResearchGenerateEvidence,
+  postFinanceResearchSynthesizeMemo,
 } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
@@ -96,6 +97,8 @@ export default function Research({ onBack }) {
   const [qualityAllResult, setQualityAllResult] = useState(null)
   const [evidenceRunning, setEvidenceRunning] = useState(null)
   const [evidenceResults, setEvidenceResults] = useState({})
+  const [synthesisRunning, setSynthesisRunning] = useState(null)
+  const [synthesisResults, setSynthesisResults] = useState({})
 
   const loadResearch = useCallback(async () => {
     const [memoResponse, validationResponse] = await Promise.all([
@@ -200,6 +203,19 @@ export default function Research({ onBack }) {
     }
   }
 
+  async function handleSynthesizeMemo(memoId) {
+    setSynthesisRunning(memoId)
+    try {
+      const response = await postFinanceResearchSynthesizeMemo(memoId, false)
+      setSynthesisResults(prev => ({ ...prev, [memoId]: response.synthesis_result }))
+      await loadResearch()
+    } catch {
+      // silent — list refresh will show current state
+    } finally {
+      setSynthesisRunning(null)
+    }
+  }
+
   async function handleGenerateEvidence(memoId) {
     setEvidenceRunning(memoId)
     try {
@@ -245,6 +261,10 @@ export default function Research({ onBack }) {
 
       <div style={{ margin: '14px 16px 0', padding: '9px 11px', border: '1px solid rgba(77,255,180,.22)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: '#4dffb4', lineHeight: 1.6 }}>
         RESEARCH ONLY · NO TRADES EXECUTED · NO PORTFOLIO UPDATE
+      </div>
+
+      <div style={{ margin: '10px 16px 0', padding: '9px 11px', border: '1px solid rgba(125,240,255,.15)', background: 'rgba(125,240,255,.012)', fontFamily: 'var(--mono)', fontSize: 7, color: '#7df0ff', letterSpacing: '.12em', lineHeight: 1.6 }}>
+        PHOENIX synthesizes research from evidence. This does not approve a trade.
       </div>
 
       <div style={{ margin: '10px 16px 0', padding: '9px 11px', border, background: 'rgba(32,216,236,.015)' }}>
@@ -439,6 +459,29 @@ export default function Research({ onBack }) {
                             style={{ background: 'none', border, padding: '4px 8px', cursor: isGenerating ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
                           >
                             {isGenerating ? 'GENERATING…' : 'GENERATE EVIDENCE'}
+                          </button>
+                        </div>
+                      )
+                    })()}
+                    {(() => {
+                      const isSynthesizing = synthesisRunning === memo.id
+                      const synResult = synthesisResults[memo.id]
+                      return (
+                        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <div>
+                            {synResult && (
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: 6, color: '#7df0ff', letterSpacing: '.1em' }}>
+                                {synResult.verdict} · {synResult.data_confidence} · RULE {synResult.rule_applied} · SYNTHESIS ONLY
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSynthesizeMemo(memo.id)}
+                            disabled={isSynthesizing}
+                            style={{ background: 'none', border, padding: '4px 8px', cursor: isSynthesizing ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
+                          >
+                            {isSynthesizing ? 'SYNTHESIZING…' : 'SYNTHESIZE MEMO'}
                           </button>
                         </div>
                       )

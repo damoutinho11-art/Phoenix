@@ -1391,6 +1391,41 @@ def update_research_memo_quality(
         connection.close()
 
 
+def update_research_memo_content(
+    memo_id: int,
+    thesis: str,
+    risks: list,
+    verdict: str,
+    data_confidence: str,
+    notes: str | None,
+) -> bool:
+    """Update only content fields on a research memo.
+
+    Validates verdict. Never touches lifecycle status, quality gate fields, or
+    portfolio_state. Returns True if the row was found and updated.
+    """
+    if verdict not in _RESEARCH_MEMO_VERDICTS:
+        raise ValueError(f"Invalid research memo verdict: {verdict}")
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE research_memos
+            SET thesis = ?,
+                risks = ?,
+                verdict = ?,
+                data_confidence = ?,
+                notes = ?
+            WHERE id = ?
+            """,
+            (thesis, json.dumps(risks), verdict, data_confidence, notes, memo_id),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
 def evaluate_research_memo_quality(memo_id: int) -> dict[str, Any]:
     """Apply the research quality gate to one memo and persist the result.
 

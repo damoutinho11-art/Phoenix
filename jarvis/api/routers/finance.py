@@ -1164,6 +1164,222 @@ def _generate_evidence_records(
     return created, skipped, updated
 
 
+class SynthesizeFromEvidencePayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    run_quality_gate_after: bool = False
+
+
+_SYNTHESIS_SAFETY_FLAGS: dict = {
+    "research_only": True,
+    "synthesis_only": True,
+    "investment_approval": False,
+    "trades_executed": False,
+    "broker_connection": False,
+    "portfolio_state_updated": False,
+    "recommendation_overridden": False,
+}
+
+_SYNTHESIS_EVIDENCE_RISKS = {
+    "fail": "Validation check(s) FAILED — do not act without resolution",
+    "warning": "Unresolved WARNING evidence — further review required",
+    "unverified": "UNVERIFIED evidence records — external confirmation needed",
+    "insufficient": "Insufficient validated evidence — fewer than 2 PASS records",
+    "no_records": "No validation records — insufficient evidence for any assessment",
+    "local_only": "All evidence is local PHOENIX data only — no external sources checked",
+}
+
+
+def _synthesize_memo_from_evidence(
+    memo: dict,
+    records: list[dict],
+) -> tuple[dict, dict]:
+    """Derive verdict, data_confidence, thesis, risks, and notes from linked evidence records.
+
+    Returns (synthesis_result, new_fields).
+    Pure function — no DB reads or writes.
+    """
+    asset = memo.get("asset") or ""
+    pass_count = sum(1 for r in records if r["status"] == "PASS")
+    fail_count = sum(1 for r in records if r["status"] == "FAIL")
+    warning_count = sum(1 for r in records if r["status"] == "WARNING")
+    unverified_count = sum(1 for r in records if r["status"] == "UNVERIFIED")
+    total = len(records)
+
+    evidence_counts = {
+        "total": total,
+        "pass": pass_count,
+        "fail": fail_count,
+        "warning": warning_count,
+        "unverified": unverified_count,
+    }
+
+    # Base asset risks (drop the generic "insufficient research" placeholder from draft)
+    if asset in _CRYPTO_ASSETS:
+        base_risks = [r for r in _CRYPTO_DRAFT_RISKS if "Insufficient research" not in r]
+    elif asset:
+        base_risks = [r for r in _ETF_DRAFT_RISKS if "Insufficient research" not in r]
+    else:
+        base_risks = []
+
+    # Always append local-only limitation risk
+    evidence_risks = [_SYNTHESIS_EVIDENCE_RISKS["local_only"]]
+
+    # --- Apply synthesis rules in priority order ---
+    if total == 0:
+        # Rule E: no records
+        verdict = "INSUFFICIENT_DATA"
+        data_confidence = "LOW"
+        rule_applied = "E"
+        rule_reason = "No validation records attached. Cannot synthesize."
+        verdict_line = "No evidence records linked to this memo. Verdict cannot be determined."
+        evidence_risks = [_SYNTHESIS_EVIDENCE_RISKS["no_records"]] + evidence_risks
+
+    elif fail_count > 0:
+        # Rule A: any FAIL → REJECT
+        verdict = "REJECT"
+        data_confidence = "MEDIUM"
+        rule_applied = "A"
+        rule_reason = (
+            f"{fail_count} FAIL validation record(s). "
+            "Asset flagged by evidence — treat as rejected until resolved."
+        )
+        verdict_line = (
+            f"REJECTED by evidence: {fail_count} FAIL record(s) detected. "
+            "Do not proceed until failed checks are resolved."
+        )
+        evidence_risks = [
+            f"{fail_count} validation check(s) FAILED — resolve before acting",
+        ] + evidence_risks
+
+    elif warning_count > 0 or unverified_count > 0:
+        # Rule B: any WARNING or UNVERIFIED → INSUFFICIENT_DATA
+        verdict = "INSUFFICIENT_DATA"
+        data_confidence = "LOW"
+        rule_applied = "B"
+        rule_reason = (
+            f"{warning_count} WARNING and {unverified_count} UNVERIFIED record(s). "
+            "Evidence is incomplete — resolve before advancing."
+        )
+        verdict_line = (
+            f"Evidence incomplete: {warning_count} WARNING, {unverified_count} UNVERIFIED. "
+            "Resolve open checks before re-synthesizing."
+        )
+        evidence_risks = [_SYNTHESIS_EVIDENCE_RISKS["warning"]] + evidence_risks
+
+    elif pass_count < 2:
+        # Rule C: fewer than 2 PASS
+        verdict = "INSUFFICIENT_DATA"
+        data_confidence = "LOW"
+        rule_applied = "C"
+        rule_reason = f"Only {pass_count} PASS record(s). Minimum 2 required."
+        verdict_line = (
+            f"Insufficient PASS records: {pass_count} of 2 required. "
+            "Generate more evidence records or add manual validation."
+        )
+        evidence_risks = [_SYNTHESIS_EVIDENCE_RISKS["insufficient"]] + evidence_risks
+
+    else:
+        # Rule D: ≥2 PASS, 0 FAIL, 0 WARNING, 0 UNVERIFIED → WATCH
+        # v1: never auto-set BUY_CANDIDATE
+        verdict = "WATCH"
+        all_high = all(r.get("confidence") == "high" for r in records)
+        data_confidence = "HIGH" if all_high else "MEDIUM"
+        rule_applied = "D"
+        rule_reason = (
+            f"All {pass_count} PASS records, no FAIL/WARNING/UNVERIFIED. "
+            f"Data confidence: {data_confidence}."
+        )
+        verdict_line = (
+            f"Evidence supports WATCH: {pass_count} PASS records, all clean. "
+            "BUY_CANDIDATE requires external research and is not auto-assigned."
+        )
+
+    thesis = (
+        f"PHOENIX Autonomous Synthesis — generated from {total} linked validation record(s).\n\n"
+        f"Evidence summary: {pass_count} PASS · {fail_count} FAIL · "
+        f"{warning_count} WARNING · {unverified_count} UNVERIFIED\n\n"
+        f"Assessment: {verdict_line}\n\n"
+        "Source limitation: Evidence derived from local PHOENIX data only "
+        "(recommendation context, constitution routing, portfolio state). "
+        "No external market research, analyst reports, or third-party sources were checked.\n\n"
+        "This synthesis does not constitute investment approval or a trade signal. "
+        "Manual review required before any action."
+    )
+
+    risks = base_risks + evidence_risks
+
+    notes = (
+        f"[PHOENIX Synthesis · Rule {rule_applied}] {rule_reason} "
+        "Synthesis only — not an investment approval."
+    )
+
+    synthesis_result = {
+        "rule_applied": rule_applied,
+        "rule_reason": rule_reason,
+        "evidence_counts": evidence_counts,
+        "verdict": verdict,
+        "data_confidence": data_confidence,
+        "source_limitation": (
+            "Local PHOENIX data only. No external research sources checked."
+        ),
+        "buy_candidate_auto_assigned": False,
+        "synthesis_only": True,
+        "investment_approval": False,
+    }
+
+    new_fields = {
+        "thesis": thesis,
+        "risks": risks,
+        "verdict": verdict,
+        "data_confidence": data_confidence,
+        "notes": notes,
+    }
+
+    return synthesis_result, new_fields
+
+
+@router.post("/research/memos/{memo_id}/synthesize-from-evidence")
+def finance_research_synthesize_from_evidence(
+    memo_id: int,
+    payload: SynthesizeFromEvidencePayload,
+) -> dict:
+    """Synthesize memo thesis/verdict/data_confidence from linked validation records.
+
+    Updates thesis, risks, verdict, data_confidence, notes only.
+    Never mutates portfolio_state, recommendation amounts, or lifecycle status.
+    Quality gate must still be run separately (or via run_quality_gate_after=true).
+    """
+    memo = database.get_research_memo(memo_id)
+    if memo is None:
+        raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
+
+    records = database.list_research_validation_records_by_memo_id(memo_id)
+    synthesis_result, new_fields = _synthesize_memo_from_evidence(memo, records)
+
+    database.update_research_memo_content(
+        memo_id=memo_id,
+        thesis=new_fields["thesis"],
+        risks=new_fields["risks"],
+        verdict=new_fields["verdict"],
+        data_confidence=new_fields["data_confidence"],
+        notes=new_fields["notes"],
+    )
+
+    updated_memo = database.get_research_memo(memo_id)
+    response: dict = {
+        "memo_id": memo_id,
+        "synthesis_result": synthesis_result,
+        "memo": updated_memo,
+        **_SYNTHESIS_SAFETY_FLAGS,
+    }
+
+    if payload.run_quality_gate_after:
+        gate_result = database.evaluate_research_memo_quality(memo_id)
+        response["quality_gate_result"] = gate_result
+
+    return response
+
+
 @router.post("/research/memos/{memo_id}/generate-evidence")
 def finance_research_generate_evidence(
     memo_id: int,
