@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { postJarvisChat } from '../../api/client'
 import { speak, stopSpeaking } from '../../services/tts'
 import './PhoenixOpeningScreen.css'
@@ -27,6 +27,8 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
   const welcomeSpokenRef = useRef(false)
   const silenceTimerRef = useRef(null)
   const hardStopTimerRef = useRef(null)
+  const [showTypeBar, setShowTypeBar] = useState(false)
+  const [typeInput, setTypeInput] = useState('')
 
   const clearVoiceTimers = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -162,6 +164,7 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
     finalTranscriptRef.current = ''
     latestTranscriptRef.current = ''
     clearVoiceTimers()
+    setShowTypeBar(false)
     holdingRef.current = true
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -219,15 +222,24 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
       }
     }
 
-    recognition.onerror = () => {
+    recognition.onerror = (e) => {
       holdingRef.current = false
       recognitionRef.current = null
       clearVoiceTimers()
+      if (e.error === 'no-speech') {
+        setFrameState('error', {
+          label: 'NO SPEECH DETECTED',
+          text: 'No speech detected. Tap below to type.',
+        })
+        window.setTimeout(() => setShowTypeBar(true), 1500)
+        return
+      }
       const msg = 'Microphone permission is blocked. Allow microphone access and hold the reactor again.'
       setFrameState('error', {
         label: 'MIC PERMISSION NEEDED',
         text: msg,
       })
+      setShowTypeBar(true)
       speak(msg)
     }
 
@@ -243,8 +255,9 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
         holdingRef.current = false
         setFrameState('error', {
           label: 'NO SPEECH DETECTED',
-          text: 'I did not catch that. Hold the reactor and speak again.',
+          text: 'I did not catch that. Tap below to type.',
         })
+        window.setTimeout(() => setShowTypeBar(true), 1500)
         return
       }
 
@@ -274,7 +287,7 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
       })
       speak(msg)
     }
-  }, [clearVoiceTimers, processCommand, scheduleAutoStopAfterSpeech, setFrameState, stopRecognitionNow])
+  }, [clearVoiceTimers, processCommand, scheduleAutoStopAfterSpeech, setFrameState, setShowTypeBar, stopRecognitionNow])
 
   useEffect(() => {
     function handleMessage(event) {
@@ -315,6 +328,14 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
     }
   }, [clearVoiceTimers, onOpenDomain, processCommand, startListening, stopListening])
 
+  function submitTypeInput() {
+    const text = typeInput.trim()
+    if (!text) return
+    setTypeInput('')
+    setShowTypeBar(false)
+    processCommand(text)
+  }
+
   return (
     <section className="phoenix-opening-shell" aria-label="PHOENIX opening screen">
       <iframe
@@ -334,6 +355,42 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
           window.setTimeout(() => announceWelcome('entry'), 650)
         }}
       />
+      {showTypeBar && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
+          background: 'rgba(1,6,8,.92)', borderTop: '1px solid rgba(32,216,236,.28)',
+          backdropFilter: 'blur(12px)', padding: '12px 16px',
+          display: 'flex', gap: 8, alignItems: 'center',
+        }}>
+          <input
+            autoFocus
+            value={typeInput}
+            onChange={e => setTypeInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submitTypeInput() }}
+            placeholder="TYPE TO PHOENIX…"
+            style={{
+              flex: 1, background: 'rgba(32,216,236,.06)', border: '1px solid rgba(32,216,236,.3)',
+              borderRadius: 4, color: '#c9f6ff', fontFamily: 'inherit', fontSize: 12,
+              letterSpacing: '.1em', padding: '10px 12px', outline: 'none',
+            }}
+          />
+          <button
+            onClick={submitTypeInput}
+            style={{
+              background: 'rgba(32,216,236,.12)', border: '1px solid rgba(32,216,236,.4)',
+              borderRadius: 4, color: '#20d8ec', fontFamily: 'inherit', fontSize: 10,
+              letterSpacing: '.14em', padding: '10px 14px', cursor: 'pointer',
+            }}
+          >SEND</button>
+          <button
+            onClick={() => setShowTypeBar(false)}
+            style={{
+              background: 'transparent', border: 'none', color: 'rgba(132,212,226,.5)',
+              fontSize: 18, cursor: 'pointer', padding: '4px 8px', lineHeight: 1,
+            }}
+          >×</button>
+        </div>
+      )}
     </section>
   )
 }
