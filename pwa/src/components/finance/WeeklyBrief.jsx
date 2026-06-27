@@ -180,7 +180,7 @@ function ResearchContextSection({ researchContext, gateSummary }) {
   )
 }
 
-function ManualBuyChecklistSection({ checklist, error }) {
+function ManualBuyChecklistSection({ checklist, error, onRecordTransaction }) {
   const items = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
   const ready = checklist?.checklist_status === 'READY_FOR_MANUAL_REVIEW'
 
@@ -224,6 +224,13 @@ function ManualBuyChecklistSection({ checklist, error }) {
                     <TextList items={item.pre_buy_checks} />
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => onRecordTransaction(item.asset)}
+                  style={{ marginTop: 11, width: '100%', padding: '9px 0', border, background: 'rgba(32,216,236,.06)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 8, fontWeight: 700, letterSpacing: '.14em', cursor: 'pointer' }}
+                >
+                  RECORD TRANSACTION
+                </button>
               </div>
             </CornerCard>
           ))}
@@ -443,7 +450,7 @@ function LedgerApplyRow({ transaction, onApplied }) {
           <>
             {!preview && !previewLoading && (
               <button onClick={loadPreview} style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: '#20d8ec', background: 'transparent', cursor: 'pointer' }}>
-                PREVIEW APPLY
+                PREVIEW PORTFOLIO IMPACT
               </button>
             )}
             {previewLoading && <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>LOADING PREVIEW…</span>}
@@ -472,6 +479,9 @@ function LedgerApplyRow({ transaction, onApplied }) {
                   {preview.fee_eur > 0 && ` · fee ${formatEur(preview.fee_eur)}`}
                 </div>
                 {applyError && <div style={{ color: '#ff5c7a', fontSize: 7, marginTop: 5 }}>{applyError}</div>}
+                <div style={{ fontSize: 10, color: '#ffd56b', lineHeight: 1.5, marginTop: 8 }}>
+                  This updates PHOENIX portfolio_state from your manually recorded broker transaction. PHOENIX still did not execute a trade.
+                </div>
                 <button
                   onClick={applyTransaction}
                   disabled={applying}
@@ -488,8 +498,8 @@ function LedgerApplyRow({ transaction, onApplied }) {
   )
 }
 
-function ManualBuyPanel({ recommendations, briefId }) {
-  const [selectedAsset, setSelectedAsset] = useState(recommendations[0]?.asset || '')
+function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
+  const [selectedAsset, setSelectedAsset] = useState(initialAsset || recommendations[0]?.asset || '')
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -510,6 +520,10 @@ function ManualBuyPanel({ recommendations, briefId }) {
   }, [])
 
   useEffect(() => {
+    if (initialAsset) setSelectedAsset(initialAsset)
+  }, [initialAsset])
+
+  useEffect(() => {
     const recommendation = recommendations.find((item) => item.asset === selectedAsset) || recommendations[0]
     if (!recommendation) return
     if (recommendation.asset !== selectedAsset) setSelectedAsset(recommendation.asset)
@@ -519,12 +533,13 @@ function ManualBuyPanel({ recommendations, briefId }) {
       asset: recommendation.asset,
       symbol: resolved.symbol || instrument.ticker || '',
       platform: instrument.platform || recommendation.route || '',
-      amount_eur: recommendation.amount ?? '',
+      suggested_amount_eur: recommendation.amount ?? '',
+      amount_eur: '',
       units: '',
-      price: resolved.eur_price ?? '',
-      currency: 'EUR',
+      price: '',
+      currency: '',
       fee_eur: 0,
-      executed_at: new Date().toISOString().slice(0, 16),
+      executed_at: '',
       notes: '',
     })
     setError('')
@@ -534,6 +549,10 @@ function ManualBuyPanel({ recommendations, briefId }) {
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
   }
+
+  const savedTransaction = saved
+    ? transactions.find((transaction) => transaction.id === saved.transaction_id)
+    : null
 
   async function submit(event) {
     event.preventDefault()
@@ -580,12 +599,12 @@ function ManualBuyPanel({ recommendations, briefId }) {
           <FormField label="SIDE"><input value="BUY" readOnly style={{ ...inputStyle, color: '#4dffb4' }} /></FormField>
           <FormField label="SYMBOL"><input value={form.symbol || ''} onChange={(event) => update('symbol', event.target.value)} style={inputStyle} /></FormField>
           <FormField label="PLATFORM"><input required value={form.platform || ''} onChange={(event) => update('platform', event.target.value)} style={inputStyle} /></FormField>
-          <FormField label="AMOUNT EUR"><input required min="0.01" step="any" type="number" value={form.amount_eur ?? ''} onChange={(event) => update('amount_eur', event.target.value)} style={inputStyle} /></FormField>
-          <FormField label="UNITS · ENTER MANUALLY"><input required min="0.00000001" step="any" type="number" value={form.units ?? ''} onChange={(event) => update('units', event.target.value)} style={inputStyle} /></FormField>
-          <FormField label="PRICE"><input required min="0.00000001" step="any" type="number" value={form.price ?? ''} onChange={(event) => update('price', event.target.value)} style={inputStyle} /></FormField>
-          <FormField label="CURRENCY"><input required value={form.currency || ''} onChange={(event) => update('currency', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label={`ACTUAL AMOUNT EUR · SUGGESTED ${formatEur(form.suggested_amount_eur)}`}><input required data-manual-field="amount_eur" min="0.01" step="any" type="number" value={form.amount_eur ?? ''} onChange={(event) => update('amount_eur', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="UNITS RECEIVED · ENTER MANUALLY"><input required data-manual-field="units" min="0.00000001" step="any" type="number" value={form.units ?? ''} onChange={(event) => update('units', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="ACTUAL PRICE"><input required data-manual-field="price" min="0.00000001" step="any" type="number" value={form.price ?? ''} onChange={(event) => update('price', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="CURRENCY"><input required data-manual-field="currency" value={form.currency || ''} onChange={(event) => update('currency', event.target.value)} style={inputStyle} placeholder="e.g. EUR" /></FormField>
           <FormField label="FEE EUR"><input required min="0" step="any" type="number" value={form.fee_eur ?? 0} onChange={(event) => update('fee_eur', event.target.value)} style={inputStyle} /></FormField>
-          <FormField label="EXECUTED AT"><input required type="datetime-local" value={form.executed_at || ''} onChange={(event) => update('executed_at', event.target.value)} style={inputStyle} /></FormField>
+          <FormField label="EXECUTED AT"><input required data-manual-field="executed_at" type="datetime-local" value={form.executed_at || ''} onChange={(event) => update('executed_at', event.target.value)} style={inputStyle} /></FormField>
         </div>
         <FormField label="NOTES">
           <input value={form.notes || ''} onChange={(event) => update('notes', event.target.value)} style={{ ...inputStyle, marginTop: 8 }} placeholder="Optional manual record note" />
@@ -595,6 +614,7 @@ function ManualBuyPanel({ recommendations, briefId }) {
           <div style={{ marginTop: 10, padding: '10px 11px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.035)', color: '#4dffb4' }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em' }}>TRANSACTION #{saved.transaction_id} RECORDED</div>
             <div style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>{saved.message}</div>
+            {savedTransaction && <LedgerApplyRow transaction={savedTransaction} onApplied={refreshLedger} />}
           </div>
         )}
         <button disabled={saving} type="submit" style={{ marginTop: 11, width: '100%', padding: '11px 0', border: '1px solid #20d8ec', background: 'rgba(32,216,236,.1)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, letterSpacing: '.16em', cursor: saving ? 'wait' : 'pointer' }}>
@@ -604,7 +624,7 @@ function ManualBuyPanel({ recommendations, briefId }) {
       {transactions.length > 0 && (
         <div style={{ padding: '0 14px 13px' }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 7 }}>RECENT MANUAL LEDGER</div>
-          {transactions.map((transaction) => (
+          {transactions.filter((transaction) => transaction.id !== saved?.transaction_id).map((transaction) => (
             <LedgerApplyRow key={transaction.id} transaction={transaction} onApplied={refreshLedger} />
           ))}
         </div>
@@ -617,6 +637,7 @@ export default function WeeklyBrief({ onBack }) {
   const [rec, setRec] = useState(null)
   const [manualChecklist, setManualChecklist] = useState(null)
   const [manualChecklistError, setManualChecklistError] = useState('')
+  const [recordAsset, setRecordAsset] = useState(null)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [acting, setActing] = useState(false)
@@ -743,7 +764,24 @@ export default function WeeklyBrief({ onBack }) {
 
           <ResearchContextSection researchContext={researchContext} gateSummary={researchGateSummary} />
 
-          <ManualBuyChecklistSection checklist={manualChecklist} error={manualChecklistError} />
+          <ManualBuyChecklistSection checklist={manualChecklist} error={manualChecklistError} onRecordTransaction={setRecordAsset} />
+
+          <Section title="RECORD MANUAL TRANSACTION">
+            {!recordAsset ? (
+              <div style={{ padding: '13px 14px', border, background: 'rgba(32,216,236,.02)', fontFamily: 'var(--mono)', fontSize: 8, lineHeight: 1.6, color: muted, letterSpacing: '.08em' }}>
+                SELECT “RECORD TRANSACTION” ON A CHECKLIST ITEM AFTER COMPLETING THE BUY MANUALLY IN YOUR BROKER.
+              </div>
+            ) : isApproved ? (
+              <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} initialAsset={recordAsset} />
+            ) : (
+              <div style={{ padding: '13px 14px', border, background: 'rgba(32,216,236,.02)', fontFamily: 'var(--mono)', fontSize: 8, lineHeight: 1.6, color: muted, letterSpacing: '.08em' }}>
+                APPROVE THIS BRIEF BEFORE RECORDING A MANUAL BUY.<br />
+                <span style={{ color: 'rgba(199,236,244,.55)', letterSpacing: '.04em', fontSize: 10, fontFamily: "'Saira Condensed',sans-serif", fontWeight: 300 }}>
+                  Recording is only for trades already completed manually in your broker.
+                </span>
+              </div>
+            )}
+          </Section>
 
           {(researchContext.length > 0 || rec?.autopilot_available) && (
             <div style={{ margin: '0 0 0', padding: '10px 18px' }}>
@@ -791,21 +829,6 @@ export default function WeeklyBrief({ onBack }) {
                     : 'Brief deferred. PHOENIX did not execute a trade.'}
                 </div>
               </div>
-            </Section>
-          )}
-
-          {recommendations.length > 0 && (
-            <Section title="RECORD MANUAL BUY">
-              {isApproved
-                ? <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} />
-                : (
-                  <div style={{ padding: '13px 14px', border, background: 'rgba(32,216,236,.02)', fontFamily: 'var(--mono)', fontSize: 8, lineHeight: 1.6, color: muted, letterSpacing: '.08em' }}>
-                    APPROVE THIS BRIEF BEFORE RECORDING A MANUAL BUY.<br />
-                    <span style={{ color: 'rgba(199,236,244,.55)', letterSpacing: '.04em', fontSize: 10, fontFamily: "'Saira Condensed',sans-serif", fontWeight: 300 }}>
-                      Recording is only for trades already completed manually in your broker.
-                    </span>
-                  </div>
-                )}
             </Section>
           )}
 
