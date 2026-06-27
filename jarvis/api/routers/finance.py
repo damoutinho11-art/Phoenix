@@ -837,13 +837,46 @@ _GENERATE_EVIDENCE_SAFETY_FLAGS: dict = {
 }
 
 
+_PHOENIX_GENERATOR_MARKER = "PHOENIX_EVIDENCE_GENERATOR_V1"
+
+
+def _is_phoenix_generated(record: dict) -> bool:
+    """Return True if the record was created by the PHOENIX evidence generator.
+
+    Accepts records with the explicit generated_by marker (new records) or with
+    a source_primary starting with "PHOENIX" (legacy production records before the marker
+    was introduced). Manual/user records neither carry the marker nor use PHOENIX source prefixes.
+    """
+    raw = record.get("raw_json") or {}
+    if raw.get("generated_by") == _PHOENIX_GENERATOR_MARKER:
+        return True
+    return (record.get("source_primary") or "").startswith("PHOENIX")
+
+
+def _check_content_changed(existing: dict, new_check: dict) -> bool:
+    """Return True if any content field differs between the existing DB record and new check."""
+    compare_fields = (
+        "status", "confidence", "primary_value", "secondary_value",
+        "consensus_value", "notes", "source_primary", "source_secondary",
+    )
+    for field in compare_fields:
+        if existing.get(field) != new_check.get(field):
+            return True
+    # Compare raw_json by value (ignoring key order)
+    existing_raw = existing.get("raw_json") or {}
+    new_raw = new_check.get("raw_json") or {}
+    if existing_raw != new_raw:
+        return True
+    return False
+
+
 def _generate_evidence_records(
     memo_id: int,
     memo: dict,
     constitution: dict,
     portfolio_state: dict,
     profile: dict,
-) -> tuple[list[dict], int]:
+) -> tuple[list[dict], int, int]:  # (created, skipped, updated)
     """Build validation records from local PHOENIX data only.
 
     Four checks per memo (market_data_source, broker_source, recommendation_leg_mapping,
@@ -859,15 +892,37 @@ def _generate_evidence_records(
         regime = detect_market_regime(portfolio_state)
     except Exception:
         regime = "neutral"
+    mandate: dict = {}
     try:
         result = engine.allocate_weekly_budget(
             constitution, portfolio_state, regime=regime, profile=profile
         )
-        rec_actions = result.get("approval_ticket", {}).get("recommended_actions", [])
-    except Exception:
-        rec_actions = []
+        ticket = result.get("approval_ticket", {})
+        exec_alloc: dict = ticket.get("executable_allocation", {})
+        mandate = ticket.get("weekly_dual_lane_mandate", {})
 
-    rec_by_asset: dict = {r["asset"]: r for r in rec_actions}
+        # Normalise to lowercase keys; only include amounts > 0 (same filter as recommendation endpoint)
+        rec_by_asset: dict = {
+            k.strip().lower(): {
+                "asset": k,
+                "amount": v,
+                "route": asset_routes.get(k),
+            }
+            for k, v in exec_alloc.items()
+            if (v or 0) > 0
+        }
+        # Supplement from both mandate lanes (catches assets not yet in exec_alloc for any reason)
+        for _lane_key in ("crypto_lane", "stock_fund_etf_lane"):
+            _lane = mandate.get(_lane_key, {})
+            _la = (_lane.get("asset") or "").strip().lower()
+            if _la and _la not in rec_by_asset and (_lane.get("amount") or 0) > 0:
+                rec_by_asset[_la] = {
+                    "asset": _lane.get("asset"),
+                    "amount": _lane.get("amount", 0),
+                    "route": asset_routes.get(_lane.get("asset", "")),
+                }
+    except Exception:
+        rec_by_asset = {}
 
     # Check A — SOURCE_CONFIDENCE: market_data_source
     if asset in _CRYPTO_ASSETS:
@@ -934,7 +989,19 @@ def _generate_evidence_records(
         }
 
     # Check C — CROSS_SOURCE: recommendation_leg_mapping
-    matching_action = rec_by_asset.get(asset)
+    # Normalize asset and sleeve for case-insensitive matching
+    asset_lower = asset.strip().lower()
+    sleeve_lower = (memo.get("sleeve") or "").strip().lower()
+    matching_action = rec_by_asset.get(asset_lower)
+    # Sleeve fallback: memo.sleeve can match recommendation.asset (e.g. quality_etf) or lane name
+    if not matching_action and sleeve_lower:
+        matching_action = rec_by_asset.get(sleeve_lower)
+        if not matching_action:
+            for _lane_key in ("crypto_lane", "stock_fund_etf_lane"):
+                _lane = mandate.get(_lane_key, {})
+                if (_lane.get("asset") or "").strip().lower() == sleeve_lower:
+                    matching_action = rec_by_asset.get((_lane.get("asset") or "").strip().lower())
+                    break
     in_targets = asset in target_weights and (target_weights.get(asset) or 0) > 0
     if matching_action:
         check_c: dict = {
@@ -955,8 +1022,8 @@ def _generate_evidence_records(
                 "asset": asset, "in_recommendation": True,
                 "amount": matching_action.get("amount"),
                 "route": matching_action.get("route"),
-                "lane": matching_action.get("lane"),
                 "target_weight": target_weights.get(asset),
+                "recommendation_assets": sorted(rec_by_asset.keys()),
             },
         }
     elif in_targets:
@@ -1065,20 +1132,36 @@ def _generate_evidence_records(
             },
         }
 
+    # Stamp generator marker so records can be identified for safe repair later
+    for _check in (check_a, check_b, check_c, check_d):
+        _check["raw_json"]["generated_by"] = _PHOENIX_GENERATOR_MARKER
+
     created: list[dict] = []
     skipped = 0
+    updated = 0
     for check in (check_a, check_b, check_c, check_d):
-        if database.research_validation_record_exists(
+        existing = database.get_research_validation_record_by_memo_check_field(
             memo_id, check["check_type"], check["field_name"]
-        ):
+        )
+        if existing is None:
+            record_id = database.create_research_validation_record(check)
+            record = database.get_research_validation_record(record_id)
+            if record is not None:
+                created.append(record)
+        elif _is_phoenix_generated(existing):
+            if _check_content_changed(existing, check):
+                database.update_research_validation_record(existing["id"], check)
+                record = database.get_research_validation_record(existing["id"])
+                if record is not None:
+                    created.append(record)  # include updated record in records list
+                updated += 1
+            else:
+                skipped += 1
+        else:
+            # Manual/user record — never overwrite
             skipped += 1
-            continue
-        record_id = database.create_research_validation_record(check)
-        record = database.get_research_validation_record(record_id)
-        if record is not None:
-            created.append(record)
 
-    return created, skipped
+    return created, skipped, updated
 
 
 @router.post("/research/memos/{memo_id}/generate-evidence")
@@ -1099,7 +1182,7 @@ def finance_research_generate_evidence(
     if memo is None:
         raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
 
-    created_records, skipped_count = _generate_evidence_records(
+    created_records, skipped_count, updated_count = _generate_evidence_records(
         memo_id=memo_id,
         memo=memo,
         constitution=constitution,
@@ -1109,7 +1192,8 @@ def finance_research_generate_evidence(
 
     response: dict = {
         "memo_id": memo_id,
-        "generated_count": len(created_records),
+        "generated_count": len(created_records) - updated_count,
+        "updated_count": updated_count,
         "skipped_count": skipped_count,
         "records": created_records,
         **_GENERATE_EVIDENCE_SAFETY_FLAGS,

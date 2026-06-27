@@ -1103,6 +1103,79 @@ def research_validation_record_exists(
         connection.close()
 
 
+def get_research_validation_record_by_memo_check_field(
+    memo_id: int, check_type: str, field_name: str
+) -> dict[str, Any] | None:
+    """Return the existing validation record for memo/check/field, or None."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """
+            SELECT * FROM research_validation_records
+            WHERE memo_id = ? AND check_type = ? AND field_name = ?
+            ORDER BY created_at ASC, id ASC
+            LIMIT 1
+            """,
+            (memo_id, check_type, field_name),
+        ).fetchone()
+        return _decode_research_validation_record(row)
+    finally:
+        connection.close()
+
+
+def update_research_validation_record(record_id: int, payload: dict) -> None:
+    """Update mutable fields of a PHOENIX-generated validation record.
+
+    Only touches content fields — does not change id, created_at, memo_id, check_type, or field_name.
+    Validates status and confidence the same way create does.
+    """
+    status = payload["status"]
+    confidence = payload["confidence"]
+    if status not in _RESEARCH_VALIDATION_STATUSES:
+        raise ValueError(f"Invalid research validation status: {status}")
+    if confidence not in _RESEARCH_VALIDATION_CONFIDENCES:
+        raise ValueError(f"Invalid research validation confidence: {confidence}")
+
+    connection = get_db()
+    try:
+        connection.execute(
+            """
+            UPDATE research_validation_records
+            SET asset = ?,
+                source_primary = ?,
+                source_secondary = ?,
+                primary_value = ?,
+                secondary_value = ?,
+                consensus_value = ?,
+                tolerance_pct = ?,
+                deviation_pct = ?,
+                status = ?,
+                confidence = ?,
+                notes = ?,
+                raw_json = ?
+            WHERE id = ?
+            """,
+            (
+                payload.get("asset"),
+                payload.get("source_primary"),
+                payload.get("source_secondary"),
+                payload.get("primary_value"),
+                payload.get("secondary_value"),
+                payload.get("consensus_value"),
+                payload.get("tolerance_pct"),
+                payload.get("deviation_pct"),
+                status,
+                confidence,
+                payload.get("notes"),
+                json.dumps(payload.get("raw_json") or {}),
+                record_id,
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
 def list_research_validation_records(limit: int = 100) -> list[dict[str, Any]]:
     """Return research validation records newest first."""
     if limit < 1:
