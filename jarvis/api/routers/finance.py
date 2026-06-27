@@ -89,6 +89,50 @@ class ResearchValidationRecordPayload(BaseModel):
     raw_json: dict = Field(default_factory=dict)
 
 
+_RESEARCH_EVIDENCE_WARNINGS: dict[str, str | None] = {
+    "NO_EVIDENCE": "No active research memo attached.",
+    "NEEDS_RESEARCH": "Research evidence is incomplete or contains warnings.",
+    "BLOCKED_BY_FAIL": "Research validation failed. Manual review required before acting.",
+    "EVIDENCE_STRONG": None,
+}
+
+
+def _build_research_leg_context(asset: str, lane: str) -> dict:
+    """Build advisory-only research context for one recommendation leg.
+
+    Never overrides allocations, mutates portfolio state, or triggers trades.
+    """
+    sleeve = asset if lane == "etf" else None
+    memo = database.find_active_research_memo_for_leg(asset, sleeve)
+
+    if memo is None:
+        return {
+            "asset": asset,
+            "sleeve": sleeve,
+            "memo_id": None,
+            "memo_title": None,
+            "verdict": None,
+            "data_confidence": None,
+            "evidence_status": "NO_EVIDENCE",
+            "evidence_summary": None,
+            "research_warning": _RESEARCH_EVIDENCE_WARNINGS["NO_EVIDENCE"],
+        }
+
+    evidence_summary = database.get_research_memo_evidence_summary(memo["id"])
+    evidence_status = evidence_summary["evidence_status"]
+    return {
+        "asset": asset,
+        "sleeve": sleeve,
+        "memo_id": memo["id"],
+        "memo_title": memo["title"],
+        "verdict": memo["verdict"],
+        "data_confidence": memo["data_confidence"],
+        "evidence_status": evidence_status,
+        "evidence_summary": evidence_summary,
+        "research_warning": _RESEARCH_EVIDENCE_WARNINGS.get(evidence_status),
+    }
+
+
 _RESEARCH_SAFETY_FLAGS = {
     "research_only": True,
     "trades_executed": False,
@@ -278,6 +322,26 @@ def finance_recommendation(
             "reserve_actions": ticket.get("reserve_actions") or [],
             "safety_checks": ticket.get("safety_checks") or [],
         },
+    }
+
+    # Research context — advisory only; never overrides amounts or routes
+    research_legs = [
+        _build_research_leg_context(r["asset"], r["lane"])
+        for r in recommendations
+    ]
+    legs_with_research = sum(1 for leg in research_legs if leg["memo_id"] is not None)
+    legs_blocked = sum(
+        1 for leg in research_legs if leg["evidence_status"] == "BLOCKED_BY_FAIL"
+    )
+    response["research_context"] = research_legs
+    response["research_gate_summary"] = {
+        "total_recommendation_legs": len(recommendations),
+        "legs_with_research": legs_with_research,
+        "legs_without_research": len(recommendations) - legs_with_research,
+        "legs_blocked_by_failed_research": legs_blocked,
+        "advisory_only": True,
+        "recommendation_overridden": False,
+        "trades_executed": False,
     }
 
     # Auto-save brief (once per ISO week — idempotent on repeated calls)

@@ -133,6 +133,53 @@ function CandidateComparison({ candidates }) {
   )
 }
 
+function ResearchLegRow({ leg }) {
+  const statusColor = leg.evidence_status === 'EVIDENCE_STRONG' ? '#4dffb4'
+    : leg.evidence_status === 'BLOCKED_BY_FAIL' ? '#ff5c7a'
+    : leg.evidence_status === 'NEEDS_RESEARCH' ? '#ffd56b'
+    : muted
+  return (
+    <div style={{ border, background: 'rgba(32,216,236,.02)', padding: '9px 12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, color: '#7df0ff', overflowWrap: 'anywhere' }}>{leg.asset}</div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: statusColor, flexShrink: 0 }}>{leg.evidence_status}</div>
+      </div>
+      {leg.memo_title && (
+        <div style={{ fontSize: 11, color: 'rgba(199,236,244,.72)', marginTop: 3, overflowWrap: 'anywhere' }}>{leg.memo_title}</div>
+      )}
+      {leg.research_warning && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: statusColor, marginTop: 5, lineHeight: 1.5 }}>{leg.research_warning}</div>
+      )}
+    </div>
+  )
+}
+
+function ResearchContextSection({ researchContext, gateSummary }) {
+  const legs = Array.isArray(researchContext) ? researchContext : []
+  if (legs.length === 0) return null
+  const hasBlocker = legs.some((leg) => leg.evidence_status === 'BLOCKED_BY_FAIL')
+  return (
+    <Section title="RESEARCH CONTEXT · ADVISORY ONLY">
+      {hasBlocker && (
+        <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid rgba(255,92,122,.35)', background: 'rgba(255,92,122,.04)', color: '#ff5c7a' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em' }}>RESEARCH BLOCKER FOUND</div>
+          <div style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4 }}>Research blocker found. Manual review required.</div>
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {legs.map((leg, index) => <ResearchLegRow key={`${leg.asset}-${index}`} leg={leg} />)}
+      </div>
+      {gateSummary && (
+        <div style={{ marginTop: 9, padding: '8px 10px', border, fontFamily: 'var(--mono)', fontSize: 7, color: muted, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+          <span>WITH RESEARCH · {gateSummary.legs_with_research ?? 0}/{gateSummary.total_recommendation_legs ?? 0}</span>
+          <span>BLOCKED · {gateSummary.legs_blocked_by_failed_research ?? 0}</span>
+          <span style={{ gridColumn: '1/-1', marginTop: 2, color: 'rgba(32,216,236,.4)' }}>ADVISORY ONLY · ALLOCATIONS UNCHANGED</span>
+        </div>
+      )}
+    </Section>
+  )
+}
+
 function RecommendationCard({ recommendation }) {
   const instrument = recommendation.instrument && typeof recommendation.instrument === 'object' ? recommendation.instrument : {}
   const identifiers = [
@@ -547,6 +594,8 @@ export default function WeeklyBrief({ onBack }) {
   }
 
   const recommendations = Array.isArray(rec?.recommendations) ? rec.recommendations : []
+  const researchContext = Array.isArray(rec?.research_context) ? rec.research_context : []
+  const researchGateSummary = rec?.research_gate_summary || null
   const warnings = Array.isArray(rec?.warnings) ? rec.warnings : []
   const newsThesis = typeof rec?.news_thesis === 'string' ? rec.news_thesis.trim() : ''
   const canLogApproval = Boolean(rec?.brief_id)
@@ -606,6 +655,8 @@ export default function WeeklyBrief({ onBack }) {
               ? <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{recommendations.map((recommendation, index) => <RecommendationCard key={`${recommendation.asset}-${index}`} recommendation={recommendation} />)}</div>
               : <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: muted, letterSpacing: '.12em' }}>NO BUYS RECOMMENDED THIS WEEK</div>}
           </Section>
+
+          <ResearchContextSection researchContext={researchContext} gateSummary={researchGateSummary} />
 
           {briefStatus && (
             <Section title="BRIEF DECISION">

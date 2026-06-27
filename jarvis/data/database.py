@@ -1162,6 +1162,47 @@ def get_research_memo_evidence_summary(memo_id: int) -> dict[str, Any]:
     }
 
 
+def find_active_research_memo_for_leg(
+    asset: str | None, sleeve: str | None
+) -> dict[str, Any] | None:
+    """Return the latest active memo for a recommendation leg.
+
+    Priority: exact asset match > sleeve match > None.
+    Never mutates portfolio state or executes trades.
+    """
+    connection = get_db()
+    try:
+        if asset:
+            row = connection.execute(
+                """
+                SELECT * FROM research_memos
+                WHERE status = 'active' AND asset = ?
+                ORDER BY created_at DESC, id DESC
+                LIMIT 1
+                """,
+                (asset,),
+            ).fetchone()
+            if row is not None:
+                return _decode_research_memo(row)
+
+        if sleeve:
+            row = connection.execute(
+                """
+                SELECT * FROM research_memos
+                WHERE status = 'active' AND sleeve = ?
+                ORDER BY created_at DESC, id DESC
+                LIMIT 1
+                """,
+                (sleeve,),
+            ).fetchone()
+            if row is not None:
+                return _decode_research_memo(row)
+
+        return None
+    finally:
+        connection.close()
+
+
 def brief_exists_by_id(brief_id: int) -> bool:
     """Return whether a brief id exists, regardless of status or domain."""
     connection = get_db()
