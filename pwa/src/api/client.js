@@ -170,3 +170,11 @@ export async function getBudgetTransactions(month) {
 export async function getBudgetMonths() {
   return apiFetch('/budget/months')
 }
+
+export async function getFinanceTransactionApplyPreview(transactionId) {
+  return apiFetch(`/finance/ledger/${transactionId}/apply-preview`)
+}
+
+export async function postFinanceTransactionApply(transactionId) {
+  return apiFetch(`/finance/ledger/${transactionId}/apply`, { method: 'POST' })
+}

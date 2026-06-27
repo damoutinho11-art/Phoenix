@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getFinanceLedger, getFinanceRecommendation, postBriefAction, postManualFinanceTransaction } from '../../api/client'
+import { getFinanceLedger, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceTransactionApply, postManualFinanceTransaction } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
 const muted = 'rgba(32,216,236,.38)'
@@ -283,6 +283,108 @@ function FormField({ label, children }) {
   )
 }
 
+function LedgerApplyRow({ transaction, onApplied }) {
+  const applied = Boolean(transaction.portfolio_state_updated)
+  const [preview, setPreview] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState('')
+  const [applying, setApplying] = useState(false)
+  const [applyResult, setApplyResult] = useState(null)
+  const [applyError, setApplyError] = useState('')
+
+  async function loadPreview() {
+    setPreviewLoading(true)
+    setPreviewError('')
+    try {
+      const data = await getFinanceTransactionApplyPreview(transaction.id)
+      setPreview(data)
+    } catch (err) {
+      setPreviewError(err?.message || 'Preview failed.')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  async function applyTransaction() {
+    setApplying(true)
+    setApplyError('')
+    try {
+      const result = await postFinanceTransactionApply(transaction.id)
+      setApplyResult(result)
+      setPreview(null)
+      if (onApplied) onApplied()
+    } catch (err) {
+      setApplyError(err?.message || 'Apply failed.')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <div style={{ borderTop: border, paddingTop: 8, marginTop: 2 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontFamily: 'var(--mono)', fontSize: 8 }}>
+        <span style={{ color: '#7df0ff', minWidth: 0, overflowWrap: 'anywhere' }}>{transaction.symbol || transaction.asset} · {transaction.units} UNITS</span>
+        <span style={{ color: 'rgba(199,236,244,.78)', flexShrink: 0 }}>{formatEur(transaction.amount_eur)}</span>
+      </div>
+      <div style={{ marginTop: 5 }}>
+        {applied || applyResult ? (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4', letterSpacing: '.12em' }}>
+            APPLIED TO PORTFOLIO STATE
+            {applyResult && (
+              <div style={{ color: 'rgba(77,255,180,.75)', letterSpacing: '.08em', marginTop: 3, lineHeight: 1.5, textTransform: 'none' }}>
+                Portfolio state updated from your manual record. PHOENIX did not execute a trade.
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {!preview && !previewLoading && (
+              <button onClick={loadPreview} style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: '#20d8ec', background: 'transparent', cursor: 'pointer' }}>
+                PREVIEW APPLY
+              </button>
+            )}
+            {previewLoading && <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>LOADING PREVIEW…</span>}
+            {previewError && <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#ff5c7a' }}>{previewError}</span>}
+            {preview && (
+              <div style={{ marginTop: 6, padding: '8px 9px', border: '1px solid rgba(32,216,236,.22)', background: 'rgba(32,216,236,.025)' }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: muted, marginBottom: 5 }}>APPLY PREVIEW</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontFamily: 'var(--mono)', fontSize: 7 }}>
+                  <div>
+                    <div style={{ color: muted, marginBottom: 2 }}>BEFORE</div>
+                    <div style={{ color: 'rgba(199,236,244,.82)' }}>{preview.asset}: {formatEur(preview.before.holdings?.[preview.asset])}</div>
+                    {preview.before.units?.[preview.asset] != null && (
+                      <div style={{ color: muted }}>{preview.before.units[preview.asset]} units</div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ color: '#4dffb4', marginBottom: 2 }}>AFTER</div>
+                    <div style={{ color: '#4dffb4' }}>{preview.asset}: {formatEur(preview.after.holdings?.[preview.asset])}</div>
+                    {preview.after.units?.[preview.asset] != null && (
+                      <div style={{ color: 'rgba(77,255,180,.75)' }}>{preview.after.units[preview.asset]} units</div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#ffd56b', marginTop: 6 }}>
+                  +{formatEur(preview.amount_eur_delta)} · +{preview.units_delta} units
+                  {preview.fee_eur > 0 && ` · fee ${formatEur(preview.fee_eur)}`}
+                </div>
+                {applyError && <div style={{ color: '#ff5c7a', fontSize: 7, marginTop: 5 }}>{applyError}</div>}
+                <button
+                  onClick={applyTransaction}
+                  disabled={applying}
+                  style={{ marginTop: 8, width: '100%', padding: '8px 0', border: '1px solid #20d8ec', background: 'rgba(32,216,236,.12)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 7, fontWeight: 700, letterSpacing: '.14em', cursor: applying ? 'wait' : 'pointer' }}
+                >
+                  {applying ? 'APPLYING…' : 'APPLY TO PORTFOLIO STATE'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ManualBuyPanel({ recommendations, briefId }) {
   const [selectedAsset, setSelectedAsset] = useState(recommendations[0]?.asset || '')
   const [form, setForm] = useState({})
@@ -400,10 +502,7 @@ function ManualBuyPanel({ recommendations, briefId }) {
         <div style={{ padding: '0 14px 13px' }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 7 }}>RECENT MANUAL LEDGER</div>
           {transactions.map((transaction) => (
-            <div key={transaction.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 8px', borderTop: border, fontFamily: 'var(--mono)', fontSize: 8 }}>
-              <span style={{ color: '#7df0ff' }}>{transaction.symbol || transaction.asset} · {transaction.units} UNITS</span>
-              <span style={{ color: 'rgba(199,236,244,.78)', flexShrink: 0 }}>{formatEur(transaction.amount_eur)}</span>
-            </div>
+            <LedgerApplyRow key={transaction.id} transaction={transaction} onApplied={refreshLedger} />
           ))}
         </div>
       )}

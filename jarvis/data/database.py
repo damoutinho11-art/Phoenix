@@ -160,12 +160,34 @@ def get_db() -> sqlite3.Connection:
     return connection
 
 
+def _migrate_finance_transaction_ledger(connection: sqlite3.Connection) -> None:
+    """Add apply-gate columns to finance_transaction_ledger if not present."""
+    existing = {
+        row[1]
+        for row in connection.execute(
+            "PRAGMA table_info(finance_transaction_ledger)"
+        ).fetchall()
+    }
+    new_cols = [
+        ("applied_at", "TEXT"),
+        ("portfolio_state_updated", "INTEGER NOT NULL DEFAULT 0"),
+        ("apply_snapshot_json", "TEXT"),
+    ]
+    for col_name, col_def in new_cols:
+        if col_name not in existing:
+            connection.execute(
+                f"ALTER TABLE finance_transaction_ledger ADD COLUMN {col_name} {col_def}"
+            )
+    connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
     try:
         connection.executescript(_SCHEMA)
         connection.commit()
+        _migrate_finance_transaction_ledger(connection)
     finally:
         connection.close()
 
@@ -611,6 +633,41 @@ def get_finance_transaction(transaction_id: int) -> dict[str, Any] | None:
             (transaction_id,),
         ).fetchone()
         return _row_to_dict(row)
+    finally:
+        connection.close()
+
+
+def finance_transaction_is_applied(transaction_id: int) -> bool:
+    """Return True if this transaction has already been applied to portfolio_state."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT portfolio_state_updated FROM finance_transaction_ledger WHERE id = ?",
+            (transaction_id,),
+        ).fetchone()
+        return bool(row and row["portfolio_state_updated"])
+    finally:
+        connection.close()
+
+
+def mark_finance_transaction_applied(
+    transaction_id: int, apply_snapshot_json: str
+) -> bool:
+    """Mark transaction applied; returns True if the row existed and was updated."""
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE finance_transaction_ledger
+            SET applied_at = ?,
+                portfolio_state_updated = 1,
+                apply_snapshot_json = ?
+            WHERE id = ?
+            """,
+            (_utc_now(), apply_snapshot_json, transaction_id),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
     finally:
         connection.close()
 

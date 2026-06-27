@@ -1,5 +1,6 @@
 """Tests for the manual-only finance transaction ledger."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -7,8 +8,22 @@ from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
 from jarvis.data import database
+from jarvis.domains.finance import engine
 
 client = TestClient(app)
+
+_PORTFOLIO_STATE = {
+    "as_of": "2026-06-27",
+    "currency": "EUR",
+    "holdings": {
+        "quality_etf": 0.0,
+        "btc": 100.0,
+    },
+    "units": {
+        "quality_etf": 0.0,
+        "btc": 0.001,
+    },
+}
 
 
 @pytest.fixture()
@@ -18,6 +33,36 @@ def brief_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> int:
     return database.save_brief(
         "W26 2026", "finance", "BUY", "quality_etf", 69.23, "lightyear", "test", None
     )
+
+
+@pytest.fixture()
+def apply_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Fixture wiring an isolated DB and a writable portfolio_state.json."""
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "ledger.db")
+    database.init_db()
+
+    state_path = tmp_path / "portfolio_state.json"
+    state_path.write_text(json.dumps(_PORTFOLIO_STATE), encoding="utf-8")
+    monkeypatch.setattr(engine, "DEFAULT_PORTFOLIO_STATE_PATH", state_path)
+
+    brief = database.save_brief(
+        "W26 2026", "finance", "BUY", "quality_etf", 69.23, "lightyear", "test", None
+    )
+    tx_id = database.save_finance_transaction({
+        "brief_id": brief,
+        "asset": "quality_etf",
+        "symbol": "IWQU.L",
+        "platform": "Lightyear",
+        "side": "buy",
+        "amount_eur": 69.23,
+        "units": 0.91,
+        "price": 75.64,
+        "currency": "EUR",
+        "fee_eur": 0.0,
+        "executed_at": "2026-06-27T12:00:00Z",
+        "notes": None,
+    })
+    return {"tx_id": tx_id, "state_path": state_path}
 
 
 def _payload(brief_id: int) -> dict:
@@ -111,3 +156,156 @@ def test_approval_routes_keep_no_trade_safety_flags(brief_id: int, action: str) 
     assert data["manual_record_only"] is True
     assert data["trades_executed"] is False
     assert data["broker_connection"] is False
+
+
+# ---------------------------------------------------------------------------
+# Apply-gate tests
+# ---------------------------------------------------------------------------
+
+def test_apply_preview_returns_200(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    response = client.get(f"/finance/ledger/{tx_id}/apply-preview")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["transaction_id"] == tx_id
+    assert data["asset"] == "quality_etf"
+    assert data["portfolio_state_updated"] is False
+    assert data["requires_explicit_apply"] is True
+    assert data["manual_record_only"] is True
+    assert data["trades_executed"] is False
+    assert data["broker_connection"] is False
+    assert "before" in data
+    assert "after" in data
+
+
+def test_apply_preview_does_not_mutate_portfolio_state(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    state_path: Path = apply_env["state_path"]
+    before_content = state_path.read_text(encoding="utf-8")
+
+    client.get(f"/finance/ledger/{tx_id}/apply-preview")
+
+    assert state_path.read_text(encoding="utf-8") == before_content
+
+
+def test_apply_returns_200(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    response = client.post(f"/finance/ledger/{tx_id}/apply")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["transaction_id"] == tx_id
+    assert data["portfolio_state_updated"] is True
+    assert data["manual_record_only"] is True
+    assert data["trades_executed"] is False
+    assert data["broker_connection"] is False
+    assert data["applied_at"] is not None
+    assert "PHOENIX did not execute a trade" in data["message"]
+
+
+def test_apply_mutates_portfolio_state(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    state_path: Path = apply_env["state_path"]
+    original = json.loads(state_path.read_text(encoding="utf-8"))
+
+    client.post(f"/finance/ledger/{tx_id}/apply")
+
+    updated = json.loads(state_path.read_text(encoding="utf-8"))
+    assert updated != original
+
+
+def test_apply_increases_holding_value(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    state_path: Path = apply_env["state_path"]
+
+    client.post(f"/finance/ledger/{tx_id}/apply")
+
+    updated = json.loads(state_path.read_text(encoding="utf-8"))
+    assert abs(updated["holdings"]["quality_etf"] - (0.0 + 69.23)) < 0.001
+
+
+def test_apply_increases_units(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    state_path: Path = apply_env["state_path"]
+
+    client.post(f"/finance/ledger/{tx_id}/apply")
+
+    updated = json.loads(state_path.read_text(encoding="utf-8"))
+    assert abs(updated["units"]["quality_etf"] - (0.0 + 0.91)) < 0.0001
+
+
+def test_apply_marks_transaction_applied(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+
+    assert not database.finance_transaction_is_applied(tx_id)
+    client.post(f"/finance/ledger/{tx_id}/apply")
+    assert database.finance_transaction_is_applied(tx_id)
+
+
+def test_apply_twice_returns_409(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    client.post(f"/finance/ledger/{tx_id}/apply")
+
+    response = client.post(f"/finance/ledger/{tx_id}/apply")
+
+    assert response.status_code == 409
+
+
+def test_preview_applied_transaction_returns_409(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    client.post(f"/finance/ledger/{tx_id}/apply")
+
+    response = client.get(f"/finance/ledger/{tx_id}/apply-preview")
+
+    assert response.status_code == 409
+
+
+def test_preview_missing_transaction_returns_404(apply_env: dict) -> None:
+    response = client.get("/finance/ledger/99999/apply-preview")
+
+    assert response.status_code == 404
+
+
+def test_apply_missing_transaction_returns_404(apply_env: dict) -> None:
+    response = client.post("/finance/ledger/99999/apply")
+
+    assert response.status_code == 404
+
+
+def test_apply_unknown_asset_returns_400(apply_env: dict, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tx_id = database.save_finance_transaction({
+        "brief_id": None,
+        "asset": "unknown_asset_xyz",
+        "symbol": None,
+        "platform": "Manual",
+        "side": "buy",
+        "amount_eur": 50.0,
+        "units": 1.0,
+        "price": 50.0,
+        "currency": "EUR",
+        "fee_eur": 0.0,
+        "executed_at": "2026-06-27T12:00:00Z",
+        "notes": None,
+    })
+    response = client.get(f"/finance/ledger/{tx_id}/apply-preview")
+
+    assert response.status_code == 400
+
+
+def test_no_broker_execution_flags_on_preview(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    data = client.get(f"/finance/ledger/{tx_id}/apply-preview").json()
+
+    assert data["trades_executed"] is False
+    assert data["broker_connection"] is False
+    assert data["manual_record_only"] is True
+
+
+def test_no_broker_execution_flags_on_apply(apply_env: dict) -> None:
+    tx_id = apply_env["tx_id"]
+    data = client.post(f"/finance/ledger/{tx_id}/apply").json()
+
+    assert data["trades_executed"] is False
+    assert data["broker_connection"] is False
+    assert data["manual_record_only"] is True

@@ -1,7 +1,8 @@
 """Finance API routes. Routers call engines; no business logic lives here."""
 
+import copy
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Literal
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException
@@ -511,3 +512,146 @@ def finance_brief_reject(brief_id: int) -> dict:
 def finance_brief_history() -> dict:
     rows = database.get_brief_history(limit=50)
     return {"history": rows, "count": len(rows)}
+
+
+# ---------------------------------------------------------------------------
+# Apply-gate helpers (pure — never touch the filesystem)
+# ---------------------------------------------------------------------------
+
+def _build_transaction_apply_preview(
+    transaction: dict, portfolio_state: dict
+) -> tuple[dict, dict]:
+    """Return (before, after) snapshots for a buy transaction applied to portfolio_state.
+
+    Does NOT mutate either input.  Raises HTTPException on unsupported cases.
+    """
+    asset = transaction["asset"]
+    holdings = portfolio_state.get("holdings", {})
+
+    if asset not in holdings:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Asset '{asset}' not found in portfolio_state holdings. "
+                "Only assets already tracked in portfolio_state are supported in v1."
+            ),
+        )
+
+    before_holdings = copy.deepcopy(holdings)
+    before_units = copy.deepcopy(portfolio_state.get("units", {}))
+
+    after_holdings = copy.deepcopy(before_holdings)
+    after_holdings[asset] = round(
+        (after_holdings.get(asset) or 0.0) + transaction["amount_eur"], 10
+    )
+
+    after_units = copy.deepcopy(before_units)
+    if asset in after_units:
+        current = after_units[asset]
+        if current is None:
+            current = 0.0
+        after_units[asset] = round(current + transaction["units"], 10)
+
+    before: dict = {
+        "holdings": before_holdings,
+        "units": before_units,
+        "as_of": portfolio_state.get("as_of"),
+    }
+    after: dict = {
+        "holdings": after_holdings,
+        "units": after_units,
+        "as_of": datetime.now(timezone.utc).date().isoformat(),
+    }
+    return before, after
+
+
+def _apply_transaction_to_portfolio_state(
+    transaction: dict, portfolio_state: dict
+) -> tuple[dict, dict, dict]:
+    """Return (updated_portfolio_state, before, after).
+
+    Does NOT write files. Does NOT mutate the input portfolio_state.
+    """
+    before, after = _build_transaction_apply_preview(transaction, portfolio_state)
+
+    new_state = copy.deepcopy(portfolio_state)
+    new_state["holdings"] = after["holdings"]
+    if after["units"]:
+        new_state["units"] = after["units"]
+    new_state["as_of"] = after["as_of"]
+
+    return new_state, before, after
+
+
+# ---------------------------------------------------------------------------
+# Apply-gate routes
+# ---------------------------------------------------------------------------
+
+@router.get("/ledger/{transaction_id}/apply-preview")
+def finance_ledger_apply_preview(transaction_id: int) -> dict:
+    transaction = database.get_finance_transaction(transaction_id)
+    if transaction is None:
+        raise HTTPException(status_code=404, detail=f"Transaction {transaction_id} not found")
+    if database.finance_transaction_is_applied(transaction_id):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Transaction {transaction_id} has already been applied to portfolio_state.",
+        )
+
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    before, after = _build_transaction_apply_preview(transaction, portfolio_state)
+
+    return {
+        "transaction_id": transaction_id,
+        "asset": transaction["asset"],
+        "symbol": transaction.get("symbol"),
+        "side": transaction["side"],
+        "units_delta": transaction["units"],
+        "amount_eur_delta": transaction["amount_eur"],
+        "fee_eur": transaction.get("fee_eur", 0),
+        "before": before,
+        "after": after,
+        "portfolio_state_updated": False,
+        "requires_explicit_apply": True,
+        "manual_record_only": True,
+        "trades_executed": False,
+        "broker_connection": False,
+    }
+
+
+@router.post("/ledger/{transaction_id}/apply")
+def finance_ledger_apply(transaction_id: int) -> dict:
+    transaction = database.get_finance_transaction(transaction_id)
+    if transaction is None:
+        raise HTTPException(status_code=404, detail=f"Transaction {transaction_id} not found")
+    if database.finance_transaction_is_applied(transaction_id):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Transaction {transaction_id} has already been applied to portfolio_state.",
+        )
+
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    new_state, before, after = _apply_transaction_to_portfolio_state(transaction, portfolio_state)
+
+    engine.DEFAULT_PORTFOLIO_STATE_PATH.write_text(
+        json.dumps(new_state, indent=2), encoding="utf-8"
+    )
+
+    snapshot = json.dumps({"before": before, "after": after})
+    database.mark_finance_transaction_applied(transaction_id, snapshot)
+
+    applied_row = database.get_finance_transaction(transaction_id)
+    return {
+        "transaction_id": transaction_id,
+        "applied_at": applied_row.get("applied_at") if applied_row else None,
+        "portfolio_state_updated": True,
+        "manual_record_only": True,
+        "trades_executed": False,
+        "broker_connection": False,
+        "before": before,
+        "after": after,
+        "message": (
+            "Manual transaction applied to portfolio_state.json. "
+            "PHOENIX did not execute a trade."
+        ),
+    }
