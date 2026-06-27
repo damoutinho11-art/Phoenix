@@ -1,6 +1,7 @@
 """J.A.R.V.I.S. FastAPI application entry point."""
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -40,25 +41,36 @@ async def lifespan(_app: FastAPI):
 init_db()
 app = FastAPI(title="J.A.R.V.I.S.", version="0", lifespan=lifespan)
 
+_LOCAL_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5180",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5180",
+    "http://100.64.150.26",
+    "http://100.64.150.26:5173",
+    "http://100.64.150.26:5174",
+    "http://100.64.150.26:5180",
+    "http://192.168.0.25:5173",
+    "http://192.168.0.25:5174",
+    "http://192.168.0.25:5180",
+]
+
+_DEPLOY_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("PHOENIX_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5180",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5180",
-        "http://100.64.150.26",
-        "http://100.64.150.26:5173",
-        "http://100.64.150.26:5174",
-        "http://100.64.150.26:5180",
-        "http://192.168.0.25:5173",
-        "http://192.168.0.25:5174",
-        "http://192.168.0.25:5180",
-    ],
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|100\.64\.150\.26|192\.168\.0\.25):\d+$",
+    allow_origins=_LOCAL_ALLOWED_ORIGINS + _DEPLOY_ALLOWED_ORIGINS,
+    allow_origin_regex=(
+        r"^http://(localhost|127\.0\.0\.1|100\.64\.150\.26|192\.168\.0\.25):\d+$"
+        r"|^https://[a-z0-9-]+\.vercel\.app$"
+    ),
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
