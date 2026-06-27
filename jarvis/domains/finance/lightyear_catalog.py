@@ -41,7 +41,7 @@ def _unknown(candidate: dict[str, Any], error: str) -> dict[str, Any]:
         "lightyear_confidence": "unresolved",
         "lightyear_url": None,
         "lightyear_match_text": None,
-        "source": SOURCE,
+        "broker_source": SOURCE,
         "error": error,
     }
 
@@ -72,7 +72,7 @@ def verify_lightyear_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
                 "lightyear_confidence": "medium",
                 "lightyear_url": None,
                 "lightyear_match_text": None,
-                "source": SOURCE,
+                "broker_source": SOURCE,
                 "error": "Public Lightyear candidate page returned HTTP 404.",
             }
         return _unknown(candidate, f"Lightyear HTTP error: {exc.code}")
@@ -94,7 +94,7 @@ def verify_lightyear_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
             "lightyear_confidence": "high",
             "lightyear_url": final_url,
             "lightyear_match_text": matched_text,
-            "source": SOURCE,
+            "broker_source": SOURCE,
         }
 
     return _unknown(

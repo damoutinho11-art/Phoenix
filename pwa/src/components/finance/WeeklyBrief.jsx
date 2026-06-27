@@ -89,7 +89,7 @@ function ResolvedInstrument({ instrument }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 9 }}>
         <Stat label="MARKET PRICE" value={marketPrice(candidate.raw_price, candidate.currency)} />
         <Stat label="EUR PRICE" value={formatEur(candidate.eur_price)} />
-        <Stat label="MARKET SOURCE" value={instrument.market_data_source || candidate.source || '—'} />
+        <Stat label="MARKET SOURCE" value={instrument.market_data_source || candidate.market_data_source || '—'} />
         <Stat label="BROKER SOURCE" value={instrument.broker_source || '—'} />
       </div>
       <div style={{ marginTop: 9 }}><LightyearStatus candidate={candidate} /></div>

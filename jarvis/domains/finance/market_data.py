@@ -163,7 +163,7 @@ def fetch_etf_candidate_quotes(sleeve_key: str) -> dict[str, Any]:
                     "raw_price": None,
                     "currency": None,
                     "eur_price": None,
-                    "source": "yfinance",
+                    "market_data_source": "yfinance",
                     "fetch_status": "failed",
                     "error": str(exc),
                 }
@@ -179,7 +179,7 @@ def fetch_etf_candidate_quotes(sleeve_key: str) -> dict[str, Any]:
             "raw_price": None,
             "currency": None,
             "eur_price": None,
-            "source": "yfinance",
+            "market_data_source": "yfinance",
             "fetch_status": "failed",
         }
         try:
