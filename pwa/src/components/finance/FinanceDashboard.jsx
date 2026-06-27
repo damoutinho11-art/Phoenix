@@ -59,6 +59,17 @@ function DonutChart({ alloc }) {
   )
 }
 
+// ── Markdown renderer (strips headings, renders bold) ─────────
+function renderMarkdown(text) {
+  return text.split('\n').map((line, li) => {
+    const stripped = line.replace(/^#{1,3}\s*/, '')
+    const parts = stripped.split(/\*\*/).map((part, i) =>
+      i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+    )
+    return <div key={li}>{parts}</div>
+  })
+}
+
 // ── Typewriter ────────────────────────────────────────────────
 function useTypewriter(text, speed = 20) {
   const [displayed, setDisplayed] = useState('')
@@ -214,7 +225,7 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
         </div>
         <div style={{ background: 'rgba(0,0,0,.88)', border: '1px solid rgba(32,216,236,.18)', borderLeft: '3px solid #20d8ec', padding: '13px 14px' }}>
           <div style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 13, fontWeight: 300, lineHeight: 1.75, color: 'rgba(199,236,244,.85)' }}>
-            {briefText || <span style={{ color: 'rgba(32,216,236,.38)' }}>Loading brief…</span>}
+            {briefText ? renderMarkdown(briefText) : <span style={{ color: 'rgba(32,216,236,.38)' }}>Loading brief…</span>}
             {!briefDone && briefText && (
               <span style={{ display: 'inline-block', width: 7, height: 13, background: '#20d8ec', marginLeft: 2, verticalAlign: 'middle', animation: 'blink 1s step-end infinite' }} />
             )}
