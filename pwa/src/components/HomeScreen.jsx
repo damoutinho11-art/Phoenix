@@ -538,9 +538,14 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
       }
     }
 
-    rec.onerror = () => {
+    rec.onerror = e => {
       holdingRef.current = false
       setReactorMode('')
+      if (e.error === 'no-speech') {
+        // onend fires next and shows "didn't catch that"; open chat after 1.5s
+        setTimeout(() => setChatOpen(true), 1500)
+        return
+      }
       setChatState('voice unavailable')
       setChatOpen(true)
       setMessages(prev => [...prev, {
