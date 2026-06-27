@@ -98,16 +98,19 @@ function bandColor(status) {
 // ── Main component ────────────────────────────────────────────
 export default function FinanceDashboard({ onNav, onQuickAsk }) {
   const [summary, setSummary] = useState(null)
+  const [summaryError, setSummaryError] = useState(false)
   const [rawBrief, setRawBrief] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
   const { displayed: briefText, done: briefDone } = useTypewriter(rawBrief, 18)
 
   useEffect(() => {
-    getFinanceSummary().then(setSummary).catch(() => {})
+    getFinanceSummary()
+      .then(setSummary)
+      .catch(() => setSummaryError(true))
     getFinanceBrief()
       .then(r => setRawBrief(r.brief || ''))
-      .catch(() => setRawBrief('Brief unavailable.'))
+      .catch(() => setRawBrief('Backend unreachable — set VITE_API_URL in Vercel and redeploy.'))
   }, [])
 
   async function handleRefresh() {
@@ -157,7 +160,12 @@ export default function FinanceDashboard({ onNav, onQuickAsk }) {
       {/* HERO */}
       <div style={{ padding: '22px 20px 16px', borderBottom: '1px solid rgba(32,216,236,.18)' }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: 'rgba(32,216,236,.38)', marginBottom: 5 }}>TOTAL PORTFOLIO VALUE</div>
-        {totalVal !== null ? (
+        {summaryError ? (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#ff6d7a', letterSpacing: '.08em', lineHeight: 1.6 }}>
+            BACKEND UNREACHABLE<br />
+            <span style={{ fontSize: 9, color: 'rgba(255,109,122,.6)' }}>Set VITE_API_URL in Vercel → redeploy</span>
+          </div>
+        ) : totalVal !== null ? (
           <div style={{ fontFamily: 'var(--display)', fontSize: 40, fontWeight: 700, lineHeight: 1.05, background: 'linear-gradient(155deg,#fff 0%,#7df0ff 42%,#20d8ec 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 18px rgba(32,216,236,.5))' }}>
             €{totalVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
