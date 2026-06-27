@@ -3,7 +3,7 @@
 import copy
 import json
 from datetime import date, datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,6 +12,9 @@ from jarvis.api.dependencies import get_finance_constitution, get_finance_profil
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.etf_scoring import load_etf_universe
 from jarvis.domains.finance.market_data import (
+    ETF_CANDIDATE_TICKERS,
+    TICKER_MAP,
+    _SKIP_KEYS,
     detect_market_regime,
     resolve_best_etf_candidate_with_broker_check,
     update_portfolio_state_prices,
@@ -347,11 +350,12 @@ def finance_summary(
     }
 
 
-@router.get("/recommendation")
-def finance_recommendation(
-    constitution: dict = Depends(get_finance_constitution),
-    portfolio_state: dict = Depends(get_portfolio_state),
-    profile: dict = Depends(get_finance_profile),
+def _build_finance_recommendation(
+    constitution: dict,
+    portfolio_state: dict,
+    profile: dict,
+    *,
+    persist_brief: bool,
 ) -> dict:
     regime = detect_market_regime(portfolio_state)
     result = engine.allocate_weekly_budget(
@@ -457,7 +461,7 @@ def finance_recommendation(
 
     # Auto-save brief (once per ISO week — idempotent on repeated calls)
     week_label = _iso_week_label()
-    if not database.brief_exists_for_week(week_label, "finance"):
+    if persist_brief and not database.brief_exists_for_week(week_label, "finance"):
         primary = recommendations[0] if recommendations else None
         database.save_brief(
             week_label=week_label,
@@ -477,6 +481,329 @@ def finance_recommendation(
         response["brief_user_action"] = latest_brief["user_action"]
     response["week_label"] = week_label
     return response
+
+
+@router.get("/recommendation")
+def finance_recommendation(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    return _build_finance_recommendation(
+        constitution, portfolio_state, profile, persist_brief=True
+    )
+
+
+_DATA_COVERAGE_SAFETY = {
+    "read_only_audit": True,
+    "broker_connection": False,
+    "orders_created": False,
+    "trades_executed": False,
+    "portfolio_state_updated": False,
+    "recommendation_overridden": False,
+}
+
+
+def _validation_provenance(record: dict) -> str:
+    raw = record.get("raw_json") or {}
+    adapter = str(raw.get("adapter") or "").lower()
+    source = str(record.get("source_primary") or "").lower()
+    fetch_status = str(raw.get("fetch_status") or "").lower()
+    raw_source = str(raw.get("source") or "").lower()
+
+    if "lightyear" in adapter or "lightyear" in source or "public_catalog" in adapter:
+        return "BROKER_PUBLIC_CATALOG_CHECK"
+    if "crypto_price_adapter" in adapter and fetch_status == "success":
+        return "LIVE_MARKET_FETCH"
+    if "constitution" in source or raw_source == "constitution":
+        return "LOCAL_CONSTITUTION"
+    if "portfolio" in source or raw_source == "portfolio_state":
+        return "LOCAL_PORTFOLIO_STATE"
+    if not raw.get("generated_by") and not source.startswith("phoenix"):
+        return "MANUAL"
+    if raw.get("generated_by") or source.startswith("phoenix"):
+        return "LOCAL_RECOMMENDATION_ENGINE"
+    return "UNKNOWN"
+
+
+def _recommendation_provenance(leg: dict) -> dict:
+    instrument = leg.get("instrument") or {}
+    candidate = instrument.get("resolved_candidate") or {}
+    asset = leg.get("asset")
+    market_source = candidate.get("market_data_source") or instrument.get(
+        "market_data_source"
+    )
+    broker_source = candidate.get("broker_source") or instrument.get("broker_source")
+    fetch_status = candidate.get("fetch_status")
+    candidate_source = candidate.get("source") or market_source
+
+    if candidate and market_source and fetch_status == "ok":
+        classification = "CONFIGURED_CANDIDATE_LIVE_PRICE"
+    elif market_source and fetch_status == "ok":
+        classification = "LIVE_FETCHED"
+    elif asset in ETF_CANDIDATE_TICKERS:
+        classification = "UNKNOWN"
+    elif asset in TICKER_MAP:
+        classification = "STATIC_CONFIG"
+    elif instrument:
+        classification = "LOCAL_CONTEXT_ONLY"
+    else:
+        classification = "UNKNOWN"
+
+    return {
+        "asset": asset,
+        "amount": leg.get("amount"),
+        "route": leg.get("route"),
+        "instrument": instrument,
+        "candidate_source": candidate_source,
+        "market_data_source": market_source,
+        "broker_source": broker_source,
+        "fetch_status": fetch_status,
+        "resolved_candidate": candidate or None,
+        "broad_search": False,
+        "universe_scope": "configured_curated_universe",
+        "provenance_classification": classification,
+    }
+
+
+def _research_provenance(recommendation: dict) -> list[dict]:
+    legs = []
+    for context in recommendation.get("research_context") or []:
+        memo_id = context.get("memo_id")
+        memo = database.get_research_memo(memo_id) if memo_id else None
+        records = (
+            database.list_research_validation_records_by_memo_id(memo_id)
+            if memo_id
+            else []
+        )
+        legs.append(
+            {
+                "asset": context.get("asset"),
+                "memo_id": memo_id,
+                "research_quality_status": (
+                    memo.get("research_quality_status") if memo else None
+                ),
+                "evidence_status": context.get("evidence_status"),
+                "validation_records": [
+                    {
+                        "check_type": record.get("check_type"),
+                        "field_name": record.get("field_name"),
+                        "status": record.get("status"),
+                        "confidence": record.get("confidence"),
+                        "source_primary": record.get("source_primary"),
+                        "generated_by": (record.get("raw_json") or {}).get(
+                            "generated_by"
+                        ),
+                        "adapter": (record.get("raw_json") or {}).get("adapter"),
+                        "fetch_status": (record.get("raw_json") or {}).get(
+                            "fetch_status"
+                        ),
+                        "timestamp": (record.get("raw_json") or {}).get("timestamp")
+                        or record.get("created_at"),
+                        "provenance_classification": _validation_provenance(record),
+                    }
+                    for record in records
+                ],
+            }
+        )
+    return legs
+
+
+def _etf_coverage(recommendation: dict, etf_universe: dict) -> dict:
+    instruments = {
+        sleeve.get("sleeve"): sleeve.get("instrument") or {}
+        for sleeve in (
+            (recommendation.get("etf_scoring_verdict") or {}).get("sleeves") or []
+        )
+    }
+    sleeves: dict[str, Any] = {}
+    for sleeve_key, configured_candidates in ETF_CANDIDATE_TICKERS.items():
+        instrument = instruments.get(sleeve_key, {})
+        resolved_candidates = {
+            item.get("symbol"): item for item in (instrument.get("candidates") or [])
+        }
+        candidates = []
+        for configured in configured_candidates:
+            resolved = resolved_candidates.get(configured.get("symbol"), {})
+            candidates.append(
+                {
+                    "symbol": configured.get("symbol"),
+                    "label": configured.get("label"),
+                    "keywords": configured.get("keywords") or [],
+                    "candidate_quote_fetch_exists": True,
+                    "lightyear_verification_exists": bool(
+                        resolved.get("broker_source")
+                        or resolved.get("lightyear_available") is not None
+                    ),
+                    "fetch_status": resolved.get("fetch_status"),
+                    "broker_verification": (
+                        "verified"
+                        if resolved.get("lightyear_available") is True
+                        and resolved.get("lightyear_confidence") == "high"
+                        else "not_verified"
+                    ),
+                    "market_data_source": resolved.get("market_data_source"),
+                    "broker_source": resolved.get("broker_source"),
+                }
+            )
+        sleeves[sleeve_key] = {
+            "sleeve_key": sleeve_key,
+            "active": bool(etf_universe.get(sleeve_key, {}).get("enabled", False)),
+            "candidate_count": len(candidates),
+            "candidates": candidates,
+            "selected_candidate": instrument.get("resolved_candidate"),
+        }
+    return {"source": "configured_curated_universe", "sleeves": sleeves}
+
+
+@router.get("/data-coverage")
+def finance_data_coverage(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    """Expose an honest, read-only provenance audit of current finance data."""
+    recommendation = _build_finance_recommendation(
+        constitution, portfolio_state, profile, persist_brief=False
+    )
+    etf_universe = load_etf_universe(engine.DEFAULT_ETF_UNIVERSE_PATH)
+    etf_coverage = _etf_coverage(recommendation, etf_universe)
+    recommendation_legs = [
+        _recommendation_provenance(leg)
+        for leg in (recommendation.get("recommendations") or [])
+    ]
+    research_legs = _research_provenance(recommendation)
+
+    configured_candidates = [
+        candidate
+        for sleeve in etf_coverage["sleeves"].values()
+        for candidate in sleeve["candidates"]
+    ]
+    live_fetchable = sum(
+        1 for candidate in configured_candidates if candidate["candidate_quote_fetch_exists"]
+    )
+    broker_verified = sum(
+        1
+        for candidate in configured_candidates
+        if candidate["broker_verification"] == "verified"
+    )
+    active_sleeves = sum(
+        1 for sleeve in etf_coverage["sleeves"].values() if sleeve["active"]
+    )
+    total_candidates = len(configured_candidates)
+    universe_type = (
+        "CURATED_SMALL_UNIVERSE" if total_candidates < 10 else "BROAD_UNIVERSE"
+    )
+
+    blockers: list[str] = []
+    research_by_asset = {leg["asset"]: leg for leg in research_legs}
+    for leg in recommendation_legs:
+        asset = leg["asset"]
+        research = research_by_asset.get(asset) or {}
+        if not leg["market_data_source"]:
+            blockers.append(f"{asset}: current recommendation leg has no market data source.")
+        if research.get("evidence_status") == "NO_EVIDENCE":
+            blockers.append(f"{asset}: current recommendation leg has no research evidence.")
+        if leg["provenance_classification"] == "UNKNOWN":
+            blockers.append(f"{asset}: current recommendation leg has unknown provenance.")
+        candidate = leg.get("resolved_candidate") or {}
+        if asset in ETF_CANDIDATE_TICKERS and candidate.get("fetch_status") != "ok":
+            blockers.append(f"{asset}: ETF candidate selected without fetch_status ok.")
+        if (
+            leg.get("broker_source")
+            and (leg.get("instrument") or {}).get("broker_verification") == "verified"
+            and not (
+                candidate.get("lightyear_available") is True
+                and candidate.get("lightyear_confidence") == "high"
+            )
+        ):
+            blockers.append(
+                f"{asset}: broker_source claims verified but no verification evidence exists."
+            )
+
+    warnings = [
+        "The current universe is curated; it is not a broad market search.",
+        "External fundamental/analyst research is not present.",
+        "Lightyear verification is public catalogue verification only, not a broker API.",
+        "PowerShell UTF-8 display may show € incorrectly even when API UTF-8 is valid.",
+    ]
+    if total_candidates < 10:
+        warnings.append(f"Curated universe has fewer than 10 ETF candidates ({total_candidates}).")
+    if active_sleeves == 3:
+        warnings.append("Only 3 ETF sleeves are configured.")
+    crypto_map = {key: value for key, value in TICKER_MAP.items() if key in _CRYPTO_ASSETS}
+    if set(crypto_map) == _CRYPTO_ASSETS:
+        warnings.append("Crypto universe is only BTC/HYPE/TAO.")
+
+    validated_research = sum(
+        1
+        for leg in research_legs
+        if leg.get("research_quality_status") == "VALIDATED"
+    )
+    summary = {
+        "total_live_price_tickers_configured": len(TICKER_MAP),
+        "total_crypto_tickers_configured": len(crypto_map),
+        "total_active_etf_sleeves": active_sleeves,
+        "total_etf_candidates_configured": total_candidates,
+        "total_etf_candidates_live_fetchable": live_fetchable,
+        "total_broker_verified_candidates": broker_verified,
+        "total_current_recommendation_legs": len(recommendation_legs),
+        "current_legs_with_live_market_data": sum(
+            1
+            for leg in recommendation_legs
+            if leg["provenance_classification"]
+            in {"LIVE_FETCHED", "CONFIGURED_CANDIDATE_LIVE_PRICE"}
+        ),
+        "current_legs_with_broker_source": sum(
+            1 for leg in recommendation_legs if leg.get("broker_source")
+        ),
+        "current_legs_with_validated_research": validated_research,
+        "universe_type": universe_type,
+        "coverage_verdict": (
+            "BLOCKED_DATA_OPAQUE" if blockers else (
+                "TRANSPARENT_SMALL_UNIVERSE"
+                if universe_type == "CURATED_SMALL_UNIVERSE"
+                else "BROAD_DATA_READY"
+            )
+        ),
+    }
+    live_sources = {
+        "source_name": "yfinance",
+        "supported_tickers": dict(TICKER_MAP),
+        "crypto_mappings": crypto_map,
+        "etf_sleeve_mappings": {
+            key: value for key, value in TICKER_MAP.items() if key in ETF_CANDIDATE_TICKERS
+        },
+        "legacy_mappings": {
+            key: value for key, value in TICKER_MAP.items() if key.startswith("lhv_growth_")
+        },
+        "skipped_keys": sorted(_SKIP_KEYS),
+        "fx_fetched": True,
+        "fx_pairs": ["GBPEUR=X", "USDEUR=X"],
+        "vix_fetched": True,
+        "vix_ticker": "^VIX",
+        "fail_soft": True,
+        "failures_exposed_in_candidate_fetch_status": True,
+    }
+    verdict = "BLOCKED" if blockers else "DATA_TRANSPARENT"
+    return {
+        "verdict": verdict,
+        "blockers": blockers,
+        "warnings": warnings,
+        "sections": {
+            "live_price_sources": live_sources,
+            "etf_candidate_universe": etf_coverage,
+            "recommendation_data_provenance": {"legs": recommendation_legs},
+            "research_evidence_provenance": {"legs": research_legs},
+            "coverage_summary": summary,
+            "safety": dict(_DATA_COVERAGE_SAFETY),
+        },
+        "next_action": (
+            "Resolve the listed provenance blockers before relying on this audit."
+            if blockers
+            else "Keep the curated universe explicit; expand it only in a separate reviewed sprint."
+        ),
+    }
 
 
 _MANUAL_BUY_SAFETY_FLAGS = {
