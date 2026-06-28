@@ -17,7 +17,6 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from jarvis.api.main import app
 from jarvis.data import database
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.market_data import ETF_CANDIDATE_TICKERS
@@ -231,6 +230,8 @@ def run_local_acceptance_gate() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="phoenix-finance-gate-") as directory:
         database.DB_PATH = Path(directory) / "acceptance.db"
         try:
+            from jarvis.api.main import app
+
             database.init_db()
             _seed_acceptance_evidence()
             ledger_before = database.get_finance_transactions()
