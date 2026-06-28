@@ -37,20 +37,44 @@ TICKER_MAP: dict[str, str] = {
 # portfolio refresh behavior remains backward-compatible.
 ETF_CANDIDATE_TICKERS: dict[str, list[dict[str, Any]]] = {
     "global_core_etf": [
-        {"symbol": "VWCE.DE", "label": "Vanguard FTSE All-World UCITS ETF", "keywords": ["VWCE", "FTSE All-World"]},
-        {"symbol": "SPYI.DE", "label": "SPDR MSCI ACWI IMI UCITS ETF", "keywords": ["SPYI", "ACWI IMI"]},
-        {"symbol": "IWDA.L", "label": "iShares Core MSCI World UCITS ETF", "keywords": ["IWDA", "MSCI World"]},
-        {"symbol": "SWRD.L", "label": "SPDR MSCI World UCITS ETF", "keywords": ["SWRD", "MSCI World"]},
+        {"sleeve": "global_core_etf", "symbol": "VWCE.DE", "label": "Vanguard FTSE All-World UCITS ETF", "keywords": ["VWCE", "FTSE All-World"], "provider": "Vanguard", "benchmark": "FTSE All-World", "income_treatment": "accumulating", "listing_hint": "Xetra / EUR", "region_exposure": "global developed and emerging markets"},
+        {"sleeve": "global_core_etf", "symbol": "SPYI.DE", "label": "State Street SPDR MSCI ACWI IMI UCITS ETF", "keywords": ["SPYI", "ACWI IMI"], "provider": "State Street", "benchmark": "MSCI ACWI IMI", "income_treatment": "accumulating", "listing_hint": "Xetra / EUR", "region_exposure": "global developed and emerging markets"},
+        {"sleeve": "global_core_etf", "symbol": "IWDA.L", "label": "iShares Core MSCI World UCITS ETF", "keywords": ["IWDA", "MSCI World"], "provider": "iShares", "benchmark": "MSCI World", "income_treatment": "accumulating", "listing_hint": "London Stock Exchange", "region_exposure": "developed markets"},
+        {"sleeve": "global_core_etf", "symbol": "SWRD.L", "label": "State Street SPDR MSCI World UCITS ETF", "keywords": ["SWRD", "MSCI World"], "provider": "State Street", "benchmark": "MSCI World", "income_treatment": "accumulating", "listing_hint": "London Stock Exchange", "region_exposure": "developed markets"},
+        {"sleeve": "global_core_etf", "symbol": "VWRL.L", "label": "Vanguard FTSE All-World UCITS ETF", "keywords": ["VWRL", "FTSE All-World"], "provider": "Vanguard", "benchmark": "FTSE All-World", "income_treatment": "distributing", "listing_hint": "London Stock Exchange / GBP", "region_exposure": "global developed and emerging markets"},
+        {"sleeve": "global_core_etf", "symbol": "IUSQ.DE", "label": "iShares MSCI ACWI UCITS ETF", "keywords": ["IUSQ", "MSCI ACWI"], "provider": "iShares", "benchmark": "MSCI ACWI", "income_treatment": "accumulating", "listing_hint": "Xetra / EUR", "region_exposure": "global developed and emerging markets"},
+        {"sleeve": "global_core_etf", "symbol": "IMID.L", "label": "State Street SPDR MSCI ACWI IMI UCITS ETF", "keywords": ["IMID", "ACWI IMI"], "provider": "State Street", "benchmark": "MSCI ACWI IMI", "income_treatment": "accumulating", "listing_hint": "London Stock Exchange / USD", "region_exposure": "global developed and emerging markets"},
+        {"sleeve": "global_core_etf", "symbol": "SSAC.L", "label": "iShares MSCI ACWI UCITS ETF", "keywords": ["SSAC", "MSCI ACWI"], "provider": "iShares", "benchmark": "MSCI ACWI", "income_treatment": "accumulating", "listing_hint": "London Stock Exchange", "region_exposure": "global developed and emerging markets"},
     ],
     "growth_nasdaq_etf": [
-        {"symbol": "CNDX.L", "label": "iShares Nasdaq 100 UCITS ETF", "keywords": ["CNDX", "Nasdaq 100", "Nasdaq-100"]},
-        {"symbol": "EQQQ.L", "label": "Invesco EQQQ Nasdaq-100 UCITS ETF", "keywords": ["EQQQ", "Nasdaq 100", "Nasdaq-100"]},
-        {"symbol": "SXRV.DE", "label": "iShares Nasdaq 100 UCITS ETF", "keywords": ["SXRV", "Nasdaq 100", "Nasdaq-100"]},
+        {"sleeve": "growth_nasdaq_etf", "symbol": "CNDX.L", "label": "iShares Nasdaq 100 UCITS ETF", "keywords": ["CNDX", "Nasdaq 100", "Nasdaq-100"], "provider": "iShares", "benchmark": "NASDAQ-100", "income_treatment": "accumulating", "listing_hint": "London Stock Exchange", "region_exposure": "Nasdaq-listed large-cap non-financial companies"},
+        {"sleeve": "growth_nasdaq_etf", "symbol": "EQQQ.L", "label": "Invesco EQQQ Nasdaq-100 UCITS ETF", "keywords": ["EQQQ", "Nasdaq 100", "Nasdaq-100"], "provider": "Invesco", "benchmark": "NASDAQ-100", "income_treatment": "distributing", "listing_hint": "London Stock Exchange", "region_exposure": "Nasdaq-listed large-cap non-financial companies"},
+        {"sleeve": "growth_nasdaq_etf", "symbol": "SXRV.DE", "label": "iShares Nasdaq 100 UCITS ETF", "keywords": ["SXRV", "Nasdaq 100", "Nasdaq-100"], "provider": "iShares", "benchmark": "NASDAQ-100", "income_treatment": "accumulating", "listing_hint": "Xetra / EUR", "region_exposure": "Nasdaq-listed large-cap non-financial companies"},
+        {"sleeve": "growth_nasdaq_etf", "symbol": "EQAC.MI", "label": "Invesco EQQQ Nasdaq-100 UCITS ETF Acc", "keywords": ["EQAC", "EQQQ", "Nasdaq-100"], "provider": "Invesco", "benchmark": "NASDAQ-100", "income_treatment": "accumulating", "listing_hint": "Borsa Italiana / EUR", "region_exposure": "Nasdaq-listed large-cap non-financial companies"},
+        {"sleeve": "growth_nasdaq_etf", "symbol": "XNAS.DE", "label": "Xtrackers Nasdaq 100 UCITS ETF", "keywords": ["XNAS", "Nasdaq 100", "Nasdaq-100"], "provider": "Xtrackers", "benchmark": "NASDAQ-100", "income_treatment": "accumulating", "listing_hint": "Xetra / EUR", "region_exposure": "Nasdaq-listed large-cap non-financial companies"},
     ],
     "quality_etf": [
-        {"symbol": "IWQU.L", "label": "iShares Edge MSCI World Quality Factor UCITS ETF", "keywords": ["IWQU", "MSCI World Quality", "Quality Factor"]},
-        {"symbol": "XDEQ.DE", "label": "Xtrackers MSCI World Quality UCITS ETF", "keywords": ["XDEQ", "MSCI World Quality", "Quality"]},
+        {"sleeve": "quality_etf", "symbol": "IWQU.L", "label": "iShares Edge MSCI World Quality Factor UCITS ETF", "keywords": ["IWQU", "MSCI World Quality", "Quality Factor"], "provider": "iShares", "benchmark": "MSCI World quality factor", "income_treatment": "accumulating", "listing_hint": "London Stock Exchange / USD", "region_exposure": "developed-market quality equities"},
+        {"sleeve": "quality_etf", "symbol": "XDEQ.DE", "label": "Xtrackers MSCI World Quality UCITS ETF", "keywords": ["XDEQ", "MSCI World Quality", "Quality"], "provider": "Xtrackers", "benchmark": "MSCI World quality factor", "income_treatment": "accumulating", "listing_hint": "Xetra / EUR", "region_exposure": "developed-market quality equities"},
+        {"sleeve": "quality_etf", "symbol": "IWFQ.L", "label": "iShares Edge MSCI World Quality Factor UCITS ETF", "keywords": ["IWFQ", "MSCI World Quality", "Quality Factor"], "provider": "iShares", "benchmark": "MSCI World quality factor", "income_treatment": "accumulating", "listing_hint": "London Stock Exchange / GBP", "region_exposure": "developed-market quality equities"},
+        {"sleeve": "quality_etf", "symbol": "IS3Q.DE", "label": "iShares Edge MSCI World Quality Factor UCITS ETF", "keywords": ["IS3Q", "MSCI World Quality", "Quality Factor"], "provider": "iShares", "benchmark": "MSCI World quality factor", "income_treatment": "accumulating", "listing_hint": "Xetra / EUR", "region_exposure": "developed-market quality equities"},
+        {"sleeve": "quality_etf", "symbol": "IWQE.AS", "label": "iShares MSCI World Quality Factor Advanced UCITS ETF", "keywords": ["IWQE", "MSCI World Quality Advanced", "Quality Factor"], "provider": "iShares", "benchmark": "MSCI World Quality Advanced Select", "income_treatment": "accumulating", "listing_hint": "Euronext Amsterdam / USD", "region_exposure": "developed-market quality equities"},
     ],
+}
+
+# Optional research universe only. The allocation engine does not consume this
+# mapping, so adding a company here cannot create or alter a recommendation.
+STOCK_RESEARCH_CANDIDATES: dict[str, dict[str, str]] = {
+    "msft": {"symbol": "MSFT", "label": "Microsoft"},
+    "nvda": {"symbol": "NVDA", "label": "NVIDIA"},
+    "goog": {"symbol": "GOOGL", "label": "Alphabet Class A"},
+    "amzn": {"symbol": "AMZN", "label": "Amazon"},
+    "meta": {"symbol": "META", "label": "Meta Platforms"},
+    "novo_b": {"symbol": "NOVO-B.CO", "label": "Novo Nordisk Class B"},
+    "asml": {"symbol": "ASML.AS", "label": "ASML Holding"},
+    "lly": {"symbol": "LLY", "label": "Eli Lilly"},
+    "brk_b": {"symbol": "BRK-B", "label": "Berkshire Hathaway Class B"},
+    "tsm": {"symbol": "TSM", "label": "Taiwan Semiconductor Manufacturing ADR"},
 }
 
 # Keys that have no meaningful market price (cash / reserved slots)

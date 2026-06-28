@@ -155,11 +155,13 @@ def run_etf_source_adapter(
     asset: str,
     constitution: dict,
     etf_universe: dict | None = None,
+    resolved_candidate: dict | None = None,
 ) -> list[dict[str, Any]]:
-    """Verify ETF/fund source evidence from local metadata only.
+    """Bind ETF evidence to the current read-only resolved candidate.
 
     Creates or updates market_data_source and broker_source records.
-    No broker API calls. No external market data fetched.
+    No broker API calls. Candidate quote/catalogue results are supplied by the
+    existing fail-soft resolver.
     """
     asset_routes = constitution.get("asset_routes", {})
     route = asset_routes.get(asset)
@@ -168,7 +170,10 @@ def run_etf_source_adapter(
     # Resolve ETF ticker/name from universe if available
     ticker_symbol: str | None = None
     etf_name: str | None = None
-    if etf_universe:
+    if resolved_candidate:
+        ticker_symbol = resolved_candidate.get("symbol")
+        etf_name = resolved_candidate.get("label")
+    elif etf_universe:
         sleeve_data = etf_universe.get(asset)
         if isinstance(sleeve_data, dict):
             candidates = sleeve_data.get("candidates") or []
@@ -179,6 +184,12 @@ def run_etf_source_adapter(
                 etf_name = candidates[0].get("name") or candidates[0].get("label")
 
     # Record A: market_data_source
+    market_fetch_status = (
+        resolved_candidate.get("fetch_status") if resolved_candidate else None
+    )
+    market_status = (
+        "PASS" if ticker_symbol and market_fetch_status == "ok" else "UNVERIFIED"
+    )
     raw_mds: dict = {
         "generated_by": _PHOENIX_ADAPTER_MARKER,
         "adapter": "etf_source_adapter_v1",
@@ -186,7 +197,7 @@ def run_etf_source_adapter(
         "source": "yfinance",
         "ticker": ticker_symbol,
         "etf_name": etf_name,
-        "fetch_status": "metadata_confirmed",
+        "fetch_status": market_fetch_status or "no_current_candidate",
         "timestamp": _utc_now_str(),
     }
     check_mds: dict = {
@@ -201,11 +212,12 @@ def run_etf_source_adapter(
         "consensus_value": "yfinance",
         "tolerance_pct": None,
         "deviation_pct": None,
-        "status": "PASS",
-        "confidence": "medium",
+        "status": market_status,
+        "confidence": "high" if market_status == "PASS" else "low",
         "notes": (
-            f"ETF source adapter: yfinance confirmed as market data source for '{asset}'. "
-            + (f"Resolved ticker: {ticker_symbol}. " if ticker_symbol else "")
+            f"ETF source adapter: current resolved instrument for '{asset}'. "
+            + (f"Resolved ticker: {ticker_symbol}. " if ticker_symbol else "No current ticker. ")
+            + f"Quote fetch status: {market_fetch_status or 'unavailable'}. "
             + "No broker connection. Read-only."
         ),
         "raw_json": raw_mds,
@@ -215,19 +227,25 @@ def run_etf_source_adapter(
         "adapter": "etf_source_adapter_v1",
         "check": "market_data_source",
         "asset": asset,
-        "status": "PASS",
+        "status": market_status,
         "validation_record": record_mds,
     })
 
     # Record B: broker_source
-    broker_status = "PASS" if route else "UNVERIFIED"
-    broker_confidence = "high" if route else "low"
+    broker_verified = bool(
+        resolved_candidate
+        and resolved_candidate.get("lightyear_available") is True
+        and resolved_candidate.get("lightyear_confidence") == "high"
+    )
+    broker_status = "PASS" if broker_verified else "UNVERIFIED"
+    broker_confidence = "high" if broker_verified else "low"
     raw_bs: dict = {
         "generated_by": _PHOENIX_ADAPTER_MARKER,
         "adapter": "etf_source_adapter_v1",
         "asset": asset,
         "route": route,
-        "fetch_status": "route_confirmed" if route else "no_route",
+        "ticker": ticker_symbol,
+        "fetch_status": "verified" if broker_verified else "not_verified",
         "timestamp": _utc_now_str(),
     }
     check_bs: dict = {
@@ -235,7 +253,7 @@ def run_etf_source_adapter(
         "asset": asset,
         "check_type": "SOURCE_CONFIDENCE",
         "field_name": "broker_source",
-        "source_primary": "PHOENIX ETF source adapter / constitution asset_routes",
+        "source_primary": "PHOENIX ETF source adapter / Lightyear public catalogue",
         "source_secondary": None,
         "primary_value": route,
         "secondary_value": None,
@@ -245,9 +263,9 @@ def run_etf_source_adapter(
         "status": broker_status,
         "confidence": broker_confidence,
         "notes": (
-            f"ETF source adapter: route '{route}' confirmed in constitution asset_routes."
-            if route
-            else f"ETF source adapter: no route found for '{asset}' in constitution."
+            f"ETF source adapter: {ticker_symbol} verified in the Lightyear public catalogue."
+            if broker_verified
+            else f"ETF source adapter: current instrument {ticker_symbol or 'unknown'} is not public-catalogue verified."
         )
         + " No broker API called. Read-only.",
         "raw_json": raw_bs,

@@ -335,6 +335,69 @@ def test_etf_adapter_does_not_duplicate_records():
     assert len(bs_records) == 1
 
 
+def _resolved_etf(symbol: str) -> dict:
+    candidate = {
+        "symbol": symbol,
+        "label": "Current selected quality ETF",
+        "market_data_source": "yfinance",
+        "fetch_status": "ok",
+        "raw_price": 75.0,
+        "currency": "EUR",
+        "eur_price": 75.0,
+        "lightyear_available": True,
+        "lightyear_confidence": "high",
+        "broker_source": "lightyear_public_fund_screener",
+    }
+    return {
+        "selected_candidate": candidate,
+        "candidates": [candidate],
+        "source": "yfinance",
+        "broker_source": "lightyear_public_fund_screener",
+        "broker_verification": "verified",
+        "confirmation_required": True,
+        "confidence": "high",
+        "reason": "fixture",
+    }
+
+
+def test_etf_adapter_binds_pass_evidence_to_current_selected_instrument():
+    memo_id = _create_etf_memo()
+    with patch(
+        "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
+        return_value=_resolved_etf("IS3Q.DE"),
+    ):
+        client.post(f"/finance/research/memos/{memo_id}/autopilot")
+
+    records = database.list_research_validation_records_by_memo_id(memo_id)
+    market = next(record for record in records if record["field_name"] == "market_data_source")
+    broker = next(record for record in records if record["field_name"] == "broker_source")
+    assert market["status"] == "PASS"
+    assert market["raw_json"]["ticker"] == "IS3Q.DE"
+    assert market["raw_json"]["fetch_status"] == "ok"
+    assert broker["status"] == "PASS"
+    assert broker["raw_json"]["ticker"] == "IS3Q.DE"
+    assert broker["raw_json"]["fetch_status"] == "verified"
+
+
+def test_etf_adapter_refresh_replaces_stale_generated_instrument_evidence():
+    memo_id = _create_etf_memo()
+    with patch(
+        "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
+        return_value=_resolved_etf("IWQU.L"),
+    ):
+        client.post(f"/finance/research/memos/{memo_id}/autopilot")
+    with patch(
+        "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
+        return_value=_resolved_etf("IS3Q.DE"),
+    ):
+        client.post(f"/finance/research/memos/{memo_id}/autopilot")
+
+    records = database.list_research_validation_records_by_memo_id(memo_id)
+    market_records = [record for record in records if record["field_name"] == "market_data_source"]
+    assert len(market_records) == 1
+    assert market_records[0]["raw_json"]["ticker"] == "IS3Q.DE"
+
+
 # ---------------------------------------------------------------------------
 # Tests — finance autopilot run endpoint
 # ---------------------------------------------------------------------------
