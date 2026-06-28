@@ -42,7 +42,7 @@ export default function Message({ role, text }) {
             fontSize: 9, letterSpacing: '.12em',
             color: 'var(--cyan)', marginBottom: 4,
           }}>
-            JARVIS
+            PHOENIX
           </span>
         )}
         {renderMarkdown(text)}

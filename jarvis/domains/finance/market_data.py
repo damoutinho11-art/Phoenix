@@ -1,4 +1,4 @@
-"""Live market price fetcher for J.A.R.V.I.S. portfolio.
+"""Live market price fetcher for PHOENIX portfolio.
 
 Architecture: only this module makes yfinance network calls.
 The allocation engine (engine.py) stays pure / offline. Only the router

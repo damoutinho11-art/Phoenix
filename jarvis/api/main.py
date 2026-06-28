@@ -1,4 +1,4 @@
-"""J.A.R.V.I.S. FastAPI application entry point."""
+"""PHOENIX FastAPI application entry point."""
 
 import asyncio
 import os
@@ -39,7 +39,7 @@ async def lifespan(_app: FastAPI):
 # Initialize at import time for direct TestClient usage that does not enter the
 # lifespan context; the lifespan call remains the production startup contract.
 init_db()
-app = FastAPI(title="J.A.R.V.I.S.", version="0", lifespan=lifespan)
+app = FastAPI(title="PHOENIX", version="0", lifespan=lifespan)
 
 _LOCAL_ALLOWED_ORIGINS = [
     "http://localhost:3000",

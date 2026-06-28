@@ -90,7 +90,7 @@ function Drawer({ holding, kind, onClose, onQuickAsk }) {
             <button
               onClick={() => { onQuickAsk(`Tell me more about ${holding.display_name}`); onClose() }}
               style={{ marginTop: 14, width: '100%', fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', padding: '11px 0', border: `1px solid rgba(0,187,221,.4)`, color: '#7de8ff', background: 'transparent', cursor: 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)' }}
-            >ASK JARVIS MORE</button>
+            >ASK PHOENIX MORE</button>
           )}
         </div>
       </div>

@@ -242,7 +242,7 @@ def _row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
 
 
 def get_db() -> sqlite3.Connection:
-    """Return a configured connection to the local J.A.R.V.I.S. database."""
+    """Return a configured connection to the local PHOENIX database."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH, timeout=5.0)
     connection.row_factory = sqlite3.Row

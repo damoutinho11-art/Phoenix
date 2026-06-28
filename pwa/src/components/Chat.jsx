@@ -65,7 +65,7 @@ export default function Chat({ prefill, onPrefillConsumed }) {
         </div>
         <div className="chat-status-indicator">
           <span className={`chat-status-dot ${statusClass}`} />
-          <span>J.A.R.V.I.S.</span>
+          <span>PHOENIX</span>
         </div>
       </div>
 

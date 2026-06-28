@@ -75,7 +75,7 @@ def _generate_budget_insight(summary: dict, month: str) -> str:
     prompt = f"""Budget summary for {month}:
 {json.dumps(summary, indent=2)}
 
-Generate a spoken JARVIS budget brief for Sir.
+Generate a spoken PHOENIX budget brief for Sir.
 Maximum 3 sentences. Be concise. Cover: savings rate vs 25% target,
 top spending category, one specific thing to cut.
 No markdown, no symbols, natural spoken sentences.

@@ -1,4 +1,4 @@
-"""Normalized read-only data contracts for J.A.R.V.I.S. source adapters."""
+"""Normalized read-only data contracts for PHOENIX source adapters."""
 
 from __future__ import annotations
 

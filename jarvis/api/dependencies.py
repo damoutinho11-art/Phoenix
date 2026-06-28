@@ -1,4 +1,4 @@
-"""Shared FastAPI dependencies for J.A.R.V.I.S. API.
+"""Shared FastAPI dependencies for PHOENIX API.
 
 Each function is a FastAPI dependency (callable passed to Depends()). Keeping
 them here — rather than inline in routers — means any test can override them

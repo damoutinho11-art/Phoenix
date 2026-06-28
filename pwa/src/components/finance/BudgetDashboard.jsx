@@ -185,10 +185,10 @@ export default function BudgetDashboard({ onBack, onUpload }) {
             </div>
           )}
 
-          {/* JARVIS insight */}
+          {/* PHOENIX insight */}
           {summary.insight && (
             <div style={{ margin: '16px 18px 0', padding: '12px 14px', background: CARD, border: '1px solid rgba(0,187,221,.18)', borderLeft: '3px solid rgba(0,187,221,.6)', borderRadius: 3 }}>
-              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: 'rgba(0,187,221,.6)', marginBottom: 6 }}>JARVIS ASSESSMENT</div>
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: 'rgba(0,187,221,.6)', marginBottom: 6 }}>PHOENIX ASSESSMENT</div>
               <div style={{ fontFamily: BODY, fontSize: 13, color: 'rgba(199,236,244,.87)', lineHeight: 1.6 }}>{summary.insight}</div>
             </div>
           )}

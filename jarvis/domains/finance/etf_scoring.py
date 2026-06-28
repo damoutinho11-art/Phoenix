@@ -1,4 +1,4 @@
-"""Offline ETF sleeve scoring for J.A.R.V.I.S. Portfolio OS v0.2."""
+"""Offline ETF sleeve scoring for PHOENIX Portfolio OS v0.2."""
 
 from __future__ import annotations
 

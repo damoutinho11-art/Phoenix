@@ -22,7 +22,7 @@ export default function StatusBar({ apiStatus, loading }) {
         fontFamily: 'var(--mono)', fontSize: 10,
         letterSpacing: '.1em', color: 'var(--muted)',
       }}>
-        J.A.R.V.I.S.
+        PHOENIX
         <span style={{ color: 'var(--line)' }}>·</span>
         <span style={{ color, display: 'flex', alignItems: 'center', gap: 4 }}>
           <span style={{

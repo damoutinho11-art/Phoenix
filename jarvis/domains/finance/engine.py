@@ -1,4 +1,4 @@
-"""Deterministic local allocation engine for J.A.R.V.I.S. Portfolio OS v0."""
+"""Deterministic local allocation engine for PHOENIX Portfolio OS v0."""
 
 from __future__ import annotations
 
@@ -320,7 +320,7 @@ def holding_classifications(
 
     Active sleeve holdings (from portfolio_state.holdings) are classified
     investable_active, since the constitution's target_weights only lists
-    sleeves J.A.R.V.I.S. is actively building toward. Legacy holdings reuse
+    sleeves PHOENIX is actively building toward. Legacy holdings reuse
     the existing legacy_holding_policy classification (legacy_acceptable,
     legacy_unwanted_fee_sensitive, legacy_cash, etc.) rather than introducing
     a second vocabulary; this just gives both groups one combined view.
@@ -522,7 +522,7 @@ def detect_portfolio_mode(
             "reasons": [
                 "Investable value is below EUR 500 or most target sleeves are still empty."
             ],
-            "guidance": "J.A.R.V.I.S. should focus on building core target exposure with manual approval.",
+            "guidance": "PHOENIX should focus on building core target exposure with manual approval.",
         }
 
     transition_reasons = []
@@ -545,7 +545,7 @@ def detect_portfolio_mode(
         return {
             "mode": "transition_mode",
             "reasons": transition_reasons,
-            "guidance": "J.A.R.V.I.S. may recommend temporary tactical reserve buildup and throttled BTC fallback.",
+            "guidance": "PHOENIX may recommend temporary tactical reserve buildup and throttled BTC fallback.",
         }
 
     crypto = crypto_risk_status(constitution, holdings, {}, 0)
@@ -565,7 +565,7 @@ def detect_portfolio_mode(
         return {
             "mode": "rebalance_watch_mode",
             "reasons": rebalance_reasons,
-            "guidance": "J.A.R.V.I.S. should warn, but still not recommend automatic sells.",
+            "guidance": "PHOENIX should warn, but still not recommend automatic sells.",
         }
 
     return {
@@ -573,7 +573,7 @@ def detect_portfolio_mode(
         "reasons": [
             "All main platforms are ready, legacy cleanup is complete, and sleeves are within allowed bands."
         ],
-        "guidance": "J.A.R.V.I.S. should allocate according to normal target gaps.",
+        "guidance": "PHOENIX should allocate according to normal target gaps.",
     }
 
 
@@ -1226,7 +1226,7 @@ def build_approval_ticket(
     ]
 
     return {
-        "ticket_id": f"JARVIS-{as_of}-{portfolio_mode}",
+        "ticket_id": f"PHOENIX-{as_of}-{portfolio_mode}",
         "timestamp": as_of,
         "as_of": as_of,
         "portfolio_mode": portfolio_mode,
@@ -1439,7 +1439,7 @@ def render_report(result: dict[str, Any]) -> str:
     before_underweight, before_overweight = classify(result["statuses_before"])
 
     lines = [
-        "J.A.R.V.I.S. Weekly Allocation Report",
+        "PHOENIX Weekly Allocation Report",
         "=" * 38,
         result["approval_notice"],
         "",
@@ -1731,7 +1731,7 @@ def self_check() -> None:
     assert result["crypto_risk_status"]["btc_fallback_weekly_cap_cents"] == cents(41.54)
     assert result["crypto_risk_status"]["total_crypto_buy_weekly_cap_cents"] == cents(51.92)
     assert result["transition_cash_warning"] is True
-    assert ticket["ticket_id"] == "JARVIS-2026-06-04-transition_mode"
+    assert ticket["ticket_id"] == "PHOENIX-2026-06-04-transition_mode"
     assert ticket["as_of"] == "2026-06-04"
     assert ticket["portfolio_mode"] == "transition_mode"
     assert ticket["weekly_budget"] == 103.85

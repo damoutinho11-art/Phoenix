@@ -95,7 +95,7 @@ async def lookup_barcode(barcode: str) -> dict:
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             response = await client.get(
                 _OPEN_FOOD_FACTS_URL.format(barcode=barcode),
-                headers={"User-Agent": "JARVIS/0 (read-only nutrition lookup)"},
+                headers={"User-Agent": "PHOENIX/0 (read-only nutrition lookup)"},
                 params={
                     "fields": (
                         "product_name_en,product_name,generic_name,nutriments,"

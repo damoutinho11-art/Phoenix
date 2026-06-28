@@ -611,7 +611,7 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
       })
     } catch (error) {
       console.error('PHOENIX backend chat failed:', error)
-      const err = 'Backend offline. Start the JARVIS server, then try again.'
+      const err = 'Backend offline. Start the PHOENIX server, then try again.'
       setMessages(prev => [...prev, { who: 'phoenix', text: err }])
       setDockResponse(err)
       setReactorMode('speaking')

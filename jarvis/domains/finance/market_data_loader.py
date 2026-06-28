@@ -1,4 +1,4 @@
-"""Local market data fixture loader for the read-only J.A.R.V.I.S. kernel."""
+"""Local market data fixture loader for the read-only PHOENIX kernel."""
 
 from __future__ import annotations
 

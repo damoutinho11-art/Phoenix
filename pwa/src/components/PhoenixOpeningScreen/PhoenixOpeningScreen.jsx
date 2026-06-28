@@ -140,7 +140,7 @@ export default function PhoenixOpeningScreen({ src = '/phoenix/opening.html', on
       })
     } catch (error) {
       console.error('PHOENIX backend chat failed:', error)
-      const fallback = 'Backend offline. Start the JARVIS server, then try again.'
+      const fallback = 'Backend offline. Start the PHOENIX server, then try again.'
       setFrameState('error', {
         label: 'BACKEND OFFLINE',
         text: fallback,

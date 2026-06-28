@@ -31,7 +31,7 @@ class LogWeightRequest(BaseModel):
     weight_kg: float = Field(gt=0, le=500)
 
 _NUTRITION_BRIEF_SYSTEM = (
-    "You are J.A.R.V.I.S., a personal nutrition assistant tracking macros during a "
+    "You are PHOENIX, a personal nutrition assistant tracking macros during a "
     "cut phase. Direct, data-driven, no fluff. Maximum 4 sentences. Always end with "
     "remaining protein target for today. Never invent data."
 )
