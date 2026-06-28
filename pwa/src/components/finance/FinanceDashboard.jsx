@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   getFinanceDataCoverage,
   getFinanceManualBuyChecklist,
@@ -7,163 +7,750 @@ import {
   getFinanceResearchValidationRecords,
   getFinanceSummary,
 } from '../../api/client'
-import './FinanceDashboard.css'
+
+const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 
 const SLEEVE_META = {
-  global_core_etf: { label: 'Global Core', description: 'Diversified world equity', color: '#18d7c8' },
-  growth_nasdaq_etf: { label: 'Growth Nasdaq', description: 'Nasdaq growth sleeve', color: '#4d93d1' },
-  quality_etf: { label: 'Quality Factor', description: 'Developed-market quality', color: '#7a69ce' },
-  btc: { label: 'Bitcoin', description: 'Core crypto sleeve', color: '#9a7de3' },
-  hype: { label: 'Hyperliquid', description: 'Phase-gated crypto sleeve', color: '#8059bd' },
-  tao: { label: 'Bittensor', description: 'Phase-gated crypto sleeve', color: '#65419d' },
-  discovery: { label: 'Discovery', description: 'Legacy discovery holdings', color: '#c9954c' },
-  tactical_reserve: { label: 'Cash Reserve', description: 'Tactical liquidity buffer', color: '#365464' },
+  global_core_etf:   { label: 'Global Core',     description: 'Diversified world equity',       color: '#00bbdd' },
+  growth_nasdaq_etf: { label: 'Growth Nasdaq',    description: 'Nasdaq growth sleeve',           color: '#4488ff' },
+  quality_etf:       { label: 'Quality Factor',   description: 'Developed-market quality',       color: '#8866ff' },
+  btc:               { label: 'Bitcoin',          description: 'Core crypto sleeve',             color: '#ff7722' },
+  hype:              { label: 'Hyperliquid',      description: 'Phase-gated crypto sleeve',      color: '#ff4488' },
+  tao:               { label: 'Bittensor',        description: 'Phase-gated crypto sleeve',      color: '#44ffaa' },
+  discovery:         { label: 'Discovery',        description: 'Legacy discovery holdings',      color: '#ffaa00' },
+  tactical_reserve:  { label: 'Cash Reserve',     description: 'Tactical liquidity buffer',      color: '#556677' },
 }
 
-const SAFETY_FIELDS = [
-  ['broker_connection', 'Broker connection'],
-  ['orders_created', 'Orders created'],
-  ['trades_executed', 'Trades executed'],
-  ['portfolio_state_updated', 'Portfolio updated'],
-  ['recommendation_overridden', 'Recommendation overridden'],
-]
-
+// ─── Formatters ───────────────────────────────────────────────────────────────
 function money(value) {
-  const amount = Number(value)
-  if (!Number.isFinite(amount)) return '—'
-  return `€${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '—'
+  return `€${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
-
 function percent(value) {
-  const number = Number(value)
-  return Number.isFinite(number) ? `${(number * 100).toFixed(1)}%` : '—'
+  const n = Number(value)
+  return Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : '—'
 }
-
 function humanize(value) {
-  return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+  return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
-
 function symbolOf(candidate) {
   return candidate && typeof candidate === 'object' ? candidate.symbol || null : null
 }
 
-function SectionHeading({ eyebrow, title, note }) {
+// ─── Shared tokens ────────────────────────────────────────────────────────────
+const T = {
+  bg:      '#060c12',
+  card:    '#070e15',
+  accent:  '#00bbdd',
+  white:   '#eef6f9',
+  muted:   '#3a5a6a',
+  border:  '1px solid rgba(0,187,221,0.17)',
+  borderHover: '1px solid rgba(0,187,221,0.35)',
+  fontMono:    "'Share Tech Mono', monospace",
+  fontDisplay: "'Rajdhani', sans-serif",
+  fontBody:    "'Space Grotesk', sans-serif",
+}
+
+// ─── Inline styles ────────────────────────────────────────────────────────────
+const s = {
+  wrap: {
+    background: T.bg,
+    color: T.white,
+    minHeight: '100vh',
+    fontFamily: T.fontMono,
+    position: 'relative',
+    overflowX: 'hidden',
+  },
+  shell: {
+    maxWidth: 900,
+    margin: '0 auto',
+    padding: '0 0 80px',
+  },
+  sectionTag: {
+    fontFamily: T.fontMono,
+    fontSize: 8,
+    letterSpacing: '0.3em',
+    color: 'rgba(0,187,221,0.53)',
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontFamily: T.fontDisplay,
+    fontSize: 32,
+    fontWeight: 700,
+    color: T.white,
+    letterSpacing: '0.03em',
+    lineHeight: 1,
+    margin: 0,
+  },
+  card: {
+    background: T.card,
+    border: T.border,
+    borderRadius: 4,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardTopLine: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 1,
+    background: 'linear-gradient(90deg, rgba(0,187,221,0.4), rgba(0,187,221,0.1), transparent)',
+    pointerEvents: 'none',
+  },
+}
+
+// ─── Corner brackets ──────────────────────────────────────────────────────────
+function Corners({ size = 8, color = 'rgba(0,187,221,0.35)' }) {
+  const c = { position: 'absolute', width: size, height: size, borderColor: color, borderStyle: 'solid' }
   return (
-    <div className="fcc-section-heading">
-      <div>
-        <div className="fcc-eyebrow">[ {eyebrow} ]</div>
-        <h2>{title}</h2>
+    <>
+      <div style={{ ...c, top: 8, left: 8, borderWidth: '1px 0 0 1px' }} />
+      <div style={{ ...c, top: 8, right: 8, borderWidth: '1px 1px 0 0' }} />
+      <div style={{ ...c, bottom: 8, left: 8, borderWidth: '0 0 1px 1px' }} />
+      <div style={{ ...c, bottom: 8, right: 8, borderWidth: '0 1px 1px 0' }} />
+    </>
+  )
+}
+
+// ─── Scan line ────────────────────────────────────────────────────────────────
+function ScanLine() {
+  return (
+    <div style={{
+      position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+      background: 'linear-gradient(90deg, transparent, rgba(0,187,221,0.4), transparent)',
+      animation: 'phScan 5s linear infinite',
+      pointerEvents: 'none',
+    }} />
+  )
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+function Header({ summary, checklist, recommendation, actionCopy, loading }) {
+  const weekLabel = checklist?.week_label || recommendation?.week_label || '—'
+  return (
+    <header style={{
+      ...s.card,
+      padding: '2rem 2.5rem 2.5rem',
+      marginBottom: 0,
+      borderRadius: 0,
+      borderLeft: 'none',
+      borderRight: 'none',
+      borderTop: 'none',
+    }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'radial-gradient(circle, rgba(0,187,221,0.06) 1px, transparent 1px)',
+        backgroundSize: '28px 28px',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', top: -60, left: -40,
+        width: 320, height: 220,
+        background: 'radial-gradient(ellipse, rgba(0,187,221,0.05) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+      <ScanLine />
+
+      {/* Top bar */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: '2rem', paddingBottom: '0.75rem',
+        borderBottom: '1px solid rgba(0,187,221,0.08)',
+        position: 'relative',
+      }}>
+        <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.3em', color: 'rgba(0,187,221,0.4)' }}>
+          PHOENIX · PERSONAL HEURISTIC OPERATING ENGINE
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.27)' }}>
+            {summary?.as_of ? `W${getWeekNumber(summary.as_of)} · ${summary.as_of}` : weekLabel}
+          </span>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00cc77', boxShadow: '0 0 6px #00cc77' }} />
+          <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,204,119,0.53)' }}>ONLINE</span>
+        </div>
       </div>
-      {note && <p>{note}</p>}
+
+      <div style={{ position: 'relative' }}>
+        <div style={s.sectionTag}>PHOENIX</div>
+        <h1 style={{ fontFamily: T.fontDisplay, fontSize: 52, fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1, margin: '0 0 2rem' }}>
+          <span style={{ display: 'block', color: '#dff0f5' }}>FINANCE</span>
+          <span style={{ display: 'block', color: T.accent, textShadow: '0 0 30px rgba(0,187,221,0.27)' }}>COMMAND CENTER</span>
+        </h1>
+
+        <div style={{
+          fontSize: 8, letterSpacing: '0.35em', color: 'rgba(0,187,221,0.4)',
+          marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          TOTAL PORTFOLIO VALUE
+          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,0.13), transparent)' }} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
+          <span style={{ fontFamily: T.fontBody, fontSize: 28, fontWeight: 300, color: 'rgba(0,187,221,0.53)', lineHeight: 1 }}>€</span>
+          <span style={{
+            fontFamily: T.fontBody, fontSize: 68, fontWeight: 700, color: T.accent,
+            letterSpacing: '-0.04em', lineHeight: 1,
+            textShadow: '0 0 40px rgba(0,187,221,0.27), 0 0 80px rgba(0,187,221,0.11)',
+          }}>
+            {summary?.total_invested != null
+              ? Number(summary.total_invested).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              : '—'}
+          </span>
+        </div>
+
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: 'rgba(0,187,221,0.05)', border: '1px solid rgba(0,187,221,0.13)',
+          borderRadius: 2, padding: '3px 10px', marginBottom: '1.8rem',
+          fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.4)',
+        }}>
+          PHASE 1 · ACCUMULATION
+        </div>
+
+        <div style={{ position: 'relative', paddingLeft: 14 }}>
+          <div style={{
+            position: 'absolute', left: 0, top: 4, bottom: 4, width: 2,
+            background: 'linear-gradient(180deg, rgba(0,187,221,0.7), rgba(0,187,221,0))',
+            borderRadius: 2,
+          }} />
+          <p style={{ fontFamily: T.fontBody, fontSize: 14, color: 'rgba(154,184,200,0.87)', lineHeight: 1.65, margin: '0 0 8px' }}>
+            {loading ? 'Synchronising verified finance surfaces…' : actionCopy.replace(/^PHOENIX recommends /, 'PHOENIX recommends ')}
+          </p>
+          <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.27)' }}>
+            MANUAL ONLY · NOTHING HAS BEEN ORDERED OR EXECUTED
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function getWeekNumber(dateStr) {
+  const d = new Date(dateStr)
+  const start = new Date(d.getFullYear(), 0, 1)
+  return Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7)
+}
+
+// ─── Authorization Core ───────────────────────────────────────────────────────
+function AuthorizationCore({ checklist, recommendation }) {
+  const weekBudget = checklist?.week_budget ?? recommendation?.week_budget
+  const checklistItems = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
+  const deploymentSymbols = checklistItems.map(i => i?.symbol || i?.ticker).filter(Boolean).join(' + ')
+  const manualBuyCount = checklistItems.length
+  const isPending = checklist?.requires_approval !== false
+
+  const C = 2 * Math.PI * 65
+  const arcStyle = {
+    fill: 'none', strokeWidth: 18, strokeLinecap: 'butt',
+    strokeDasharray: `${C * 0.72} ${C}`,
+    stroke: T.accent,
+    filter: 'drop-shadow(0 0 4px rgba(0,187,221,0.8))',
+    transformOrigin: '90px 90px',
+    animation: 'phArcSpin 6s linear infinite',
+  }
+  const outerArcStyle = {
+    fill: 'none', strokeWidth: 1, strokeLinecap: 'butt',
+    strokeDasharray: '2 8',
+    stroke: 'rgba(0,187,221,0.13)',
+    transformOrigin: '90px 90px',
+    animation: 'phArcSpin 20s linear infinite reverse',
+  }
+
+  return (
+    <div style={{ ...s.card, padding: '2.5rem 2rem 2rem' }}>
+      <div style={s.cardTopLine} />
+      <Corners />
+      <span style={{ position: 'absolute', top: 14, right: 16, fontFamily: T.fontMono, fontSize: 7, color: 'rgba(0,187,221,0.2)', letterSpacing: '0.1em' }}>AC-001</span>
+
+      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.87)', textAlign: 'center', marginBottom: 4 }}>AUTHORIZATION CORE</div>
+      <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.53)', textAlign: 'center', marginBottom: '1.2rem' }}>WEEKLY DEPLOYMENT</div>
+
+      <div style={{ position: 'relative', width: 200, height: 200, margin: '0 auto 1rem' }}>
+        <svg width="200" height="200" viewBox="0 0 180 180" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+          <circle cx="90" cy="90" r="65" fill="none" stroke="rgba(0,187,221,0.07)" strokeWidth="18" />
+          <circle cx="90" cy="90" r="65" fill="none" stroke="rgba(0,187,221,0.13)" strokeWidth="1" strokeDasharray="4 26" />
+          <circle cx="90" cy="90" r="94" style={outerArcStyle} />
+          <circle cx="90" cy="90" r="65" style={arcStyle} strokeDashoffset={C * 0.25} />
+          <circle cx="90" cy="90" r="74" fill="none" stroke="rgba(0,187,221,0.07)" strokeWidth="2" />
+        </svg>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', width: 140 }}>
+          <div style={{ fontFamily: T.fontBody, fontSize: 36, fontWeight: 700, color: T.accent, letterSpacing: '-0.02em', lineHeight: 1, textShadow: '0 0 20px rgba(0,187,221,0.4)' }}>
+            {money(weekBudget)}
+          </div>
+          <div style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.67)', letterSpacing: '0.15em', marginTop: 6 }}>
+            {manualBuyCount} MANUAL {manualBuyCount === 1 ? 'BUY' : 'BUYS'}
+          </div>
+        </div>
+      </div>
+
+      {isPending && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          background: 'rgba(255,170,0,0.07)', border: '1px solid rgba(255,170,0,0.4)',
+          borderRadius: 2, padding: '6px 14px', margin: '0 auto 1.2rem', width: 'fit-content',
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ffaa00', boxShadow: '0 0 6px #ffaa00', animation: 'phBlink 1.2s ease-in-out infinite' }} />
+          <span style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.2em', color: 'rgba(255,170,0,0.93)' }}>PENDING APPROVAL</span>
+        </div>
+      )}
+
+      <div style={{ borderTop: '1px solid rgba(0,187,221,0.1)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {checklistItems.map((item, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.8)' }}>
+                {item?.symbol || item?.ticker || humanize(item?.asset)}
+              </div>
+              <div style={{ fontFamily: T.fontMono, fontSize: 8, color: 'rgba(0,187,221,0.33)', letterSpacing: '0.1em', marginTop: 2 }}>
+                {item?.route?.toUpperCase() || ''} · {item?.platform || ''}
+              </div>
+            </div>
+            <div style={{ fontFamily: T.fontBody, fontSize: 15, fontWeight: 600, color: T.accent, textShadow: '0 0 12px rgba(0,187,221,0.4)' }}>
+              {money(item?.amount)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)', textAlign: 'center', marginTop: '1rem' }}>
+        MANUAL ONLY · NO TRADES EXECUTED · APPROVAL REQUIRED
+      </div>
     </div>
   )
 }
 
-function StatusChip({ tone = 'cyan', children }) {
-  return <span className={`fcc-status-chip ${tone}`}>{children}</span>
-}
-
-function AllocationRing({ sleeves, total }) {
-  const ring = useMemo(() => {
-    let cursor = 0
-    const stops = sleeves
-      .filter(sleeve => Number(sleeve.current_weight) > 0)
-      .map((sleeve) => {
-        const start = cursor
-        cursor += Number(sleeve.current_weight) * 100
-        const color = SLEEVE_META[sleeve.name]?.color || '#55717b'
-        return `${color} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`
-      })
-    return stops.length ? `conic-gradient(${stops.join(', ')})` : 'conic-gradient(#17343b 0 100%)'
-  }, [sleeves])
-
-  return (
-    <div className="fcc-allocation-ring" style={{ '--allocation-ring': ring }}>
-      <div className="fcc-ring-core">
-        <span>Allocation</span>
-        <strong>{money(total)}</strong>
-        <small>{sleeves.length} sleeves</small>
-      </div>
-    </div>
-  )
-}
-
+// ─── Manual Action Card ───────────────────────────────────────────────────────
 function ManualActionCard({ item, index, onOpenBrief }) {
-  const candidateStatus = item?.resolved_candidate?.broker_availability_status
-  const verified = candidateStatus === 'public_verified'
-  const eligible = item?.checklist_eligible === true
+  const verified = item?.resolved_candidate?.broker_availability_status === 'public_verified'
   const symbol = item?.symbol || item?.ticker
 
   return (
-    <article className={`fcc-action-card ${eligible ? '' : 'blocked'}`}>
-      <div className="fcc-corner top-left" />
-      <div className="fcc-corner bottom-right" />
-      <header>
-        <div className="fcc-lane-label">{humanize(item?.route || item?.asset)} lane</div>
-        {verified
-          ? <StatusChip>✓ Public verified</StatusChip>
-          : <StatusChip tone={eligible ? 'violet' : 'red'}>{eligible ? 'Manual route' : 'Review required'}</StatusChip>}
-        <span className="fcc-step">Step {index + 1}</span>
-      </header>
-      <div className="fcc-action-title-row">
-        <div>
-          <h3>{symbol ? `Buy ${symbol}` : 'Instrument unavailable'}</h3>
-          <p>{item?.instrument_display_name || humanize(item?.asset) || 'Awaiting backend instrument'}</p>
+    <article style={{ ...s.card, display: 'flex', flexDirection: 'column' }}>
+      <div style={s.cardTopLine} />
+      <div style={{ position: 'absolute', width: 10, height: 10, bottom: 8, right: 8, borderRight: '1px solid rgba(0,187,221,0.33)', borderBottom: '1px solid rgba(0,187,221,0.33)' }} />
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px 8px', borderBottom: '1px solid rgba(0,187,221,0.07)' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.67)', background: 'rgba(0,187,221,0.08)', border: '1px solid rgba(0,187,221,0.2)', borderRadius: 2, padding: '2px 7px' }}>
+            {humanize(item?.route || item?.asset).toUpperCase()} LANE
+          </span>
+          {verified
+            ? <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,204,119,0.67)', background: 'rgba(0,204,119,0.08)', border: '1px solid rgba(0,204,119,0.2)', borderRadius: 2, padding: '2px 7px' }}>✓ PUBLIC VERIFIED</span>
+            : <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.67)', background: 'rgba(0,187,221,0.08)', border: '1px solid rgba(0,187,221,0.2)', borderRadius: 2, padding: '2px 7px' }}>MANUAL ROUTE</span>}
         </div>
-        <div className="fcc-action-amount">
-          <strong>{money(item?.amount)}</strong>
-          <span>Manual buy</span>
+        <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.33)' }}>STEP {index + 1}</span>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '16px 14px 14px', flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontFamily: T.fontDisplay, fontSize: 28, fontWeight: 700, color: '#dff0f5', letterSpacing: '0.02em', lineHeight: 1 }}>
+              {symbol ? `BUY ${symbol}` : 'INSTRUMENT UNAVAILABLE'}
+            </div>
+            <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.1em', color: 'rgba(0,187,221,0.4)', marginTop: 4 }}>
+              {(item?.instrument_display_name || humanize(item?.asset) || '').toUpperCase()}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontFamily: T.fontBody, fontSize: 28, fontWeight: 700, color: T.accent, letterSpacing: '-0.02em', lineHeight: 1, textShadow: '0 0 20px rgba(0,187,221,0.33)' }}>
+              {money(item?.amount)}
+            </div>
+            <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.4)', marginTop: 3 }}>MANUAL BUY</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+          {[['PLATFORM', item?.platform || '—'], ['TICKER', symbol || '—']].map(([label, value]) => (
+            <div key={label} style={{ background: 'rgba(10,24,37,1)', border: '1px solid rgba(0,187,221,0.1)', borderRadius: 3, padding: '8px 10px' }}>
+              <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.4)', marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: T.fontBody, fontSize: 13, fontWeight: 500, color: '#c8e4ee' }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderLeft: '2px solid rgba(0,187,221,0.33)', paddingLeft: 10 }}>
+          <p style={{ fontFamily: T.fontBody, fontSize: 12, color: 'rgba(143,184,200,0.87)', lineHeight: 1.6, margin: 0 }}>
+            {item?.broker_instruction || 'No manual broker instruction was returned. Do not place an order.'}
+          </p>
         </div>
       </div>
-      <dl className="fcc-action-meta">
-        <div><dt>Platform</dt><dd>{item?.platform || 'Not returned'}</dd></div>
-        <div><dt>Ticker</dt><dd>{symbol || 'Not returned'}</dd></div>
-      </dl>
-      <p className="fcc-instruction">
-        {item?.broker_instruction || 'No manual broker instruction was returned. Do not place an order.'}
-      </p>
-      <button type="button" className="fcc-card-link" onClick={onOpenBrief}>
-        Open manual workflow <span>→</span>
-      </button>
+
+      {/* Footer */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(0,187,221,0.07)' }}>
+        <button
+          type="button"
+          onClick={onOpenBrief}
+          style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.67)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: 0 }}
+        >
+          OPEN MANUAL WORKFLOW
+          <span style={{ display: 'inline-block', width: 20, height: 1, background: 'rgba(0,187,221,0.4)', position: 'relative', top: -1 }} />
+          →
+        </button>
+      </div>
     </article>
   )
 }
 
-function SafetyLock({ safety }) {
+// ─── Instrument Resolution ────────────────────────────────────────────────────
+function InstrumentResolution({ researchWinner, checklistCandidate, researchSymbol, checklistSymbol, qualityCoverage }) {
+  if (!researchWinner || !checklistCandidate) return null
   return (
-    <section className="fcc-safety-section">
-      <SectionHeading eyebrow="Safety lock · Phase 1" title="Nothing leaves PHOENIX automatically" />
-      <div className="fcc-safety-grid">
-        {SAFETY_FIELDS.map(([key, label]) => {
-          const value = safety?.[key]
-          return (
-            <div className={`fcc-safety-cell ${value === true ? 'unsafe' : ''}`} key={key}>
-              <span className="fcc-safety-light" />
-              <strong>{label}</strong>
-              <small>{value === false ? 'False · locked' : value === true ? 'True · review now' : 'Not returned'}</small>
+    <section style={{ padding: '2rem 2rem 0' }}>
+      <div style={s.sectionTag}>[ INSTRUMENT RESOLUTION ]</div>
+      <div style={{ ...s.sectionTitle, marginBottom: '1.2rem' }}>INSTRUMENT RESOLUTION</div>
+      <div style={{ ...s.card }}>
+        <div style={s.cardTopLine} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr' }}>
+          {/* Left */}
+          <div style={{ padding: '1.5rem', borderRight: '1px solid rgba(0,187,221,0.07)' }}>
+            <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.33)', marginBottom: 10 }}>RESEARCH WINNER</div>
+            <div style={{ fontFamily: T.fontDisplay, fontSize: 38, fontWeight: 700, letterSpacing: '0.02em', color: 'rgba(138,184,200,0.87)', lineHeight: 1, marginBottom: 6 }}>{researchSymbol || '—'}</div>
+            <div style={{ fontFamily: T.fontBody, fontSize: 11, color: 'rgba(74,106,122,0.87)', lineHeight: 1.5, marginBottom: 14 }}>{researchWinner.label || '—'}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 2, padding: '4px 10px', fontSize: 8, letterSpacing: '0.2em', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(74,106,122,0.87)', fontFamily: T.fontMono }}>
+              <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(74,106,122,0.87)' }} /> NOT PUBLICLY VERIFIED
             </div>
-          )
-        })}
+          </div>
+
+          {/* Bridge */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem 1.5rem', gap: 10, minWidth: 90 }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: 28, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,0.27), rgba(0,187,221,0.53))' }} />
+              <div style={{ width: 0, height: 0, borderTop: '4px solid transparent', borderBottom: '4px solid transparent', borderLeft: '6px solid rgba(0,187,221,0.53)' }} />
+            </div>
+            <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.33)', textAlign: 'center', lineHeight: 1.6 }}>RESOLVED<br />TO VERIFIED</div>
+          </div>
+
+          {/* Right */}
+          <div style={{ padding: '1.5rem' }}>
+            <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.33)', marginBottom: 10 }}>CHECKLIST CANDIDATE</div>
+            <div style={{ fontFamily: T.fontDisplay, fontSize: 38, fontWeight: 700, letterSpacing: '0.02em', color: T.accent, lineHeight: 1, marginBottom: 6, textShadow: '0 0 24px rgba(0,187,221,0.27)' }}>{checklistSymbol || '—'}</div>
+            <div style={{ fontFamily: T.fontBody, fontSize: 11, color: 'rgba(74,106,122,0.87)', lineHeight: 1.5, marginBottom: 14 }}>{checklistCandidate.label || '—'}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 2, padding: '4px 10px', fontSize: 8, letterSpacing: '0.2em', border: '1px solid rgba(0,204,119,0.2)', color: 'rgba(0,204,119,0.67)', fontFamily: T.fontMono, background: 'rgba(0,204,119,0.05)' }}>
+              <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#00cc77', boxShadow: '0 0 5px #00cc77' }} /> PUBLIC VERIFIED
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ borderTop: '1px solid rgba(0,187,221,0.06)', padding: '10px 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.2)' }}>
+            PHASE 1 · <strong style={{ color: 'rgba(0,187,221,0.33)' }}>LIGHTYEAR PUBLIC-VERIFIED INSTRUMENTS ONLY</strong>
+          </div>
+          <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.2)' }}>
+            BACKEND DECISION · NOT RECOMPUTED BY PHOENIX
+          </div>
+        </div>
       </div>
     </section>
   )
 }
 
-function EmptyState({ children }) {
-  return <div className="fcc-empty-state">{children}</div>
-}
+// ─── Portfolio Snapshot ───────────────────────────────────────────────────────
+function PortfolioSnapshot({ sleeves, total, asOf }) {
+  const svgRef = useRef(null)
+  const animatedRef = useRef(false)
 
-export default function FinanceDashboard({ onNav }) {
-  const [summary, setSummary] = useState(null)
-  const [recommendation, setRecommendation] = useState(null)
-  const [checklist, setChecklist] = useState(null)
-  const [coverage, setCoverage] = useState(null)
-  const [memos, setMemos] = useState([])
-  const [records, setRecords] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const donutSegments = useMemo(() => {
+    const C = 2 * Math.PI * 65
+    const active = sleeves.filter(s => Number(s.current_weight) > 0)
+    let cumulative = 0
+    return active.map(sleeve => {
+      const pct = Number(sleeve.current_weight) * 100
+      const len = (pct / 100) * C
+      const endOffset = C / 4 - cumulative
+      const startOffset = endOffset + len
+      const meta = SLEEVE_META[sleeve.name] || { color: '#445566' }
+      cumulative += len
+      return { len, C, endOffset, startOffset, color: meta.color, name: sleeve.name }
+    })
+  }, [sleeves])
 
   useEffect(() => {
+    if (animatedRef.current || !svgRef.current) return
+    animatedRef.current = true
+    const circles = svgRef.current.querySelectorAll('.ph-donut-seg')
+    circles.forEach((circle, i) => {
+      const seg = donutSegments[i]
+      if (!seg) return
+      circle.style.strokeDashoffset = seg.startOffset
+      circle.style.strokeDasharray = `${seg.len} ${seg.C}`
+      setTimeout(() => {
+        circle.style.transition = `stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1) ${i * 0.08}s`
+        circle.style.strokeDashoffset = seg.endOffset
+      }, 100)
+    })
+  }, [donutSegments])
+
+  const activeMeta = Object.entries(SLEEVE_META).filter(([key]) =>
+    sleeves.some(s => s.name === key && Number(s.current_weight) > 0)
+  )
+
+  return (
+    <section style={{ padding: '2rem 2rem 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
+        <div>
+          <div style={s.sectionTag}>[ PORTFOLIO SNAPSHOT ]</div>
+          <div style={s.sectionTitle}>CURRENT ALLOCATION</div>
+        </div>
+        <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.27)' }}>
+          CANONICAL STATE · {asOf || '—'}
+        </span>
+      </div>
+
+      <div style={{ ...s.card, display: 'grid', gridTemplateColumns: '210px 1fr' }}>
+        <div style={s.cardTopLine} />
+
+        {/* Chart side */}
+        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid rgba(0,187,221,0.07)' }}>
+          <div style={{ position: 'relative', width: 160, height: 160 }}>
+            <svg ref={svgRef} width="160" height="160" viewBox="0 0 180 180" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+              <circle cx="90" cy="90" r="65" fill="none" stroke="rgba(0,187,221,0.05)" strokeWidth="18" />
+              {donutSegments.map((seg, i) => (
+                <circle
+                  key={i}
+                  className="ph-donut-seg"
+                  cx="90" cy="90" r="65"
+                  fill="none"
+                  stroke={seg.color}
+                  strokeWidth="18"
+                  strokeLinecap="butt"
+                  style={{ filter: `drop-shadow(0 0 5px ${seg.color}88)` }}
+                />
+              ))}
+            </svg>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none' }}>
+              <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.33)', marginBottom: 4 }}>ALLOCATION</div>
+              <div style={{ fontFamily: T.fontBody, fontSize: 20, fontWeight: 700, color: T.accent, letterSpacing: '-0.02em', textShadow: '0 0 16px rgba(0,187,221,0.27)' }}>
+                {money(total)}
+              </div>
+              <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.27)', marginTop: 2 }}>{sleeves.length} SLEEVES</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: '1.2rem', width: '100%' }}>
+            {activeMeta.map(([key, meta]) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: meta.color, boxShadow: `0 0 4px ${meta.color}`, flexShrink: 0 }} />
+                <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.1em', color: 'rgba(106,138,154,0.87)' }}>{meta.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sleeve list */}
+        <div>
+          {sleeves.map(sleeve => {
+            const meta = SLEEVE_META[sleeve.name] || { label: humanize(sleeve.name), description: 'Portfolio sleeve', color: '#445566' }
+            const isActive = Number(sleeve.current_weight) > 0
+            return (
+              <div key={sleeve.name} style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', padding: '11px 16px', borderBottom: '1px solid rgba(0,187,221,0.04)', position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: isActive ? meta.color : 'rgba(0,187,221,0.07)' }} />
+                <div>
+                  <div style={{ fontFamily: T.fontBody, fontSize: 13, fontWeight: 500, color: '#c8e4ee', marginBottom: 2 }}>{meta.label}</div>
+                  <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.1em', color: 'rgba(58,90,106,0.87)', marginBottom: 2 }}>{meta.description}</div>
+                  <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)' }}>{sleeve.name}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: T.fontBody, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, color: isActive ? meta.color : 'rgba(42,74,90,0.87)' }}>
+                    {percent(sleeve.current_weight)}
+                  </div>
+                  <div style={{ fontFamily: T.fontBody, fontSize: 9, color: 'rgba(90,122,138,0.87)', marginTop: 2 }}>{money(sleeve.value)}</div>
+                  <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.12em', color: 'rgba(0,187,221,0.2)', marginTop: 2 }}>TARGET {percent(sleeve.target_weight)}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Advanced Audit ───────────────────────────────────────────────────────────
+function AdvancedAudit({ memos, records, qualityCoverage, researchSymbol, checklistSymbol, evidenceLabel, onNav }) {
+  const [open, setOpen] = useState(false)
+  const candidates = qualityCoverage?.candidates || []
+  const passCount = records.filter(r => r.status === 'PASS').length
+
+  return (
+    <section style={{ padding: '2rem 2rem 0' }}>
+      <div style={{ ...s.card }}>
+        <div style={s.cardTopLine} />
+
+        {/* Header row */}
+        <div
+          onClick={() => setOpen(o => !o)}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', cursor: 'pointer' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.67)' }}>[ ADVANCED AUDIT ]</span>
+            <span style={{ fontFamily: T.fontDisplay, fontSize: 17, fontWeight: 600, color: 'rgba(184,216,232,0.87)', letterSpacing: '0.05em' }}>Research, validation and candidate comparison</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,204,119,0.67)', background: 'rgba(0,204,119,0.05)', border: '1px solid rgba(0,204,119,0.2)', borderRadius: 2, padding: '3px 8px' }}>
+              EVIDENCE {evidenceLabel}
+            </span>
+            <span style={{ color: 'rgba(0,187,221,0.4)', fontSize: 12, display: 'flex', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}>
+              ▼
+            </span>
+          </div>
+        </div>
+
+        {open && (
+          <div style={{ borderTop: '1px solid rgba(0,187,221,0.07)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+              {/* Memos */}
+              <div style={{ padding: '1.2rem 1.5rem', borderRight: '1px solid rgba(0,187,221,0.06)' }}>
+                <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.53)', marginBottom: 12 }}>RESEARCH MEMOS · ADVISORY ONLY</div>
+                {memos.length ? memos.map(memo => (
+                  <div key={memo.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(0,187,221,0.04)' }}>
+                    <div style={{ fontFamily: T.fontBody, fontSize: 13, fontWeight: 600, color: '#dff0f5', marginBottom: 3 }}>{humanize(memo.asset)}</div>
+                    <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.08em', color: 'rgba(90,128,144,0.87)', marginBottom: 6 }}>{memo.title}</div>
+                    <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.67)', background: 'rgba(0,187,221,0.07)', border: '1px solid rgba(0,187,221,0.2)', borderRadius: 2, padding: '2px 7px' }}>
+                      {memo.evidence_summary?.evidence_status || memo.research_quality_status || 'UNVERIFIED'}
+                    </span>
+                  </div>
+                )) : <div style={{ fontFamily: T.fontMono, fontSize: 8, color: 'rgba(0,187,221,0.27)' }}>No research memos returned.</div>}
+              </div>
+
+              {/* Validation */}
+              <div style={{ padding: '1.2rem 1.5rem' }}>
+                <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.53)', marginBottom: 12 }}>VALIDATION RECORDS</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,204,119,0.05)', border: '1px solid rgba(0,204,119,0.17)', borderRadius: 3, padding: '10px 14px' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00cc77', boxShadow: '0 0 6px #00cc77', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontFamily: T.fontBody, fontSize: 13, fontWeight: 600, color: 'rgba(0,204,119,0.87)' }}>{passCount} / {records.length} CHECKS PASSED</div>
+                    <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,204,119,0.4)', marginTop: 2 }}>
+                      PORTFOLIO CONTEXT · LEG MAPPING · BROKER SOURCE · MARKET DATA
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Candidates */}
+            {candidates.length > 0 && (
+              <>
+                <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(0,187,221,0.1), transparent)', margin: '0 1.5rem' }} />
+                <div style={{ padding: '1.2rem 1.5rem' }}>
+                  <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.53)', marginBottom: 10 }}>QUALITY ETF CANDIDATES · BACKEND COMPARISON</div>
+                  {candidates.map(candidate => {
+                    const isWinner = candidate.symbol === researchSymbol
+                    const isCandidate = candidate.symbol === checklistSymbol
+                    const tickerColor = isWinner ? T.accent : isCandidate ? '#ffaa00' : 'rgba(138,184,200,0.53)'
+                    const statusColor = isWinner ? { color: 'rgba(0,187,221,0.8)', bg: 'rgba(0,187,221,0.07)', border: 'rgba(0,187,221,0.2)' }
+                      : isCandidate ? { color: 'rgba(255,170,0,0.8)', bg: 'rgba(255,170,0,0.07)', border: 'rgba(255,170,0,0.2)' }
+                      : { color: 'rgba(0,204,119,0.53)', bg: 'rgba(0,204,119,0.05)', border: 'rgba(0,204,119,0.15)' }
+                    return (
+                      <div key={candidate.symbol} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(0,187,221,0.04)' }}>
+                        <div>
+                          <div style={{ fontFamily: T.fontDisplay, fontSize: 17, fontWeight: 700, letterSpacing: '0.05em', color: tickerColor, textShadow: isWinner || isCandidate ? `0 0 12px ${tickerColor}44` : 'none' }}>{candidate.symbol || '—'}</div>
+                          <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.08em', color: 'rgba(74,106,122,0.87)', marginTop: 2 }}>{candidate.label || '—'}</div>
+                        </div>
+                        <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', padding: '3px 8px', borderRadius: 2, border: `1px solid ${statusColor.border}`, color: statusColor.color, background: statusColor.bg }}>
+                          {isWinner ? 'RESEARCH WINNER' : isCandidate ? 'CHECKLIST CANDIDATE' : humanize(candidate.broker_verification || 'VERIFIED').toUpperCase()}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+// ─── Nav Cards ────────────────────────────────────────────────────────────────
+function NavCards({ onNav, summary }) {
+  const month = new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' })
+  const cards = [
+    { key: 'brief',       label: 'WEEKLY BRIEF',  tag: 'ACTIVE THIS WEEK', wide: true,  icon: <BriefIcon /> },
+    { key: 'holdings',   label: 'HOLDINGS',       tag: `${(summary?.sleeve_summary || []).length || 8} SLEEVES`, icon: <HoldingsIcon /> },
+    { key: 'performance',label: 'PERFORMANCE',    tag: 'REAL DATA ONLY',  icon: <PerfIcon /> },
+    { key: 'history',    label: 'BRIEF HISTORY',  tag: 'AUDIT TRAIL',     icon: <HistoryIcon /> },
+    { key: 'budget',     label: 'BUDGET',         tag: month.toUpperCase(), icon: <BudgetIcon /> },
+  ]
+
+  return (
+    <section style={{ padding: '2rem 2rem 0' }}>
+      <div style={s.sectionTag}>[ COMMAND MODULES ]</div>
+      <div style={{ ...s.sectionTitle, marginBottom: '1.2rem' }}>NAVIGATE</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        {cards.map(card => (
+          <button
+            key={card.key}
+            type="button"
+            onClick={() => onNav(card.key)}
+            style={{
+              gridColumn: card.wide ? 'span 2' : undefined,
+              background: T.card, border: T.border, borderRadius: 4,
+              padding: '12px 12px 10px', position: 'relative', overflow: 'hidden',
+              cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,0.4), transparent)', opacity: 0 }} />
+            <div style={{ position: 'absolute', bottom: 6, right: 6, width: 6, height: 6, borderRight: '1px solid rgba(0,187,221,0.2)', borderBottom: '1px solid rgba(0,187,221,0.2)' }} />
+            <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, opacity: 0.6 }}>
+              {card.icon}
+            </div>
+            <div style={{ fontFamily: T.fontDisplay, fontSize: 14, fontWeight: 700, color: 'rgba(138,184,200,0.87)', letterSpacing: '0.06em', marginBottom: 3 }}>{card.label}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)' }}>{card.tag}</span>
+              <span style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.2)' }}>→</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function BriefIcon() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="1.5" rx="0.5" fill="#00bbdd"/><rect x="2" y="7" width="8" height="1.5" rx="0.5" fill="#00bbdd"/><rect x="2" y="11" width="10" height="1.5" rx="0.5" fill="#00bbdd"/></svg> }
+function HoldingsIcon() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="10" width="2.5" height="4" rx="0.5" fill="#00bbdd"/><rect x="6" y="6" width="2.5" height="8" rx="0.5" fill="#00bbdd" opacity="0.7"/><rect x="10" y="3" width="2.5" height="11" rx="0.5" fill="#00bbdd" opacity="0.4"/></svg> }
+function PerfIcon() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><polyline points="2,11 6,7 9,9 14,4" stroke="#00bbdd" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="14" cy="4" r="1.2" fill="#00bbdd"/></svg> }
+function HistoryIcon() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#00bbdd" strokeWidth="1.2" fill="none"/><path d="M8 5v3.5l2 1.5" stroke="#00bbdd" strokeWidth="1.2" strokeLinecap="round"/></svg> }
+function BudgetIcon() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5.5" height="5.5" rx="0.5" stroke="#00bbdd" strokeWidth="1.2" fill="none"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="0.5" stroke="#00bbdd" strokeWidth="1.2" fill="none" opacity="0.5"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="0.5" stroke="#00bbdd" strokeWidth="1.2" fill="none" opacity="0.5"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="0.5" stroke="#00bbdd" strokeWidth="1.2" fill="none" opacity="0.3"/></svg> }
+
+// ─── Global keyframes injection ───────────────────────────────────────────────
+const KEYFRAMES = `
+  @keyframes phScan { 0% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }
+  @keyframes phArcSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+  @keyframes phBlink { 0%, 100% { opacity: 1 } 50% { opacity: 0.2 } }
+`
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+export default function FinanceDashboard({ onNav }) {
+  const [summary, setSummary]           = useState(null)
+  const [recommendation, setRecommendation] = useState(null)
+  const [checklist, setChecklist]       = useState(null)
+  const [coverage, setCoverage]         = useState(null)
+  const [memos, setMemos]               = useState([])
+  const [records, setRecords]           = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState('')
+
+  useEffect(() => {
+    // Inject fonts
+    if (!document.getElementById('ph-fonts')) {
+      const link = document.createElement('link')
+      link.id = 'ph-fonts'
+      link.rel = 'stylesheet'
+      link.href = FONTS_URL
+      document.head.appendChild(link)
+    }
+    // Inject keyframes
+    if (!document.getElementById('ph-keyframes')) {
+      const style = document.createElement('style')
+      style.id = 'ph-keyframes'
+      style.textContent = KEYFRAMES
+      document.head.appendChild(style)
+    }
+
     let active = true
     Promise.allSettled([
       getFinanceSummary(),
@@ -174,231 +761,110 @@ export default function FinanceDashboard({ onNav }) {
       getFinanceResearchValidationRecords(),
     ]).then((results) => {
       if (!active) return
-      const [summaryResult, recommendationResult, checklistResult, coverageResult, memosResult, recordsResult] = results
-      if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value)
-      if (recommendationResult.status === 'fulfilled') setRecommendation(recommendationResult.value)
-      if (checklistResult.status === 'fulfilled') setChecklist(checklistResult.value)
-      if (coverageResult.status === 'fulfilled') setCoverage(coverageResult.value)
-      if (memosResult.status === 'fulfilled') setMemos(memosResult.value?.memos || [])
-      if (recordsResult.status === 'fulfilled') setRecords(recordsResult.value?.records || [])
-      const failed = results.filter(result => result.status === 'rejected').length
-      if (failed) setError(`${failed} finance data source${failed === 1 ? '' : 's'} unavailable. Missing fields are shown safely.`)
+      const [summaryR, recR, checkR, covR, memosR, recsR] = results
+      if (summaryR.status === 'fulfilled') setSummary(summaryR.value)
+      if (recR.status    === 'fulfilled') setRecommendation(recR.value)
+      if (checkR.status  === 'fulfilled') setChecklist(checkR.value)
+      if (covR.status    === 'fulfilled') setCoverage(covR.value)
+      if (memosR.status  === 'fulfilled') setMemos(memosR.value?.memos || [])
+      if (recsR.status   === 'fulfilled') setRecords(recsR.value?.records || [])
+      const failed = results.filter(r => r.status === 'rejected').length
+      if (failed) setError(`${failed} finance data source${failed === 1 ? '' : 's'} unavailable.`)
       setLoading(false)
     })
     return () => { active = false }
   }, [])
 
-  const sleeves = Array.isArray(summary?.sleeve_summary) ? summary.sleeve_summary : []
-  const checklistItems = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
+  // ── Derived values ──────────────────────────────────────────────────────────
+  const sleeves          = Array.isArray(summary?.sleeve_summary) ? summary.sleeve_summary : []
+  const checklistItems   = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
   const coverageSections = coverage?.sections || {}
-  const coverageSummary = coverageSections.coverage_summary || {}
-  const safety = coverageSections.safety || checklist?.safety_flags || {}
-  const qualityCoverage = coverageSections.etf_candidate_universe?.sleeves?.quality_etf || {}
-  const researchWinner = qualityCoverage.research_winner || null
+  const coverageSummary  = coverageSections.coverage_summary || {}
+  const qualityCoverage  = coverageSections.etf_candidate_universe?.sleeves?.quality_etf || {}
+  const researchWinner   = qualityCoverage.research_winner || null
   const checklistCandidate = qualityCoverage.checklist_candidate || qualityCoverage.selected_candidate || null
-  const researchSymbol = symbolOf(researchWinner)
-  const checklistSymbol = symbolOf(checklistCandidate)
-  const evidenceCount = Number(coverageSummary.current_legs_with_validated_research)
-  const legCount = Number(coverageSummary.total_current_recommendation_legs)
-  const evidenceLabel = Number.isFinite(evidenceCount) && Number.isFinite(legCount) ? `${evidenceCount}/${legCount}` : '—'
-  const deploymentSymbols = checklistItems
-    .map(item => item?.symbol || item?.ticker)
-    .filter(Boolean)
-    .join(' + ')
-  const manualBuyCount = checklistItems.length
-    ? `${checklistItems.length} ${humanize(checklistItems.length === 1 ? 'manual_buy' : 'manual_buys')}`
-    : 'Manual buys unavailable'
-  const approvalState = checklist?.brief_status
-    ? `${humanize(checklist.brief_status)}${checklist?.requires_approval === false ? '' : ` ${humanize('approval')}`}`
-    : 'Approval state unavailable'
-  const authorizationSafetyCopy = checklist?.requires_approval === true
-    ? 'Manual approval required. No trades executed.'
-    : checklist?.requires_approval === false
-      ? 'Approval not required. No trades executed.'
-      : 'Approval requirement unavailable. No trades executed.'
+  const researchSymbol   = symbolOf(researchWinner)
+  const checklistSymbol  = symbolOf(checklistCandidate)
+  const evidenceCount    = Number(coverageSummary.current_legs_with_validated_research)
+  const legCount         = Number(coverageSummary.total_current_recommendation_legs)
+  const evidenceLabel    = Number.isFinite(evidenceCount) && Number.isFinite(legCount) ? `${evidenceCount}/${legCount}` : '—'
 
   const actionCopy = checklistItems.length
-    ? `PHOENIX recommends ${checklistItems.map(item => `${money(item.amount)} ${item.symbol || item.ticker || humanize(item.asset)} via ${item.platform || humanize(item.route)}`).join(' and ')}. Manual only — nothing has been ordered or executed.`
+    ? `PHOENIX recommends ${checklistItems.map(i => `${money(i.amount)} ${i.symbol || i.ticker || humanize(i.asset)} via ${i.platform || humanize(i.route)}`).join(' and ')}. Manual only — nothing has been ordered or executed.`
     : 'No complete manual-buy checklist was returned. Nothing has been ordered or executed.'
 
   return (
-    <main className="finance-command-center">
-      <div className="fcc-grid-overlay" aria-hidden="true" />
-      <div className="fcc-shell">
-        <header className="fcc-command-bar">
-          <div>
-            <span className="fcc-kicker">PHOENIX</span>
-            <h1>Finance Command Center</h1>
+    <main style={s.wrap}>
+      <div style={s.shell}>
+
+        {/* ── Header + Auth Core ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', alignItems: 'stretch' }}>
+          <Header
+            summary={summary}
+            checklist={checklist}
+            recommendation={recommendation}
+            actionCopy={actionCopy}
+            loading={loading}
+          />
+          <div style={{ padding: '2rem 2rem 2rem 0', display: 'flex', alignItems: 'center' }}>
+            <AuthorizationCore checklist={checklist} recommendation={recommendation} />
           </div>
-          <div className="fcc-command-status">
-            <span>{summary?.as_of ? `Portfolio · ${summary.as_of}` : 'Portfolio date pending'}</span>
-            <i /> Online
+        </div>
+
+        {error && (
+          <div style={{ margin: '0 2rem', padding: '10px 14px', border: '1px solid rgba(255,92,122,0.2)', background: 'rgba(255,92,122,0.04)', color: 'rgba(255,92,122,0.8)', fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.1em' }}>
+            {error}
           </div>
-        </header>
+        )}
 
-        {error && <div className="fcc-data-warning">{error}</div>}
-
-        <section className="fcc-hero-panel">
-          <div className="fcc-hero-copy">
-            <div className="fcc-eyebrow">[ Finance Command Center · {checklist?.week_label || recommendation?.week_label || 'Week pending'} ]</div>
-            <span className="fcc-metric-label">Total portfolio value</span>
-            <div className="fcc-total-value">{money(summary?.total_invested)}</div>
-            <p className="fcc-weekly-directive">{loading ? 'Synchronizing verified finance surfaces…' : actionCopy}</p>
-            <div className="fcc-status-strip">
-              <StatusChip tone={coverage?.verdict === 'DATA_TRANSPARENT' ? 'cyan' : 'red'}>{coverage?.verdict || 'Coverage pending'}</StatusChip>
-              <StatusChip>Evidence {evidenceLabel}</StatusChip>
-              <StatusChip tone="violet">Manual only</StatusChip>
-              <StatusChip>No trades executed</StatusChip>
-              <StatusChip tone="yellow">{checklist?.requires_approval === false ? 'Approval not required' : 'Requires approval'}</StatusChip>
-            </div>
+        {/* ── Manual Actions ── */}
+        <section style={{ padding: '2rem 2rem 0' }}>
+          <div style={s.sectionTag}>[ THIS WEEK ]</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
+            <div style={s.sectionTitle}>MANUAL ACTIONS</div>
+            <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.4)' }}>BROKER ACTIONS REMAIN OUTSIDE PHOENIX</span>
           </div>
-          <div className="fcc-auth-core">
-            <div className="fcc-auth-arc" aria-hidden="true" />
-            <div className="fcc-auth-content">
-              <span className="fcc-auth-eyebrow">[ Authorization Core ]</span>
-
-              <div className="fcc-auth-block">
-                <span className="fcc-auth-label">Weekly Deployment</span>
-                <strong className="fcc-auth-amount">{money(checklist?.week_budget ?? recommendation?.week_budget)}</strong>
-              </div>
-
-              <div className="fcc-auth-sep" />
-
-              <div className="fcc-auth-block">
-                <span className="fcc-auth-label">Manual Actions · {checklistItems.length || 0}</span>
-                <div className="fcc-auth-actions">
-                  {checklistItems.length
-                    ? checklistItems.map((item, i) => (
-                        <div key={i} className="fcc-auth-action-row">
-                          <span>{item.symbol || item.ticker || humanize(item.asset)}</span>
-                          <strong>{money(item.amount)}</strong>
-                        </div>
-                      ))
-                    : <span className="fcc-auth-none">No actions returned</span>}
-                </div>
-              </div>
-
-              <div className="fcc-auth-sep" />
-
-              <div className="fcc-auth-block">
-                <span className="fcc-auth-label">Status</span>
-                <b className={`fcc-auth-status ${checklist?.requires_approval === false ? 'ready' : 'pending'}`}>
-                  {approvalState}
-                </b>
-              </div>
-
-              <p className="fcc-auth-safety">{authorizationSafetyCopy}</p>
+          {checklistItems.length ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {checklistItems.map((item, i) => (
+                <ManualActionCard key={`${item.asset}-${i}`} item={item} index={i} onOpenBrief={() => onNav('brief')} />
+              ))}
             </div>
-          </div>
-        </section>
-
-        <section className="fcc-section">
-          <SectionHeading eyebrow="This week" title="Manual actions" note="Broker actions remain outside PHOENIX." />
-          {checklistItems.length
-            ? <div className="fcc-action-grid">{checklistItems.map((item, index) => <ManualActionCard key={`${item.asset}-${index}`} item={item} index={index} onOpenBrief={() => onNav('brief')} />)}</div>
-            : <EmptyState>No manual actions were returned. Do not infer or place a trade.</EmptyState>}
-        </section>
-
-        <section className="fcc-section">
-          <SectionHeading eyebrow={`Why ${checklistSymbol || 'this ETF'}?`} title="Research merit separated from broker availability" />
-          {researchWinner && checklistCandidate ? (
-            <div className="fcc-selection-panel">
-              <div className="fcc-candidate research">
-                <span>Research winner</span>
-                <strong>{researchSymbol || 'Not returned'}</strong>
-                <p>{researchWinner.label || 'Backend research candidate'}</p>
-                <StatusChip tone={researchWinner.broker_availability_status === 'public_verified' ? 'cyan' : 'yellow'}>
-                  {humanize(researchWinner.broker_availability_status || 'Verification not returned')}
-                </StatusChip>
-              </div>
-              <div className="fcc-resolution-arrow"><span>→</span><small>Resolved to verified</small></div>
-              <div className="fcc-candidate checklist">
-                <span>Checklist candidate</span>
-                <strong>{checklistSymbol || 'Not returned'}</strong>
-                <p>{checklistCandidate.label || 'Backend checklist candidate'}</p>
-                <StatusChip tone={checklistCandidate.broker_availability_status === 'public_verified' ? 'cyan' : 'red'}>
-                  {humanize(checklistCandidate.broker_availability_status || 'Verification not returned')}
-                </StatusChip>
-              </div>
-              <blockquote>{qualityCoverage.selection_gap_reason || 'The backend did not return a selection-gap explanation.'}</blockquote>
-              <p className="fcc-phase-note">Phase 1 protocol: only Lightyear public-verified instruments enter the manual checklist. PHOENIX displays this backend decision; it does not recompute or override it.</p>
+          ) : (
+            <div style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.27)', padding: '2rem', textAlign: 'center', border: T.border, borderRadius: 4 }}>
+              NO MANUAL ACTIONS RETURNED · DO NOT INFER OR PLACE A TRADE
             </div>
-          ) : <EmptyState>ETF selection evidence is incomplete. No candidate is inferred by the cockpit.</EmptyState>}
+          )}
         </section>
 
-        <SafetyLock safety={safety} />
+        {/* ── Instrument Resolution ── */}
+        <InstrumentResolution
+          researchWinner={researchWinner}
+          checklistCandidate={checklistCandidate}
+          researchSymbol={researchSymbol}
+          checklistSymbol={checklistSymbol}
+          qualityCoverage={qualityCoverage}
+        />
 
-        <section className="fcc-section">
-          <SectionHeading eyebrow="Portfolio snapshot" title="Current allocation" note={summary?.as_of ? `Canonical state · ${summary.as_of}` : 'Canonical date unavailable'} />
-          {sleeves.length ? (
-            <div className="fcc-portfolio-panel">
-              <AllocationRing sleeves={sleeves} total={summary?.total_invested} />
-              <div className="fcc-sleeve-list">
-                {sleeves.map((sleeve) => {
-                  const meta = SLEEVE_META[sleeve.name] || { label: humanize(sleeve.name), description: 'Portfolio sleeve', color: '#55717b' }
-                  return (
-                    <div className="fcc-sleeve-row" key={sleeve.name} style={{ '--sleeve-color': meta.color }}>
-                      <div className="fcc-sleeve-copy"><strong>{meta.label}</strong><span>{meta.description}</span><small>{sleeve.name}</small></div>
-                      <div className="fcc-sleeve-values"><strong>{percent(sleeve.current_weight)}</strong><span>{money(sleeve.value)}</span><small>Target {percent(sleeve.target_weight)}</small></div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ) : <EmptyState>Portfolio allocation is unavailable. No values are estimated.</EmptyState>}
-        </section>
+        {/* ── Portfolio Snapshot ── */}
+        {sleeves.length > 0 && (
+          <PortfolioSnapshot sleeves={sleeves} total={summary?.total_invested} asOf={summary?.as_of} />
+        )}
 
-        <section className="fcc-section fcc-audit-section">
-          <details>
-            <summary>
-              <div><span className="fcc-eyebrow">[ Advanced audit ]</span><strong>Research, validation and candidate comparison</strong></div>
-              <StatusChip>Evidence {evidenceLabel}</StatusChip>
-              <span className="fcc-disclosure">⌄</span>
-            </summary>
-            <div className="fcc-audit-body">
-              <div className="fcc-audit-block">
-                <h3>Research memos · advisory only</h3>
-                {memos.length ? memos.map(memo => (
-                  <button key={memo.id} type="button" onClick={() => onNav('research')} className="fcc-audit-row">
-                    <span><strong>{humanize(memo.asset)}</strong><small>{memo.title}</small></span>
-                    <b>{memo.evidence_summary?.evidence_status || memo.research_quality_status || 'Unverified'}</b>
-                  </button>
-                )) : <EmptyState>No research memos returned.</EmptyState>}
-              </div>
-              <div className="fcc-audit-block">
-                <h3>Validation records · {records.length} returned</h3>
-                {records.length ? records.slice(0, 8).map(record => (
-                  <div className="fcc-audit-row" key={record.id}>
-                    <span><strong>{humanize(record.field_name)}</strong><small>{humanize(record.asset)} · {humanize(record.check_type)}</small></span>
-                    <b>{record.status || 'Unknown'}</b>
-                  </div>
-                )) : <EmptyState>No validation records returned.</EmptyState>}
-              </div>
-              <div className="fcc-audit-block full">
-                <h3>Quality ETF candidates · backend comparison</h3>
-                {(qualityCoverage.candidates || []).length ? qualityCoverage.candidates.map(candidate => (
-                  <div className="fcc-audit-row" key={candidate.symbol}>
-                    <span><strong>{candidate.symbol || 'No symbol'}</strong><small>{candidate.label || 'No candidate label'}</small></span>
-                    <b className={candidate.symbol === checklistSymbol ? 'verified' : ''}>{candidate.symbol === researchSymbol ? 'Research winner' : candidate.symbol === checklistSymbol ? 'Checklist candidate' : humanize(candidate.broker_verification || 'Research only')}</b>
-                  </div>
-                )) : <EmptyState>No candidate comparison returned.</EmptyState>}
-              </div>
-            </div>
-          </details>
-        </section>
+        {/* ── Advanced Audit ── */}
+        <AdvancedAudit
+          memos={memos}
+          records={records}
+          qualityCoverage={qualityCoverage}
+          researchSymbol={researchSymbol}
+          checklistSymbol={checklistSymbol}
+          evidenceLabel={evidenceLabel}
+          onNav={onNav}
+        />
 
-        <nav className="fcc-subnav" aria-label="Finance command center destinations">
-          {[
-            ['Weekly brief', 'brief'],
-            ['Holdings', 'holdings'],
-            ['Performance', 'performance'],
-            ['Brief history', 'history'],
-            ['Research desk', 'research'],
-            ['Budget', 'budget'],
-          ].map(([label, destination]) => (
-            <button type="button" key={destination} onClick={() => onNav(destination)}>{label}<span>→</span></button>
-          ))}
-        </nav>
+        {/* ── Nav Cards ── */}
+        <NavCards onNav={onNav} summary={summary} />
+
       </div>
     </main>
   )
