@@ -1,18 +1,30 @@
 import { useState } from 'react'
 import { parseBudgetTransactions, saveBudgetTransactions } from '../../api/client'
 
+const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
+const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
+
+const MONO = "'Share Tech Mono', monospace"
+const DISPLAY = "'Rajdhani', sans-serif"
+const BODY = "'Space Grotesk', sans-serif"
+const BG = '#060c12'
+const CARD = '#070e15'
+const ACCENT = '#00bbdd'
+const border = '1px solid rgba(0,187,221,.18)'
+const muted = 'rgba(0,187,221,.45)'
+
 const CAT_COLORS = {
   'Food & Groceries': '#4dffb4',
-  'Eating Out': '#ff8f2e',
-  'Subscriptions': '#ff5c7a',
-  'Transport': '#20d8ec',
-  'Housing': '#9f7dff',
-  'Health & Sport': '#7dffb4',
-  'Shopping': '#ffd56b',
-  'Investment': '#ffd56b',
-  'Banking & Fees': '#888',
-  'Income': '#9dff6f',
-  'Other': 'rgba(132,212,226,.32)',
+  'Eating Out':       '#ff8f2e',
+  'Subscriptions':    '#ff5c7a',
+  'Transport':        '#00bbdd',
+  'Housing':          '#9f7dff',
+  'Health & Sport':   '#7dffb4',
+  'Shopping':         '#ffd56b',
+  'Investment':       '#ffd56b',
+  'Banking & Fees':   '#888',
+  'Income':           '#9dff6f',
+  'Other':            'rgba(132,212,226,.5)',
 }
 
 const ALL_CATEGORIES = [
@@ -27,20 +39,22 @@ function CategoryPicker({ current, onChange, onClose }) {
       onClick={e => e.target === e.currentTarget && onClose()}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.88)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
     >
-      <div className="glass" style={{ padding: '20px 16px 36px', width: '100%', maxWidth: 480, borderRadius: 0 }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--gold)', letterSpacing: '.12em', marginBottom: 16 }}>SELECT CATEGORY</div>
+      <div style={{ padding: '20px 16px 100px', width: '100%', maxWidth: 480, background: CARD, borderTop: `1px solid rgba(0,187,221,.3)`, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, rgba(0,187,221,.6), rgba(0,187,221,.15), transparent)` }} />
+        <div style={{ width: 36, height: 3, background: 'rgba(0,187,221,.25)', borderRadius: 2, margin: '0 auto 16px' }} />
+        <div style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '.18em', marginBottom: 14 }}>SELECT CATEGORY</div>
         {ALL_CATEGORIES.map(cat => (
-          <button
+          <div
             key={cat}
             onClick={() => { onChange(cat); onClose() }}
             style={{
               display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px',
-              background: cat === current ? 'rgba(32,216,236,.08)' : 'none',
-              border: 'none',
-              color: CAT_COLORS[cat] || 'var(--dim)', fontSize: 13, fontFamily: 'var(--body)',
-              cursor: 'pointer', marginBottom: 2,
+              background: cat === current ? 'rgba(0,187,221,.08)' : 'transparent',
+              border: 'none', borderBottom: '1px solid rgba(0,187,221,.06)',
+              color: CAT_COLORS[cat] || muted, fontSize: 14, fontFamily: BODY,
+              cursor: 'pointer', marginBottom: 0,
             }}
-          >{cat}</button>
+          >{cat}</div>
         ))}
       </div>
     </div>
@@ -56,18 +70,27 @@ export default function BudgetUpload({ onBack, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [pickerIdx, setPickerIdx] = useState(null)
 
+  // inject fonts once
+  if (typeof document !== 'undefined' && !document.getElementById('ph-fonts')) {
+    const link = document.createElement('link')
+    link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
+    document.head.appendChild(link)
+  }
+  if (typeof document !== 'undefined' && !document.getElementById('ph-keyframes')) {
+    const style = document.createElement('style')
+    style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
+    document.head.appendChild(style)
+  }
+
   async function handleParse() {
     if (!raw.trim()) return
-    setParsing(true)
-    setParseError('')
+    setParsing(true); setParseError('')
     try {
       const r = await parseBudgetTransactions(raw.trim())
       setTransactions(r.transactions)
     } catch {
       setParseError('Parse failed. Check your text and try again.')
-    } finally {
-      setParsing(false)
-    }
+    } finally { setParsing(false) }
   }
 
   function updateCategory(idx, cat) {
@@ -79,43 +102,53 @@ export default function BudgetUpload({ onBack, onSaved }) {
     try {
       await saveBudgetTransactions(transactions)
       onSaved()
-    } catch {
-      setSaving(false)
-    }
+    } catch { setSaving(false) }
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif" }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '13px 18px 11px', borderBottom: '1px solid rgba(255,213,107,.18)', position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
-        <span onClick={onBack} style={{ color: '#ffd56b', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-        <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: '#ffd56b' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${ACCENT},transparent)`, animation: 'phScan 4s linear infinite' }} />
+        <span onClick={onBack} style={{ color: ACCENT, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+        <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.28em', color: ACCENT, textShadow: '0 0 20px rgba(0,187,221,.4)' }}>
           {transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}
         </span>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 18, paddingBottom: 100 }}>
         {!transactions ? (
           <>
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {[['text', 'PASTE TEXT'], ['pdf', 'UPLOAD PDF']].map(([t, label]) => (
-                <button key={t} onClick={() => setTab(t)} className={`action${tab === t ? ' warn' : ' ghost'}`} style={{ flex: 1, justifyContent: 'center' }}>
-                  {label}
-                </button>
+                <div
+                  key={t}
+                  onClick={() => setTab(t)}
+                  style={{
+                    flex: 1, textAlign: 'center', padding: '10px 0',
+                    fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.18em',
+                    cursor: 'pointer', userSelect: 'none', borderRadius: 2,
+                    border: tab === t ? `1px solid ${ACCENT}` : border,
+                    color: tab === t ? '#7de8ff' : muted,
+                    background: tab === t ? 'rgba(0,187,221,.08)' : 'transparent',
+                    textShadow: tab === t ? '0 0 8px rgba(0,187,221,.5)' : 'none',
+                  }}
+                >{label}</div>
               ))}
             </div>
 
             {tab === 'pdf' ? (
-              <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--dim)', fontFamily: 'var(--display)', fontSize: 12, letterSpacing: '.1em' }}>
+              <div style={{ padding: '40px 0', textAlign: 'center', color: muted, fontFamily: DISPLAY, fontSize: 14, letterSpacing: '.1em' }}>
                 PDF IMPORT COMING SOON
               </div>
             ) : (
               <>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.08em', marginBottom: 8 }}>
+                <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.15em', marginBottom: 8 }}>
                   PASTE LHV TRANSACTIONS
                 </div>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--dim)', marginBottom: 12, padding: '8px 10px', background: 'rgba(1,10,13,.7)', border: '1px solid var(--line)' }}>
+                <div style={{ fontFamily: MONO, fontSize: 10, color: 'rgba(0,187,221,.35)', marginBottom: 12, padding: '8px 10px', background: 'rgba(0,187,221,.02)', border }}>
                   Time: 25.06.2026 Receiver: TORUPILLI SELVER ISETE Amount: 14.57 EUR...
                 </div>
                 <textarea
@@ -124,68 +157,76 @@ export default function BudgetUpload({ onBack, onSaved }) {
                   placeholder="Paste your LHV transactions here..."
                   style={{
                     width: '100%', minHeight: 220,
-                    background: 'rgba(1,10,13,.7)',
-                    border: '1px solid var(--line)',
-                    color: 'var(--text)', fontSize: 12, fontFamily: 'var(--mono)',
+                    background: 'rgba(0,187,221,.02)',
+                    border,
+                    color: 'rgba(199,236,244,.87)', fontSize: 12, fontFamily: MONO,
                     padding: '12px', resize: 'vertical', outline: 'none',
-                    boxSizing: 'border-box',
+                    boxSizing: 'border-box', borderRadius: 2,
                   }}
                 />
                 {parseError && (
-                  <div style={{ color: 'var(--red)', fontFamily: 'var(--mono)', fontSize: 11, marginTop: 8 }}>{parseError}</div>
+                  <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 11, marginTop: 8 }}>{parseError}</div>
                 )}
-                <button
-                  onClick={handleParse}
-                  disabled={parsing || !raw.trim()}
-                  className={`action lg${parsing || !raw.trim() ? ' ghost' : ''}`}
-                  style={{ width: '100%', marginTop: 12, justifyContent: 'center' }}
+                <div
+                  onClick={!parsing && raw.trim() ? handleParse : undefined}
+                  style={{
+                    width: '100%', marginTop: 12, padding: '12px 0',
+                    border: `1px solid ${!raw.trim() || parsing ? 'rgba(0,187,221,.2)' : 'rgba(0,187,221,.6)'}`,
+                    background: !raw.trim() || parsing ? 'transparent' : 'rgba(0,187,221,.06)',
+                    color: !raw.trim() || parsing ? muted : '#7de8ff',
+                    fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em',
+                    textAlign: 'center', cursor: !raw.trim() || parsing ? 'default' : 'pointer',
+                    textShadow: !raw.trim() || parsing ? 'none' : '0 0 10px rgba(0,187,221,.5)',
+                    userSelect: 'none', borderRadius: 2, boxSizing: 'border-box',
+                  }}
                 >
                   {parsing ? 'PARSING…' : 'PARSE TRANSACTIONS'}
-                </button>
+                </div>
               </>
             )}
           </>
         ) : (
           <>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '.08em', marginBottom: 12 }}>
-              {transactions.length} TRANSACTIONS FOUND — TAP CATEGORY TO EDIT
+            <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.12em', marginBottom: 12 }}>
+              {transactions.length} TRANSACTIONS FOUND · TAP CATEGORY TO EDIT
             </div>
-            <div className="glass" style={{ overflow: 'hidden', marginBottom: 16 }}>
+            <div style={{ background: CARD, border, borderRadius: 4, overflow: 'hidden', marginBottom: 14, position: 'relative' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, rgba(0,187,221,.4), rgba(0,187,221,.1), transparent)` }} />
               {transactions.map((t, i) => (
-                <div key={i} style={{
-                  padding: '10px 14px',
-                  borderBottom: i < transactions.length - 1 ? '1px solid var(--line)' : 'none',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                }}>
+                <div key={i} style={{ padding: '10px 14px', borderBottom: i < transactions.length - 1 ? '1px solid rgba(0,187,221,.07)' : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--body)', fontSize: 12, color: 'var(--text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {t.merchant}
-                    </div>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)' }}>{t.date}</div>
+                    <div style={{ fontFamily: BODY, fontSize: 13, color: 'rgba(199,236,244,.87)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.merchant}</div>
+                    <div style={{ fontFamily: MONO, fontSize: 8, color: muted }}>{t.date}</div>
                   </div>
-                  <button onClick={() => setPickerIdx(i)} style={{
-                    padding: '3px 8px',
-                    background: `${CAT_COLORS[t.category] || 'var(--dim)'}22`,
-                    border: `1px solid ${CAT_COLORS[t.category] || 'var(--dim)'}55`,
-                    color: CAT_COLORS[t.category] || 'var(--dim)',
-                    fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.06em',
-                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                  }}>{t.category}</button>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: t.is_income ? 'var(--green)' : 'var(--text)', flexShrink: 0 }}>
+                  <div
+                    onClick={() => setPickerIdx(i)}
+                    style={{
+                      padding: '3px 8px',
+                      background: `${CAT_COLORS[t.category] || muted}22`,
+                      border: `1px solid ${CAT_COLORS[t.category] || muted}55`,
+                      color: CAT_COLORS[t.category] || muted,
+                      fontFamily: MONO, fontSize: 8, letterSpacing: '.06em',
+                      cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, borderRadius: 2,
+                    }}
+                  >{t.category}</div>
+                  <div style={{ fontFamily: BODY, fontSize: 13, fontWeight: 600, color: t.is_income ? '#4dffb4' : 'rgba(199,236,244,.87)', flexShrink: 0 }}>
                     {t.is_income ? '+' : ''}€{Math.abs(t.amount_eur).toFixed(2)}
                   </div>
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setTransactions(null)} className="action ghost" style={{ flex: 1 }}>← RE-PARSE</button>
-              <button onClick={handleSave} disabled={saving} className={`action safe lg${saving ? ' ghost' : ''}`} style={{ flex: 2 }}>
-                {saving ? 'SAVING…' : 'SAVE ALL'}
-              </button>
+              <div
+                onClick={() => setTransactions(null)}
+                style={{ flex: 1, padding: '11px 0', border, color: muted, background: 'transparent', fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', textAlign: 'center', cursor: 'pointer', userSelect: 'none', borderRadius: 2 }}
+              >← RE-PARSE</div>
+              <div
+                onClick={!saving ? handleSave : undefined}
+                style={{ flex: 2, padding: '11px 0', border: `1px solid rgba(0,187,221,.6)`, color: '#7de8ff', background: 'rgba(0,187,221,.08)', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', textAlign: 'center', cursor: saving ? 'wait' : 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.5)', borderRadius: 2 }}
+              >{saving ? 'SAVING…' : 'SAVE ALL'}</div>
             </div>
           </>
         )}
-        <div style={{ height: 32 }} />
       </div>
 
       {pickerIdx !== null && (
