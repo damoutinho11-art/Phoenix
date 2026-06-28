@@ -57,10 +57,11 @@ const s = {
   wrap: {
     background: T.bg,
     color: T.white,
-    minHeight: '100vh',
+    height: '100%',
     fontFamily: T.fontMono,
     position: 'relative',
     overflowX: 'hidden',
+    overflowY: 'auto',
   },
   shell: {
     maxWidth: 900,
