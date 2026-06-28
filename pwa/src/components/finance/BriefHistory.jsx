@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react'
 import { getFinanceBriefHistory } from '../../api/client'
 
-const border = '1px solid rgba(32,216,236,.18)'
-const muted = 'rgba(32,216,236,.38)'
+const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
+const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
+
+const border = '1px solid rgba(0,187,221,.18)'
+const muted = 'rgba(0,187,221,.45)'
+const MONO = "'Share Tech Mono', monospace"
+const DISPLAY = "'Rajdhani', sans-serif"
+const BODY = "'Space Grotesk', sans-serif"
+const BG = '#060c12'
+const CARD = '#070e15'
+const ACCENT = '#00bbdd'
 
 const STATUS_COLOR = {
   approved: '#4dffb4',
-  pending:  '#20d8ec',
-  deferred: 'rgba(32,216,236,.35)',
-  rejected: 'rgba(255,92,122,.5)',
+  pending:  ACCENT,
+  deferred: 'rgba(0,187,221,.4)',
+  rejected: 'rgba(255,92,122,.7)',
 }
 
 const STATUS_LABEL = {
@@ -35,9 +44,7 @@ function parseStoredBrief(brief) {
   try {
     const parsed = JSON.parse(brief.full_brief_json)
     return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
-  }
+  } catch { return {} }
 }
 
 function getBriefRecommendations(brief) {
@@ -60,7 +67,15 @@ function getBriefSummary(brief) {
   return { recommendations, assetLabel, totalAmount }
 }
 
-// ── Drawer ────────────────────────────────────────────────────
+function Field({ label, value, color = ACCENT }) {
+  return (
+    <div style={{ background: 'rgba(0,187,221,.03)', border, padding: '10px 12px', minWidth: 0 }}>
+      <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: MONO, fontSize: 13, color, overflowWrap: 'anywhere' }}>{value}</div>
+    </div>
+  )
+}
+
 function Drawer({ brief, onClose }) {
   const statusColor = STATUS_COLOR[brief.status] || muted
   const outcomeNote = brief.outcome_note || null
@@ -69,83 +84,62 @@ function Drawer({ brief, onClose }) {
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 15 }} />
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 430, margin: '0 auto', background: '#000', borderTop: border, zIndex: 20, maxHeight: '78vh', overflowY: 'auto' }}>
-        <div style={{ width: 36, height: 3, background: 'rgba(32,216,236,.18)', borderRadius: 2, margin: '10px auto 0' }} />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 15 }} />
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 430, margin: '0 auto', background: CARD, borderTop: `1px solid rgba(0,187,221,.3)`, zIndex: 20, maxHeight: '78vh', overflowY: 'auto' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, rgba(0,187,221,.6), rgba(0,187,221,.15), transparent)` }} />
+        <div style={{ width: 36, height: 3, background: 'rgba(0,187,221,.25)', borderRadius: 2, margin: '12px auto 0' }} />
         <div style={{ padding: '16px 18px 36px' }}>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
-                {assetLabel}
-              </div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted, letterSpacing: '.12em', marginTop: 3 }}>
-                {brief.week_label} · {formatDate(brief.created_at)}
-              </div>
+              <div style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 700, color: '#eef6f9', lineHeight: 1 }}>{assetLabel}</div>
+              <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.12em', marginTop: 3 }}>{brief.week_label} · {formatDate(brief.created_at)}</div>
             </div>
-            <span onClick={onClose} style={{ fontFamily: 'var(--mono)', fontSize: 9, color: muted, cursor: 'pointer', padding: 4 }}>✕ CLOSE</span>
+            <span onClick={onClose} style={{ fontFamily: MONO, fontSize: 9, color: muted, cursor: 'pointer', padding: 4 }}>✕ CLOSE</span>
           </div>
 
-          {/* Status + amount */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-            <div style={{ background: 'rgba(32,216,236,.025)', border, padding: '10px 12px' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>ACTION</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#4dffb4' }}>{brief.action || '—'}</div>
-            </div>
-            <div style={{ background: 'rgba(32,216,236,.025)', border, padding: '10px 12px' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>TOTAL BUDGET</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#7df0ff' }}>{formatEur(totalAmount)}</div>
-            </div>
-            <div style={{ background: 'rgba(32,216,236,.025)', border, padding: '10px 12px' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>STATUS</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: statusColor }}>{STATUS_LABEL[brief.status] || brief.status || '—'}</div>
-            </div>
-            <div style={{ background: 'rgba(32,216,236,.025)', border, padding: '10px 12px' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 4 }}>RECOMMENDATIONS</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#7df0ff' }}>{recommendations.length}</div>
-            </div>
+            <Field label="ACTION" value={brief.action || '—'} color="#4dffb4" />
+            <Field label="TOTAL BUDGET" value={formatEur(totalAmount)} />
+            <Field label="STATUS" value={STATUS_LABEL[brief.status] || brief.status || '—'} color={statusColor} />
+            <Field label="RECOMMENDATIONS" value={String(recommendations.length)} />
           </div>
 
           {recommendations.length > 0 && (
-            <div style={{ padding: '10px 13px', border, background: 'rgba(32,216,236,.02)', marginBottom: 12 }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: muted, marginBottom: 8 }}>RECOMMENDATION LINES</div>
-              {recommendations.map((recommendation, index) => (
-                <div key={`${recommendation.asset}-${index}`} style={{ padding: '7px 0', borderTop: index === 0 ? 'none' : '1px solid rgba(32,216,236,.1)', fontFamily: 'var(--mono)', fontSize: 10, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
-                  <span style={{ color: '#fff' }}>{String(recommendation.asset).toUpperCase()}</span>
+            <div style={{ padding: '10px 13px', border, background: 'rgba(0,187,221,.02)', marginBottom: 12 }}>
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.2em', color: muted, marginBottom: 8 }}>RECOMMENDATION LINES</div>
+              {recommendations.map((rec, index) => (
+                <div key={`${rec.asset}-${index}`} style={{ padding: '7px 0', borderTop: index === 0 ? 'none' : '1px solid rgba(0,187,221,.1)', fontFamily: MONO, fontSize: 10, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+                  <span style={{ color: '#eef6f9' }}>{String(rec.asset).toUpperCase()}</span>
                   <span style={{ color: muted }}> — </span>
-                  <span style={{ color: '#7df0ff' }}>{formatEur(recommendation.amount)}</span>
-                  <span style={{ color: muted }}> — {recommendation.route || 'ROUTE NOT RECORDED'}</span>
+                  <span style={{ color: ACCENT }}>{formatEur(rec.amount)}</span>
+                  <span style={{ color: muted }}> — {rec.route || 'ROUTE NOT RECORDED'}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Outcome */}
           {(outcomePct != null || outcomeNote) && (
-            <div style={{ padding: '10px 13px', border, background: 'rgba(32,216,236,.02)', marginBottom: 12 }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: muted, marginBottom: 5 }}>OUTCOME</div>
+            <div style={{ padding: '10px 13px', border, background: 'rgba(0,187,221,.02)', marginBottom: 12 }}>
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.2em', color: muted, marginBottom: 5 }}>OUTCOME</div>
               {outcomePct != null && (
-                <div style={{ fontFamily: 'var(--display)', fontSize: 26, fontWeight: 700, color: outcomePct >= 0 ? '#4dffb4' : '#ff5c7a', marginBottom: 4 }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 26, fontWeight: 700, color: outcomePct >= 0 ? '#4dffb4' : '#ff5c7a', marginBottom: 4 }}>
                   {outcomePct >= 0 ? '+' : ''}{outcomePct.toFixed(2)}%
                 </div>
               )}
-              {outcomeNote && (
-                <div style={{ fontSize: 12, fontWeight: 300, lineHeight: 1.6, color: 'rgba(199,236,244,.72)' }}>{outcomeNote}</div>
-              )}
+              {outcomeNote && <div style={{ fontSize: 12, fontWeight: 300, lineHeight: 1.6, color: 'rgba(199,236,244,.72)', fontFamily: BODY }}>{outcomeNote}</div>}
             </div>
           )}
 
-          {/* Thesis */}
           {brief.thesis && (
-            <div style={{ border, borderLeft: '3px solid #20d8ec', padding: '12px 13px', marginBottom: 12 }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: muted, marginBottom: 7 }}>THESIS</div>
-              <div style={{ fontSize: 13, fontWeight: 300, lineHeight: 1.7, color: 'rgba(199,236,244,.85)' }}>{brief.thesis}</div>
+            <div style={{ border, borderLeft: `3px solid rgba(0,187,221,.6)`, padding: '12px 13px', marginBottom: 12 }}>
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.2em', color: muted, marginBottom: 7 }}>THESIS</div>
+              <div style={{ fontSize: 13, fontWeight: 300, lineHeight: 1.7, color: 'rgba(199,236,244,.85)', fontFamily: BODY }}>{brief.thesis}</div>
             </div>
           )}
 
-          {/* User action */}
           {brief.user_action_at && (
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, letterSpacing: '.1em' }}>
+            <div style={{ fontFamily: MONO, fontSize: 7, color: muted, letterSpacing: '.1em' }}>
               DECISION AT {formatDate(brief.user_action_at)}
             </div>
           )}
@@ -164,6 +158,19 @@ export default function BriefHistory({ onBack }) {
   const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
+    if (!document.getElementById('ph-fonts')) {
+      const link = document.createElement('link')
+      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
+      document.head.appendChild(link)
+    }
+    if (!document.getElementById('ph-keyframes')) {
+      const style = document.createElement('style')
+      style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
+      document.head.appendChild(style)
+    }
+  }, [])
+
+  useEffect(() => {
     getFinanceBriefHistory()
       .then(r => setBriefs(Array.isArray(r.history) ? r.history : []))
       .catch(() => setLoadError(true))
@@ -179,70 +186,61 @@ export default function BriefHistory({ onBack }) {
   const rejected = list.filter(b => b.status === 'rejected').length
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif" }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
 
-      {/* TOP BAR */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5 }}>
+      {/* Top bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${ACCENT},transparent)`, animation: 'phScan 4s linear infinite' }} />
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span onClick={onBack} style={{ color: '#20d8ec', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: '#7df0ff' }}>BRIEF HISTORY</span>
+          <span onClick={onBack} style={{ color: ACCENT, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+          <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.28em', color: ACCENT, textShadow: '0 0 20px rgba(0,187,221,.4)' }}>BRIEF HISTORY</span>
         </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted, letterSpacing: '.14em' }}>{loading ? '…' : `${total} BRIEFS`}</span>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.14em' }}>{loading ? '…' : `${total} BRIEFS`}</span>
       </div>
 
       {loadError && (
-        <div style={{ margin: 18, padding: '12px 14px', border: '1px solid rgba(255,92,122,.3)', background: 'rgba(255,92,122,.04)', color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em' }}>
+        <div style={{ margin: 18, padding: '12px 14px', border: '1px solid rgba(255,92,122,.3)', background: 'rgba(255,92,122,.04)', color: '#ff5c7a', fontFamily: MONO, fontSize: 8, letterSpacing: '.1em' }}>
           UNABLE TO LOAD BRIEF HISTORY
         </div>
       )}
 
-      {/* STATS STRIP — real counts only, no fabricated returns */}
+      {/* Stats strip */}
       {!loading && !loadError && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: border, background: 'rgba(32,216,236,.02)' }}>
-          {[
-            ['TOTAL', String(total),    '#7df0ff'],
-            ['APPROVED', String(approved), '#4dffb4'],
-            ['REJECTED', String(rejected), '#ffd56b'],
-          ].map(([lbl, val, c]) => (
-            <div key={lbl} style={{ padding: '12px 10px', borderRight: lbl !== 'REJECTED' ? border : 'none', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: muted, marginBottom: 4 }}>{lbl}</div>
-              <div style={{ fontFamily: 'var(--display)', fontSize: 17, fontWeight: 700, letterSpacing: '.03em', color: c }}>{val}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: border, background: 'rgba(0,187,221,.02)' }}>
+          {[['TOTAL', String(total), ACCENT], ['APPROVED', String(approved), '#4dffb4'], ['REJECTED', String(rejected), '#ffd56b']].map(([lbl, val, c], i) => (
+            <div key={lbl} style={{ padding: '12px 10px', borderRight: i < 2 ? border : 'none', textAlign: 'center' }}>
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: muted, marginBottom: 4 }}>{lbl}</div>
+              <div style={{ fontFamily: DISPLAY, fontSize: 17, fontWeight: 700, letterSpacing: '.03em', color: c }}>{val}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* FILTER TABS */}
-      <div style={{ display: 'flex', padding: '0 18px', borderBottom: border }}>
+      {/* Filter tabs */}
+      <div style={{ display: 'flex', padding: '0 18px', borderBottom: border, background: CARD }}>
         {FILTER_KEYS.map(key => (
-          <div key={key} onClick={() => setFilterKey(key)} style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', padding: '9px 10px 8px', cursor: 'pointer', color: filterKey === key ? '#7df0ff' : muted, borderBottom: `2px solid ${filterKey === key ? '#7df0ff' : 'transparent'}`, marginBottom: -1, transition: 'color .15s' }}>
+          <div key={key} onClick={() => setFilterKey(key)} style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.18em', padding: '9px 10px 8px', cursor: 'pointer', color: filterKey === key ? ACCENT : muted, borderBottom: `2px solid ${filterKey === key ? ACCENT : 'transparent'}`, marginBottom: -1, transition: 'color .15s' }}>
             {key.toUpperCase()}
           </div>
         ))}
       </div>
 
-      {/* BRIEF LIST */}
       {loading && (
-        <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: muted }}>
-          LOADING…
-        </div>
+        <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '.2em', color: muted }}>LOADING…</div>
       )}
 
       {!loading && !loadError && list.length === 0 && (
         <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: muted, marginBottom: 12 }}>NO BRIEFS YET</div>
-          <div style={{ fontSize: 13, fontWeight: 300, lineHeight: 1.7, color: 'rgba(199,236,244,.55)', maxWidth: 280, margin: '0 auto' }}>
-            No real brief history yet.
-          </div>
+          <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.22em', color: muted, marginBottom: 12 }}>NO BRIEFS YET</div>
+          <div style={{ fontSize: 13, fontWeight: 300, lineHeight: 1.7, color: 'rgba(199,236,244,.55)', maxWidth: 280, margin: '0 auto', fontFamily: BODY }}>No real brief history yet.</div>
         </div>
       )}
 
       {!loading && filtered.length === 0 && list.length > 0 && (
-        <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: muted }}>
-          NO BRIEFS IN THIS CATEGORY
-        </div>
+        <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '.2em', color: muted }}>NO BRIEFS IN THIS CATEGORY</div>
       )}
 
+      {/* Brief list */}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {filtered.map(b => {
           const statusColor = STATUS_COLOR[b.status] || muted
@@ -252,26 +250,26 @@ export default function BriefHistory({ onBack }) {
             <div
               key={b.id}
               onClick={() => setSelected(b.id)}
-              style={{ padding: '13px 15px', borderBottom: '1px solid rgba(32,216,236,.08)', cursor: 'pointer', borderLeft: `3px solid ${statusColor}` }}
+              style={{ padding: '13px 15px', borderBottom: '1px solid rgba(0,187,221,.07)', cursor: 'pointer', borderLeft: `3px solid ${statusColor}` }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 5 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: muted }}>{b.week_label}</span>
-                  <span style={{ fontFamily: 'var(--display)', fontSize: 10, fontWeight: 700, letterSpacing: '.16em', padding: '2px 7px', border: '1px solid rgba(77,255,180,.35)', color: '#4dffb4', background: 'rgba(77,255,180,.07)' }}>{b.action || '—'}</span>
-                  <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1, overflowWrap: 'anywhere' }}>{assetLabel}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', color: muted }}>{b.week_label}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', padding: '2px 7px', border: '1px solid rgba(77,255,180,.35)', color: '#4dffb4', background: 'rgba(77,255,180,.07)' }}>{b.action || '—'}</span>
+                  <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, color: '#eef6f9', lineHeight: 1, overflowWrap: 'anywhere' }}>{assetLabel}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                   {hasOutcome
-                    ? <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: b.outcome_pct >= 0 ? '#4dffb4' : '#ff5c7a' }}>{b.outcome_pct >= 0 ? '+' : ''}{Number(b.outcome_pct).toFixed(2)}%</span>
-                    : <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: muted }}>—</span>
+                    ? <span style={{ fontFamily: BODY, fontSize: 13, fontWeight: 600, color: b.outcome_pct >= 0 ? '#4dffb4' : '#ff5c7a' }}>{b.outcome_pct >= 0 ? '+' : ''}{Number(b.outcome_pct).toFixed(2)}%</span>
+                    : <span style={{ fontFamily: MONO, fontSize: 12, color: muted }}>—</span>
                   }
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', padding: '2px 6px', border, color: statusColor }}>{STATUS_LABEL[b.status] || b.status}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', padding: '2px 6px', border, color: statusColor }}>{STATUS_LABEL[b.status] || b.status}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.3)', letterSpacing: '.1em' }}>{formatDate(b.created_at)}</span>
+                <span style={{ fontFamily: MONO, fontSize: 7, color: 'rgba(0,187,221,.3)', letterSpacing: '.1em' }}>{formatDate(b.created_at)}</span>
                 {totalAmount != null && (
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'rgba(199,236,244,.55)' }}>TOTAL {formatEur(totalAmount)}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 8, color: 'rgba(199,236,244,.55)' }}>TOTAL {formatEur(totalAmount)}</span>
                 )}
               </div>
             </div>
