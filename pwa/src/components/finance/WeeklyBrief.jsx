@@ -33,12 +33,33 @@ function humanize(value) {
   return value ? String(value).replace(/_/g, ' ').toUpperCase() : '—'
 }
 
+// Primary section — full visual weight
 function Section({ title, children }) {
   return (
     <section style={{ padding: '16px 18px', borderBottom: border }}>
       <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.22em', color: muted, marginBottom: 12 }}>{title}</div>
       {children}
     </section>
+  )
+}
+
+// Collapsible audit section — secondary weight, collapsed by default
+function AuditSection({ title, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div style={{ borderBottom: border }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 18px', background: 'transparent', border: 'none', cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.22em', color: 'rgba(0,187,221,.3)' }}>{title}</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: 'rgba(0,187,221,.3)', flexShrink: 0, marginLeft: 8 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && <div style={{ padding: '0 18px 16px' }}>{children}</div>}
+    </div>
   )
 }
 
@@ -163,32 +184,6 @@ function ResearchLegRow({ leg }) {
   )
 }
 
-function ResearchContextSection({ researchContext, gateSummary }) {
-  const legs = Array.isArray(researchContext) ? researchContext : []
-  if (legs.length === 0) return null
-  const hasBlocker = legs.some((leg) => leg.evidence_status === 'BLOCKED_BY_FAIL')
-  return (
-    <Section title="RESEARCH CONTEXT · ADVISORY ONLY">
-      {hasBlocker && (
-        <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid rgba(255,92,122,.35)', background: 'rgba(255,92,122,.04)', color: '#ff5c7a' }}>
-          <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em' }}>RESEARCH BLOCKER FOUND</div>
-          <div style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4 }}>Research blocker found. Manual review required.</div>
-        </div>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {legs.map((leg, index) => <ResearchLegRow key={`${leg.asset}-${index}`} leg={leg} />)}
-      </div>
-      {gateSummary && (
-        <div style={{ marginTop: 9, padding: '8px 10px', border, fontFamily: MONO, fontSize: 7, color: muted, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
-          <span>WITH RESEARCH · {gateSummary.legs_with_research ?? 0}/{gateSummary.total_recommendation_legs ?? 0}</span>
-          <span>BLOCKED · {gateSummary.legs_blocked_by_failed_research ?? 0}</span>
-          <span style={{ gridColumn: '1/-1', marginTop: 2, color: 'rgba(0,187,221,.4)' }}>ADVISORY ONLY · ALLOCATIONS UNCHANGED</span>
-        </div>
-      )}
-    </Section>
-  )
-}
-
 function ManualBuyChecklistSection({ checklist, error, onRecordTransaction }) {
   const items = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
   const ready = checklist?.checklist_status === 'READY_FOR_MANUAL_REVIEW'
@@ -200,7 +195,7 @@ function ManualBuyChecklistSection({ checklist, error, onRecordTransaction }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ padding: '10px 12px', border: ready ? '1px solid rgba(77,255,180,.25)' : '1px solid rgba(255,213,107,.3)', background: ready ? 'rgba(77,255,180,.03)' : 'rgba(255,213,107,.035)' }}>
             <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em', color: ready ? '#4dffb4' : '#ffd56b' }}>{checklist.checklist_status}</div>
-            <div style={{ fontSize: 12, lineHeight: 1.55, marginTop: 5, color: 'rgba(199,236,244,.8)' }}>PHOENIX has not bought anything. Open the broker manually.</div>
+            <div style={{ fontSize: 12, lineHeight: 1.55, marginTop: 5, color: 'rgba(199,236,244,.8)' }}>Open your broker manually to complete this buy. PHOENIX has not executed anything.</div>
           </div>
           {items.map((item, index) => (
             <CornerCard key={`${item.asset}-${index}`}>
@@ -232,9 +227,6 @@ function ManualBuyChecklistSection({ checklist, error, onRecordTransaction }) {
               </div>
             </CornerCard>
           ))}
-          <div style={{ padding: '9px 11px', border, color: `rgba(0,187,221,.72)`, fontFamily: MONO, fontSize: 8, lineHeight: 1.55 }}>
-            After buying manually, record the actual transaction in the ledger.
-          </div>
         </div>
       )}
     </Section>
@@ -392,31 +384,20 @@ function LedgerApplyRow({ transaction, onApplied }) {
   const [applyError, setApplyError] = useState('')
 
   async function loadPreview() {
-    setPreviewLoading(true)
-    setPreviewError('')
-    try {
-      const data = await getFinanceTransactionApplyPreview(transaction.id)
-      setPreview(data)
-    } catch (err) {
-      setPreviewError(err?.message || 'Preview failed.')
-    } finally {
-      setPreviewLoading(false)
-    }
+    setPreviewLoading(true); setPreviewError('')
+    try { const data = await getFinanceTransactionApplyPreview(transaction.id); setPreview(data) }
+    catch (err) { setPreviewError(err?.message || 'Preview failed.') }
+    finally { setPreviewLoading(false) }
   }
 
   async function applyTransaction() {
-    setApplying(true)
-    setApplyError('')
+    setApplying(true); setApplyError('')
     try {
       const result = await postFinanceTransactionApply(transaction.id)
-      setApplyResult(result)
-      setPreview(null)
+      setApplyResult(result); setPreview(null)
       if (onApplied) onApplied()
-    } catch (err) {
-      setApplyError(err?.message || 'Apply failed.')
-    } finally {
-      setApplying(false)
-    }
+    } catch (err) { setApplyError(err?.message || 'Apply failed.') }
+    finally { setApplying(false) }
   }
 
   return (
@@ -429,7 +410,7 @@ function LedgerApplyRow({ transaction, onApplied }) {
         {applied || applyResult ? (
           <div style={{ fontFamily: MONO, fontSize: 7, color: '#4dffb4', letterSpacing: '.12em' }}>
             APPLIED TO PORTFOLIO STATE
-            {applyResult && <div style={{ color: 'rgba(77,255,180,.75)', letterSpacing: '.08em', marginTop: 3, lineHeight: 1.5, textTransform: 'none' }}>Portfolio state updated from your manual record. PHOENIX did not execute a trade.</div>}
+            {applyResult && <div style={{ color: 'rgba(77,255,180,.75)', letterSpacing: '.08em', marginTop: 3, lineHeight: 1.5, textTransform: 'none' }}>Portfolio state updated from your manual record.</div>}
           </div>
         ) : (
           <>
@@ -458,9 +439,6 @@ function LedgerApplyRow({ transaction, onApplied }) {
                   {preview.fee_eur > 0 && ` · fee ${formatEur(preview.fee_eur)}`}
                 </div>
                 {applyError && <div style={{ color: '#ff5c7a', fontSize: 7, marginTop: 5 }}>{applyError}</div>}
-                <div style={{ fontSize: 10, color: '#ffd56b', lineHeight: 1.5, marginTop: 8 }}>
-                  This updates PHOENIX portfolio_state from your manually recorded broker transaction. PHOENIX still did not execute a trade.
-                </div>
                 <button onClick={applyTransaction} disabled={applying} style={{ marginTop: 8, width: '100%', padding: '8px 0', border: `1px solid ${ACCENT}`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 7, fontWeight: 700, letterSpacing: '.14em', cursor: applying ? 'wait' : 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)' }}>
                   {applying ? 'APPLYING…' : 'APPLY TO PORTFOLIO STATE'}
                 </button>
@@ -504,8 +482,7 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
       suggested_amount_eur: recommendation.amount ?? '',
       amount_eur: '', units: '', price: '', currency: '', fee_eur: 0, executed_at: '', notes: '',
     })
-    setError('')
-    setSaved(null)
+    setError(''); setSaved(null)
   }, [selectedAsset, recommendations])
 
   function update(field, value) { setForm((current) => ({ ...current, [field]: value })) }
@@ -513,10 +490,7 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
   const savedTransaction = saved ? transactions.find((t) => t.id === saved.transaction_id) : null
 
   async function submit(event) {
-    event.preventDefault()
-    setSaving(true)
-    setError('')
-    setSaved(null)
+    event.preventDefault(); setSaving(true); setError(''); setSaved(null)
     try {
       const result = await postManualFinanceTransaction({
         brief_id: briefId, asset: form.asset, symbol: form.symbol || null,
@@ -525,8 +499,7 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
         fee_eur: Number(form.fee_eur || 0), executed_at: new Date(form.executed_at).toISOString(),
         notes: form.notes || null,
       })
-      setSaved(result)
-      setForm((current) => ({ ...current, units: '' }))
+      setSaved(result); setForm((current) => ({ ...current, units: '' }))
       await refreshLedger()
     } catch (requestError) {
       setError(requestError?.message || 'Unable to save manual transaction.')
@@ -537,7 +510,7 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
     <CornerCard>
       <form onSubmit={submit} style={{ padding: '13px 14px' }}>
         <div style={{ fontSize: 12, lineHeight: 1.5, color: 'rgba(199,236,244,.72)', marginBottom: 11 }}>
-          Record a trade you already completed manually in your broker. PHOENIX will not place an order or update portfolio state.
+          Record a trade you already completed manually in your broker.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <FormField label="RECOMMENDATION">
@@ -549,7 +522,7 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
           <FormField label="SYMBOL"><input value={form.symbol || ''} onChange={(e) => update('symbol', e.target.value)} style={inputStyle} /></FormField>
           <FormField label="PLATFORM"><input required value={form.platform || ''} onChange={(e) => update('platform', e.target.value)} style={inputStyle} /></FormField>
           <FormField label={`ACTUAL AMOUNT EUR · SUGGESTED ${formatEur(form.suggested_amount_eur)}`}><input required min="0.01" step="any" type="number" value={form.amount_eur ?? ''} onChange={(e) => update('amount_eur', e.target.value)} style={inputStyle} /></FormField>
-          <FormField label="UNITS RECEIVED · ENTER MANUALLY"><input required min="0.00000001" step="any" type="number" value={form.units ?? ''} onChange={(e) => update('units', e.target.value)} style={inputStyle} /></FormField>
+          <FormField label="UNITS RECEIVED"><input required min="0.00000001" step="any" type="number" value={form.units ?? ''} onChange={(e) => update('units', e.target.value)} style={inputStyle} /></FormField>
           <FormField label="ACTUAL PRICE"><input required min="0.00000001" step="any" type="number" value={form.price ?? ''} onChange={(e) => update('price', e.target.value)} style={inputStyle} /></FormField>
           <FormField label="CURRENCY"><input required value={form.currency || ''} onChange={(e) => update('currency', e.target.value)} style={inputStyle} placeholder="e.g. EUR" /></FormField>
           <FormField label="FEE EUR"><input required min="0" step="any" type="number" value={form.fee_eur ?? 0} onChange={(e) => update('fee_eur', e.target.value)} style={inputStyle} /></FormField>
@@ -650,7 +623,7 @@ export default function WeeklyBrief({ onBack }) {
   const approvalBtnBase = { fontFamily: MONO, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border: 'none', background: 'transparent' }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY, paddingBottom: canLogApproval ? 220 : 100 }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
 
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, overflow: 'hidden' }}>
@@ -672,6 +645,23 @@ export default function WeeklyBrief({ onBack }) {
 
       {rec && (
         <>
+          {/* ── LAYER 1: ACTION ─────────────────────────────── */}
+
+          {/* Warnings float to the top if present */}
+          {warnings.length > 0 && (
+            <Section title="WARNINGS">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {warnings.map((warning, index) => (
+                  <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', border: '1px solid rgba(255,213,107,.35)', background: 'rgba(255,213,107,.04)' }}>
+                    <span style={{ color: '#ffd56b', flexShrink: 0 }}>⚠</span>
+                    <span style={{ fontSize: 13, fontWeight: 300, lineHeight: 1.5, color: 'rgba(255,213,107,.88)', fontFamily: BODY }}>{String(warning)}</span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Brief status — compact header card */}
           <Section title="BRIEF STATUS">
             <CornerCard>
               <div style={{ padding: '14px 15px' }}>
@@ -687,22 +677,24 @@ export default function WeeklyBrief({ onBack }) {
             </CornerCard>
           </Section>
 
+          {/* Rationale */}
           <Section title="RATIONALE">
             <div style={{ background: 'rgba(6,12,18,.9)', border, borderLeft: `3px solid rgba(0,187,221,.6)`, padding: '14px 15px', fontSize: 14, fontWeight: 300, lineHeight: 1.7, color: 'rgba(199,236,244,.88)', fontFamily: BODY }}>
               {rec.rationale || 'No rationale returned for this brief.'}
             </div>
           </Section>
 
+          {/* Recommendations */}
           <Section title="RECOMMENDATIONS">
             {recommendations.length > 0
               ? <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{recommendations.map((r, i) => <RecommendationCard key={`${r.asset}-${i}`} recommendation={r} />)}</div>
               : <div style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '.12em' }}>NO BUYS RECOMMENDED THIS WEEK</div>}
           </Section>
 
-          <ResearchContextSection researchContext={researchContext} gateSummary={researchGateSummary} />
-
+          {/* Manual buy checklist */}
           <ManualBuyChecklistSection checklist={manualChecklist} error={manualChecklistError} onRecordTransaction={setRecordAsset} />
 
+          {/* Record transaction — only active after approval */}
           <Section title="RECORD MANUAL TRANSACTION">
             {!recordAsset ? (
               <div style={{ padding: '13px 14px', border, background: 'rgba(0,187,221,.02)', fontFamily: MONO, fontSize: 8, lineHeight: 1.6, color: muted, letterSpacing: '.08em' }}>
@@ -712,31 +704,15 @@ export default function WeeklyBrief({ onBack }) {
               <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} initialAsset={recordAsset} />
             ) : (
               <div style={{ padding: '13px 14px', border, background: 'rgba(0,187,221,.02)', fontFamily: MONO, fontSize: 8, lineHeight: 1.6, color: muted, letterSpacing: '.08em' }}>
-                APPROVE THIS BRIEF BEFORE RECORDING A MANUAL BUY.<br />
-                <span style={{ color: 'rgba(199,236,244,.55)', letterSpacing: '.04em', fontSize: 10, fontFamily: BODY, fontWeight: 300 }}>
+                APPROVE THIS BRIEF BEFORE RECORDING A MANUAL BUY.
+                <div style={{ color: 'rgba(199,236,244,.55)', letterSpacing: '.04em', fontSize: 10, fontFamily: BODY, fontWeight: 300, marginTop: 4 }}>
                   Recording is only for trades already completed manually in your broker.
-                </span>
+                </div>
               </div>
             )}
           </Section>
 
-          {(researchContext.length > 0 || rec?.autopilot_available) && (
-            <div style={{ margin: '0 0 0', padding: '10px 18px' }}>
-              <div style={{ padding: '9px 11px', border: '1px solid rgba(77,255,180,.18)', background: 'rgba(77,255,180,.012)' }}>
-                <div style={{ fontFamily: MONO, fontSize: 7, color: 'rgba(77,255,180,.6)', letterSpacing: '.12em', marginBottom: 7 }}>
-                  PHOENIX runs research autonomously. This does not approve or execute a trade.
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button type="button" onClick={handleFinanceAutopilot} disabled={autopilotRunning} style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'transparent', color: '#4dffb4', fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', cursor: autopilotRunning ? 'wait' : 'pointer' }}>
-                    {autopilotRunning ? 'RUNNING AUTOPILOT…' : 'RUN FINANCE AUTOPILOT'}
-                  </button>
-                  {autopilotResult && !autopilotResult.error && <span style={{ fontFamily: MONO, fontSize: 7, color: '#4dffb4' }}>{autopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY · NO TRADES</span>}
-                  {autopilotResult?.error && <span style={{ fontFamily: MONO, fontSize: 7, color: '#ff5c7a' }}>AUTOPILOT ERROR</span>}
-                </div>
-              </div>
-            </div>
-          )}
-
+          {/* Brief decision — appears after action */}
           {briefStatus && (
             <Section title="BRIEF DECISION">
               <div style={{ padding: '12px 14px', border: `1px solid ${isApproved ? 'rgba(77,255,180,.35)' : briefStatus === 'rejected' ? 'rgba(255,92,122,.3)' : 'rgba(255,170,0,.22)'}`, background: isApproved ? 'rgba(77,255,180,.04)' : briefStatus === 'rejected' ? 'rgba(255,92,122,.04)' : 'rgba(255,170,0,.03)' }}>
@@ -744,106 +720,142 @@ export default function WeeklyBrief({ onBack }) {
                   BRIEF {briefStatus.toUpperCase()}
                 </div>
                 <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.82)', marginTop: 6, fontFamily: BODY }}>
-                  {isApproved ? 'Approved plan. Complete the buy manually in your broker first, then record the exact execution here. PHOENIX did not execute a trade.'
-                    : briefStatus === 'rejected' ? 'Brief rejected. PHOENIX did not execute a trade.'
-                    : 'Brief deferred. PHOENIX did not execute a trade.'}
+                  {isApproved ? 'Approved. Complete the buy manually in your broker, then record the execution above.'
+                    : briefStatus === 'rejected' ? 'Brief rejected. No trade executed.'
+                    : 'Brief deferred. No trade executed.'}
                 </div>
               </div>
             </Section>
           )}
 
-          <Section title="RECOMMENDATION AUDIT">
-            <div style={{ border, background: 'rgba(0,187,221,.025)', padding: '11px 13px', marginBottom: 10 }}>
-              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted }}>SELECTED ETF SLEEVE</div>
-              <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, color: '#4dffb4', marginTop: 4, overflowWrap: 'anywhere' }}>{etfVerdict.selected_ideal_etf || 'NONE SELECTED'}</div>
-            </div>
-            {etfCandidates.length > 0
-              ? <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>{etfCandidates.map((c, i) => <EtfCandidateCard key={`${c.sleeve || 'candidate'}-${i}`} candidate={c} />)}</div>
-              : <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.12em' }}>NO ETF SCORING VERDICT RETURNED</div>}
-          </Section>
-
-          <Section title="LANE LOGIC">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              <LaneCard title="CRYPTO LANE" lane={laneMandate.crypto_lane} />
-              <LaneCard title="STOCK / FUND / ETF LANE" lane={laneMandate.stock_fund_etf_lane} />
-            </div>
-          </Section>
-
-          <Section title="RISK CONTROLS">
-            <RiskControls controls={laneMandate.risk_controls} />
-            <div style={{ marginTop: 12, border, background: 'rgba(0,187,221,.02)', padding: '11px 12px' }}>
-              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 7 }}>MANUAL APPROVAL SAFETY CHECKS</div>
-              <TextList items={approvalSummary.safety_checks} emptyText="NO SAFETY CHECKS RETURNED" />
-            </div>
-            {['blocked_actions', 'fallback_actions', 'reserve_actions'].map((key) => {
-              const actions = Array.isArray(approvalSummary[key]) ? approvalSummary[key] : []
-              return actions.length > 0 ? (
-                <div key={key} style={{ marginTop: 8, border: '1px solid rgba(255,213,107,.18)', background: 'rgba(255,213,107,.025)', padding: '10px 12px' }}>
-                  <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: '#ffd56b', marginBottom: 6 }}>{humanize(key)}</div>
-                  <TextList items={actions} color="rgba(255,213,107,.82)" />
+          {/* Approval buttons */}
+          {canLogApproval && (
+            <div style={{ borderTop: border, padding: '18px 18px 32px' }}>
+              <div style={{ maxWidth: 430, margin: '0 auto' }}>
+                {actionError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
+                {isApproved && <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: '#4dffb4', textAlign: 'center', marginBottom: 8 }}>APPROVED · NO TRADE EXECUTED</div>}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.6fr', gap: 10 }}>
+                  <button onClick={() => handleAction('defer')} disabled={acting} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(180,200,210,.35)', color: '#b4c8d2' }}>DEFER</button>
+                  <button onClick={() => handleAction('reject')} disabled={acting} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(255,92,122,.6)', color: '#ff8fa0', textShadow: '0 0 8px rgba(255,92,122,.5)' }}>REJECT</button>
+                  <button onClick={() => handleAction('approve')} disabled={acting || isApproved} style={{ ...approvalBtnBase, fontSize: 10, fontWeight: 700, letterSpacing: '.18em', border: `1px solid rgba(0,187,221,${isApproved ? '.3' : '.8'})`, color: isApproved ? 'rgba(0,187,221,.5)' : '#ffffff', textShadow: isApproved ? 'none' : '0 0 16px rgba(0,187,221,1), 0 0 32px rgba(0,187,221,.6)', animation: isApproved ? 'none' : 'phApproveGlow 2s ease-in-out infinite', cursor: (acting || isApproved) ? 'default' : 'pointer' }}>
+                    {isApproved ? '✓ APPROVED' : '▶ APPROVE'}
+                  </button>
                 </div>
-              ) : null
-            })}
-          </Section>
-
-          <Section title="PORTFOLIO MODE">
-            <CornerCard>
-              <div style={{ padding: '13px 14px' }}>
-                <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, color: ACCENT, overflowWrap: 'anywhere' }}>{portfolioModeDetails.mode || '—'}</div>
-                <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginTop: 12, marginBottom: 7 }}>REASONS</div>
-                <TextList items={portfolioModeDetails.reasons} emptyText="NO MODE REASONS RETURNED" />
-                <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginTop: 12, marginBottom: 7 }}>GUIDANCE</div>
-                <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.78)', fontFamily: BODY }}>{portfolioModeDetails.guidance || 'No portfolio mode guidance returned.'}</div>
               </div>
-            </CornerCard>
-          </Section>
+            </div>
+          )}
 
-          <Section title="DYNAMIC ASSET TARGETS"><AllocationGrid allocations={rec.dynamic_targets} /></Section>
-          <Section title="SLEEVE TARGETS"><AllocationGrid allocations={rec.sleeve_targets} /></Section>
+          {/* ── LAYER 2: AUDIT (collapsed by default) ───────── */}
+          <div style={{ borderTop: `1px solid rgba(0,187,221,.08)`, marginTop: 8 }}>
+            <div style={{ padding: '10px 18px 4px', fontFamily: MONO, fontSize: 7, letterSpacing: '.22em', color: 'rgba(0,187,221,.2)' }}>AUDIT LOG</div>
 
-          {warnings.length > 0 && (
-            <Section title="WARNINGS">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {warnings.map((warning, index) => (
-                  <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', border: '1px solid rgba(255,213,107,.18)', background: 'rgba(255,213,107,.03)' }}>
-                    <span style={{ color: '#ffd56b', flexShrink: 0 }}>⚠</span>
-                    <span style={{ fontSize: 13, fontWeight: 300, lineHeight: 1.5, color: 'rgba(255,213,107,.82)', fontFamily: BODY }}>{String(warning)}</span>
+            <AuditSection title="NEWS THESIS">
+              <div style={{ background: 'rgba(6,12,18,.9)', border, borderLeft: `3px solid rgba(0,187,221,.6)`, padding: '14px 15px', fontSize: 14, fontWeight: 300, lineHeight: 1.7, color: newsThesis ? 'rgba(199,236,244,.88)' : 'rgba(125,188,200,.65)', fontFamily: BODY }}>
+                {newsThesis || 'No live news thesis returned for this brief.'}
+              </div>
+            </AuditSection>
+
+            <AuditSection title="RESEARCH CONTEXT · ADVISORY ONLY">
+              {(() => {
+                const legs = Array.isArray(researchContext) ? researchContext : []
+                if (legs.length === 0) return <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.12em' }}>NO RESEARCH CONTEXT RETURNED</div>
+                const hasBlocker = legs.some((leg) => leg.evidence_status === 'BLOCKED_BY_FAIL')
+                return (
+                  <>
+                    {hasBlocker && (
+                      <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid rgba(255,92,122,.35)', background: 'rgba(255,92,122,.04)', color: '#ff5c7a' }}>
+                        <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em' }}>RESEARCH BLOCKER FOUND</div>
+                        <div style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4 }}>Manual review required.</div>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {legs.map((leg, index) => <ResearchLegRow key={`${leg.asset}-${index}`} leg={leg} />)}
+                    </div>
+                    {researchGateSummary && (
+                      <div style={{ marginTop: 9, padding: '8px 10px', border, fontFamily: MONO, fontSize: 7, color: muted, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                        <span>WITH RESEARCH · {researchGateSummary.legs_with_research ?? 0}/{researchGateSummary.total_recommendation_legs ?? 0}</span>
+                        <span>BLOCKED · {researchGateSummary.legs_blocked_by_failed_research ?? 0}</span>
+                        <span style={{ gridColumn: '1/-1', marginTop: 2, color: 'rgba(0,187,221,.4)' }}>ADVISORY ONLY · ALLOCATIONS UNCHANGED</span>
+                      </div>
+                    )}
+                    {(researchContext.length > 0 || rec?.autopilot_available) && (
+                      <div style={{ marginTop: 12, padding: '9px 11px', border: '1px solid rgba(77,255,180,.18)', background: 'rgba(77,255,180,.012)' }}>
+                        <div style={{ fontFamily: MONO, fontSize: 7, color: 'rgba(77,255,180,.6)', letterSpacing: '.12em', marginBottom: 7 }}>
+                          PHOENIX runs research autonomously. This does not approve or execute a trade.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button type="button" onClick={handleFinanceAutopilot} disabled={autopilotRunning} style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'transparent', color: '#4dffb4', fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', cursor: autopilotRunning ? 'wait' : 'pointer' }}>
+                            {autopilotRunning ? 'RUNNING AUTOPILOT…' : 'RUN FINANCE AUTOPILOT'}
+                          </button>
+                          {autopilotResult && !autopilotResult.error && <span style={{ fontFamily: MONO, fontSize: 7, color: '#4dffb4' }}>{autopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY</span>}
+                          {autopilotResult?.error && <span style={{ fontFamily: MONO, fontSize: 7, color: '#ff5c7a' }}>AUTOPILOT ERROR</span>}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </AuditSection>
+
+            <AuditSection title="RECOMMENDATION AUDIT">
+              <div style={{ border, background: 'rgba(0,187,221,.025)', padding: '11px 13px', marginBottom: 10 }}>
+                <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted }}>SELECTED ETF SLEEVE</div>
+                <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, color: '#4dffb4', marginTop: 4, overflowWrap: 'anywhere' }}>{etfVerdict.selected_ideal_etf || 'NONE SELECTED'}</div>
+              </div>
+              {etfCandidates.length > 0
+                ? <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>{etfCandidates.map((c, i) => <EtfCandidateCard key={`${c.sleeve || 'candidate'}-${i}`} candidate={c} />)}</div>
+                : <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.12em' }}>NO ETF SCORING VERDICT RETURNED</div>}
+            </AuditSection>
+
+            <AuditSection title="LANE LOGIC">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                <LaneCard title="CRYPTO LANE" lane={laneMandate.crypto_lane} />
+                <LaneCard title="STOCK / FUND / ETF LANE" lane={laneMandate.stock_fund_etf_lane} />
+              </div>
+            </AuditSection>
+
+            <AuditSection title="RISK CONTROLS">
+              <RiskControls controls={laneMandate.risk_controls} />
+              <div style={{ marginTop: 12, border, background: 'rgba(0,187,221,.02)', padding: '11px 12px' }}>
+                <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 7 }}>MANUAL APPROVAL SAFETY CHECKS</div>
+                <TextList items={approvalSummary.safety_checks} emptyText="NO SAFETY CHECKS RETURNED" />
+              </div>
+              {['blocked_actions', 'fallback_actions', 'reserve_actions'].map((key) => {
+                const actions = Array.isArray(approvalSummary[key]) ? approvalSummary[key] : []
+                return actions.length > 0 ? (
+                  <div key={key} style={{ marginTop: 8, border: '1px solid rgba(255,213,107,.18)', background: 'rgba(255,213,107,.025)', padding: '10px 12px' }}>
+                    <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: '#ffd56b', marginBottom: 6 }}>{humanize(key)}</div>
+                    <TextList items={actions} color="rgba(255,213,107,.82)" />
                   </div>
-                ))}
-              </div>
-            </Section>
-          )}
+                ) : null
+              })}
+            </AuditSection>
 
-          <Section title="NEWS THESIS">
-            <div style={{ background: 'rgba(6,12,18,.9)', border, borderLeft: `3px solid rgba(0,187,221,.6)`, padding: '14px 15px', fontSize: 14, fontWeight: 300, lineHeight: 1.7, color: newsThesis ? 'rgba(199,236,244,.88)' : 'rgba(125,188,200,.65)', fontFamily: BODY }}>
-              {newsThesis || 'No live news thesis returned for this brief.'}
-            </div>
-          </Section>
+            <AuditSection title="PORTFOLIO MODE">
+              <CornerCard>
+                <div style={{ padding: '13px 14px' }}>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, color: ACCENT, overflowWrap: 'anywhere' }}>{portfolioModeDetails.mode || '—'}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginTop: 12, marginBottom: 7 }}>REASONS</div>
+                  <TextList items={portfolioModeDetails.reasons} emptyText="NO MODE REASONS RETURNED" />
+                  <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginTop: 12, marginBottom: 7 }}>GUIDANCE</div>
+                  <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.78)', fontFamily: BODY }}>{portfolioModeDetails.guidance || 'No portfolio mode guidance returned.'}</div>
+                </div>
+              </CornerCard>
+            </AuditSection>
+
+            <AuditSection title="ASSET TARGETS">
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 8 }}>DYNAMIC</div>
+              <AllocationGrid allocations={rec.dynamic_targets} />
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginTop: 14, marginBottom: 8 }}>SLEEVE</div>
+              <AllocationGrid allocations={rec.sleeve_targets} />
+            </AuditSection>
+
+          </div>
 
           {!canLogApproval && (
             <div style={{ margin: '0 18px 18px', padding: 12, border, color: muted, fontFamily: MONO, fontSize: 8, letterSpacing: '.1em', textAlign: 'center' }}>APPROVAL LOGGING UNAVAILABLE FOR THIS BRIEF.</div>
           )}
         </>
-      )}
-
-      {/* Sticky approval bar */}
-      {rec && canLogApproval && (
-        <div style={{ borderTop: border, padding: '18px 18px 32px' }}>
-          <div style={{ maxWidth: 430, margin: '0 auto' }}>
-            {actionError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
-            {isApproved && <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: '#4dffb4', textAlign: 'center', marginBottom: 8 }}>APPROVED · NO TRADE EXECUTED</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.6fr', gap: 10 }}>
-              {/* DEFER — muted gray */}
-              <button onClick={() => handleAction('defer')} disabled={acting} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(180,200,210,.35)', color: '#b4c8d2' }}>DEFER</button>
-              {/* REJECT — red glow */}
-              <button onClick={() => handleAction('reject')} disabled={acting} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(255,92,122,.6)', color: '#ff8fa0', textShadow: '0 0 8px rgba(255,92,122,.5)' }}>REJECT</button>
-              {/* APPROVE — white glow, primary */}
-              <button onClick={() => handleAction('approve')} disabled={acting || isApproved} style={{ ...approvalBtnBase, fontSize: 10, fontWeight: 700, letterSpacing: '.18em', border: `1px solid rgba(0,187,221,${isApproved ? '.3' : '.8'})`, color: isApproved ? 'rgba(0,187,221,.5)' : '#ffffff', textShadow: isApproved ? 'none' : '0 0 16px rgba(0,187,221,1), 0 0 32px rgba(0,187,221,.6)', animation: isApproved ? 'none' : 'phApproveGlow 2s ease-in-out infinite', cursor: (acting || isApproved) ? 'default' : 'pointer' }}>
-                {isApproved ? '✓ APPROVED' : '▶ APPROVE'}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
