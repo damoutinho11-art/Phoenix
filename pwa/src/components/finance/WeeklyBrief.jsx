@@ -828,7 +828,7 @@ export default function WeeklyBrief({ onBack }) {
 
       {/* Sticky approval bar */}
       {rec && canLogApproval && (
-        <div style={{ position: 'fixed', bottom: 88, left: 0, right: 0, background: `${CARD}f7`, borderTop: border, borderBottom: border, padding: '14px 18px', backdropFilter: 'blur(12px)', zIndex: 10 }}>
+        <div style={{ borderTop: border, padding: '18px 18px 32px' }}>
           <div style={{ maxWidth: 430, margin: '0 auto' }}>
             {actionError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
             {isApproved && <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: '#4dffb4', textAlign: 'center', marginBottom: 8 }}>APPROVED · NO TRADE EXECUTED</div>}
