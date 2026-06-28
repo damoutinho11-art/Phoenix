@@ -201,6 +201,21 @@ export default function FinanceDashboard({ onNav }) {
   const evidenceCount = Number(coverageSummary.current_legs_with_validated_research)
   const legCount = Number(coverageSummary.total_current_recommendation_legs)
   const evidenceLabel = Number.isFinite(evidenceCount) && Number.isFinite(legCount) ? `${evidenceCount}/${legCount}` : '—'
+  const deploymentSymbols = checklistItems
+    .map(item => item?.symbol || item?.ticker)
+    .filter(Boolean)
+    .join(' + ')
+  const manualBuyCount = checklistItems.length
+    ? `${checklistItems.length} ${humanize(checklistItems.length === 1 ? 'manual_buy' : 'manual_buys')}`
+    : 'Manual buys unavailable'
+  const approvalState = checklist?.brief_status
+    ? `${humanize(checklist.brief_status)}${checklist?.requires_approval === false ? '' : ` ${humanize('approval')}`}`
+    : 'Approval state unavailable'
+  const authorizationSafetyCopy = checklist?.requires_approval === true
+    ? 'Manual approval required. No trades executed.'
+    : checklist?.requires_approval === false
+      ? 'Approval not required. No trades executed.'
+      : 'Approval requirement unavailable. No trades executed.'
 
   const actionCopy = checklistItems.length
     ? `PHOENIX recommends ${checklistItems.map(item => `${money(item.amount)} ${item.symbol || item.ticker || humanize(item.asset)} via ${item.platform || humanize(item.route)}`).join(' and ')}. Manual only — nothing has been ordered or executed.`
@@ -242,10 +257,13 @@ export default function FinanceDashboard({ onNav }) {
             <div className="fcc-orbit orbit-two" />
             <div className="fcc-orbit orbit-three" />
             <div className="fcc-orbit-core">
-              <span>Week deployment</span>
+              <span className="fcc-core-eyebrow">Authorization core</span>
+              <span className="fcc-core-label">Weekly deployment</span>
               <strong>{money(checklist?.week_budget ?? recommendation?.week_budget)}</strong>
-              <small>{checklistItems.length ? `${checklistItems.length} manual allocation${checklistItems.length === 1 ? '' : 's'}` : 'Awaiting checklist'}</small>
-              <b>{checklist?.brief_status ? humanize(checklist.brief_status) : 'Authorization pending'}</b>
+              <small>{manualBuyCount}</small>
+              <div className="fcc-core-symbols">{deploymentSymbols || 'Symbols unavailable'}</div>
+              <b>{approvalState}</b>
+              <p>{authorizationSafetyCopy}</p>
             </div>
           </div>
         </section>
