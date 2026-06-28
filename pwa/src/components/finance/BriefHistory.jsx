@@ -85,7 +85,7 @@ function Drawer({ brief, onClose }) {
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 15 }} />
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 430, margin: '0 auto', background: CARD, borderTop: `1px solid rgba(0,187,221,.3)`, zIndex: 20, maxHeight: '78vh', overflowY: 'auto' }}>
+      <div style={{ position: 'fixed', bottom: 88, left: 0, right: 0, maxWidth: 430, margin: '0 auto', background: CARD, borderTop: `1px solid rgba(0,187,221,.3)`, zIndex: 20, maxHeight: '78vh', overflowY: 'auto' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, rgba(0,187,221,.6), rgba(0,187,221,.15), transparent)` }} />
         <div style={{ width: 36, height: 3, background: 'rgba(0,187,221,.25)', borderRadius: 2, margin: '12px auto 0' }} />
         <div style={{ padding: '16px 18px 36px' }}>
