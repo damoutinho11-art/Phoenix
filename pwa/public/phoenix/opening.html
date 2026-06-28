@@ -4498,7 +4498,7 @@ button,
 
 /* Automatic module focus cycle */
 .screen.module-focus-finance .side.up.lt,
-.screen.module-focus-recovery .side.up.rt,
+.screen.module-focus-nutrition .side.up.rt,
 .screen.module-focus-training .side.dn.lt,
 .screen.module-focus-calendar .side.dn.rt{
   opacity:1 !important;
@@ -4511,7 +4511,7 @@ button,
     0 0 32px rgba(32,216,236,.15) !important;
 }
 .screen.module-focus-finance .side.up.lt .val,
-.screen.module-focus-recovery .side.up.rt .val,
+.screen.module-focus-nutrition .side.up.rt .val,
 .screen.module-focus-training .side.dn.lt .val,
 .screen.module-focus-calendar .side.dn.rt .val{
   color:rgba(255,225,148,1) !important;
@@ -4520,7 +4520,7 @@ button,
     0 0 15px rgba(32,216,236,.22) !important;
 }
 .screen.module-focus-finance .side.up.lt::before,
-.screen.module-focus-recovery .side.up.rt::before,
+.screen.module-focus-nutrition .side.up.rt::before,
 .screen.module-focus-training .side.dn.lt::before,
 .screen.module-focus-calendar .side.dn.rt::before{
   animation:moduleFocusSweep 2.2s ease-in-out infinite !important;
@@ -4579,7 +4579,7 @@ button,
   transform:none !important;
 }
 .screen.phoenix-listening.module-focus-finance .side.up.lt,
-.screen.phoenix-listening.module-focus-recovery .side.up.rt,
+.screen.phoenix-listening.module-focus-nutrition .side.up.rt,
 .screen.phoenix-listening.module-focus-training .side.dn.lt,
 .screen.phoenix-listening.module-focus-calendar .side.dn.rt{
   transform:none !important;
@@ -4730,7 +4730,7 @@ button,
     transform:scale(.92) !important;
   }
   .screen.module-focus-finance .side.up.lt,
-  .screen.module-focus-recovery .side.up.rt,
+  .screen.module-focus-nutrition .side.up.rt,
   .screen.module-focus-training .side.dn.lt,
   .screen.module-focus-calendar .side.dn.rt{
     transform:scale(.95) !important;
@@ -4778,13 +4778,13 @@ button,
 /* Explicit stabilization:
    module focus may highlight side cards, but it no longer alters the reactor. */
 .screen.module-focus-finance .ironman-energy-layer::before,
-.screen.module-focus-recovery .ironman-energy-layer::before,
+.screen.module-focus-nutrition .ironman-energy-layer::before,
 .screen.module-focus-training .ironman-energy-layer::before,
 .screen.module-focus-calendar .ironman-energy-layer::before{
   background:inherit !important;
 }
 .screen.module-focus-finance .exact-reactor-core-pulse,
-.screen.module-focus-recovery .exact-reactor-core-pulse,
+.screen.module-focus-nutrition .exact-reactor-core-pulse,
 .screen.module-focus-training .exact-reactor-core-pulse,
 .screen.module-focus-calendar .exact-reactor-core-pulse{
   box-shadow:
@@ -5570,8 +5570,8 @@ button,
 <div aria-label="Open Training" class="side l dn" data-open-domain="training" role="button" tabindex="0">
   TRAINING<br/><span class="g">WK 03/10</span><br/><span class="bar"><span class="barfill" style="width:10px"></span></span>
 </div>
-<div aria-label="Open Recovery and Training" class="side r up" data-open-domain="training" role="button" tabindex="0">
-  RECOVERY<br/><span class="red">62%</span><br/><span class="bar"><span class="barfill" style="width:20px"></span></span>
+<div aria-label="Open Nutrition" class="side r up" data-open-domain="nutrition" role="button" tabindex="0">
+  NUTRITION<br/><span class="v">ONLINE</span><br/><span class="bar"><span class="barfill" style="width:20px"></span></span>
 </div>
 <div aria-label="Open Calendar" class="side r dn" data-open-domain="calendar" role="button" tabindex="0">
   CALENDAR<br/><span class="v">3 EVT</span><br/><span class="bar"><span class="barfill" style="width:15px"></span></span>
@@ -5658,7 +5658,7 @@ button,
 <!-- dock flows below nameblock in the same flex column -->
 <div class="dock">
 <div aria-live="polite" class="resp" id="assistantResponse">
-      <b>Good morning, Sir.</b> PHOENIX is online. Finance, recovery, training, and calendar modules are standing by.<span class="cursor" id="responseCursor"></span>
+      <b>Good morning, Sir.</b> PHOENIX is online. Finance, nutrition, training, and calendar modules are standing by.<span class="cursor" id="responseCursor"></span>
 </div>
 <div class="listen" id="voiceStatus">
 <div class="wf"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -6004,7 +6004,7 @@ button,
 
   const states = [
     'module-focus-finance',
-    'module-focus-recovery',
+    'module-focus-nutrition',
     'module-focus-training',
     'module-focus-calendar'
   ];
