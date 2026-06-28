@@ -43,11 +43,30 @@ def _resolution(sleeve: str) -> dict:
     )
     for candidate in candidates:
         candidate["selected"] = candidate is selected
+        candidate["broker_availability_status"] = (
+            "public_verified" if candidate is selected else "not_publicly_verified"
+        )
         if candidate is selected:
             candidate["lightyear_available"] = True
             candidate["lightyear_confidence"] = "high"
+    research_winner = candidates[0]
+    checklist_candidate = {
+        **selected,
+        "role": "checklist_candidate",
+        "alias_for": "checklist_candidate",
+    }
     return {
-        "selected_candidate": selected,
+        "research_winner": {**research_winner, "role": "research_winner"},
+        "checklist_candidate": checklist_candidate,
+        "selected_candidate": dict(checklist_candidate),
+        "research_winner_is_checklist_candidate": (
+            research_winner["symbol"] == selected["symbol"]
+        ),
+        "research_winner_reason": "Highest product/research score.",
+        "checklist_candidate_reason": "Highest publicly verified candidate.",
+        "selection_gap_reason": (
+            f"Research winner {research_winner['symbol']} differs from checklist candidate {selected['symbol']}."
+        ),
         "candidates": candidates,
         "source": "yfinance",
         "broker_source": "lightyear_public_fund_screener",
@@ -100,6 +119,17 @@ def test_reports_every_etf_candidate_and_expanded_curated_universe() -> None:
     assert summary["total_etf_candidates_configured"] >= 15
     assert summary["universe_type"] == "CURATED_EXPANDED_UNIVERSE"
     assert not any("fewer than 15 ETF candidates" in warning for warning in data["warnings"])
+
+
+def test_coverage_exposes_research_and_checklist_selection_gap() -> None:
+    data = _coverage()
+    quality = data["sections"]["etf_candidate_universe"]["sleeves"]["quality_etf"]
+
+    assert quality["research_winner"]["symbol"] != quality["checklist_candidate"]["symbol"]
+    assert quality["selected_candidate"] == quality["checklist_candidate"]
+    assert quality["research_winner_is_checklist_candidate"] is False
+    assert quality["research_winner"]["symbol"] in quality["selection_gap_reason"]
+    assert quality["checklist_candidate"]["symbol"] in quality["selection_gap_reason"]
 
 
 def test_reports_optional_stock_research_universe_without_recommending_it() -> None:

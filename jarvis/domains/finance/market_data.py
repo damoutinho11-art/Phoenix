@@ -307,57 +307,117 @@ def resolve_best_etf_candidate_with_broker_check(sleeve_key: str) -> dict[str, A
     combined = []
     for candidate in market.get("candidates", []):
         broker_data = broker_by_symbol.get(candidate.get("symbol"), {})
-        combined.append({**candidate, **broker_data, "selected": False})
+        public_verified = (
+            broker_data.get("broker_availability_status") == "public_verified"
+            or (
+                broker_data.get("lightyear_available") is True
+                and broker_data.get("lightyear_confidence") == "high"
+            )
+        )
+        combined.append(
+            {
+                **candidate,
+                **broker_data,
+                "broker_availability_status": (
+                    "public_verified" if public_verified else "not_publicly_verified"
+                ),
+                "selected": False,
+            }
+        )
 
     eligible = [candidate for candidate in combined if candidate.get("fetch_status") == "ok"]
-    selected = min(
-        eligible,
-        key=lambda candidate: (
-            -int(candidate.get("lightyear_available") is True and candidate.get("lightyear_confidence") == "high"),
-            -candidate.get("score_components", {}).get("total_score", 0),
-            candidate.get("score_components", {}).get("configured_order", 999),
-        ),
+    def score_key(candidate: dict[str, Any]) -> tuple[int, int]:
+        components = candidate.get("score_components", {})
+        return (-components.get("total_score", 0), components.get("configured_order", 999))
+
+    research_winner = min(eligible, key=score_key, default=None)
+    checklist_candidate = min(
+        [
+            candidate
+            for candidate in eligible
+            if candidate.get("broker_availability_status") == "public_verified"
+        ],
+        key=score_key,
         default=None,
     )
-    if selected:
-        selected["selected"] = True
-    verified = bool(
-        selected
-        and selected.get("lightyear_available") is True
-        and selected.get("lightyear_confidence") == "high"
+    if checklist_candidate:
+        checklist_candidate["selected"] = True
+
+    research_winner_output = (
+        {**research_winner, "role": "research_winner"}
+        if research_winner
+        else None
     )
-    reason = (
-        f"Selected {selected['symbol']} with yfinance market data and high-confidence Lightyear catalogue verification."
-        if verified
-        else (
-            f"Selected {selected['symbol']} from yfinance; Lightyear availability is not verified."
-            if selected
-            else "No ETF candidate returned a usable yfinance price."
+    checklist_candidate_output = (
+        {
+            **checklist_candidate,
+            "role": "checklist_candidate",
+            "alias_for": "checklist_candidate",
+        }
+        if checklist_candidate
+        else None
+    )
+    selected_candidate = (
+        dict(checklist_candidate_output) if checklist_candidate_output else None
+    )
+    same_candidate = bool(
+        research_winner
+        and checklist_candidate
+        and research_winner.get("symbol") == checklist_candidate.get("symbol")
+    )
+    research_winner_reason = (
+        f"{research_winner['symbol']} has the highest existing product/research score among live-price candidates."
+        if research_winner
+        else "No ETF candidate returned a usable live price for research ranking."
+    )
+    checklist_candidate_reason = (
+        f"{checklist_candidate['symbol']} is the highest-scoring live-price candidate publicly verified on Lightyear."
+        if checklist_candidate
+        else "No live-price ETF candidate is publicly verified on Lightyear."
+    )
+    if same_candidate:
+        selection_gap_reason = (
+            f"Research winner {research_winner['symbol']} is publicly verified on Lightyear and is also the manual checklist candidate."
         )
-    )
+    elif research_winner and checklist_candidate:
+        selection_gap_reason = (
+            f"Research winner {research_winner['symbol']} is not publicly verified on Lightyear, "
+            f"so Phase 1 selected {checklist_candidate['symbol']} for the manual checklist."
+        )
+    elif research_winner:
+        selection_gap_reason = (
+            f"Research winner {research_winner['symbol']} is not publicly verified on Lightyear; "
+            "no Phase 1 manual checklist candidate was selected."
+        )
+    else:
+        selection_gap_reason = "No live-price ETF candidate is available for either role."
+
+    verified = checklist_candidate is not None
+    reason = checklist_candidate_reason
     for candidate in combined:
         if candidate.get("fetch_status") != "ok":
             candidate["reason"] = f"Market data fetch failed: {candidate.get('error', 'unknown error')}"
-        elif candidate is selected:
-            candidate["reason"] = reason
-        elif verified and not (
-            candidate.get("lightyear_available") is True
-            and candidate.get("lightyear_confidence") == "high"
-        ):
-            candidate["reason"] = "Not selected: another candidate has high-confidence Lightyear verification."
+        elif candidate is checklist_candidate:
+            candidate["reason"] = checklist_candidate_reason
+        elif candidate is research_winner:
+            candidate["reason"] = research_winner_reason
+        elif candidate.get("broker_availability_status") != "public_verified":
+            candidate["reason"] = "Not publicly verified on Lightyear; retained for research comparison only."
         else:
-            candidate["reason"] = "Not selected: lower deterministic market-data score or configured-order tie-break."
+            candidate["reason"] = "Not selected: lower deterministic product/research score or configured-order tie-break."
     return {
         **market,
-        "selected_symbol": selected.get("symbol") if selected else None,
-        "selected_label": selected.get("label") if selected else None,
-        "selected_candidate": dict(selected) if selected else None,
+        "selected_symbol": checklist_candidate.get("symbol") if checklist_candidate else None,
+        "selected_label": checklist_candidate.get("label") if checklist_candidate else None,
+        "research_winner": research_winner_output,
+        "checklist_candidate": checklist_candidate_output,
+        "selected_candidate": selected_candidate,
+        "research_winner_is_checklist_candidate": same_candidate,
+        "research_winner_reason": research_winner_reason,
+        "checklist_candidate_reason": checklist_candidate_reason,
+        "selection_gap_reason": selection_gap_reason,
         "candidates": combined,
-        "confidence": (
-            "high"
-            if verified
-            else market.get("confidence", "unresolved")
-        ),
+        "confidence": "high" if verified else "unresolved",
         "broker_source": "lightyear_public_fund_screener",
         "broker_verification": "verified" if verified else "not_verified",
         "confirmation_required": True,

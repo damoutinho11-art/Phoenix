@@ -37,6 +37,7 @@ def _visible_text(page: str) -> str:
 def _unknown(candidate: dict[str, Any], error: str) -> dict[str, Any]:
     return {
         "symbol": candidate.get("symbol"),
+        "broker_availability_status": "not_publicly_verified",
         "lightyear_available": "unknown",
         "lightyear_confidence": "unresolved",
         "lightyear_url": None,
@@ -68,6 +69,7 @@ def verify_lightyear_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
         if exc.code == 404:
             return {
                 "symbol": symbol,
+                "broker_availability_status": "not_publicly_verified",
                 "lightyear_available": False,
                 "lightyear_confidence": "medium",
                 "lightyear_url": None,
@@ -90,6 +92,7 @@ def verify_lightyear_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     if symbol_found and matched_text:
         return {
             "symbol": symbol,
+            "broker_availability_status": "public_verified",
             "lightyear_available": True,
             "lightyear_confidence": "high",
             "lightyear_url": final_url,

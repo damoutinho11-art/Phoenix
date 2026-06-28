@@ -13,6 +13,24 @@ from jarvis.domains.finance import engine
 client = TestClient(app)
 
 _RESOLUTION = {
+    "research_winner": {
+        "symbol": "XDEQ.DE",
+        "label": "Xtrackers MSCI World Quality UCITS ETF",
+        "broker_availability_status": "not_publicly_verified",
+        "role": "research_winner",
+    },
+    "checklist_candidate": {
+        "symbol": "IWQU.L",
+        "label": "iShares Edge MSCI World Quality Factor UCITS ETF",
+        "raw_price": 75.64,
+        "currency": "EUR",
+        "eur_price": 75.64,
+        "lightyear_available": True,
+        "lightyear_confidence": "high",
+        "broker_availability_status": "public_verified",
+        "role": "checklist_candidate",
+        "alias_for": "checklist_candidate",
+    },
     "selected_candidate": {
         "symbol": "IWQU.L",
         "label": "iShares Edge MSCI World Quality Factor UCITS ETF",
@@ -21,7 +39,14 @@ _RESOLUTION = {
         "eur_price": 75.64,
         "lightyear_available": True,
         "lightyear_confidence": "high",
+        "broker_availability_status": "public_verified",
+        "role": "checklist_candidate",
+        "alias_for": "checklist_candidate",
     },
+    "research_winner_is_checklist_candidate": False,
+    "research_winner_reason": "XDEQ.DE has the highest product/research score.",
+    "checklist_candidate_reason": "IWQU.L is publicly verified.",
+    "selection_gap_reason": "XDEQ.DE is not publicly verified, so IWQU.L is used for the checklist.",
     "candidates": [],
     "source": "yfinance",
     "broker_source": "lightyear_public_fund_screener",
@@ -90,6 +115,61 @@ def test_quality_etf_item_has_lightyear_resolved_candidate() -> None:
     assert "Open Lightyear manually" in item["broker_instruction"]
     assert "IWQU.L" in item["broker_instruction"]
     assert "€69.23" in item["broker_instruction"]
+
+
+def test_checklist_uses_verified_selection_not_unverified_research_winner() -> None:
+    recommendation = client.get("/finance/recommendation").json()
+    quality_leg = next(
+        leg for leg in recommendation["recommendations"] if leg["asset"] == "quality_etf"
+    )
+    checklist = client.get("/finance/manual-buy-checklist").json()
+    quality_item = next(
+        item for item in checklist["checklist_items"] if item["asset"] == "quality_etf"
+    )
+
+    assert quality_leg["instrument"]["research_winner"]["symbol"] == "XDEQ.DE"
+    assert quality_leg["instrument"]["resolved_candidate"]["symbol"] == "IWQU.L"
+    assert quality_item["ticker"] == "IWQU.L"
+    assert quality_item["resolved_candidate"]["symbol"] == "IWQU.L"
+    assert "XDEQ.DE" not in quality_item["broker_instruction"]
+
+
+def test_checklist_blocks_etf_when_no_candidate_is_publicly_verified() -> None:
+    unverified_resolution = {
+        **_RESOLUTION,
+        "research_winner": {
+            **_RESOLUTION["research_winner"],
+            "symbol": "XDEQ.DE",
+            "broker_availability_status": "not_publicly_verified",
+        },
+        "checklist_candidate": None,
+        "selected_candidate": None,
+        "research_winner_is_checklist_candidate": False,
+        "checklist_candidate_reason": (
+            "No live-price ETF candidate is publicly verified on Lightyear."
+        ),
+        "selection_gap_reason": (
+            "Research winner XDEQ.DE is not publicly verified on Lightyear; "
+            "no Phase 1 manual checklist candidate was selected."
+        ),
+        "broker_verification": "not_verified",
+        "lightyear_available": "unknown",
+    }
+    with patch(
+        "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
+        return_value=unverified_resolution,
+    ):
+        checklist = client.get("/finance/manual-buy-checklist").json()
+
+    quality_item = next(
+        item for item in checklist["checklist_items"] if item["asset"] == "quality_etf"
+    )
+    assert quality_item["checklist_eligible"] is False
+    assert quality_item["resolved_candidate"] is None
+    assert quality_item["ticker"] is None
+    assert "Do not use" in quality_item["broker_instruction"]
+    assert "XDEQ.DE" not in quality_item["broker_instruction"]
+    assert checklist["checklist_status"] == "NEEDS_RESEARCH_REVIEW"
 
 
 def test_checklist_copies_research_context_status() -> None:

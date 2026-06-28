@@ -293,7 +293,15 @@ def _instrument_for(
         return metadata
     return {
         **metadata,
+        "research_winner": resolution.get("research_winner"),
+        "checklist_candidate": resolution.get("checklist_candidate"),
         "resolved_candidate": resolution.get("selected_candidate"),
+        "research_winner_is_checklist_candidate": resolution.get(
+            "research_winner_is_checklist_candidate", False
+        ),
+        "research_winner_reason": resolution.get("research_winner_reason"),
+        "checklist_candidate_reason": resolution.get("checklist_candidate_reason"),
+        "selection_gap_reason": resolution.get("selection_gap_reason"),
         "candidates": resolution.get("candidates") or [],
         "market_data_source": resolution.get("source", "yfinance"),
         "broker_source": resolution.get(
@@ -310,7 +318,13 @@ def _safe_etf_resolution(sleeve_key: str) -> dict:
         return resolve_best_etf_candidate_with_broker_check(sleeve_key)
     except Exception as exc:
         return {
+            "research_winner": None,
+            "checklist_candidate": None,
             "selected_candidate": None,
+            "research_winner_is_checklist_candidate": False,
+            "research_winner_reason": "ETF candidate resolution failed softly.",
+            "checklist_candidate_reason": "No publicly verified checklist candidate was resolved.",
+            "selection_gap_reason": "ETF candidate resolution failed before either role could be selected.",
             "candidates": [],
             "source": "yfinance",
             "broker_source": "lightyear_public_fund_screener",
@@ -761,7 +775,17 @@ def _etf_coverage(recommendation: dict, etf_universe: dict) -> dict:
             "active": bool(etf_universe.get(sleeve_key, {}).get("enabled", False)),
             "candidate_count": len(candidates),
             "candidates": candidates,
+            "research_winner": instrument.get("research_winner"),
+            "checklist_candidate": instrument.get("checklist_candidate"),
             "selected_candidate": instrument.get("resolved_candidate"),
+            "research_winner_is_checklist_candidate": instrument.get(
+                "research_winner_is_checklist_candidate", False
+            ),
+            "research_winner_reason": instrument.get("research_winner_reason"),
+            "checklist_candidate_reason": instrument.get(
+                "checklist_candidate_reason"
+            ),
+            "selection_gap_reason": instrument.get("selection_gap_reason"),
         }
     return {"source": "configured_curated_universe", "sleeves": sleeves}
 
@@ -981,7 +1005,19 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
         resolved_candidate = instrument.get("resolved_candidate")
         candidate = resolved_candidate if isinstance(resolved_candidate, dict) else {}
         platform = _manual_buy_platform(route, instrument)
-        ticker = candidate.get("symbol") or instrument.get("ticker")
+        public_verified = bool(
+            candidate.get("broker_availability_status") == "public_verified"
+            or (
+                candidate.get("lightyear_available") is True
+                and candidate.get("lightyear_confidence") == "high"
+            )
+        )
+        checklist_eligible = route != "lightyear" or public_verified
+        ticker = (
+            candidate.get("symbol") or instrument.get("ticker")
+            if checklist_eligible
+            else None
+        )
         instrument_name = (
             candidate.get("label")
             or instrument.get("display_name")
@@ -997,7 +1033,12 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
             "research_warning": "No active research memo attached.",
         }
 
-        if resolved_candidate:
+        if route == "lightyear" and not checklist_eligible:
+            broker_instruction = (
+                "No publicly verified Lightyear candidate is selected. Do not use "
+                "the research winner for a Phase 1 manual buy."
+            )
+        elif resolved_candidate:
             broker_instruction = (
                 f"Open {platform} manually, search {ticker or instrument_name} / "
                 f"{instrument_name}, verify it matches the PHOENIX resolved candidate, "
@@ -1011,14 +1052,21 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
                 "quantity before recording the transaction."
             )
 
-        pre_buy_checks = [
-            "Confirm the weekly brief has been manually reviewed and approved.",
-            f"Confirm the broker instrument matches {ticker or instrument_name}.",
-            "Confirm the live broker price and all fees before submitting anything manually.",
-            f"Confirm the intended spend is approximately \u20ac{amount:.2f}.",
-            "After the manual buy, record the actual price, fees, and received quantity in the PHOENIX ledger.",
-        ]
-        if confirmation_required:
+        pre_buy_checks = (
+            [
+                "Do not place a manual ETF buy without a publicly verified Lightyear candidate.",
+                "Repeat the public catalogue verification before preparing a checklist action.",
+            ]
+            if not checklist_eligible
+            else [
+                "Confirm the weekly brief has been manually reviewed and approved.",
+                f"Confirm the broker instrument matches {ticker or instrument_name}.",
+                "Confirm the live broker price and all fees before submitting anything manually.",
+                f"Confirm the intended spend is approximately \u20ac{amount:.2f}.",
+                "After the manual buy, record the actual price, fees, and received quantity in the PHOENIX ledger.",
+            ]
+        )
+        if confirmation_required and checklist_eligible:
             pre_buy_checks.insert(
                 2,
                 "Instrument confirmation is required; verify ticker, listing, exchange, and fund identity.",
@@ -1034,6 +1082,7 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
                 "ticker": ticker,
                 "symbol": ticker,
                 "resolved_candidate": resolved_candidate,
+                "checklist_eligible": checklist_eligible,
                 "research_memo_id": research.get("memo_id"),
                 "research_verdict": research.get("verdict"),
                 "research_data_confidence": research.get("data_confidence"),
@@ -1042,6 +1091,8 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
                 "manual_action_text": (
                     f"Review the {asset} leg and, only after manual approval, complete "
                     f"the approximately \u20ac{amount:.2f} purchase in {platform}."
+                    if checklist_eligible
+                    else "Blocked: no publicly verified Lightyear candidate is available for this ETF leg."
                 ),
                 "broker_instruction": broker_instruction,
                 "confirmation_required": confirmation_required,
@@ -1053,7 +1104,9 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
     approval_summary = recommendation.get("approval_ticket_summary") or {}
     has_blocker = bool(approval_summary.get("blocked_actions"))
     needs_research = has_blocker or any(
-        item["evidence_status"] in review_statuses or item["research_warning"]
+        not item["checklist_eligible"]
+        or item["evidence_status"] in review_statuses
+        or item["research_warning"]
         for item in checklist_items
     )
     return {
