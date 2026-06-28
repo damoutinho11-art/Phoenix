@@ -514,7 +514,14 @@ def _validation_provenance(record: dict) -> str:
 
     if "lightyear" in adapter or "lightyear" in source or "public_catalog" in adapter:
         return "BROKER_PUBLIC_CATALOG_CHECK"
-    if "crypto_price_adapter" in adapter and fetch_status == "success":
+    if (
+        "crypto_price_adapter" in adapter
+        and fetch_status == "success"
+    ) or (
+        "etf_source_adapter" in adapter
+        and fetch_status in {"ok", "success", "live_quote_confirmed"}
+        and (raw_source == "yfinance" or "yfinance" in source)
+    ):
         return "LIVE_MARKET_FETCH"
     if "constitution" in source or raw_source == "constitution":
         return "LOCAL_CONSTITUTION"
@@ -611,6 +618,7 @@ def _research_provenance(recommendation: dict) -> list[dict]:
         )
         record_rows = [
             {
+                "id": record.get("id"),
                 "check_type": record.get("check_type"),
                 "field_name": record.get("field_name"),
                 "status": record.get("status"),

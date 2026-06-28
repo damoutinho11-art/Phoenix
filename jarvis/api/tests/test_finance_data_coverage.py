@@ -272,6 +272,14 @@ def test_quality_etf_current_selected_instrument_evidence_is_valid() -> None:
     assert quality["memo_id"] == memo_id
     assert quality["expected_instrument"] == "IS3Q.DE"
     assert quality["evidence_matches_current_instrument"] is True
+    market_record = next(
+        record
+        for record in quality["validation_records"]
+        if record["field_name"] == "market_data_source"
+    )
+    assert market_record["instrument"] == "IS3Q.DE"
+    assert market_record["provenance_classification"] == "LIVE_MARKET_FETCH"
+    assert market_record["id"] in quality["matching_validation_record_ids"]
     assert data["sections"]["coverage_summary"]["current_legs_with_validated_research"] == 1
     assert not any("quality_etf" in blocker for blocker in data["blockers"])
 
@@ -289,6 +297,24 @@ def test_quality_etf_stale_iwqu_evidence_does_not_validate_is3q() -> None:
     assert quality["expected_instrument"] == "IS3Q.DE"
     assert quality["evidence_matches_current_instrument"] is False
     assert data["sections"]["coverage_summary"]["current_legs_with_validated_research"] == 0
+    assert any(
+        "quality_etf" in blocker and "IS3Q.DE" in blocker
+        for blocker in data["blockers"]
+    )
+
+
+def test_quality_etf_null_ticker_evidence_does_not_validate_is3q() -> None:
+    _create_validated_quality_memo(None)
+
+    data = _coverage()
+    quality = next(
+        leg
+        for leg in data["sections"]["research_evidence_provenance"]["legs"]
+        if leg["asset"] == "quality_etf"
+    )
+
+    assert quality["expected_instrument"] == "IS3Q.DE"
+    assert quality["evidence_matches_current_instrument"] is False
     assert any(
         "quality_etf" in blocker and "IS3Q.DE" in blocker
         for blocker in data["blockers"]
