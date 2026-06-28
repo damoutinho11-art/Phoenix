@@ -252,18 +252,42 @@ export default function FinanceDashboard({ onNav }) {
               <StatusChip tone="yellow">{checklist?.requires_approval === false ? 'Approval not required' : 'Requires approval'}</StatusChip>
             </div>
           </div>
-          <div className="fcc-authorization-orbit">
-            <div className="fcc-orbit orbit-one" />
-            <div className="fcc-orbit orbit-two" />
-            <div className="fcc-orbit orbit-three" />
-            <div className="fcc-orbit-core">
-              <span className="fcc-core-eyebrow">Authorization core</span>
-              <span className="fcc-core-label">Weekly deployment</span>
-              <strong>{money(checklist?.week_budget ?? recommendation?.week_budget)}</strong>
-              <small>{manualBuyCount}</small>
-              <div className="fcc-core-symbols">{deploymentSymbols || 'Symbols unavailable'}</div>
-              <b>{approvalState}</b>
-              <p>{authorizationSafetyCopy}</p>
+          <div className="fcc-auth-core">
+            <div className="fcc-auth-arc" aria-hidden="true" />
+            <div className="fcc-auth-content">
+              <span className="fcc-auth-eyebrow">[ Authorization Core ]</span>
+
+              <div className="fcc-auth-block">
+                <span className="fcc-auth-label">Weekly Deployment</span>
+                <strong className="fcc-auth-amount">{money(checklist?.week_budget ?? recommendation?.week_budget)}</strong>
+              </div>
+
+              <div className="fcc-auth-sep" />
+
+              <div className="fcc-auth-block">
+                <span className="fcc-auth-label">Manual Actions · {checklistItems.length || 0}</span>
+                <div className="fcc-auth-actions">
+                  {checklistItems.length
+                    ? checklistItems.map((item, i) => (
+                        <div key={i} className="fcc-auth-action-row">
+                          <span>{item.symbol || item.ticker || humanize(item.asset)}</span>
+                          <strong>{money(item.amount)}</strong>
+                        </div>
+                      ))
+                    : <span className="fcc-auth-none">No actions returned</span>}
+                </div>
+              </div>
+
+              <div className="fcc-auth-sep" />
+
+              <div className="fcc-auth-block">
+                <span className="fcc-auth-label">Status</span>
+                <b className={`fcc-auth-status ${checklist?.requires_approval === false ? 'ready' : 'pending'}`}>
+                  {approvalState}
+                </b>
+              </div>
+
+              <p className="fcc-auth-safety">{authorizationSafetyCopy}</p>
             </div>
           </div>
         </section>
