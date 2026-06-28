@@ -462,7 +462,50 @@ def _build_finance_recommendation(
 
     # Auto-save brief (once per ISO week — idempotent on repeated calls)
     week_label = _iso_week_label()
+    response["week_label"] = week_label
     if persist_brief and not database.brief_exists_for_week(week_label, "finance"):
+        coverage = _build_data_coverage_from_recommendation(response, etf_universe)
+        checklist = _build_manual_buy_checklist(response)
+        coverage_summary = coverage["sections"]["coverage_summary"]
+        safety = {
+            key: coverage["sections"]["safety"][key]
+            for key in (
+                "broker_connection",
+                "orders_created",
+                "trades_executed",
+                "portfolio_state_updated",
+                "recommendation_overridden",
+            )
+        }
+        response["recommendation_receipt"] = {
+            "version": 1,
+            "week_label": week_label,
+            "week_budget": response["week_budget"],
+            "recommendations": response["recommendations"],
+            "research_evidence": coverage["sections"][
+                "research_evidence_provenance"
+            ]["legs"],
+            "data_coverage": {
+                "verdict": coverage["verdict"],
+                "blockers": coverage["blockers"],
+                "coverage_summary": coverage_summary,
+            },
+            "acceptance_gate": {
+                "accepted": (
+                    coverage["verdict"] == "DATA_TRANSPARENT"
+                    and not coverage["blockers"]
+                    and coverage_summary["current_legs_with_validated_research"]
+                    == coverage_summary["total_current_recommendation_legs"]
+                    and not any(safety.values())
+                ),
+                "contract": "finance_production_acceptance_v1",
+            },
+            "manual_buy_checklist": {
+                "checklist_status": checklist["checklist_status"],
+                "research_gate_summary": checklist["research_gate_summary"],
+            },
+            "safety": safety,
+        }
         primary = recommendations[0] if recommendations else None
         database.save_brief(
             week_label=week_label,
@@ -480,7 +523,6 @@ def _build_finance_recommendation(
     response["brief_status"] = latest_brief["status"] if latest_brief else None
     if latest_brief and latest_brief.get("user_action") is not None:
         response["brief_user_action"] = latest_brief["user_action"]
-    response["week_label"] = week_label
     return response
 
 
@@ -724,17 +766,11 @@ def _etf_coverage(recommendation: dict, etf_universe: dict) -> dict:
     return {"source": "configured_curated_universe", "sleeves": sleeves}
 
 
-@router.get("/data-coverage")
-def finance_data_coverage(
-    constitution: dict = Depends(get_finance_constitution),
-    portfolio_state: dict = Depends(get_portfolio_state),
-    profile: dict = Depends(get_finance_profile),
+def _build_data_coverage_from_recommendation(
+    recommendation: dict,
+    etf_universe: dict,
 ) -> dict:
-    """Expose an honest, read-only provenance audit of current finance data."""
-    recommendation = _build_finance_recommendation(
-        constitution, portfolio_state, profile, persist_brief=False
-    )
-    etf_universe = load_etf_universe(engine.DEFAULT_ETF_UNIVERSE_PATH)
+    """Build the provenance audit from an already-computed recommendation."""
     etf_coverage = _etf_coverage(recommendation, etf_universe)
     research_legs = _research_provenance(recommendation)
     research_by_asset = {leg["asset"]: leg for leg in research_legs}
@@ -891,6 +927,20 @@ def finance_data_coverage(
             else "Keep the curated universe explicit; expand it only in a separate reviewed sprint."
         ),
     }
+
+
+@router.get("/data-coverage")
+def finance_data_coverage(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    """Expose an honest, read-only provenance audit of current finance data."""
+    recommendation = _build_finance_recommendation(
+        constitution, portfolio_state, profile, persist_brief=False
+    )
+    etf_universe = load_etf_universe(engine.DEFAULT_ETF_UNIVERSE_PATH)
+    return _build_data_coverage_from_recommendation(recommendation, etf_universe)
 
 
 _MANUAL_BUY_SAFETY_FLAGS = {
