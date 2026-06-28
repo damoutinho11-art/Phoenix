@@ -22,6 +22,10 @@ export async function getFinanceManualBuyChecklist() {
   return apiFetch('/finance/manual-buy-checklist')
 }
 
+export async function getFinanceDataCoverage() {
+  return apiFetch('/finance/data-coverage')
+}
+
 export async function getCalendarSnapshot() {
   return apiFetch('/calendar/snapshot')
 }
