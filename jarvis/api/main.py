@@ -1,8 +1,10 @@
 """PHOENIX FastAPI application entry point."""
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
@@ -13,7 +15,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, finance, health, nutrition, training
+from jarvis.data import database
 from jarvis.data.database import init_db
+from jarvis.domains.finance import engine as finance_engine
+from jarvis.domains.finance.market_data import update_portfolio_state_prices
+
+_log = logging.getLogger(__name__)
 
 
 async def _keep_alive():
@@ -28,12 +35,31 @@ async def _keep_alive():
             await asyncio.sleep(600)
 
 
+async def _auto_refresh_prices():
+    """Refresh portfolio prices from yfinance every 4 hours."""
+    await asyncio.sleep(90)  # let server fully start first
+    while True:
+        try:
+            state = database.load_portfolio_state()
+            constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
+            if state and constitution:
+                updated, meta = update_portfolio_state_prices(state, constitution)
+                updated["prices_refreshed_at"] = datetime.now(timezone.utc).isoformat()
+                database.save_portfolio_state(updated)
+                _log.info("Auto price refresh: updated %s", meta.get("holdings_updated"))
+        except Exception:
+            _log.exception("Auto price refresh failed — will retry in 4 h")
+        await asyncio.sleep(4 * 60 * 60)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
-    task = asyncio.create_task(_keep_alive())
+    task_keepalive = asyncio.create_task(_keep_alive())
+    task_prices = asyncio.create_task(_auto_refresh_prices())
     yield
-    task.cancel()
+    task_keepalive.cancel()
+    task_prices.cancel()
 
 
 # Initialize at import time for direct TestClient usage that does not enter the

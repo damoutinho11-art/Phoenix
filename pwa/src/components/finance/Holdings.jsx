@@ -200,7 +200,18 @@ export default function Holdings({ onBack, onQuickAsk }) {
         <div style={{ fontFamily: BODY, fontSize: 32, fontWeight: 700, color: data ? ACCENT : muted, textShadow: data ? '0 0 30px rgba(0,187,221,.35)' : 'none', letterSpacing: '-0.02em' }}>
           {data ? formatEur(total) : 'Loading…'}
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em', color: muted, marginTop: 5 }}>AS OF {data?.as_of || '—'}</div>
+        <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em', color: muted, marginTop: 5 }}>
+          {data?.prices_refreshed_at
+            ? (() => {
+                const d = new Date(data.prices_refreshed_at)
+                const now = new Date()
+                const diffMin = Math.round((now - d) / 60000)
+                const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                const age = diffMin < 1 ? 'JUST NOW' : diffMin < 60 ? `${diffMin}m AGO` : `${Math.round(diffMin / 60)}h AGO`
+                return `PRICES ${timeStr} · ${age}`
+              })()
+            : `AS OF ${data?.as_of || '—'}`}
+        </div>
       </div>
 
       {!data && !error && (
