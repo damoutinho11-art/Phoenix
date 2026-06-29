@@ -215,6 +215,10 @@ export async function deleteBrief(briefId) {
   return apiFetch(`/finance/brief/${briefId}`, { method: 'DELETE' })
 }
 
+export async function deletePerformanceSnapshot(snapshotId) {
+  return apiFetch(`/finance/performance/snapshot/${snapshotId}`, { method: 'DELETE' })
+}
+
 export async function getFinanceLedger() {
   return apiFetch('/finance/ledger')
 }

@@ -1164,9 +1164,7 @@ def create_finance_portfolio_snapshot(
             if decoded is not None:
                 return decoded
 
-        from jarvis.domains.finance import engine
-
-        portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+        portfolio_state = load_portfolio_state()
         total, cash, invested, allocation = _snapshot_values(portfolio_state)
         holdings = {
             "holdings": portfolio_state.get("holdings", {}),
@@ -1234,6 +1232,19 @@ def list_finance_portfolio_snapshots(limit: int = 100) -> list[dict[str, Any]]:
             (limit,),
         ).fetchall()
         return [snapshot for row in rows if (snapshot := _decode_finance_snapshot(row))]
+    finally:
+        connection.close()
+
+
+def delete_finance_portfolio_snapshot(snapshot_id: int) -> bool:
+    """Delete a performance snapshot by id. Does NOT affect portfolio state."""
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            "DELETE FROM finance_portfolio_snapshots WHERE id = ?", (snapshot_id,)
+        )
+        connection.commit()
+        return cursor.rowcount > 0
     finally:
         connection.close()
 

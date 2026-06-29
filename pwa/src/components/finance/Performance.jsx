@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getFinancePerformanceHistory } from '../../api/client'
+import { getFinancePerformanceHistory, deletePerformanceSnapshot } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
@@ -28,6 +28,7 @@ function formatTimestamp(value) {
 export default function Performance({ onBack }) {
   const [snapshots, setSnapshots] = useState(null)
   const [loadError, setLoadError] = useState(false)
+  const [deleting, setDeleting] = useState(null)
 
   useEffect(() => {
     if (!document.getElementById('ph-fonts')) {
@@ -118,8 +119,23 @@ export default function Performance({ onBack }) {
           {snapshots.map((snapshot, index) => (
             <div key={snapshot.id ?? index} style={{ padding: '12px 14px', border, background: 'rgba(0,187,221,.02)', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,.4), rgba(0,187,221,.1), transparent)' }} />
-              <div style={{ fontFamily: MONO, fontSize: 8, color: ACCENT, letterSpacing: '.08em', marginBottom: 12 }}>
-                {formatTimestamp(snapshot.created_at)}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div style={{ fontFamily: MONO, fontSize: 8, color: ACCENT, letterSpacing: '.08em' }}>
+                  {formatTimestamp(snapshot.created_at)}
+                </div>
+                <button
+                  onClick={async () => {
+                    setDeleting(snapshot.id)
+                    try {
+                      await deletePerformanceSnapshot(snapshot.id)
+                      setSnapshots(prev => prev.filter(s => s.id !== snapshot.id))
+                    } finally { setDeleting(null) }
+                  }}
+                  disabled={deleting === snapshot.id}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,92,122,.4)', fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', cursor: 'pointer', padding: '2px 4px' }}
+                >
+                  {deleting === snapshot.id ? '…' : '✕'}
+                </button>
               </div>
               {[
                 ['TOTAL VALUE', snapshot.total_value_eur],
