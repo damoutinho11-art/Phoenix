@@ -203,6 +203,10 @@ export async function postFinanceResearchMemoAutopilot(memoId) {
   return apiFetch(`/finance/research/memos/${memoId}/autopilot`, { method: 'POST' })
 }
 
+export async function deleteFinanceResearchMemo(memoId) {
+  return apiFetch(`/finance/research/memos/${memoId}`, { method: 'DELETE' })
+}
+
 export async function postFinanceResearchAutopilotRun() {
   return apiFetch('/finance/research/autopilot/run', { method: 'POST' })
 }

@@ -1480,6 +1480,14 @@ def finance_research_memo(memo_id: int) -> dict:
     }
 
 
+@router.delete("/research/memos/{memo_id}")
+def finance_delete_research_memo(memo_id: int) -> dict:
+    found = database.delete_research_memo(memo_id)
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
+    return {"deleted": True, "memo_id": memo_id}
+
+
 @router.post("/research/memos")
 def finance_create_research_memo(payload: ResearchMemoPayload) -> dict:
     memo_id = database.create_research_memo(payload.model_dump())
@@ -2232,18 +2240,22 @@ def finance_research_memo_autopilot(
     return {**result, **_AUTOPILOT_SAFETY_FLAGS}
 
 
-@router.post("/research/autopilot/run")
-def finance_research_autopilot_run(
-    constitution: dict = Depends(get_finance_constitution),
-    portfolio_state: dict = Depends(get_portfolio_state),
-    profile: dict = Depends(get_finance_profile),
+def _run_research_autopilot_internal(
+    constitution: dict | None = None,
+    portfolio_state: dict | None = None,
+    profile: dict | None = None,
 ) -> dict:
-    """Run autonomous research for every current recommendation leg.
+    """Core autopilot logic — callable from both the endpoint and background task."""
+    if constitution is None:
+        constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+    if portfolio_state is None:
+        portfolio_state = database.load_portfolio_state() or {}
+    if profile is None:
+        try:
+            profile = engine.load_json(engine.DEFAULT_PROFILE_PATH)
+        except Exception:
+            profile = {}
 
-    For each leg: finds an existing non-archived memo or creates a draft, then
-    runs the full autopilot pipeline (evidence → adapters → synthesis → quality gate).
-    Never changes recommendation amounts, routes, or portfolio state.
-    """
     try:
         regime = detect_market_regime(portfolio_state)
     except Exception:
@@ -2311,6 +2323,21 @@ def finance_research_autopilot_run(
         "total_legs": len(leg_results),
         **_AUTOPILOT_SAFETY_FLAGS,
     }
+
+
+@router.post("/research/autopilot/run")
+def finance_research_autopilot_run(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    """Run autonomous research for every current recommendation leg.
+
+    For each leg: finds an existing non-archived memo or creates a draft, then
+    runs the full autopilot pipeline (evidence → adapters → synthesis → quality gate).
+    Never changes recommendation amounts, routes, or portfolio state.
+    """
+    return _run_research_autopilot_internal(constitution, portfolio_state, profile)
 
 
 @router.post("/research/memos/{memo_id}/generate-evidence")
