@@ -322,13 +322,22 @@ export default function JumpLog({ onBack }) {
           {jumpHistory.map((entry, i) => {
             const isBest  = entry.inches === bestJumpInches
             const color   = isBest ? GREEN : entry.inches >= TARGET_IN - 2 ? GREEN : ORANGE
+            const delta   = i < jumpHistory.length - 1
+              ? +(entry.inches - jumpHistory[i + 1].inches).toFixed(1)
+              : null
+            const deltaColor = delta != null && delta > 0 ? GREEN : delta != null && delta < 0 ? '#ff5c7a' : TEXT_DIM
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: i < jumpHistory.length - 1 ? `1px solid rgba(255,143,46,.08)` : 'none' }}>
                 <div>
                   <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM }}>{entry.date}</div>
                   <div style={{ fontSize: 13, color: TEXT, marginTop: 2, fontWeight: 300 }}>Approach jump</div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  {delta != null && (
+                    <span style={{ fontFamily: MONO, fontSize: 7, color: deltaColor, letterSpacing: '.06em' }}>
+                      {delta > 0 ? '+' : ''}{delta}"
+                    </span>
+                  )}
                   <div style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 700, color }}>{entry.inches}"</div>
                   {isBest && <div style={{ fontFamily: MONO, fontSize: 7, color: GREEN, letterSpacing: '.1em' }}>BEST</div>}
                 </div>

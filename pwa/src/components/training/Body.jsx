@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getTrainingStatus } from '../../api/client'
+import { getTrainingStatus, logWeight } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
@@ -114,9 +114,70 @@ function WeightChart({ entries }) {
   )
 }
 
+function WeightModal({ initialKg, onClose, onSuccess }) {
+  const [inputKg, setInputKg]       = useState(initialKg ?? 85)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError]           = useState('')
+
+  async function handleSubmit() {
+    setSubmitting(true); setError('')
+    try {
+      await logWeight(+inputKg.toFixed(1))
+      onSuccess()
+    } catch {
+      setError('Failed to log. Try again.')
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(1,6,8,.92)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ width: '100%', maxWidth: 480, background: BG, borderTop: ORANGE_BDR, padding: '24px 20px 44px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.24em', color: ORANGE_MUT }}>LOG BODYWEIGHT</div>
+          <span onClick={onClose} style={{ color: ORANGE_MUT, fontSize: 16, cursor: 'pointer', lineHeight: 1 }}>✕</span>
+        </div>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+            <div
+              onClick={() => setInputKg(v => Math.max(40, +(v - 0.1).toFixed(1)))}
+              style={{ width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,143,46,.04)', border: ORANGE_BDR, color: ORANGE, fontSize: 22, cursor: 'pointer', fontFamily: DISPLAY, userSelect: 'none' }}
+            >−</div>
+            <div style={{ fontFamily: DISPLAY, fontSize: 58, fontWeight: 700, color: TEXT, minWidth: 130, textAlign: 'center', lineHeight: 1, letterSpacing: '-.02em' }}>
+              {inputKg.toFixed(1)}<span style={{ fontSize: 18, color: ORANGE_MUT, marginLeft: 4 }}>kg</span>
+            </div>
+            <div
+              onClick={() => setInputKg(v => Math.min(200, +(v + 0.1).toFixed(1)))}
+              style={{ width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,143,46,.04)', border: ORANGE_BDR, color: ORANGE, fontSize: 22, cursor: 'pointer', fontFamily: DISPLAY, userSelect: 'none' }}
+            >+</div>
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 9, color: ORANGE_MUT, marginTop: 10, letterSpacing: '.1em' }}>
+            TARGET {TARGET_KG}kg · START {START_KG}kg
+          </div>
+        </div>
+        {error && <div style={{ fontFamily: MONO, fontSize: 10, color: '#ff5c7a', marginBottom: 12, textAlign: 'center' }}>{error}</div>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div
+            onClick={onClose}
+            style={{ flex: 1, padding: '14px 0', textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '.2em', color: ORANGE_MUT, border: ORANGE_BDR, cursor: 'pointer', userSelect: 'none' }}
+          >CANCEL</div>
+          <div
+            onClick={!submitting ? handleSubmit : undefined}
+            style={{ flex: 2, padding: '14px 0', textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '.2em', color: BG, fontWeight: 700, background: ORANGE, cursor: submitting ? 'default' : 'pointer', boxShadow: `0 0 18px rgba(255,143,46,.4)`, userSelect: 'none' }}
+          >{submitting ? 'LOGGING…' : 'LOG WEIGHT'}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Body({ onBack }) {
   const [statusData, setStatusData] = useState(null)
   const [loading, setLoading]       = useState(true)
+  const [modalOpen, setModalOpen]   = useState(false)
 
   useEffect(() => {
     if (!document.getElementById('ph-fonts')) {
@@ -131,11 +192,13 @@ export default function Body({ onBack }) {
     }
   }, [])
 
-  useEffect(() => {
-    getTrainingStatus()
+  function loadData() {
+    return getTrainingStatus()
       .then(s => { setStatusData(s); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const cut            = statusData?.cut_status ?? {}
@@ -186,6 +249,14 @@ export default function Body({ onBack }) {
         <div style={{ padding: '48px 18px', textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', color: ORANGE_MUT }}>
           LOADING BODY DATA…
         </div>
+      )}
+
+      {modalOpen && (
+        <WeightModal
+          initialKg={currentKg ?? START_KG}
+          onClose={() => setModalOpen(false)}
+          onSuccess={() => { setModalOpen(false); setLoading(true); loadData() }}
+        />
       )}
 
       {!loading && (
@@ -246,6 +317,17 @@ export default function Body({ onBack }) {
             </div>
           </div>
 
+          {/* LOG WEIGHT */}
+          <div style={{ padding: '12px 14px', borderBottom: ORANGE_BDR }}>
+            <div
+              onClick={() => setModalOpen(true)}
+              style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,143,46,.28)', padding: '14px 0', textAlign: 'center', background: 'rgba(255,143,46,.03)', cursor: 'pointer', animation: 'phScan 3.5s linear infinite' }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${ORANGE},transparent)`, opacity: .5 }} />
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '.26em', color: ORANGE }}>+ LOG WEIGHT</div>
+            </div>
+          </div>
+
           {/* WEEKLY WEIGH-INS */}
           <div style={{ padding: '14px 18px 32px' }}>
             <Label>WEEKLY WEIGH-INS</Label>
@@ -256,7 +338,7 @@ export default function Body({ onBack }) {
               const delta = i < weeklies.length - 1
                 ? +(entry.weight_kg - weeklies[i + 1].weight_kg).toFixed(1)
                 : null
-              const opacity = Math.max(0.45, 1 - i * 0.12)
+              const opacity = Math.max(0.6, 1 - i * 0.08)
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: i < weeklies.length - 1 ? '1px solid rgba(255,143,46,.08)' : 'none', opacity }}>
                   <div>

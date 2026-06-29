@@ -54,6 +54,14 @@ function Label({ children, cyan = false }) {
   )
 }
 
+function timeAgo(iso) {
+  if (!iso) return null
+  const diffMin = Math.round((Date.now() - new Date(iso)) / 60000)
+  if (diffMin < 1)  return 'JUST NOW'
+  if (diffMin < 60) return `${diffMin}m AGO`
+  return `${Math.round(diffMin / 60)}h AGO`
+}
+
 function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey }) {
   const sleep    = recovery?.sleep
   const soreness = recovery?.soreness
@@ -63,6 +71,9 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
   const sleepHours    = sleep?.available    ? (sleep.duration_hours ?? null) : null
   const sorenessLabel = soreness?.available ? (soreness.label ?? null) : null
   const sorenessPct   = soreness?.available ? (soreness.pct   ?? 0)   : 0
+
+  const sleepAgo    = sleep?.available    ? timeAgo(sleep.wakeup)    : null
+  const sorenessAgo = soreness?.available ? timeAgo(soreness.logged_at) : null
 
   const ringPct   = overall ?? 0
   const circ      = 213.6
@@ -111,13 +122,16 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { label: 'SLEEP',    color: sleepColor,    pct: sleepScore ?? 0, val: sleepVal },
-            { label: 'SORENESS', color: sorenessColor, pct: sorenessPct,      val: sorenessLabel ?? '—' },
-          ].map(({ label, color, pct, val }) => (
+            { label: 'SLEEP',    color: sleepColor,    pct: sleepScore ?? 0, val: sleepVal,          ago: sleepAgo },
+            { label: 'SORENESS', color: sorenessColor, pct: sorenessPct,      val: sorenessLabel ?? '—', ago: sorenessAgo },
+          ].map(({ label, color, pct, val, ago }) => (
             <div key={label}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
                 <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT }}>{label}</span>
-                <span style={{ fontFamily: MONO, fontSize: 8, color, letterSpacing: '.04em' }}>{val}</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  {ago && <span style={{ fontFamily: MONO, fontSize: 6, letterSpacing: '.06em', color: 'rgba(32,216,236,.25)' }}>{ago}</span>}
+                  <span style={{ fontFamily: MONO, fontSize: 8, color, letterSpacing: '.04em' }}>{val}</span>
+                </div>
               </div>
               <div style={{ height: 3, background: 'rgba(32,216,236,.1)', borderRadius: 2 }}>
                 <div style={{ height: '100%', borderRadius: 2, background: color, width: `${pct}%`, transition: 'width 1.1s ease', boxShadow: `0 0 5px ${color}66` }} />
@@ -340,6 +354,16 @@ export default function TrainingMetrics({ onBack, onNav }) {
             </div>
             <span style={{ fontFamily: MONO, fontSize: 7, color: TEXT_DIM }}>·</span>
             <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM }}>WEEK {mesoWeek} OF 10</span>
+          </div>
+          {/* Mesocycle progress bar */}
+          <div style={{ marginTop: 14 }}>
+            <div style={{ height: 2, background: 'rgba(255,143,46,.1)', borderRadius: 1, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${(parseInt(mesoWeek) || 0) / 10 * 100}%`, background: `linear-gradient(90deg,rgba(255,143,46,.35),${ORANGE})`, borderRadius: 1, transition: 'width 1.2s cubic-bezier(.4,0,.2,1)', boxShadow: `0 0 6px rgba(255,143,46,.4)` }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+              <span style={{ fontFamily: MONO, fontSize: 6, letterSpacing: '.1em', color: 'rgba(255,143,46,.22)' }}>WK 1</span>
+              <span style={{ fontFamily: MONO, fontSize: 6, letterSpacing: '.1em', color: 'rgba(255,143,46,.22)' }}>WK 10</span>
+            </div>
           </div>
         </div>
 
