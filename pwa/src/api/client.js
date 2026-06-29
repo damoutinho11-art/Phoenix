@@ -231,6 +231,10 @@ export async function getLastSleep() {
   return apiFetch('/training/sleep/last')
 }
 
+export async function getTrainingRecovery() {
+  return apiFetch('/training/recovery')
+}
+
 export async function logSession(payload) {
   return apiFetch('/training/log/session', {
     method: 'POST',

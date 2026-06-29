@@ -232,6 +232,14 @@ CREATE TABLE IF NOT EXISTS sleep_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sleep_log_logged_at ON sleep_log(logged_at);
+
+CREATE TABLE IF NOT EXISTS soreness_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    score INTEGER NOT NULL CHECK (score BETWEEN 0 AND 5),
+    logged_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_soreness_log_logged_at ON soreness_log(logged_at);
 """
 
 
@@ -1804,6 +1812,44 @@ def get_meal_history(days: int = 14, target_calories: float = 2200.0) -> list[di
                 "has_data": False,
             })
     return result
+
+
+def get_latest_weight_kg() -> float | None:
+    """Return the most recently logged bodyweight, or None."""
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT weight_kg FROM weight_log ORDER BY log_date DESC LIMIT 1"
+        ).fetchone()
+        return float(row["weight_kg"]) if row else None
+
+
+def log_soreness(score: int) -> int:
+    """Log a soreness score (0=fresh, 5=destroyed). Returns row id."""
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO soreness_log (score, logged_at) VALUES (?, ?)",
+            (score, _utc_now()),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_last_soreness() -> dict[str, Any] | None:
+    """Return the most recent soreness entry within the last 24 hours, or None."""
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT score, logged_at FROM soreness_log ORDER BY logged_at DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return None
+        logged_at = datetime.fromisoformat(row["logged_at"])
+        age_h = (datetime.now(timezone.utc) - logged_at.replace(tzinfo=timezone.utc)).total_seconds() / 3600
+        if age_h > 24:
+            return None
+        score = int(row["score"])
+        pct = int((5 - score) / 5 * 100)
+        labels = ["FRESH", "SLIGHT", "MODERATE", "HIGH", "VERY HIGH", "MAX"]
+        return {"score": score, "pct": pct, "label": labels[score], "logged_at": row["logged_at"]}
 
 
 def log_sleep_event(event_type: str) -> int:

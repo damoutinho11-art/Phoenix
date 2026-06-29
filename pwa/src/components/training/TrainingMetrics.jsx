@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getTrainingHistory, getTrainingStatus, getLastSleep, logJump } from '../../api/client'
+import { getTrainingHistory, getTrainingStatus, getTrainingRecovery, getTrainingBrief, logJump } from '../../api/client'
 
 // ─── Jump Chart SVG ───────────────────────────────────────────────────────────
 
@@ -80,63 +80,73 @@ function JumpChart({ jumpData, targetLine = 32.0 }) {
 
 // ─── Recovery Ring ────────────────────────────────────────────────────────────
 
-function RecoveryRing({ sleep }) {
-  const sleepHours = sleep?.duration_hours ?? null
-  const sleepScore = sleep?.score ?? null
-  const pct = sleepScore ?? 0
+function RecoveryRing({ recovery }) {
+  const sleep = recovery?.sleep
+  const soreness = recovery?.soreness
+  const overall = recovery?.overall ?? null
 
+  const sleepScore = sleep?.available ? (sleep.score ?? null) : null
+  const sleepHours = sleep?.available ? (sleep.duration_hours ?? null) : null
+  const sorenessLabel = soreness?.available ? (soreness.label ?? null) : null
+  const sorenessPct = soreness?.available ? (soreness.pct ?? 0) : 0
+
+  const ringPct = overall ?? 0
   const circ = 213.6
-  const offset = circ * (1 - pct / 100)
-
+  const offset = circ * (1 - ringPct / 100)
+  const ringColor = overall == null ? 'rgba(32,216,236,.25)' : overall >= 75 ? '#4dffb4' : overall >= 50 ? '#ffd56b' : '#ff5c7a'
   const sleepColor = sleepScore == null ? 'rgba(32,216,236,.25)' : sleepScore >= 75 ? '#4dffb4' : sleepScore >= 50 ? '#ffd56b' : '#ff5c7a'
+  const sorenessColor = !soreness?.available ? 'rgba(32,216,236,.25)' : sorenessPct >= 75 ? '#4dffb4' : sorenessPct >= 50 ? '#ffd56b' : '#ff5c7a'
+
   const sleepVal = sleepHours != null
     ? `${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`
     : '—'
-  const sleepPct = sleepScore ?? 0
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '14px 18px', borderTop: '1px solid rgba(32,216,236,.18)' }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <svg width="80" height="80" viewBox="0 0 80 80">
           <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(32,216,236,.1)" strokeWidth="6" />
-          <circle cx="40" cy="40" r="34" fill="none" stroke={sleepColor} strokeWidth="6"
+          <circle cx="40" cy="40" r="34" fill="none" stroke={ringColor} strokeWidth="6"
             strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
             transform="rotate(-90 40 40)"
             style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)' }} />
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: sleepColor, lineHeight: 1 }}>
-            {sleepScore != null ? `${sleepScore}%` : '—'}
+          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: ringColor, lineHeight: 1 }}>
+            {overall != null ? `${overall}%` : '—'}
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: 'rgba(32,216,236,.38)' }}>SLEEP</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.08em', color: 'rgba(32,216,236,.38)' }}>READINESS</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: 'rgba(32,216,236,.38)', marginBottom: 6 }}>
-          READINESS
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: 'rgba(32,216,236,.38)', marginBottom: 4 }}>
+          RECOVERY
         </div>
 
-        {/* Sleep — real data */}
+        {/* Sleep */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(32,216,236,.38)' }}>SLEEP</span>
           <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }}>
-            <div style={{ height: '100%', borderRadius: 1, background: sleepColor, width: `${sleepPct}%`, transition: 'width 1s ease' }} />
+            <div style={{ height: '100%', borderRadius: 1, background: sleepColor, width: `${sleepScore ?? 0}%`, transition: 'width 1s ease' }} />
           </div>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: sleepColor }}>{sleepVal}</span>
         </div>
 
-        {/* Soreness + HRV — tell PHOENIX to update */}
-        {[
-          { label: 'SORENESS', val: 'tell PHOENIX' },
-          { label: 'HRV',      val: 'tell PHOENIX' },
-        ].map(({ label, val }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(32,216,236,.38)' }}>{label}</span>
-            <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }} />
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.22)', letterSpacing: '.06em' }}>{val}</span>
+        {/* Soreness */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(32,216,236,.38)' }}>SORENESS</span>
+          <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }}>
+            <div style={{ height: '100%', borderRadius: 1, background: sorenessColor, width: `${sorenessPct}%`, transition: 'width 1s ease' }} />
           </div>
-        ))}
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: sorenessColor }}>{sorenessLabel ?? '—'}</span>
+        </div>
+
+        {!sleep?.available && !soreness?.available && (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.22)', letterSpacing: '.06em', marginTop: 2 }}>
+            tell PHOENIX how you feel
+          </div>
+        )}
       </div>
     </div>
   )
@@ -262,19 +272,31 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
   const [modalOpen, setModalOpen] = useState(false)
   const [statusData, setStatusData] = useState(null)
   const [history, setHistory] = useState(null)
-  const [sleepData, setSleepData] = useState(null)
+  const [recovery, setRecovery] = useState(null)
+  const [brief, setBrief] = useState(null)
+  const [briefLoading, setBriefLoading] = useState(false)
 
   async function loadData() {
-    const [s, h, sl] = await Promise.allSettled([getTrainingStatus(), getTrainingHistory(), getLastSleep()])
+    const [s, h, r] = await Promise.allSettled([getTrainingStatus(), getTrainingHistory(), getTrainingRecovery()])
     if (s.status === 'fulfilled') setStatusData(s.value)
     if (h.status === 'fulfilled') setHistory(h.value)
-    if (sl.status === 'fulfilled' && sl.value?.available) setSleepData(sl.value)
+    if (r.status === 'fulfilled') setRecovery(r.value)
+  }
+
+  async function loadBrief() {
+    if (briefLoading) return
+    setBriefLoading(true)
+    try {
+      const b = await getTrainingBrief()
+      setBrief(b.brief)
+    } catch { setBrief('Unable to load brief.') }
+    setBriefLoading(false)
   }
 
   useEffect(() => { loadData() }, [])
 
   // Dunk countdown from API or computed from target date
-  const targetDateStr = statusData?.dunk_goal?.attempt_window_start ?? '2026-08-25'
+  const targetDateStr = statusData?.dunk_goal?.attempt_window_start ?? '2026-08-31'
   const daysToAttempt = statusData?.dunk_goal?.days_to_attempt ?? Math.max(0, Math.ceil((new Date(targetDateStr) - new Date()) / 86400000))
 
   const phase = statusData?.dunk_goal?.current_phase ?? 'ACCUMULATION'
@@ -304,6 +326,14 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
   // Bodyweight from cut_status
   const currentBodyweightKg = statusData?.cut_status?.current_bodyweight_kg ?? null
 
+  // Session history + progression hints
+  const recentSessions = (history?.sessions ?? []).slice(0, 5)
+  const nextHints = history?.next_week_suggestions ?? []
+
+  // Conflicts
+  const hasConflict = statusData?.has_hard_conflicts
+  const conflictDetail = statusData?.conflicts?.[0]?.detail ?? ''
+
   const BORDER = 'rgba(32,216,236,.18)'
   const MUTED = 'rgba(32,216,236,.38)'
   const CYAN = '#20d8ec'
@@ -322,10 +352,34 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
           <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: CYAN_BR }}>TRAINING</span>
         </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: ORANGE, border: `1px solid rgba(255,143,46,.26)`, padding: '2px 8px', background: 'rgba(255,143,46,.07)' }}>
-          {phase.replace(/_/g, ' ')}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: ORANGE, border: `1px solid rgba(255,143,46,.26)`, padding: '2px 8px', background: 'rgba(255,143,46,.07)' }}>
+            {phase.replace(/_/g, ' ')}
+          </span>
+          <span
+            onClick={brief ? () => setBrief(null) : loadBrief}
+            style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: CYAN, border: `1px solid rgba(32,216,236,.3)`, padding: '2px 8px', background: 'rgba(32,216,236,.06)', cursor: 'pointer' }}
+          >
+            {briefLoading ? '…' : brief ? 'CLOSE' : 'BRIEF'}
+          </span>
+        </div>
       </div>
+
+      {/* BRIEF PANEL */}
+      {brief && (
+        <div style={{ padding: '12px 18px', background: 'rgba(32,216,236,.04)', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: MUTED, marginBottom: 6 }}>PHOENIX BRIEF</div>
+          <div style={{ fontFamily: 'var(--body, sans-serif)', fontSize: 13, color: 'rgba(199,236,244,.87)', lineHeight: 1.6 }}>{brief}</div>
+        </div>
+      )}
+
+      {/* CONFLICT BANNER */}
+      {hasConflict && (
+        <div style={{ padding: '10px 18px', background: 'rgba(255,92,122,.06)', borderBottom: `1px solid rgba(255,92,122,.25)`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: '#ff5c7a', fontSize: 14 }}>⚠</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.1em', color: '#ff5c7a', lineHeight: 1.5 }}>{conflictDetail}</span>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {/* DUNK COUNTDOWN HERO */}
@@ -441,13 +495,13 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
         </div>
 
         {/* RECOVERY RING */}
-        <RecoveryRing sleep={sleepData} />
+        <RecoveryRing recovery={recovery} />
 
         {/* BODYWEIGHT TREND */}
         <WeightBars currentKg={currentBodyweightKg} targetKg={81} startKg={87} />
 
         {/* LOG JUMP BUTTON */}
-        <div style={{ padding: '0 18px 32px' }}>
+        <div style={{ padding: '0 18px 16px' }}>
           <button
             onClick={() => setModalOpen(true)}
             style={{ width: '100%', padding: '13px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: '#000', fontWeight: 700, background: CYAN, border: `1px solid ${CYAN}`, cursor: 'pointer', boxShadow: `0 0 16px rgba(32,216,236,.4)` }}
@@ -455,6 +509,45 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
             + LOG JUMP
           </button>
         </div>
+
+        {/* NEXT WEEK HINTS */}
+        {nextHints.length > 0 && (
+          <div style={{ padding: '14px 18px', borderTop: `1px solid ${BORDER}` }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>NEXT SESSION TARGETS</div>
+            {nextHints.map((hint, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < nextHints.length - 1 ? `1px solid rgba(32,216,236,.07)` : 'none' }}>
+                <span style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 13, color: 'rgba(199,236,244,.8)' }}>{hint.exercise}</span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: '#4dffb4', letterSpacing: '.06em' }}>{hint.suggested_weight_kg}kg</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* SESSION HISTORY */}
+        {recentSessions.length > 0 && (
+          <div style={{ padding: '14px 18px 32px', borderTop: `1px solid ${BORDER}` }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>RECENT SESSIONS</div>
+            {recentSessions.map((s, i) => {
+              const exs = (() => { try { return JSON.parse(s.exercises) } catch { return [] } })()
+              const topLift = exs.reduce((best, ex) => {
+                const sets = Array.isArray(ex.sets) ? ex.sets : []
+                const maxKg = sets.reduce((m, st) => Math.max(m, st.weight_kg ?? 0), 0)
+                return maxKg > best ? maxKg : best
+              }, 0)
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: i < recentSessions.length - 1 ? `1px solid rgba(32,216,236,.07)` : 'none' }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: MUTED }}>{s.date}</div>
+                    <div style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 13, color: 'rgba(199,236,244,.85)', marginTop: 2 }}>{s.session_type}</div>
+                  </div>
+                  {topLift > 0 && (
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: CYAN, letterSpacing: '.06em' }}>{topLift}kg top</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {modalOpen && (

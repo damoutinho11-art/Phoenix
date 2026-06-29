@@ -1,6 +1,7 @@
 """Universal PHOENIX conversational endpoint. All domains, one POST."""
 
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -173,13 +174,15 @@ def _build_training_context() -> str:
             lines.append(f"Fatigue note: {status.fatigue_warning}")
 
         sleep = database.get_last_sleep()
-        if sleep:
-            lines.append(
-                f"Last sleep: {sleep['duration_hours']:.1f}h "
-                f"(score {sleep['score']}/100)"
-            )
-        else:
-            lines.append("Last sleep: not logged yet")
+        lines.append(
+            f"Last sleep: {sleep['duration_hours']:.1f}h (score {sleep['score']}/100)"
+            if sleep else "Last sleep: not logged yet"
+        )
+        soreness = database.get_last_soreness()
+        lines.append(
+            f"Soreness: {soreness['label']} ({soreness['score']}/5)"
+            if soreness else "Soreness: not logged yet"
+        )
 
         return "\n".join(lines)
     except Exception:
@@ -223,6 +226,41 @@ def _build_calendar_context() -> str:
         return "CALENDAR: Context unavailable."
 
 
+_WEIGHT_PATTERNS = [
+    re.compile(r'(?:i\s+)?weigh\s+(\d{2,3}(?:\.\d{1,2})?)', re.IGNORECASE),
+    re.compile(r'weight\s+(?:is\s+)?(\d{2,3}(?:\.\d{1,2})?)', re.IGNORECASE),
+    re.compile(r'(\d{2,3}(?:\.\d{1,2})?)\s*kg\b', re.IGNORECASE),
+]
+
+_SORENESS_LEVELS = [
+    (0, ["feeling fresh", "fully recovered", "no soreness", "feeling great", "feel great", "fully rested", "fresh legs"]),
+    (1, ["slightly sore", "little sore", "minor soreness", "mild soreness", "barely sore"]),
+    (2, ["a bit sore", "moderately sore", "some soreness", "bit sore"]),
+    (3, ["sore", "feeling it", "heavy legs", "legs are heavy", "stiff"]),
+    (4, ["very sore", "quite sore", "really sore", "very stiff", "badly sore"]),
+    (5, ["destroyed", "wrecked", "can't walk", "dead legs", "absolutely destroyed", "extremely sore"]),
+]
+
+
+def _detect_bodyweight(message: str) -> float | None:
+    for pattern in _WEIGHT_PATTERNS:
+        m = pattern.search(message)
+        if m:
+            val = float(m.group(1))
+            if 40 <= val <= 200:
+                return val
+    return None
+
+
+def _detect_soreness(message: str) -> int | None:
+    lower = message.lower()
+    for score, keywords in reversed(_SORENESS_LEVELS):
+        for kw in keywords:
+            if kw in lower:
+                return score
+    return None
+
+
 _SLEEP_BEDTIME_KEYWORDS = [
     "going to sleep", "going to bed", "good night", "goodnight",
     "heading to bed", "time to sleep", "off to sleep", "bedtime",
@@ -253,13 +291,29 @@ def jarvis_chat(request: ChatRequest) -> dict:
     context_parts = []
     requires_approval = False
 
-    # Auto-log sleep events before building context
+    # Auto-log biometric signals before building context
     sleep_event = _detect_sleep_intent(request.message)
     sleep_logged_note = ""
     if sleep_event:
         try:
             database.log_sleep_event(sleep_event)
-            sleep_logged_note = f"\n[SYSTEM: {sleep_event} event auto-logged at {date.today().isoformat()}]"
+            sleep_logged_note = f"\n[SYSTEM: {sleep_event} logged]"
+        except Exception:
+            pass
+
+    bodyweight = _detect_bodyweight(request.message)
+    if bodyweight:
+        try:
+            database.log_weight(date.today(), bodyweight)
+            sleep_logged_note += f"\n[SYSTEM: bodyweight {bodyweight}kg logged]"
+        except Exception:
+            pass
+
+    soreness_score = _detect_soreness(request.message)
+    if soreness_score is not None:
+        try:
+            database.log_soreness(soreness_score)
+            sleep_logged_note += f"\n[SYSTEM: soreness score {soreness_score}/5 logged]"
         except Exception:
             pass
 

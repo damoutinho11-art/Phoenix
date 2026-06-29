@@ -234,6 +234,9 @@ def _build_brief_user_message(status: dict) -> str:
 def training_status(
     constitution: dict = Depends(get_training_constitution),
 ) -> dict:
+    latest_kg = database.get_latest_weight_kg()
+    if latest_kg:
+        constitution = {**constitution, "current_bodyweight_kg": latest_kg}
     status = engine.check_training(
         constitution,
         today=date.today(),
@@ -320,15 +323,32 @@ class SleepLogRequest(BaseModel):
     event_type: Literal["bedtime", "wakeup"]
 
 
+class SorenessLogRequest(BaseModel):
+    score: int = Field(ge=0, le=5)
+
+
 @router.post("/log/sleep")
 def log_sleep(request: SleepLogRequest) -> dict:
     event_id = database.log_sleep_event(request.event_type)
     return {"status": "logged", "event_type": request.event_type, "id": event_id}
 
 
-@router.get("/sleep/last")
-def get_last_sleep() -> dict:
-    data = database.get_last_sleep()
-    if not data:
-        return {"available": False}
-    return {"available": True, **data}
+@router.post("/log/soreness")
+def log_soreness(request: SorenessLogRequest) -> dict:
+    row_id = database.log_soreness(request.score)
+    return {"status": "logged", "score": request.score, "id": row_id}
+
+
+@router.get("/recovery")
+def get_recovery() -> dict:
+    sleep = database.get_last_sleep()
+    soreness = database.get_last_soreness()
+    sleep_score = sleep["score"] if sleep else None
+    soreness_score = soreness["pct"] if soreness else None
+    scores = [s for s in [sleep_score, soreness_score] if s is not None]
+    overall = int(sum(scores) / len(scores)) if scores else None
+    return {
+        "overall": overall,
+        "sleep": {"available": bool(sleep), **(sleep or {})},
+        "soreness": {"available": bool(soreness), **(soreness or {})},
+    }
