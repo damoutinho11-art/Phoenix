@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { getTrainingStatus, logSession } from '../../api/client'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
+const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
+const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
+
 const T = {
-  bg:          '#010608',
+  bg:          '#060c12',
   surface:     'rgba(255,143,46,.032)',
   surfaceCyan: 'rgba(32,216,236,.035)',
   orange:      '#ff8f2e',
@@ -19,11 +22,11 @@ const T = {
   red:         '#ff5c7a',
   text:        'rgba(199,236,244,.92)',
   textDim:     'rgba(132,212,226,.58)',
-  border:      '1px solid rgba(255,143,46,.14)',
+  border:      '1px solid rgba(255,143,46,.18)',
   borderCyan:  '1px solid rgba(32,216,236,.18)',
-  mono:        'var(--mono)',
-  display:     'var(--display)',
-  body:        'var(--body)',
+  mono:        "'Share Tech Mono', monospace",
+  display:     "'Rajdhani', sans-serif",
+  body:        "'Space Grotesk', sans-serif",
 }
 
 // ─── Session builders ────────────────────────────────────────────────────────
@@ -517,6 +520,20 @@ export default function ActiveSession({ onBack }) {
   const [phase, setPhase] = useState('loading')
   const [submitting, setSubmitting] = useState(false)
 
+  // Font + keyframe injection
+  useEffect(() => {
+    if (!document.getElementById('ph-fonts')) {
+      const link = document.createElement('link')
+      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
+      document.head.appendChild(link)
+    }
+    if (!document.getElementById('ph-keyframes')) {
+      const style = document.createElement('style')
+      style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
+      document.head.appendChild(style)
+    }
+  }, [])
+
   // Fetch status and build session
   useEffect(() => {
     getTrainingStatus()
@@ -663,7 +680,8 @@ export default function ActiveSession({ onBack }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, fontFamily: T.body }}>
 
       {/* TOP BAR */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: T.border, position: 'sticky', top: 0, background: 'rgba(1,6,8,.97)', backdropFilter: 'blur(14px)', zIndex: 10, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: T.border, position: 'sticky', top: 0, background: 'rgba(6,12,18,.97)', backdropFilter: 'blur(14px)', zIndex: 10, flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${T.orange},transparent)`, animation: 'phScan 3.5s linear infinite' }} />
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: T.orange, fontSize: 16, marginRight: 12, cursor: 'pointer' }}>←</span>
           <span style={{ fontFamily: T.display, fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: T.orange }}>{sessionName}</span>
@@ -761,7 +779,7 @@ export default function ActiveSession({ onBack }) {
       </div>
 
       {/* NAV FOOTER */}
-      <div style={{ padding: '12px 14px', borderTop: T.border, display: 'flex', gap: 10, position: 'sticky', bottom: 0, background: 'rgba(1,6,8,.97)', backdropFilter: 'blur(14px)', flexShrink: 0 }}>
+      <div style={{ padding: '12px 14px', borderTop: T.border, display: 'flex', gap: 10, position: 'sticky', bottom: 0, background: 'rgba(6,12,18,.97)', backdropFilter: 'blur(14px)', flexShrink: 0 }}>
         <div
           onClick={() => curEx > 0 && setCurEx(c => c - 1)}
           style={{ flex: 1, padding: '15px 0', textAlign: 'center', fontFamily: T.mono, fontSize: 9, letterSpacing: '.2em', color: T.cyanMuted, border: T.borderCyan, cursor: curEx > 0 ? 'pointer' : 'default', opacity: curEx === 0 ? .3 : 1 }}
