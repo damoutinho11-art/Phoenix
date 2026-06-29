@@ -609,8 +609,16 @@ function PortfolioSnapshot({ sleeves, total, asOf }) {
                   <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)' }}>{sleeve.name}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: T.fontBody, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, color: isActive ? meta.color : 'rgba(42,74,90,0.87)' }}>
-                    {percent(sleeve.current_weight)}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                    {sleeve.band_status === 'above_max' && isActive && (
+                      <span style={{ fontFamily: T.fontMono, fontSize: 6, letterSpacing: '0.12em', padding: '2px 5px', border: '1px solid rgba(255,92,122,.35)', color: '#ff5c7a', background: 'rgba(255,92,122,.07)' }}>OVER</span>
+                    )}
+                    {sleeve.band_status === 'below_min' && isActive && (
+                      <span style={{ fontFamily: T.fontMono, fontSize: 6, letterSpacing: '0.12em', padding: '2px 5px', border: '1px solid rgba(255,213,107,.35)', color: '#ffd56b', background: 'rgba(255,213,107,.07)' }}>UNDER</span>
+                    )}
+                    <div style={{ fontFamily: T.fontBody, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, color: !isActive ? 'rgba(42,74,90,0.87)' : sleeve.band_status === 'above_max' ? '#ff5c7a' : sleeve.band_status === 'below_min' ? '#ffd56b' : '#4dffb4' }}>
+                      {percent(sleeve.current_weight)}
+                    </div>
                   </div>
                   <div style={{ fontFamily: T.fontBody, fontSize: 9, color: 'rgba(90,122,138,0.87)', marginTop: 2 }}>{money(sleeve.value)}</div>
                   <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.12em', color: 'rgba(0,187,221,0.2)', marginTop: 2 }}>TARGET {percent(sleeve.target_weight)}</div>
