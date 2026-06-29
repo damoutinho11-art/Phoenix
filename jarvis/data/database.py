@@ -892,6 +892,17 @@ def get_pending_briefs() -> list[dict[str, Any]]:
         connection.close()
 
 
+def delete_brief(brief_id: int) -> bool:
+    """Delete a brief by id. Returns True if a row was deleted."""
+    connection = get_db()
+    try:
+        cursor = connection.execute("DELETE FROM brief_history WHERE id = ?", (brief_id,))
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
 def save_finance_transaction(payload: dict) -> int:
     """Persist a user-reported manual buy; this function never executes a trade."""
     connection = get_db()

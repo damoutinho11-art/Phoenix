@@ -1387,6 +1387,14 @@ def finance_brief_reject(brief_id: int) -> dict:
     return _brief_action(brief_id, "rejected", "rejected")
 
 
+@router.delete("/brief/{brief_id}")
+def finance_brief_delete(brief_id: int) -> dict:
+    found = database.delete_brief(brief_id)
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Brief {brief_id} not found")
+    return {"deleted": True, "brief_id": brief_id}
+
+
 @router.get("/brief/history")
 def finance_brief_history() -> dict:
     rows = database.get_brief_history(limit=50)

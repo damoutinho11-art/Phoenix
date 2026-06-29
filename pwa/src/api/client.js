@@ -211,6 +211,10 @@ export async function postBriefAction(briefId, action) {
   return apiFetch(`/finance/brief/${briefId}/${action}`, { method: 'POST' })
 }
 
+export async function deleteBrief(briefId) {
+  return apiFetch(`/finance/brief/${briefId}`, { method: 'DELETE' })
+}
+
 export async function getFinanceLedger() {
   return apiFetch('/finance/ledger')
 }

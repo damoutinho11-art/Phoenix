@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getFinanceBriefHistory, postBriefAction } from '../../api/client'
+import { getFinanceBriefHistory, postBriefAction, deleteBrief } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
@@ -76,10 +76,12 @@ function Field({ label, value, color = ACCENT }) {
   )
 }
 
-function Drawer({ brief, onClose, onAction }) {
+function Drawer({ brief, onClose, onAction, onDelete }) {
   const [acting, setActing] = useState(false)
   const [acted, setActed] = useState(null)
   const [actError, setActError] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleted, setDeleted] = useState(false)
 
   async function handleAction(action) {
     setActing(true); setActError('')
@@ -91,11 +93,23 @@ function Drawer({ brief, onClose, onAction }) {
     finally { setActing(false) }
   }
 
+  async function handleDelete() {
+    setDeleting(true); setActError('')
+    try {
+      await deleteBrief(brief.id)
+      setDeleted(true)
+      if (onDelete) onDelete(brief.id)
+      setTimeout(onClose, 600)
+    } catch (e) { setActError(e?.message || 'Delete failed.') }
+    finally { setDeleting(false) }
+  }
+
   const statusColor = STATUS_COLOR[brief.status] || muted
   const outcomeNote = brief.outcome_note || null
   const outcomePct  = brief.outcome_pct != null ? brief.outcome_pct : null
   const { recommendations, assetLabel, totalAmount } = getBriefSummary(brief)
   const canAct = !acted && (brief.status === 'pending' || brief.status === 'deferred')
+  const canDelete = !deleted && brief.status === 'rejected'
 
   return (
     <>
@@ -172,6 +186,24 @@ function Drawer({ brief, onClose, onAction }) {
           {acted && (
             <div style={{ marginTop: 14, padding: '9px 11px', border: `1px solid ${acted === 'reject' ? 'rgba(255,92,122,.4)' : border}`, fontFamily: MONO, fontSize: 8, color: acted === 'reject' ? '#ff8fa0' : muted, letterSpacing: '.12em' }}>
               BRIEF {acted.toUpperCase()}ED
+            </div>
+          )}
+
+          {canDelete && (
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,92,122,.15)' }}>
+              {actError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 7, marginBottom: 7 }}>{actError}</div>}
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{ width: '100%', padding: '10px 0', border: '1px solid rgba(255,92,122,.35)', background: 'rgba(255,92,122,.04)', color: 'rgba(255,92,122,.6)', fontFamily: MONO, fontSize: 8, letterSpacing: '.16em', cursor: deleting ? 'wait' : 'pointer' }}
+              >
+                {deleting ? 'DELETING…' : 'DELETE BRIEF'}
+              </button>
+            </div>
+          )}
+          {deleted && (
+            <div style={{ marginTop: 14, padding: '9px 11px', border: '1px solid rgba(255,92,122,.25)', fontFamily: MONO, fontSize: 8, color: 'rgba(255,92,122,.5)', letterSpacing: '.12em' }}>
+              BRIEF DELETED
             </div>
           )}
         </div>
@@ -314,6 +346,10 @@ export default function BriefHistory({ onBack }) {
           onClose={() => setSelected(null)}
           onAction={(id, action) => {
             setBriefs(prev => prev.map(b => b.id === id ? { ...b, status: action === 'reject' ? 'rejected' : 'deferred' } : b))
+          }}
+          onDelete={(id) => {
+            setBriefs(prev => prev.filter(b => b.id !== id))
+            setSelected(null)
           }}
         />
       )}
