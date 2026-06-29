@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getTrainingHistory, getTrainingStatus, getTrainingRecovery, getTrainingBrief } from '../../api/client'
+import { getTrainingHistory, getTrainingStatus, getTrainingRecovery, getTrainingBrief, logSleep, logSoreness } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `
@@ -54,7 +54,7 @@ function Label({ children, cyan = false }) {
   )
 }
 
-function RecoveryRing({ recovery }) {
+function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging }) {
   const sleep    = recovery?.sleep
   const soreness = recovery?.soreness
   const overall  = recovery?.overall ?? null
@@ -74,6 +74,14 @@ function RecoveryRing({ recovery }) {
   const sleepVal = sleepHours != null
     ? `${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`
     : '—'
+
+  const btnStyle = (active) => ({
+    flex: 1, fontFamily: MONO, fontSize: 7, letterSpacing: '.1em',
+    color: active ? BG : CYAN_BR,
+    background: active ? CYAN : 'rgba(32,216,236,.06)',
+    border: `1px solid rgba(32,216,236,.28)`,
+    padding: '7px 0', cursor: 'pointer', outline: 'none',
+  })
 
   return (
     <div style={{ padding: '14px 18px', borderBottom: ORANGE_BDR, background: 'rgba(32,216,236,.018)' }}>
@@ -109,11 +117,31 @@ function RecoveryRing({ recovery }) {
               </div>
             </div>
           ))}
-          {!sleep?.available && !soreness?.available && (
-            <div style={{ fontFamily: MONO, fontSize: 7, color: 'rgba(32,216,236,.2)', letterSpacing: '.08em' }}>
-              tell PHOENIX how you feel
-            </div>
-          )}
+        </div>
+      </div>
+      {/* log controls */}
+      <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div>
+          <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT, marginBottom: 6 }}>LOG SLEEP</div>
+          <div style={{ display: 'flex', gap: 5 }}>
+            {[{ ev: 'bedtime', label: 'BED' }, { ev: 'wakeup', label: 'WAKE' }].map(({ ev, label }) => (
+              <button key={ev} onClick={() => onLogSleep(ev)} disabled={!!logging}
+                style={btnStyle(logging === ev)}>
+                {logging === ev ? '…' : label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT, marginBottom: 6 }}>LOG SORENESS</div>
+          <div style={{ display: 'flex', gap: 5 }}>
+            {[{ label: 'LOW', score: 1 }, { label: 'MED', score: 3 }, { label: 'HIGH', score: 5 }].map(({ label, score }) => (
+              <button key={label} onClick={() => onLogSoreness(score)} disabled={!!logging}
+                style={btnStyle(logging === `sor-${score}`)}>
+                {logging === `sor-${score}` ? '…' : label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -138,6 +166,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
   const [recovery, setRecovery]       = useState(null)
   const [brief, setBrief]             = useState(null)
   const [briefLoading, setBriefLoading] = useState(false)
+  const [recoveryLogging, setRecoveryLogging] = useState(null)
 
   useEffect(() => {
     if (!document.getElementById('ph-fonts')) {
@@ -172,6 +201,27 @@ export default function TrainingMetrics({ onBack, onNav }) {
       setBrief(b.brief)
     } catch { setBrief('Unable to load brief.') }
     setBriefLoading(false)
+  }
+
+  async function handleLogSleep(eventType) {
+    setRecoveryLogging(eventType)
+    try {
+      await logSleep(eventType)
+      const r = await getTrainingRecovery()
+      setRecovery(r)
+    } catch { /* ignore */ }
+    setRecoveryLogging(null)
+  }
+
+  async function handleLogSoreness(score) {
+    const key = `sor-${score}`
+    setRecoveryLogging(key)
+    try {
+      await logSoreness(score)
+      const r = await getTrainingRecovery()
+      setRecovery(r)
+    } catch { /* ignore */ }
+    setRecoveryLogging(null)
   }
 
   function nav(screen) { if (onNav) onNav(screen) }
@@ -355,7 +405,12 @@ export default function TrainingMetrics({ onBack, onNav }) {
         </div>
 
         {/* RECOVERY */}
-        <RecoveryRing recovery={recovery} />
+        <RecoveryRing
+          recovery={recovery}
+          onLogSleep={handleLogSleep}
+          onLogSoreness={handleLogSoreness}
+          logging={recoveryLogging}
+        />
 
         {/* DOMAIN BUTTONS */}
         <div style={{ display: 'flex', gap: 8, padding: '12px 14px 20px' }}>

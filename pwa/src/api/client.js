@@ -251,6 +251,14 @@ export async function getTrainingRecovery() {
   return apiFetch('/training/recovery')
 }
 
+export async function logSoreness(score) {
+  return apiFetch('/training/log/soreness', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ score }),
+  })
+}
+
 export async function logSession(payload) {
   return apiFetch('/training/log/session', {
     method: 'POST',
