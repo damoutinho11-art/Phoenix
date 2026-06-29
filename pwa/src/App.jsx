@@ -15,6 +15,7 @@ import NutritionAcceptanceGate from './components/nutrition/NutritionAcceptanceG
 import TrainingMetrics from './components/training/TrainingMetrics'
 import ActiveSession from './components/training/ActiveSession'
 import JumpLog from './components/training/JumpLog'
+import SessionHistory from './components/training/SessionHistory'
 import FinanceDashboard from './components/finance/FinanceDashboard'
 import WeeklyBrief from './components/finance/WeeklyBrief'
 import Holdings from './components/finance/Holdings'
@@ -82,6 +83,8 @@ export default function App() {
           return <ActiveSession onBack={() => setTrainingScreen('dashboard')} />
         case 'jump-log':
           return <JumpLog onBack={() => setTrainingScreen('dashboard')} />
+        case 'training-history':
+          return <SessionHistory onBack={() => setTrainingScreen('dashboard')} />
         default:
           return <TrainingMetrics onQuickAsk={handleQuickAsk} onNav={setTrainingScreen} />
       }
