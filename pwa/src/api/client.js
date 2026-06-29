@@ -30,6 +30,14 @@ export async function getCalendarSnapshot() {
   return apiFetch('/calendar/snapshot')
 }
 
+export async function getCalendarPlaanLiveStatus() {
+  return apiFetch('/calendar/plaan-live/status')
+}
+
+export async function getCalendarPlaanLivePreview() {
+  return apiFetch('/calendar/plaan-live/preview')
+}
+
 export async function getFinanceBrief() {
   return apiFetch('/finance/brief')
 }
@@ -373,4 +381,26 @@ export async function logWeeklyPlan(payload) {
 
 export async function getNutritionAcceptanceGate() {
   return apiFetch('/nutrition/acceptance-gate')
+}
+
+export async function getNutritionCalendarBridge(days = 7, startDate = '') {
+  const params = new URLSearchParams({ days: String(days) })
+  if (startDate) params.set('start_date', startDate)
+  return apiFetch(`/nutrition/calendar-bridge?${params.toString()}`)
+}
+
+export async function getCalendarPlaanLatestImport() {
+  return apiFetch('/calendar/plaan-live/imports/latest')
+}
+
+export async function importCalendarPlaanSnapshot({ snapshot, label = 'manual Plaan snapshot', source = 'manual_paste' }) {
+  return apiFetch('/calendar/plaan-live/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ snapshot, label, source }),
+  })
+}
+
+export async function getCalendarFeedStatus() {
+  return apiFetch('/calendar/feed/status')
 }

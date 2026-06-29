@@ -1,4 +1,4 @@
-"""Calendar domain engine for PHOENIX.
+"""Calendar domain engine for J.A.R.V.I.S.
 
 READ-ONLY. This module never clicks, submits, or mutates anything on Plaan.
 It takes a PlaanSnapshot (produced by the Cowork browser session) and

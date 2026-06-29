@@ -56,6 +56,21 @@ ON nutrition_memory(kind, item_type, item_id, name);
 CREATE INDEX IF NOT EXISTS idx_nutrition_memory_kind
 ON nutrition_memory(kind);
 
+CREATE TABLE IF NOT EXISTS calendar_snapshot_imports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    imported_at TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT 'manual import',
+    source TEXT NOT NULL DEFAULT 'manual_paste',
+    as_of TEXT NOT NULL,
+    event_count INTEGER NOT NULL DEFAULT 0,
+    warning_count INTEGER NOT NULL DEFAULT 0,
+    snapshot_json TEXT NOT NULL,
+    validation_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_snapshot_imports_imported_at
+ON calendar_snapshot_imports(imported_at);
+
 CREATE TABLE IF NOT EXISTS weight_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     log_date TEXT NOT NULL UNIQUE,
@@ -570,6 +585,112 @@ def delete_nutrition_memory(memory_id: int) -> bool:
     connection = get_db()
     try:
         cursor = connection.execute("DELETE FROM nutrition_memory WHERE id = ?", (memory_id,))
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+def save_calendar_snapshot_import(
+    snapshot: dict[str, Any],
+    *,
+    label: str = "manual import",
+    source: str = "manual_paste",
+    validation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Persist a sanitized read-only calendar snapshot import."""
+    clean_label = str(label or "manual import").strip()[:160] or "manual import"
+    clean_source = str(source or "manual_paste").strip()[:80] or "manual_paste"
+    as_of = str(snapshot.get("as_of", ""))
+    events = snapshot.get("events", []) if isinstance(snapshot.get("events", []), list) else []
+    warnings = snapshot.get("fetch_warnings", []) if isinstance(snapshot.get("fetch_warnings", []), list) else []
+    validation_payload = validation or {}
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO calendar_snapshot_imports (
+                imported_at, label, source, as_of, event_count, warning_count,
+                snapshot_json, validation_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                _utc_now(),
+                clean_label,
+                clean_source,
+                as_of,
+                len(events),
+                len(warnings),
+                json.dumps(snapshot, sort_keys=True),
+                json.dumps(validation_payload, sort_keys=True),
+            ),
+        )
+        connection.commit()
+        return get_calendar_snapshot_import(int(cursor.lastrowid)) or {}
+    finally:
+        connection.close()
+
+
+def _calendar_import_row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    item = dict(row)
+    item["snapshot"] = json.loads(item.pop("snapshot_json") or "{}")
+    item["validation"] = json.loads(item.pop("validation_json") or "{}")
+    return item
+
+
+def get_calendar_snapshot_import(import_id: int) -> dict[str, Any] | None:
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT * FROM calendar_snapshot_imports WHERE id = ?",
+            (int(import_id),),
+        ).fetchone()
+        return _calendar_import_row_to_dict(row)
+    finally:
+        connection.close()
+
+
+def get_latest_calendar_snapshot_import() -> dict[str, Any] | None:
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """
+            SELECT * FROM calendar_snapshot_imports
+            ORDER BY imported_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        return _calendar_import_row_to_dict(row)
+    finally:
+        connection.close()
+
+
+def list_calendar_snapshot_imports(limit: int = 10) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(int(limit or 10), 50))
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM calendar_snapshot_imports
+            ORDER BY imported_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [_calendar_import_row_to_dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def delete_calendar_snapshot_import(import_id: int) -> bool:
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            "DELETE FROM calendar_snapshot_imports WHERE id = ?",
+            (int(import_id),),
+        )
         connection.commit()
         return cursor.rowcount > 0
     finally:

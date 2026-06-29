@@ -567,3 +567,32 @@ class NutritionAcceptanceGateRouteTests(unittest.TestCase):
         data = client.get("/nutrition/acceptance-gate").json()
         assert data["ready_for_calendar_aware_nutrition"] is True
         assert data["contracts"]["home_and_finance_untouched"] is True
+
+class NutritionCalendarBridgeRouteTests(unittest.TestCase):
+    def test_calendar_bridge_returns_200(self):
+        assert client.get("/nutrition/calendar-bridge").status_code == 200
+
+    def test_calendar_bridge_is_safe_and_read_only(self):
+        data = client.get("/nutrition/calendar-bridge?days=3").json()
+        assert data["mode"] == "calendar_aware_nutrition_bridge"
+        assert data["live_plaan_fetch_enabled"] is False
+        assert data["ai_provider_required"] is False
+        assert data["requires_approval"] is True
+        assert data["safety"]["no_plaan_mutations"] is True
+        assert data["safety"]["no_raw_page_sent_to_ai"] is True
+        assert len(data["days"]) == 3
+
+    def test_calendar_bridge_uses_existing_live_snapshot_contract(self):
+        data = client.get("/nutrition/calendar-bridge?days=7").json()
+        assert data["source"] == "calendar_snapshot_contract"
+        assert "fetch_warnings" in data
+        assert "counts" in data
+
+class NutritionCalendarLiveBridgeTests(unittest.TestCase):
+    def test_calendar_bridge_exposes_plaan_source_boundary(self):
+        data = client.get("/nutrition/calendar-bridge").json()
+        assert "calendar_source" in data
+        assert data["calendar_source"]["read_only"] is True
+        assert data["calendar_source"]["mutations_allowed"] is False
+        assert data["calendar_source"]["raw_page_sent_to_ai"] is False
+        assert data["plaan_live_fetcher"]["stage"] == "v2.3_manual_snapshot_import"

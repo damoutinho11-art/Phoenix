@@ -12,6 +12,7 @@ import NutritionMemory from './components/nutrition/NutritionMemory'
 import ShoppingList from './components/nutrition/ShoppingList'
 import WeeklyPlanner from './components/nutrition/WeeklyPlanner'
 import NutritionAcceptanceGate from './components/nutrition/NutritionAcceptanceGate'
+import CalendarNutritionBridge from './components/nutrition/CalendarNutritionBridge'
 import TrainingMetrics from './components/training/TrainingMetrics'
 import ActiveSession from './components/training/ActiveSession'
 import JumpLog from './components/training/JumpLog'
@@ -28,6 +29,7 @@ import BudgetUpload from './components/finance/BudgetUpload'
 import CalendarDashboard from './components/calendar/CalendarDashboard'
 import EventDetail from './components/calendar/EventDetail'
 import WeekView from './components/calendar/WeekView'
+import CalendarFeedPublisher from './components/calendar/CalendarFeedPublisher'
 
 export default function App() {
   const [tab, setTab] = useState('home')
@@ -99,6 +101,7 @@ export default function App() {
             <CalendarDashboard
               onEvent={ev => { setCalendarEvent(ev); setCalendarScreen('detail') }}
               onWeekView={() => setCalendarScreen('week')}
+              onFeed={() => setCalendarScreen('feed')}
               onQuickAsk={handleQuickAsk}
             />
           )
@@ -116,6 +119,8 @@ export default function App() {
               onEvent={ev => { setCalendarEvent(ev); setCalendarScreen('detail') }}
             />
           )
+        case 'feed':
+          return <CalendarFeedPublisher onBack={() => setCalendarScreen('dashboard')} />
         default:
           return null
       }
@@ -157,6 +162,7 @@ export default function App() {
             onShopping={() => setNutritionScreen('shopping')}
             onWeeklyPlanner={() => setNutritionScreen('weekly-plan')}
             onAcceptanceGate={() => setNutritionScreen('acceptance-gate')}
+            onCalendarBridge={() => setNutritionScreen('calendar-bridge')}
           />
         )
       case 'recipes':
@@ -186,6 +192,8 @@ export default function App() {
         return <ShoppingList onBack={() => setNutritionScreen('dashboard')} />
       case 'acceptance-gate':
         return <NutritionAcceptanceGate onBack={() => setNutritionScreen('dashboard')} />
+      case 'calendar-bridge':
+        return <CalendarNutritionBridge onBack={() => setNutritionScreen('dashboard')} />
       case 'weekly-plan':
         return (
           <WeeklyPlanner

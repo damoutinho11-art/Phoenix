@@ -523,3 +523,53 @@ class WeeklyMealPrepTests(unittest.TestCase):
         )
         assert plan["training_split"]["training_days"] >= 1
         assert plan["training_split"]["rest_days"] >= 1
+
+class CalendarAwareNutritionBridgeTests(unittest.TestCase):
+    def test_calendar_bridge_handles_empty_snapshot_without_ai_or_live_fetch(self):
+        from jarvis.domains.calendar.tests.fixtures import EMPTY_SNAPSHOT_RAW
+        status = engine.check_nutrition(CONSTITUTION, [], today=CUT_TRAINING_DATE)
+        bridge = engine.build_calendar_aware_nutrition_bridge(
+            CONSTITUTION,
+            status,
+            EMPTY_SNAPSHOT_RAW,
+            today=CUT_TRAINING_DATE,
+            days=3,
+        )
+        assert bridge["mode"] == "calendar_aware_nutrition_bridge"
+        assert bridge["live_plaan_fetch_enabled"] is False
+        assert bridge["ai_provider_required"] is False
+        assert bridge["requires_approval"] is True
+        assert bridge["counts"]["events"] == 0
+        assert bridge["safety"]["no_plaan_mutations"] is True
+        assert len(bridge["days"]) == 3
+
+    def test_calendar_bridge_flags_performance_day_nutrition_timing(self):
+        from jarvis.domains.calendar.tests.fixtures import TYPICAL_WEEK_SNAPSHOT_RAW
+        status = engine.check_nutrition(CONSTITUTION, [], today=date(2026, 6, 23))
+        bridge = engine.build_calendar_aware_nutrition_bridge(
+            CONSTITUTION,
+            status,
+            TYPICAL_WEEK_SNAPSHOT_RAW,
+            today=date(2026, 6, 23),
+            days=4,
+        )
+        perf_day = next(day for day in bridge["days"] if day["day_type"] == "performance_day")
+        assert perf_day["priority"] == "high"
+        assert any(move.startswith("Front-load") for move in perf_day["nutrition_moves"])
+        assert "avoid_late_heavy_dinner" in perf_day["planner_adjustments"]
+        assert bridge["counts"]["performances"] == 1
+
+    def test_calendar_bridge_flags_late_rehearsal(self):
+        from jarvis.domains.calendar.tests.fixtures import TYPICAL_WEEK_SNAPSHOT_RAW
+        status = engine.check_nutrition(CONSTITUTION, [], today=date(2026, 6, 23))
+        bridge = engine.build_calendar_aware_nutrition_bridge(
+            CONSTITUTION,
+            status,
+            TYPICAL_WEEK_SNAPSHOT_RAW,
+            today=date(2026, 6, 23),
+            days=1,
+        )
+        day = bridge["days"][0]
+        assert day["day_type"] == "late_rehearsal_day"
+        assert day["priority"] == "high"
+        assert "pre_rehearsal_main_meal" in day["planner_adjustments"]

@@ -297,3 +297,37 @@ class FullCheckScheduleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class IcsFeedPublisherTests(unittest.TestCase):
+    def test_build_ics_feed_contains_calendar_and_event(self) -> None:
+        from jarvis.domains.calendar import ics_feed
+        raw = make_snapshot_raw([
+            make_event("ics-1", "performance", "Othello", "2026-08-20", "19:00", "22:00")
+        ], as_of="2026-08-20T09:00:00")
+        snapshot = engine.parse_snapshot(raw)
+        feed = ics_feed.build_ics_feed(snapshot)
+        self.assertIn("BEGIN:VCALENDAR", feed)
+        self.assertIn("BEGIN:VEVENT", feed)
+        self.assertIn("SUMMARY:🎼 Othello", feed)
+        self.assertIn("DTSTART;TZID=Europe/Tallinn:20260820T190000", feed)
+        self.assertIn("X-PHOENIX-READ-ONLY:TRUE", feed)
+
+    def test_build_ics_feed_all_day_for_no_time_event(self) -> None:
+        from jarvis.domains.calendar import ics_feed
+        raw = make_snapshot_raw([
+            make_event("ics-all-day", "unknown", "No Time Call", "2026-08-21", None, None)
+        ], as_of="2026-08-20T09:00:00")
+        snapshot = engine.parse_snapshot(raw)
+        feed = ics_feed.build_ics_feed(snapshot)
+        self.assertIn("DTSTART;VALUE=DATE:20260821", feed)
+        self.assertIn("DTEND;VALUE=DATE:20260822", feed)
+
+    def test_feed_status_requires_private_token(self) -> None:
+        from jarvis.domains.calendar import ics_feed
+        raw = make_snapshot_raw([], as_of="2026-08-20T09:00:00")
+        snapshot = engine.parse_snapshot(raw)
+        status = ics_feed.feed_status(snapshot, {"active_source": "fixture", "read_only": True})
+        self.assertTrue(status["token_required"])
+        self.assertIn("feed_path_template", status)
+        self.assertTrue(status["safety"]["plaan_read_only"])
+        self.assertFalse(status["safety"]["google_write"])

@@ -32,7 +32,7 @@ function buildWeekDays() {
   })
 }
 
-export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
+export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuickAsk }) {
   const [events, setEvents] = useState(null)
   const [alerts, setAlerts] = useState(null)
   const [jarvisText, setJarvisText] = useState('')
@@ -148,7 +148,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {[
-              { label: 'ADD EVENT', action: null },
+              { label: 'ICS FEED', action: onFeed },
               { label: 'WEEK VIEW', action: onWeekView },
               { label: 'EVENT DETAIL', action: () => onEvent && onEvent(displayEvents[0] || null) },
               { label: 'ASK PHOENIX', action: () => onQuickAsk && onQuickAsk('What should I know about my schedule today?') },

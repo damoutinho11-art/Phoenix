@@ -1,5 +1,5 @@
 from pathlib import Path
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 import json
 import math
 import re
@@ -1386,6 +1386,260 @@ def log_item(
     else:
         raise ValueError(f"item_type must be 'recipe' or 'staple', got: {item_type}")
 
+
+
+# ---------------------------------------------------------------------------
+# Calendar-aware nutrition bridge (v2.1)
+# ---------------------------------------------------------------------------
+
+def _event_time_label(event) -> str:
+    start = event.time_start.strftime("%H:%M") if event.time_start else "all day"
+    end = event.time_end.strftime("%H:%M") if event.time_end else None
+    return f"{start}-{end}" if end else start
+
+
+def _public_calendar_event(event) -> dict:
+    return {
+        "event_id": event.event_id,
+        "event_type": getattr(event.event_type, "value", str(event.event_type)),
+        "title": event.title,
+        "date": event.date.isoformat(),
+        "time_start": event.time_start.strftime("%H:%M") if event.time_start else None,
+        "time_end": event.time_end.strftime("%H:%M") if event.time_end else None,
+        "time_label": _event_time_label(event),
+        "location": event.location,
+        "role": event.role,
+    }
+
+
+def _event_end_hour(event) -> int | None:
+    if event.time_end:
+        return event.time_end.hour
+    if event.time_start:
+        return event.time_start.hour
+    return None
+
+
+def _calendar_day_type(events: list) -> str:
+    types = {getattr(e.event_type, "value", str(e.event_type)) for e in events}
+    if "performance" in types:
+        return "performance_day"
+    if "rehearsal" in types:
+        if any((_event_end_hour(e) or 0) >= 21 for e in events if getattr(e.event_type, "value", str(e.event_type)) == "rehearsal"):
+            return "late_rehearsal_day"
+        return "rehearsal_day"
+    if "travel" in types:
+        return "travel_day"
+    if events:
+        return "scheduled_day"
+    return "open_day"
+
+
+def _calendar_priority(day_type: str) -> str:
+    if day_type in {"performance_day", "late_rehearsal_day"}:
+        return "high"
+    if day_type in {"rehearsal_day", "travel_day"}:
+        return "medium"
+    if day_type == "scheduled_day":
+        return "low"
+    return "normal"
+
+
+def _calendar_nutrition_moves(day_type: str, *, is_training_day_flag: bool) -> list[str]:
+    base = [
+        "Keep protein anchored early; do not leave the whole protein target for late night.",
+        "Hydrate earlier in the day; include sodium/potassium/magnesium from food or a simple electrolyte if sweat/stage heat is high.",
+    ]
+    if day_type == "performance_day":
+        return [
+            "Front-load a calm, complete meal 3-4 hours before the performance.",
+            "Use a portable protein + carb option if the gap between rehearsal, travel, and curtain is long.",
+            "Keep the post-show meal lighter: lean protein, fermented dairy or vegetables; avoid forcing a heavy high-fat dinner right before sleep.",
+            *base,
+        ]
+    if day_type == "late_rehearsal_day":
+        return [
+            "Plan dinner before the late rehearsal or prepare a light post-rehearsal closeout.",
+            "Avoid arriving home with the full calorie/protein target still open.",
+            "Use recovery-style whole foods: yogurt/skyr, fruit/berries, oats/rice/potatoes, fish/lean meat, vegetables.",
+            *base,
+        ]
+    if day_type == "rehearsal_day":
+        return [
+            "Place a protein anchor before rehearsal if the call cuts across normal meal time.",
+            "Use an easy portable snack if there is a long gap before the next meal.",
+            *base,
+        ]
+    if day_type == "travel_day":
+        return [
+            "Pack a portable high-protein option and water before leaving.",
+            "Choose lower-mess, stable foods: skyr/yogurt, tuna/chicken sandwich, fruit, oats/rice cakes, or a prepared bowl.",
+            *base,
+        ]
+    if is_training_day_flag:
+        return [
+            "No calendar event is blocking nutrition timing; use the normal training-day recovery pattern.",
+            "After hard training, use protein plus quality carbs instead of delaying nutrition for hours.",
+            *base,
+        ]
+    return [
+        "No calendar event is blocking nutrition timing; use the normal rest-day baseline.",
+        "Keep digestion lighter near sleep and close protein steadily across the day.",
+        *base,
+    ]
+
+
+def _calendar_meal_timing(day_type: str) -> list[dict]:
+    if day_type == "performance_day":
+        return [
+            {"slot": "pre_performance", "timing": "3-4h before curtain", "focus": "complete meal: lean protein + controlled carbs + vegetables", "approval_required": True},
+            {"slot": "portable_gap", "timing": "60-120m before if needed", "focus": "small protein + carb option; low mess, easy digestion", "approval_required": True},
+            {"slot": "post_show", "timing": "after performance", "focus": "light closeout only if protein/calories remain", "approval_required": True},
+        ]
+    if day_type == "late_rehearsal_day":
+        return [
+            {"slot": "pre_rehearsal_dinner", "timing": "before late rehearsal", "focus": "main meal before the call", "approval_required": True},
+            {"slot": "post_rehearsal_closeout", "timing": "after rehearsal", "focus": "light protein closeout if required", "approval_required": True},
+        ]
+    if day_type == "rehearsal_day":
+        return [
+            {"slot": "pre_rehearsal", "timing": "before call", "focus": "protein anchor", "approval_required": True},
+            {"slot": "post_rehearsal", "timing": "after call", "focus": "normal meal or recovery meal depending on training", "approval_required": True},
+        ]
+    if day_type == "travel_day":
+        return [
+            {"slot": "portable_meal", "timing": "before leaving", "focus": "packable protein + carb + water", "approval_required": True},
+        ]
+    return [
+        {"slot": "normal_planner", "timing": "normal day", "focus": "use standard Phoenix meal/day planner", "approval_required": True},
+    ]
+
+
+def _calendar_planner_adjustments(day_type: str) -> list[str]:
+    if day_type == "performance_day":
+        return ["prefer_portable_meal", "avoid_late_heavy_dinner", "front_load_protein", "early_hydration"]
+    if day_type == "late_rehearsal_day":
+        return ["pre_rehearsal_main_meal", "light_late_closeout", "early_hydration"]
+    if day_type == "rehearsal_day":
+        return ["protect_meal_window", "portable_snack_if_gap"]
+    if day_type == "travel_day":
+        return ["portable_food", "water_electrolytes", "pantry_packable_items"]
+    return ["standard_nutrition_planner"]
+
+
+def build_calendar_aware_nutrition_bridge(
+    constitution: dict,
+    status: NutritionStatus,
+    calendar_snapshot_raw: dict,
+    *,
+    today: date | None = None,
+    days: int = 7,
+    memory_entries: list[dict] | None = None,
+) -> dict:
+    """Bridge calendar-shaped data into nutrition timing guidance.
+
+    v2.1 intentionally does not fetch Plaan live. It consumes the existing
+    read-only calendar snapshot contract, keeps all credentials/cookies out of
+    Nutrition, and produces deterministic timing guidance only. Nothing is
+    logged, bought, or sent to an AI provider.
+    """
+    from jarvis.domains.calendar import engine as calendar_engine
+
+    start = today or date.today()
+    window_days = max(1, min(int(days or 7), 14))
+    try:
+        snapshot = calendar_engine.parse_snapshot(calendar_snapshot_raw)
+        parse_warning = None
+    except Exception as exc:
+        snapshot = None
+        parse_warning = f"Calendar snapshot could not be parsed: {exc}"
+
+    memory_profile = build_nutrition_memory_profile(memory_entries or [])
+    memory_summary = public_memory_summary(memory_profile)
+    schedule_days: list[dict] = []
+    event_count = 0
+    performance_count = 0
+    rehearsal_count = 0
+    travel_count = 0
+
+    for offset in range(window_days):
+        current = start + timedelta(days=offset)
+        events = snapshot.events_on(current) if snapshot else []
+        public_events = [_public_calendar_event(e) for e in events]
+        event_count += len(events)
+        performance_count += sum(1 for e in public_events if e["event_type"] == "performance")
+        rehearsal_count += sum(1 for e in public_events if e["event_type"] == "rehearsal")
+        travel_count += sum(1 for e in public_events if e["event_type"] == "travel")
+        day_type = _calendar_day_type(events)
+        is_training = is_training_day(constitution, current)
+        schedule_days.append({
+            "date": current.isoformat(),
+            "day_offset": offset,
+            "event_count": len(events),
+            "events": public_events,
+            "day_type": day_type,
+            "priority": _calendar_priority(day_type),
+            "is_training_day": is_training,
+            "nutrition_moves": _calendar_nutrition_moves(day_type, is_training_day_flag=is_training),
+            "meal_timing": _calendar_meal_timing(day_type),
+            "planner_adjustments": _calendar_planner_adjustments(day_type),
+            "requires_approval": True,
+        })
+
+    high_priority = [d for d in schedule_days if d["priority"] == "high"]
+    next_scheduled = next((d for d in schedule_days if d["event_count"] > 0), None)
+    if parse_warning:
+        summary = "Calendar-aware nutrition is paused until a valid read-only calendar snapshot is available."
+    elif event_count == 0:
+        summary = "Calendar-aware nutrition bridge is ready, but the current Plaan snapshot has no personal events in this window. Use normal Nutrition planning."
+    else:
+        summary = (
+            f"Calendar-aware nutrition found {event_count} event(s) across {window_days} days. "
+            "Phoenix can time meals around rehearsals, performances, travel, and recovery without live Plaan writes or AI calls."
+        )
+
+    warnings = list(calendar_snapshot_raw.get("fetch_warnings", [])) if isinstance(calendar_snapshot_raw, dict) else []
+    if parse_warning:
+        warnings.append(parse_warning)
+
+    return {
+        "mode": "calendar_aware_nutrition_bridge",
+        "version": "v2.1",
+        "source": "calendar_snapshot_contract",
+        "live_plaan_fetch_enabled": False,
+        "ai_provider_required": False,
+        "requires_approval": True,
+        "summary": summary,
+        "as_of": snapshot.as_of.isoformat() if snapshot else None,
+        "window": {"start_date": start.isoformat(), "days": window_days},
+        "today_status": {
+            "date": status.as_of.isoformat(),
+            "is_training_day": status.is_training_day,
+            "remaining_calories": _round_macro(status.remaining_calories),
+            "remaining_protein_g": _round_macro(status.remaining_protein_g),
+            "adherence_status": status.adherence_status,
+        },
+        "counts": {
+            "events": event_count,
+            "performances": performance_count,
+            "rehearsals": rehearsal_count,
+            "travel": travel_count,
+            "high_priority_days": len(high_priority),
+        },
+        "next_scheduled_day": next_scheduled,
+        "days": schedule_days,
+        "memory": memory_summary,
+        "fetch_warnings": warnings,
+        "safety": {
+            "read_only_calendar": True,
+            "no_plaan_mutations": True,
+            "no_credentials_in_nutrition": True,
+            "no_raw_page_sent_to_ai": True,
+            "no_auto_logging": True,
+            "no_auto_shopping": True,
+        },
+        "next_build": "Live Plaan fetch can be added later as a separate read-only fetcher; this bridge only consumes normalized snapshots.",
+    }
 
 def _acceptance_check(checks: list[dict], key: str, passed: bool, detail: str, severity: str = "blocker", evidence: dict | None = None) -> None:
     checks.append({

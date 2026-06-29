@@ -68,7 +68,7 @@ function EmptyMeals({ kcalLeft, proteinLeft, onLogMeal }) {
   )
 }
 
-export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWeight, onQuickAsk, onMealBuilder, onDayPlanner, onMemory, onShopping, onWeeklyPlanner, onAcceptanceGate }) {
+export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWeight, onQuickAsk, onMealBuilder, onDayPlanner, onMemory, onShopping, onWeeklyPlanner, onAcceptanceGate, onCalendarBridge }) {
   const [status, setStatus] = useState(null)
   const [historyData, setHistoryData] = useState(null)
   const [trendText, setTrendText] = useState(null)
@@ -240,6 +240,7 @@ export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWei
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {[
               { label: 'ACCEPTANCE', action: onAcceptanceGate },
+              { label: 'CALENDAR', action: onCalendarBridge },
               { label: 'WEEKLY PREP', action: onWeeklyPlanner },
               { label: 'PLAN DAY', action: onDayPlanner },
               { label: 'BUILD MEAL', action: onMealBuilder },

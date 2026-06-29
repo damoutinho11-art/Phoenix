@@ -10,6 +10,8 @@ from jarvis.api.dependencies import get_nutrition_constitution
 from jarvis.data import database
 from jarvis.domains.nutrition import engine
 from jarvis.domains.nutrition.data_contracts import NutritionStatus, Recipe, LidlStaple
+from jarvis.domains.calendar import plaan_live
+from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 
 router = APIRouter()
 
@@ -372,6 +374,44 @@ def meal_history(
 
 
 
+
+
+
+@router.get("/calendar-bridge")
+def nutrition_calendar_bridge(
+    days: int = Query(7, ge=1, le=14),
+    start_date: date | None = Query(None),
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    """Return calendar-aware nutrition timing guidance.
+
+    This v2.1 bridge consumes the existing read-only calendar snapshot contract.
+    It does not fetch Plaan live, mutate Plaan, send raw calendar pages to AI, or
+    log meals automatically.
+    """
+    bridge_date = start_date or date.today()
+    status, _meals = _status_for_date(constitution, bridge_date)
+    entries = database.get_nutrition_memory()
+    latest_import = database.get_latest_calendar_snapshot_import()
+    imported_snapshot = latest_import.get("snapshot") if latest_import else None
+    calendar_snapshot_raw, source_info = plaan_live.resolve_snapshot_raw(LIVE_SNAPSHOT_RAW, imported_snapshot=imported_snapshot)
+    result = engine.build_calendar_aware_nutrition_bridge(
+        constitution=constitution,
+        status=status,
+        calendar_snapshot_raw=calendar_snapshot_raw,
+        today=bridge_date,
+        days=days,
+        memory_entries=entries,
+    )
+    result["calendar_source"] = source_info
+    result["plaan_live_fetcher"] = {
+        "stage": "v2.3_manual_snapshot_import",
+        "live_fetch_default": False,
+        "credentials_sent_to_ai": False,
+        "raw_page_sent_to_ai": False,
+        "mutations_allowed": False,
+    }
+    return result
 
 
 @router.get("/acceptance-gate")
