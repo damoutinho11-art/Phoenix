@@ -46,7 +46,7 @@ export default function WeekView({ onBack, onEvent }) {
         <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: VIOLET, border: `1px solid rgba(159,125,255,.32)`, background: 'rgba(159,125,255,.055)', padding: '2px 8px' }}>WK 26</span>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
         {/* HERO 2-COL */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ padding: '16px 18px', borderRight: `1px solid ${BORDER}` }}>

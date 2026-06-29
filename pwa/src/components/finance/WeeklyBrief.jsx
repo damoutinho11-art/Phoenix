@@ -623,7 +623,7 @@ export default function WeeklyBrief({ onBack }) {
   const approvalBtnBase = { fontFamily: MONO, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border: 'none', background: 'transparent' }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
+    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
 
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, overflow: 'hidden' }}>

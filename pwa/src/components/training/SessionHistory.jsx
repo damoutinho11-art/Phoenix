@@ -178,7 +178,7 @@ export default function SessionHistory({ onBack }) {
       )}
 
       {!loading && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
 
           {/* SUMMARY STATS */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: ORANGE_BDR }}>

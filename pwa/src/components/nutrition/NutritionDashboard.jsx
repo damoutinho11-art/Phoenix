@@ -160,7 +160,7 @@ export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWei
         </span>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
         <div style={{ padding: '20px 20px 18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.045),transparent)' }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>DAILY ENERGY TARGET</div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>

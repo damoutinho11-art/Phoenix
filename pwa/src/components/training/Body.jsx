@@ -189,7 +189,7 @@ export default function Body({ onBack }) {
       )}
 
       {!loading && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
 
           {/* HERO */}
           <div style={{ padding: '18px 18px 16px', borderBottom: ORANGE_BDR, background: 'linear-gradient(155deg,rgba(255,143,46,.05),transparent 65%)', position: 'relative', overflow: 'hidden' }}>

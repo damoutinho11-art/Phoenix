@@ -114,7 +114,7 @@ export default function WeightHistory({ onBack }) {
         <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>REAL DATA</span>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ padding: '16px 18px', borderRight: `1px solid ${BORDER}` }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: MUTED, marginBottom: 5 }}>WEIGHT NOW</div>

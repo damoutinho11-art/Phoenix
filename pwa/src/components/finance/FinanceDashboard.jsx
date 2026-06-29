@@ -62,6 +62,7 @@ const s = {
     position: 'relative',
     overflowX: 'hidden',
     overflowY: 'auto',
+    paddingBottom: 88,
   },
   shell: {
     maxWidth: 900,

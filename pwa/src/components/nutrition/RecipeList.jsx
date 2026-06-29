@@ -122,7 +122,7 @@ export default function RecipeList({ onBack }) {
         </span>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
         <div style={{ padding: '18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.04),transparent)' }}>
           <div style={{ fontFamily: 'var(--display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff', filter: 'drop-shadow(0 0 14px rgba(157,255,111,.28))' }}>NEXT MEAL OPTIONS</div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: TEXT_DIM, lineHeight: 1.7, marginTop: 6 }}>

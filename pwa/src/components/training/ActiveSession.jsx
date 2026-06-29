@@ -421,7 +421,7 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
     : '—'
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: T.bg, color: T.text }}>
+    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: T.bg, color: T.text }}>
 
       {/* Hero */}
       <div style={{ padding: '44px 24px 28px', borderBottom: T.borderCyan, textAlign: 'center', background: 'linear-gradient(180deg,rgba(77,255,180,.04),transparent)', position: 'relative' }}>
@@ -722,7 +722,7 @@ export default function ActiveSession({ onBack }) {
       </div>
 
       {/* SET LIST */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', paddingBottom: 88, display: 'flex', flexDirection: 'column', gap: 7 }}>
         {ex.sets.map((set, i) => {
           const logged       = set.logged
           const prevSetsDone = ex.sets.slice(0, i).every(s => s.logged)
