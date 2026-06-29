@@ -6,12 +6,12 @@
     "excluded_from_allocation": true
   },
   "holdings": {
-    "btc": 65.2,
+    "btc": 64.96,
     "discovery": 0.0,
     "global_core_etf": 0.0,
     "growth_nasdaq_etf": 0.0,
     "hype": 0.0,
-    "quality_etf": 69.23,
+    "quality_etf": 69.68,
     "tactical_reserve": 4.9,
     "tao": 0.0
   },
@@ -25,12 +25,12 @@
   },
   "units": {
     "_note": "Coin/share counts used by /finance/refresh-prices. Derived from 2026-06-29 prices — verify against your broker.",
-    "btc": 0.001221,
+    "btc": 0.00123038,
     "discovery": 0,
     "global_core_etf": 0,
     "growth_nasdaq_etf": 0,
     "hype": 0,
-    "quality_etf": 0.8912801053,
+    "quality_etf": 0.912001053,
     "tactical_reserve": null,
     "tao": 0,
     "lhv_growth_cash_pending_settlement": 0,
