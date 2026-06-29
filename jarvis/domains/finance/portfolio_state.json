@@ -24,7 +24,7 @@
     "lhv_growth_xcha": 125.75
   },
   "units": {
-    "_note": "Coin/share counts used by /finance/refresh-prices. Derived from 2026-06-29 prices \u2014 verify against your broker.",
+    "_note": "Coin/share counts used by /finance/refresh-prices. Derived from 2026-06-29 prices — verify against your broker.",
     "btc": 0.001221,
     "discovery": 0,
     "global_core_etf": 0,
@@ -47,5 +47,6 @@
     "lhv_crypto_ready": true,
     "lightyear_ready": true,
     "trade_republic_ready": true
-  }
+  },
+  "prices_refreshed_at": "2026-06-29T20:21:17.655998+00:00"
 }
