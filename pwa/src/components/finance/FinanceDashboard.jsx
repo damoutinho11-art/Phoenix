@@ -165,7 +165,18 @@ function Header({ summary, checklist, recommendation, actionCopy, loading }) {
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.27)' }}>
-            {summary?.as_of ? `W${getWeekNumber(summary.as_of)} · ${summary.as_of}` : weekLabel}
+            {summary?.prices_refreshed_at
+              ? (() => {
+                  const d = new Date(summary.prices_refreshed_at)
+                  const now = new Date()
+                  const diffMin = Math.round((now - d) / 60000)
+                  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  const age = diffMin < 1 ? 'LIVE' : diffMin < 60 ? `${diffMin}m` : `${Math.round(diffMin / 60)}h`
+                  return `PRICES ${timeStr} · ${age}`
+                })()
+              : summary?.as_of
+                ? `W${getWeekNumber(summary.as_of)} · ${summary.as_of}`
+                : weekLabel}
           </span>
           <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00cc77', boxShadow: '0 0 6px #00cc77' }} />
           <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,204,119,0.53)' }}>ONLINE</span>

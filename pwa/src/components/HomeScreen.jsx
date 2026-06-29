@@ -420,8 +420,13 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
   const [calendarText, setCalendarText] = useState('— EVT')
   const [recoveryOk, setRecoveryOk]     = useState(true)
 
+  function timeGreeting() {
+    const h = new Date().getHours()
+    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  }
+
   const [dockResponse, setDockResponse] = useState(
-    'Good afternoon, Diogo. Systems are nominal.'
+    `${timeGreeting()}, Diogo. Systems are nominal.`
   )
   const [chatOpen, setChatOpen]   = useState(false)
   const [chatState, setChatState] = useState('standing by')
@@ -450,9 +455,13 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
   useEffect(() => {
     getFinanceSummary()
       .then(r => {
-        const sleeves  = r?.sleeve_summary || []
-        const outCount = sleeves.filter(s => s.band_status !== 'within_band').length
-        setFinanceText(outCount === 0 ? 'IN BAND' : `${outCount} OUT`)
+        if (r?.week_done) {
+          setFinanceText(`${r.week_label || 'WEEK'} DONE`)
+        } else {
+          const sleeves  = r?.sleeve_summary || []
+          const outCount = sleeves.filter(s => s.band_status !== 'within_band').length
+          setFinanceText(outCount === 0 ? 'IN BAND' : `${outCount} OUT`)
+        }
       })
       .catch(() => setFinanceText('—'))
 
@@ -479,9 +488,10 @@ export default function HomeScreen({ onOpenCockpit, onOpenDomain }) {
   useEffect(() => {
     const greet = async () => {
       await new Promise(r => setTimeout(r, 2000))
-      setDockResponse('Good morning, Sir. How can I assist you today?')
+      const greeting = timeGreeting()
+      setDockResponse(`${greeting}, Sir. How can I assist you today?`)
       setReactorMode('speaking')
-      speak('Good morning Sir. How can I assist you today?', {
+      speak(`${greeting}, Sir. How can I assist you today?`, {
         onEnd: () => setReactorMode(''),
       })
     }

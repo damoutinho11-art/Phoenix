@@ -345,10 +345,15 @@ def finance_summary(
     holdings = engine.investable_holdings(constitution, portfolio_state)
     statuses = engine.current_statuses(constitution, holdings)
     staleness = engine.portfolio_state_staleness_warning(portfolio_state)
+    week_label = _iso_week_label()
+    applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
 
     return {
         "as_of": portfolio_state.get("as_of"),
+        "prices_refreshed_at": portfolio_state.get("prices_refreshed_at"),
         "total_invested": engine.euros(sum(holdings.values())),
+        "week_label": week_label,
+        "week_done": bool(applied_this_week),
         "sleeve_summary": [
             {
                 "name": s.name,

@@ -148,7 +148,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onQuickAsk }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {[
-              { label: 'ADD EVENT', action: null },
+              { label: 'ADD EVENT', action: () => onQuickAsk && onQuickAsk('Add event: ') },
               { label: 'WEEK VIEW', action: onWeekView },
               { label: 'EVENT DETAIL', action: () => onEvent && onEvent(displayEvents[0] || null) },
               { label: 'ASK PHOENIX', action: () => onQuickAsk && onQuickAsk('What should I know about my schedule today?') },
