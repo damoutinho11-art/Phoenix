@@ -1299,15 +1299,12 @@ def finance_refresh_prices() -> dict:
     Holdings without units are left unchanged; their key appears in
     ``needs_units`` so the user knows to add a unit count.
     """
-    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    portfolio_state = database.load_portfolio_state()
     constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
 
     updated_state, meta = update_portfolio_state_prices(portfolio_state, constitution)
 
-    engine.DEFAULT_PORTFOLIO_STATE_PATH.write_text(
-        json.dumps(updated_state, indent=2),
-        encoding="utf-8",
-    )
+    database.save_portfolio_state(updated_state)
 
     return {
         "updated": True,
@@ -2439,7 +2436,7 @@ def finance_ledger_apply_preview(transaction_id: int) -> dict:
             detail=f"Transaction {transaction_id} has already been applied to portfolio_state.",
         )
 
-    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    portfolio_state = database.load_portfolio_state()
     before, after = _build_transaction_apply_preview(transaction, portfolio_state)
 
     return {
@@ -2471,12 +2468,10 @@ def finance_ledger_apply(transaction_id: int) -> dict:
             detail=f"Transaction {transaction_id} has already been applied to portfolio_state.",
         )
 
-    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    portfolio_state = database.load_portfolio_state()
     new_state, before, after = _apply_transaction_to_portfolio_state(transaction, portfolio_state)
 
-    engine.DEFAULT_PORTFOLIO_STATE_PATH.write_text(
-        json.dumps(new_state, indent=2), encoding="utf-8"
-    )
+    database.save_portfolio_state(new_state)
 
     snapshot = json.dumps({"before": before, "after": after})
     database.mark_finance_transaction_applied(transaction_id, snapshot)
@@ -2562,11 +2557,9 @@ def finance_ledger_void(transaction_id: int, payload: VoidTransactionPayload = V
     before = after = None
 
     if was_applied:
-        portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+        portfolio_state = database.load_portfolio_state()
         new_state, before, after = _reverse_transaction_in_portfolio_state(transaction, portfolio_state)
-        engine.DEFAULT_PORTFOLIO_STATE_PATH.write_text(
-            json.dumps(new_state, indent=2), encoding="utf-8"
-        )
+        database.save_portfolio_state(new_state)
 
     void_snapshot = json.dumps({"before": before, "after": after, "was_applied": was_applied})
     database.void_finance_transaction(transaction_id, payload.reason, void_snapshot)

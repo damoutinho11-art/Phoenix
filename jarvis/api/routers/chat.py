@@ -64,7 +64,7 @@ def _build_finance_context() -> tuple[str, bool]:
     try:
         constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
         finance_engine.validate_constitution(constitution)
-        portfolio_state = finance_engine.load_json(finance_engine.DEFAULT_PORTFOLIO_STATE_PATH)
+        portfolio_state = database.load_portfolio_state()
     except (FileNotFoundError, ValueError):
         return "FINANCE: Constitution or portfolio state unavailable.", True
 
