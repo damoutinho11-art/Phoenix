@@ -54,7 +54,7 @@ function Label({ children, cyan = false }) {
   )
 }
 
-function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging }) {
+function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey }) {
   const sleep    = recovery?.sleep
   const soreness = recovery?.soreness
   const overall  = recovery?.overall ?? null
@@ -75,13 +75,20 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging }) {
     ? `${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`
     : '—'
 
-  const btnStyle = (active) => ({
-    flex: 1, fontFamily: MONO, fontSize: 7, letterSpacing: '.1em',
-    color: active ? BG : CYAN_BR,
-    background: active ? CYAN : 'rgba(32,216,236,.06)',
-    border: `1px solid rgba(32,216,236,.28)`,
-    padding: '7px 0', cursor: 'pointer', outline: 'none',
-  })
+  const btnStyle = (key) => {
+    const isLoading = logging === key
+    const isDone    = loggedKey === key
+    return {
+      flex: 1, fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', textAlign: 'center',
+      color:      isDone ? BG : isLoading ? BG : CYAN_BR,
+      background: isDone ? GREEN : isLoading ? CYAN : 'rgba(32,216,236,.06)',
+      border:     `1px solid ${isDone ? 'rgba(77,255,180,.45)' : 'rgba(32,216,236,.28)'}`,
+      padding: '7px 0', cursor: !!logging ? 'default' : 'pointer',
+      transition: 'background .22s, color .22s, border .22s',
+      boxShadow: isDone ? '0 0 10px rgba(77,255,180,.28)' : 'none',
+      userSelect: 'none',
+    }
+  }
 
   return (
     <div style={{ padding: '14px 18px', borderBottom: ORANGE_BDR, background: 'rgba(32,216,236,.018)' }}>
@@ -125,10 +132,10 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging }) {
           <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT, marginBottom: 6 }}>LOG SLEEP</div>
           <div style={{ display: 'flex', gap: 5 }}>
             {[{ ev: 'bedtime', label: 'BED' }, { ev: 'wakeup', label: 'WAKE' }].map(({ ev, label }) => (
-              <button key={ev} onClick={() => onLogSleep(ev)} disabled={!!logging}
-                style={btnStyle(logging === ev)}>
-                {logging === ev ? '…' : label}
-              </button>
+              <div key={ev} onClick={!logging ? () => onLogSleep(ev) : undefined}
+                style={btnStyle(ev)}>
+                {logging === ev ? '…' : loggedKey === ev ? '✓' : label}
+              </div>
             ))}
           </div>
         </div>
@@ -136,10 +143,10 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging }) {
           <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT, marginBottom: 6 }}>LOG SORENESS</div>
           <div style={{ display: 'flex', gap: 5 }}>
             {[{ label: 'LOW', score: 1 }, { label: 'MED', score: 3 }, { label: 'HIGH', score: 5 }].map(({ label, score }) => (
-              <button key={label} onClick={() => onLogSoreness(score)} disabled={!!logging}
-                style={btnStyle(logging === `sor-${score}`)}>
-                {logging === `sor-${score}` ? '…' : label}
-              </button>
+              <div key={label} onClick={!logging ? () => onLogSoreness(score) : undefined}
+                style={btnStyle(`sor-${score}`)}>
+                {logging === `sor-${score}` ? '…' : loggedKey === `sor-${score}` ? '✓' : label}
+              </div>
             ))}
           </div>
         </div>
@@ -167,6 +174,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
   const [brief, setBrief]             = useState(null)
   const [briefLoading, setBriefLoading] = useState(false)
   const [recoveryLogging, setRecoveryLogging] = useState(null)
+  const [recoveryLoggedKey, setRecoveryLoggedKey] = useState(null)
 
   useEffect(() => {
     if (!document.getElementById('ph-fonts')) {
@@ -209,6 +217,8 @@ export default function TrainingMetrics({ onBack, onNav }) {
       await logSleep(eventType)
       const r = await getTrainingRecovery()
       setRecovery(r)
+      setRecoveryLoggedKey(eventType)
+      setTimeout(() => setRecoveryLoggedKey(null), 1500)
     } catch { /* ignore */ }
     setRecoveryLogging(null)
   }
@@ -220,6 +230,8 @@ export default function TrainingMetrics({ onBack, onNav }) {
       await logSoreness(score)
       const r = await getTrainingRecovery()
       setRecovery(r)
+      setRecoveryLoggedKey(key)
+      setTimeout(() => setRecoveryLoggedKey(null), 1500)
     } catch { /* ignore */ }
     setRecoveryLogging(null)
   }
@@ -410,6 +422,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
           onLogSleep={handleLogSleep}
           onLogSoreness={handleLogSoreness}
           logging={recoveryLogging}
+          loggedKey={recoveryLoggedKey}
         />
 
         {/* DOMAIN BUTTONS */}

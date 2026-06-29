@@ -106,6 +106,7 @@ function JumpChart({ jumpData, targetLine = TARGET_IN }) {
         </text>
         <polygon points={fillPts} fill="url(#jGrad)" />
         <polyline ref={lineRef} points={pts} fill="none" stroke={GREEN} strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"
           filter="url(#jGlow)" strokeDasharray={lineLen} strokeDashoffset={lineLen} />
         <circle cx={lastX.toFixed(1)} cy={lastY.toFixed(1)} r="4"
           fill={GREEN} stroke="#000" strokeWidth="1.5" filter="url(#jGlow)" />
@@ -219,7 +220,7 @@ export default function JumpLog({ onBack }) {
     ? Math.min(1, Math.max(0, (lastJumpIn - START_IN) / (TARGET_IN - START_IN)))
     : 0
 
-  // Full jump history list (date + inches)
+  // Full jump history list (date + inches), newest first
   const jumpHistory = jumpProgression
     .filter(p => p.approach != null)
     .map(p => ({
@@ -227,6 +228,10 @@ export default function JumpLog({ onBack }) {
       inches: parseFloat((p.approach / 2.54).toFixed(1)),
     }))
     .reverse()
+
+  const bestJumpInches = jumpHistory.length > 0
+    ? Math.max(...jumpHistory.map(e => e.inches))
+    : null
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
@@ -315,8 +320,8 @@ export default function JumpLog({ onBack }) {
             <div style={{ fontFamily: MONO, fontSize: 8, color: ORANGE_MUT, letterSpacing: '.12em' }}>NO JUMPS LOGGED YET</div>
           )}
           {jumpHistory.map((entry, i) => {
-            const isRecent = i === 0
-            const color = isRecent ? GREEN : entry.inches >= TARGET_IN - 2 ? GREEN : ORANGE
+            const isBest  = entry.inches === bestJumpInches
+            const color   = isBest ? GREEN : entry.inches >= TARGET_IN - 2 ? GREEN : ORANGE
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: i < jumpHistory.length - 1 ? `1px solid rgba(255,143,46,.08)` : 'none' }}>
                 <div>
@@ -325,7 +330,7 @@ export default function JumpLog({ onBack }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                   <div style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 700, color }}>{entry.inches}"</div>
-                  {isRecent && <div style={{ fontFamily: MONO, fontSize: 7, color: GREEN, letterSpacing: '.1em' }}>BEST</div>}
+                  {isBest && <div style={{ fontFamily: MONO, fontSize: 7, color: GREEN, letterSpacing: '.1em' }}>BEST</div>}
                 </div>
               </div>
             )
