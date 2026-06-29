@@ -1,27 +1,602 @@
 [
-  {"id":"lidl_001","name":"Chicken Breast","unit":"100g","price_eur":0.60,"calories":165,"protein_g":31.0,"fat_g":3.6,"carbs_g":0.0},
-  {"id":"lidl_002","name":"Eggs","unit":"1 egg (60g)","price_eur":0.21,"calories":78,"protein_g":6.0,"fat_g":5.0,"carbs_g":0.6},
-  {"id":"lidl_003","name":"0% Greek Yogurt","unit":"100g","price_eur":0.30,"calories":57,"protein_g":10.0,"fat_g":0.2,"carbs_g":3.5},
-  {"id":"lidl_004","name":"Cottage Cheese 0%","unit":"100g","price_eur":0.48,"calories":72,"protein_g":11.0,"fat_g":0.5,"carbs_g":3.5},
-  {"id":"lidl_005","name":"Canned Tuna in Water","unit":"1 can (160g)","price_eur":1.00,"calories":150,"protein_g":34.0,"fat_g":1.0,"carbs_g":0.0},
-  {"id":"lidl_006","name":"Egg Whites Carton","unit":"100ml","price_eur":0.35,"calories":47,"protein_g":11.0,"fat_g":0.0,"carbs_g":0.7},
-  {"id":"lidl_007","name":"Lean Ham Deli Slices","unit":"100g","price_eur":2.00,"calories":107,"protein_g":17.0,"fat_g":3.0,"carbs_g":2.0},
-  {"id":"lidl_008","name":"Fat-Free Cheese Slices","unit":"1 slice (19g)","price_eur":0.25,"calories":30,"protein_g":5.7,"fat_g":0.0,"carbs_g":1.0},
-  {"id":"lidl_009","name":"Rolled Oats","unit":"100g","price_eur":0.15,"calories":389,"protein_g":13.0,"fat_g":7.0,"carbs_g":66.0},
-  {"id":"lidl_010","name":"Whole Grain Bread","unit":"1 slice (40g)","price_eur":0.12,"calories":88,"protein_g":4.0,"fat_g":1.0,"carbs_g":16.0},
-  {"id":"lidl_011","name":"Basmati Rice","unit":"100g dry","price_eur":0.18,"calories":356,"protein_g":7.0,"fat_g":1.0,"carbs_g":79.0},
-  {"id":"lidl_012","name":"Banana","unit":"1 medium (120g)","price_eur":0.14,"calories":107,"protein_g":1.3,"fat_g":0.4,"carbs_g":27.0},
-  {"id":"lidl_013","name":"Apple","unit":"1 medium (182g)","price_eur":0.27,"calories":95,"protein_g":0.5,"fat_g":0.3,"carbs_g":25.0},
-  {"id":"lidl_014","name":"Sweet Potato","unit":"100g","price_eur":0.18,"calories":86,"protein_g":1.6,"fat_g":0.1,"carbs_g":20.0},
-  {"id":"lidl_015","name":"Avocado","unit":"1 whole (150g)","price_eur":0.80,"calories":240,"protein_g":3.0,"fat_g":22.0,"carbs_g":13.0},
-  {"id":"lidl_016","name":"Spinach","unit":"100g","price_eur":0.25,"calories":23,"protein_g":2.9,"fat_g":0.4,"carbs_g":3.6},
-  {"id":"lidl_017","name":"Tomato","unit":"100g","price_eur":0.20,"calories":18,"protein_g":0.9,"fat_g":0.2,"carbs_g":3.9},
-  {"id":"lidl_018","name":"Bell Pepper","unit":"1 whole (160g)","price_eur":0.50,"calories":50,"protein_g":1.5,"fat_g":0.3,"carbs_g":12.0},
-  {"id":"lidl_019","name":"Onion","unit":"100g","price_eur":0.08,"calories":40,"protein_g":1.1,"fat_g":0.1,"carbs_g":9.3},
-  {"id":"lidl_020","name":"Mushrooms","unit":"100g","price_eur":0.60,"calories":22,"protein_g":3.1,"fat_g":0.3,"carbs_g":3.3},
-  {"id":"lidl_021","name":"Cauliflower","unit":"100g","price_eur":0.20,"calories":25,"protein_g":1.9,"fat_g":0.3,"carbs_g":5.0},
-  {"id":"lidl_022","name":"Lean Ground Beef 95%","unit":"100g raw","price_eur":0.80,"calories":152,"protein_g":26.0,"fat_g":5.0,"carbs_g":0.0},
-  {"id":"lidl_023","name":"Whey Protein","unit":"1 scoop (33g)","price_eur":0.83,"calories":120,"protein_g":25.0,"fat_g":1.5,"carbs_g":3.0},
-  {"id":"lidl_024","name":"Canned Chickpeas","unit":"100g drained","price_eur":0.15,"calories":120,"protein_g":7.0,"fat_g":2.0,"carbs_g":20.0},
-  {"id":"lidl_025","name":"Zucchini","unit":"100g","price_eur":0.15,"calories":17,"protein_g":1.2,"fat_g":0.3,"carbs_g":3.1}
+  {
+    "id": "lidl_001",
+    "name": "Chicken Breast",
+    "unit": "100g",
+    "price_eur": 0.6,
+    "calories": 165,
+    "protein_g": 31.0,
+    "fat_g": 3.6,
+    "carbs_g": 0.0
+  },
+  {
+    "id": "lidl_002",
+    "name": "Eggs",
+    "unit": "1 egg (60g)",
+    "price_eur": 0.21,
+    "calories": 78,
+    "protein_g": 6.0,
+    "fat_g": 5.0,
+    "carbs_g": 0.6
+  },
+  {
+    "id": "lidl_003",
+    "name": "0% Greek Yogurt",
+    "unit": "100g",
+    "price_eur": 0.3,
+    "calories": 57,
+    "protein_g": 10.0,
+    "fat_g": 0.2,
+    "carbs_g": 3.5
+  },
+  {
+    "id": "lidl_004",
+    "name": "Cottage Cheese 0%",
+    "unit": "100g",
+    "price_eur": 0.48,
+    "calories": 72,
+    "protein_g": 11.0,
+    "fat_g": 0.5,
+    "carbs_g": 3.5
+  },
+  {
+    "id": "lidl_005",
+    "name": "Canned Tuna in Water",
+    "unit": "1 can (160g)",
+    "price_eur": 1.0,
+    "calories": 150,
+    "protein_g": 34.0,
+    "fat_g": 1.0,
+    "carbs_g": 0.0
+  },
+  {
+    "id": "lidl_006",
+    "name": "Egg Whites Carton",
+    "unit": "100ml",
+    "price_eur": 0.35,
+    "calories": 47,
+    "protein_g": 11.0,
+    "fat_g": 0.0,
+    "carbs_g": 0.7
+  },
+  {
+    "id": "lidl_007",
+    "name": "Lean Ham Deli Slices",
+    "unit": "100g",
+    "price_eur": 2.0,
+    "calories": 107,
+    "protein_g": 17.0,
+    "fat_g": 3.0,
+    "carbs_g": 2.0
+  },
+  {
+    "id": "lidl_008",
+    "name": "Fat-Free Cheese Slices",
+    "unit": "1 slice (19g)",
+    "price_eur": 0.25,
+    "calories": 30,
+    "protein_g": 5.7,
+    "fat_g": 0.0,
+    "carbs_g": 1.0
+  },
+  {
+    "id": "lidl_009",
+    "name": "Rolled Oats",
+    "unit": "100g",
+    "price_eur": 0.15,
+    "calories": 389,
+    "protein_g": 13.0,
+    "fat_g": 7.0,
+    "carbs_g": 66.0
+  },
+  {
+    "id": "lidl_010",
+    "name": "Whole Grain Bread",
+    "unit": "1 slice (40g)",
+    "price_eur": 0.12,
+    "calories": 88,
+    "protein_g": 4.0,
+    "fat_g": 1.0,
+    "carbs_g": 16.0
+  },
+  {
+    "id": "lidl_011",
+    "name": "Basmati Rice",
+    "unit": "100g dry",
+    "price_eur": 0.18,
+    "calories": 356,
+    "protein_g": 7.0,
+    "fat_g": 1.0,
+    "carbs_g": 79.0
+  },
+  {
+    "id": "lidl_012",
+    "name": "Banana",
+    "unit": "1 medium (120g)",
+    "price_eur": 0.14,
+    "calories": 107,
+    "protein_g": 1.3,
+    "fat_g": 0.4,
+    "carbs_g": 27.0
+  },
+  {
+    "id": "lidl_013",
+    "name": "Apple",
+    "unit": "1 medium (182g)",
+    "price_eur": 0.27,
+    "calories": 95,
+    "protein_g": 0.5,
+    "fat_g": 0.3,
+    "carbs_g": 25.0
+  },
+  {
+    "id": "lidl_014",
+    "name": "Sweet Potato",
+    "unit": "100g",
+    "price_eur": 0.18,
+    "calories": 86,
+    "protein_g": 1.6,
+    "fat_g": 0.1,
+    "carbs_g": 20.0
+  },
+  {
+    "id": "lidl_015",
+    "name": "Avocado",
+    "unit": "1 whole (150g)",
+    "price_eur": 0.8,
+    "calories": 240,
+    "protein_g": 3.0,
+    "fat_g": 22.0,
+    "carbs_g": 13.0
+  },
+  {
+    "id": "lidl_016",
+    "name": "Spinach",
+    "unit": "100g",
+    "price_eur": 0.25,
+    "calories": 23,
+    "protein_g": 2.9,
+    "fat_g": 0.4,
+    "carbs_g": 3.6
+  },
+  {
+    "id": "lidl_017",
+    "name": "Tomato",
+    "unit": "100g",
+    "price_eur": 0.2,
+    "calories": 18,
+    "protein_g": 0.9,
+    "fat_g": 0.2,
+    "carbs_g": 3.9
+  },
+  {
+    "id": "lidl_018",
+    "name": "Bell Pepper",
+    "unit": "1 whole (160g)",
+    "price_eur": 0.5,
+    "calories": 50,
+    "protein_g": 1.5,
+    "fat_g": 0.3,
+    "carbs_g": 12.0
+  },
+  {
+    "id": "lidl_019",
+    "name": "Onion",
+    "unit": "100g",
+    "price_eur": 0.08,
+    "calories": 40,
+    "protein_g": 1.1,
+    "fat_g": 0.1,
+    "carbs_g": 9.3
+  },
+  {
+    "id": "lidl_020",
+    "name": "Mushrooms",
+    "unit": "100g",
+    "price_eur": 0.6,
+    "calories": 22,
+    "protein_g": 3.1,
+    "fat_g": 0.3,
+    "carbs_g": 3.3
+  },
+  {
+    "id": "lidl_021",
+    "name": "Cauliflower",
+    "unit": "100g",
+    "price_eur": 0.2,
+    "calories": 25,
+    "protein_g": 1.9,
+    "fat_g": 0.3,
+    "carbs_g": 5.0
+  },
+  {
+    "id": "lidl_022",
+    "name": "Lean Ground Beef 95%",
+    "unit": "100g raw",
+    "price_eur": 0.8,
+    "calories": 152,
+    "protein_g": 26.0,
+    "fat_g": 5.0,
+    "carbs_g": 0.0
+  },
+  {
+    "id": "lidl_023",
+    "name": "Whey Protein",
+    "unit": "1 scoop (33g)",
+    "price_eur": 0.83,
+    "calories": 120,
+    "protein_g": 25.0,
+    "fat_g": 1.5,
+    "carbs_g": 3.0
+  },
+  {
+    "id": "lidl_024",
+    "name": "Canned Chickpeas",
+    "unit": "100g drained",
+    "price_eur": 0.15,
+    "calories": 120,
+    "protein_g": 7.0,
+    "fat_g": 2.0,
+    "carbs_g": 20.0
+  },
+  {
+    "id": "lidl_025",
+    "name": "Zucchini",
+    "unit": "100g",
+    "price_eur": 0.15,
+    "calories": 17,
+    "protein_g": 1.2,
+    "fat_g": 0.3,
+    "carbs_g": 3.1
+  },
+  {
+    "id": "lidl_026",
+    "name": "Turkey Breast Slices",
+    "unit": "100g",
+    "price_eur": 0.85,
+    "calories": 110,
+    "protein_g": 22.0,
+    "fat_g": 2.0,
+    "carbs_g": 1.0
+  },
+  {
+    "id": "lidl_027",
+    "name": "Salmon Fillet",
+    "unit": "100g",
+    "price_eur": 1.85,
+    "calories": 208,
+    "protein_g": 20.0,
+    "fat_g": 13.0,
+    "carbs_g": 0.0
+  },
+  {
+    "id": "lidl_028",
+    "name": "Cod Fillet",
+    "unit": "100g",
+    "price_eur": 1.2,
+    "calories": 82,
+    "protein_g": 18.0,
+    "fat_g": 0.7,
+    "carbs_g": 0.0
+  },
+  {
+    "id": "lidl_029",
+    "name": "Prawns",
+    "unit": "100g",
+    "price_eur": 1.35,
+    "calories": 99,
+    "protein_g": 24.0,
+    "fat_g": 0.3,
+    "carbs_g": 0.2
+  },
+  {
+    "id": "lidl_030",
+    "name": "Firm Tofu",
+    "unit": "100g",
+    "price_eur": 0.55,
+    "calories": 144,
+    "protein_g": 15.0,
+    "fat_g": 8.0,
+    "carbs_g": 3.0
+  },
+  {
+    "id": "lidl_031",
+    "name": "Smoked Salmon",
+    "unit": "100g",
+    "price_eur": 2.1,
+    "calories": 117,
+    "protein_g": 18.0,
+    "fat_g": 4.3,
+    "carbs_g": 0.0
+  },
+  {
+    "id": "lidl_032",
+    "name": "High Protein Skyr",
+    "unit": "100g",
+    "price_eur": 0.33,
+    "calories": 62,
+    "protein_g": 11.0,
+    "fat_g": 0.2,
+    "carbs_g": 4.0
+  },
+  {
+    "id": "lidl_033",
+    "name": "Plain Kefir",
+    "unit": "250ml",
+    "price_eur": 0.45,
+    "calories": 105,
+    "protein_g": 8.0,
+    "fat_g": 3.8,
+    "carbs_g": 10.0
+  },
+  {
+    "id": "lidl_034",
+    "name": "Low Fat Quark",
+    "unit": "100g",
+    "price_eur": 0.28,
+    "calories": 68,
+    "protein_g": 12.0,
+    "fat_g": 0.2,
+    "carbs_g": 4.0
+  },
+  {
+    "id": "lidl_035",
+    "name": "Light Mozzarella",
+    "unit": "100g",
+    "price_eur": 0.75,
+    "calories": 165,
+    "protein_g": 20.0,
+    "fat_g": 8.5,
+    "carbs_g": 1.5
+  },
+  {
+    "id": "lidl_036",
+    "name": "Cooked Lentils",
+    "unit": "100g",
+    "price_eur": 0.25,
+    "calories": 116,
+    "protein_g": 9.0,
+    "fat_g": 0.4,
+    "carbs_g": 20.0
+  },
+  {
+    "id": "lidl_037",
+    "name": "Kidney Beans",
+    "unit": "100g drained",
+    "price_eur": 0.22,
+    "calories": 127,
+    "protein_g": 8.7,
+    "fat_g": 0.5,
+    "carbs_g": 22.8
+  },
+  {
+    "id": "lidl_038",
+    "name": "Black Beans",
+    "unit": "100g drained",
+    "price_eur": 0.24,
+    "calories": 132,
+    "protein_g": 8.9,
+    "fat_g": 0.5,
+    "carbs_g": 23.7
+  },
+  {
+    "id": "lidl_039",
+    "name": "Wholewheat Pasta",
+    "unit": "100g dry",
+    "price_eur": 0.22,
+    "calories": 350,
+    "protein_g": 13.0,
+    "fat_g": 2.5,
+    "carbs_g": 68.0
+  },
+  {
+    "id": "lidl_040",
+    "name": "Couscous",
+    "unit": "100g dry",
+    "price_eur": 0.2,
+    "calories": 376,
+    "protein_g": 12.8,
+    "fat_g": 0.6,
+    "carbs_g": 77.0
+  },
+  {
+    "id": "lidl_041",
+    "name": "Quinoa",
+    "unit": "100g dry",
+    "price_eur": 0.65,
+    "calories": 368,
+    "protein_g": 14.0,
+    "fat_g": 6.0,
+    "carbs_g": 64.0
+  },
+  {
+    "id": "lidl_042",
+    "name": "White Potatoes",
+    "unit": "100g",
+    "price_eur": 0.12,
+    "calories": 77,
+    "protein_g": 2.0,
+    "fat_g": 0.1,
+    "carbs_g": 17.0
+  },
+  {
+    "id": "lidl_043",
+    "name": "Rice Cakes",
+    "unit": "1 cake (9g)",
+    "price_eur": 0.06,
+    "calories": 35,
+    "protein_g": 0.7,
+    "fat_g": 0.3,
+    "carbs_g": 7.3
+  },
+  {
+    "id": "lidl_044",
+    "name": "Wholewheat Wrap",
+    "unit": "1 wrap (62g)",
+    "price_eur": 0.24,
+    "calories": 190,
+    "protein_g": 6.0,
+    "fat_g": 4.0,
+    "carbs_g": 31.0
+  },
+  {
+    "id": "lidl_045",
+    "name": "Corn Cakes",
+    "unit": "1 cake (7g)",
+    "price_eur": 0.05,
+    "calories": 27,
+    "protein_g": 0.6,
+    "fat_g": 0.2,
+    "carbs_g": 5.8
+  },
+  {
+    "id": "lidl_046",
+    "name": "Blueberries",
+    "unit": "100g",
+    "price_eur": 0.8,
+    "calories": 57,
+    "protein_g": 0.7,
+    "fat_g": 0.3,
+    "carbs_g": 14.5
+  },
+  {
+    "id": "lidl_047",
+    "name": "Strawberries",
+    "unit": "100g",
+    "price_eur": 0.55,
+    "calories": 32,
+    "protein_g": 0.7,
+    "fat_g": 0.3,
+    "carbs_g": 7.7
+  },
+  {
+    "id": "lidl_048",
+    "name": "Orange",
+    "unit": "1 medium (130g)",
+    "price_eur": 0.28,
+    "calories": 62,
+    "protein_g": 1.2,
+    "fat_g": 0.2,
+    "carbs_g": 15.4
+  },
+  {
+    "id": "lidl_049",
+    "name": "Frozen Mixed Berries",
+    "unit": "100g",
+    "price_eur": 0.42,
+    "calories": 50,
+    "protein_g": 1.0,
+    "fat_g": 0.3,
+    "carbs_g": 12.0
+  },
+  {
+    "id": "lidl_050",
+    "name": "Cucumber",
+    "unit": "100g",
+    "price_eur": 0.18,
+    "calories": 15,
+    "protein_g": 0.7,
+    "fat_g": 0.1,
+    "carbs_g": 3.6
+  },
+  {
+    "id": "lidl_051",
+    "name": "Broccoli",
+    "unit": "100g",
+    "price_eur": 0.32,
+    "calories": 34,
+    "protein_g": 2.8,
+    "fat_g": 0.4,
+    "carbs_g": 6.6
+  },
+  {
+    "id": "lidl_052",
+    "name": "Asparagus",
+    "unit": "100g",
+    "price_eur": 0.75,
+    "calories": 20,
+    "protein_g": 2.2,
+    "fat_g": 0.1,
+    "carbs_g": 3.9
+  },
+  {
+    "id": "lidl_053",
+    "name": "Green Beans",
+    "unit": "100g",
+    "price_eur": 0.28,
+    "calories": 31,
+    "protein_g": 1.8,
+    "fat_g": 0.2,
+    "carbs_g": 7.0
+  },
+  {
+    "id": "lidl_054",
+    "name": "Carrots",
+    "unit": "100g",
+    "price_eur": 0.12,
+    "calories": 41,
+    "protein_g": 0.9,
+    "fat_g": 0.2,
+    "carbs_g": 10.0
+  },
+  {
+    "id": "lidl_055",
+    "name": "Mixed Salad Leaves",
+    "unit": "100g",
+    "price_eur": 0.55,
+    "calories": 20,
+    "protein_g": 1.8,
+    "fat_g": 0.2,
+    "carbs_g": 3.5
+  },
+  {
+    "id": "lidl_056",
+    "name": "Extra Virgin Olive Oil",
+    "unit": "1 tbsp (14g)",
+    "price_eur": 0.16,
+    "calories": 119,
+    "protein_g": 0.0,
+    "fat_g": 13.5,
+    "carbs_g": 0.0
+  },
+  {
+    "id": "lidl_057",
+    "name": "Peanut Butter",
+    "unit": "1 tbsp (16g)",
+    "price_eur": 0.12,
+    "calories": 94,
+    "protein_g": 4.0,
+    "fat_g": 8.0,
+    "carbs_g": 3.2
+  },
+  {
+    "id": "lidl_058",
+    "name": "Almonds",
+    "unit": "30g",
+    "price_eur": 0.42,
+    "calories": 174,
+    "protein_g": 6.4,
+    "fat_g": 15.0,
+    "carbs_g": 6.0
+  },
+  {
+    "id": "lidl_059",
+    "name": "Walnuts",
+    "unit": "30g",
+    "price_eur": 0.45,
+    "calories": 196,
+    "protein_g": 4.6,
+    "fat_g": 19.6,
+    "carbs_g": 4.1
+  },
+  {
+    "id": "lidl_060",
+    "name": "Tart Cherry Juice",
+    "unit": "100ml",
+    "price_eur": 0.35,
+    "calories": 55,
+    "protein_g": 0.2,
+    "fat_g": 0.0,
+    "carbs_g": 13.0
+  }
 ]

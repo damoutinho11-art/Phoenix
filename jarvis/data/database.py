@@ -37,6 +37,25 @@ CREATE TABLE IF NOT EXISTS meal_log (
 
 CREATE INDEX IF NOT EXISTS idx_meal_log_date ON meal_log(log_date);
 
+CREATE TABLE IF NOT EXISTS nutrition_memory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('favorite', 'dislike', 'pantry', 'preferred')),
+    item_id TEXT NOT NULL DEFAULT '',
+    item_type TEXT NOT NULL DEFAULT 'general',
+    name TEXT NOT NULL,
+    note TEXT,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    source TEXT NOT NULL DEFAULT 'user',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_nutrition_memory_unique
+ON nutrition_memory(kind, item_type, item_id, name);
+
+CREATE INDEX IF NOT EXISTS idx_nutrition_memory_kind
+ON nutrition_memory(kind);
+
 CREATE TABLE IF NOT EXISTS weight_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     log_date TEXT NOT NULL UNIQUE,
@@ -373,10 +392,140 @@ def log_meal(
         connection.close()
 
 
+def get_recent_meals(limit: int = 20) -> list[dict[str, Any]]:
+    """Return recent meal log rows for quick repeat/reuse workflows."""
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM meal_log
+            ORDER BY logged_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
 def delete_meal(meal_id: int) -> bool:
     connection = get_db()
     try:
         cursor = connection.execute("DELETE FROM meal_log WHERE id = ?", (meal_id,))
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+_ALLOWED_NUTRITION_MEMORY_KINDS = {"favorite", "dislike", "pantry", "preferred"}
+
+
+def _normalize_memory_kind(kind: str) -> str:
+    normalized = str(kind or "").strip().lower()
+    aliases = {
+        "avoid": "dislike",
+        "avoided": "dislike",
+        "disliked": "dislike",
+        "at_home": "pantry",
+        "have": "pantry",
+        "preferred_staple": "preferred",
+        "preference": "preferred",
+    }
+    normalized = aliases.get(normalized, normalized)
+    if normalized not in _ALLOWED_NUTRITION_MEMORY_KINDS:
+        raise ValueError(f"Unsupported nutrition memory kind: {kind}")
+    return normalized
+
+
+def save_nutrition_memory(
+    kind: str,
+    name: str,
+    item_id: str = "",
+    item_type: str = "general",
+    note: str | None = None,
+    payload: dict[str, Any] | None = None,
+    source: str = "user",
+) -> dict[str, Any]:
+    """Create or refresh a local, user-controlled nutrition memory entry."""
+    normalized_kind = _normalize_memory_kind(kind)
+    clean_name = str(name or "").strip()
+    if not clean_name:
+        raise ValueError("Nutrition memory name is required")
+    clean_item_id = str(item_id or "").strip()
+    clean_item_type = str(item_type or "general").strip().lower() or "general"
+    now = _utc_now()
+    payload_json = json.dumps(payload or {}, sort_keys=True)
+    connection = get_db()
+    try:
+        connection.execute(
+            """
+            INSERT INTO nutrition_memory (
+                kind, item_id, item_type, name, note, payload_json, source,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(kind, item_type, item_id, name) DO UPDATE SET
+                note = excluded.note,
+                payload_json = excluded.payload_json,
+                source = excluded.source,
+                updated_at = excluded.updated_at
+            """,
+            (
+                normalized_kind,
+                clean_item_id,
+                clean_item_type,
+                clean_name,
+                note,
+                payload_json,
+                source or "user",
+                now,
+                now,
+            ),
+        )
+        row = connection.execute(
+            """
+            SELECT * FROM nutrition_memory
+            WHERE kind = ? AND item_type = ? AND item_id = ? AND name = ?
+            """,
+            (normalized_kind, clean_item_type, clean_item_id, clean_name),
+        ).fetchone()
+        connection.commit()
+        result = dict(row)
+        result["payload"] = json.loads(result.pop("payload_json") or "{}")
+        return result
+    finally:
+        connection.close()
+
+
+def get_nutrition_memory(kind: str | None = None) -> list[dict[str, Any]]:
+    connection = get_db()
+    try:
+        if kind:
+            rows = connection.execute(
+                "SELECT * FROM nutrition_memory WHERE kind = ? ORDER BY updated_at DESC, id DESC",
+                (_normalize_memory_kind(kind),),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT * FROM nutrition_memory ORDER BY kind, updated_at DESC, id DESC"
+            ).fetchall()
+        results = []
+        for row in rows:
+            item = dict(row)
+            item["payload"] = json.loads(item.pop("payload_json") or "{}")
+            results.append(item)
+        return results
+    finally:
+        connection.close()
+
+
+def delete_nutrition_memory(memory_id: int) -> bool:
+    connection = get_db()
+    try:
+        cursor = connection.execute("DELETE FROM nutrition_memory WHERE id = ?", (memory_id,))
         connection.commit()
         return cursor.rowcount > 0
     finally:

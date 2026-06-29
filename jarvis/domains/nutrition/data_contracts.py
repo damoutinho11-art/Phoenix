@@ -71,4 +71,7 @@ class NutritionStatus:
     remaining_carbs_g: float
     protein_target_met: bool
     calorie_target_met: bool
+    adherence_status: str
+    calorie_status: str
+    protein_status: str
     suggested_recipes: tuple

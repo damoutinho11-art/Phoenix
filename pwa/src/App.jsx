@@ -6,6 +6,12 @@ import NutritionDashboard from './components/nutrition/NutritionDashboard'
 import RecipeList from './components/nutrition/RecipeList'
 import LogMeal from './components/nutrition/LogMeal'
 import WeightHistory from './components/nutrition/WeightHistory'
+import MealBuilder from './components/nutrition/MealBuilder'
+import DayPlanner from './components/nutrition/DayPlanner'
+import NutritionMemory from './components/nutrition/NutritionMemory'
+import ShoppingList from './components/nutrition/ShoppingList'
+import WeeklyPlanner from './components/nutrition/WeeklyPlanner'
+import NutritionAcceptanceGate from './components/nutrition/NutritionAcceptanceGate'
 import TrainingMetrics from './components/training/TrainingMetrics'
 import ActiveSession from './components/training/ActiveSession'
 import FinanceDashboard from './components/finance/FinanceDashboard'
@@ -133,10 +139,48 @@ export default function App() {
             onRecipes={() => setNutritionScreen('recipes')}
             onWeight={() => setNutritionScreen('weight')}
             onQuickAsk={handleQuickAsk}
+            onMealBuilder={() => setNutritionScreen('builder')}
+            onDayPlanner={() => setNutritionScreen('day-plan')}
+            onMemory={() => setNutritionScreen('memory')}
+            onShopping={() => setNutritionScreen('shopping')}
+            onWeeklyPlanner={() => setNutritionScreen('weekly-plan')}
+            onAcceptanceGate={() => setNutritionScreen('acceptance-gate')}
           />
         )
       case 'recipes':
         return <RecipeList onBack={() => setNutritionScreen('dashboard')} />
+      case 'builder':
+        return (
+          <MealBuilder
+            onBack={() => setNutritionScreen('dashboard')}
+            onSuccess={() => setNutritionScreen('dashboard')}
+          />
+        )
+      case 'day-plan':
+        return (
+          <DayPlanner
+            onBack={() => setNutritionScreen('dashboard')}
+            onSuccess={() => setNutritionScreen('dashboard')}
+          />
+        )
+      case 'memory':
+        return (
+          <NutritionMemory
+            onBack={() => setNutritionScreen('dashboard')}
+            onSuccess={() => setNutritionScreen('dashboard')}
+          />
+        )
+      case 'shopping':
+        return <ShoppingList onBack={() => setNutritionScreen('dashboard')} />
+      case 'acceptance-gate':
+        return <NutritionAcceptanceGate onBack={() => setNutritionScreen('dashboard')} />
+      case 'weekly-plan':
+        return (
+          <WeeklyPlanner
+            onBack={() => setNutritionScreen('dashboard')}
+            onSuccess={() => setNutritionScreen('dashboard')}
+          />
+        )
       case 'log':
         return (
           <LogMeal
