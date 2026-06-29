@@ -55,7 +55,7 @@ function SessionCard({ session, index }) {
     : 'SESSION'
 
   const liftColor = index === 0 ? GREEN : ORANGE
-  const opacity   = Math.max(0.45, 1 - index * 0.12)
+  const opacity   = Math.max(0.6, 1 - index * 0.08)
 
   return (
     <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,143,46,.08)', opacity }}>

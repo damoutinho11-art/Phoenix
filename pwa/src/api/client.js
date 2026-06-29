@@ -131,6 +131,10 @@ export async function getFinanceHoldings() {
   return apiFetch('/finance/holdings')
 }
 
+export async function getFinancePortfolioState() {
+  return apiFetch('/finance/portfolio-state')
+}
+
 export async function postFinanceRefreshPrices() {
   return apiFetch('/finance/refresh-prices', { method: 'POST' })
 }
@@ -211,6 +215,10 @@ export async function postFinanceResearchMemoAutopilot(memoId) {
   return apiFetch(`/finance/research/memos/${memoId}/autopilot`, { method: 'POST' })
 }
 
+export async function deleteFinanceResearchMemo(memoId) {
+  return apiFetch(`/finance/research/memos/${memoId}`, { method: 'DELETE' })
+}
+
 export async function postFinanceResearchAutopilotRun() {
   return apiFetch('/finance/research/autopilot/run', { method: 'POST' })
 }
@@ -253,6 +261,14 @@ export async function getLastSleep() {
 
 export async function getTrainingRecovery() {
   return apiFetch('/training/recovery')
+}
+
+export async function logSoreness(score) {
+  return apiFetch('/training/log/soreness', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ score }),
+  })
 }
 
 export async function logSession(payload) {
@@ -304,6 +320,19 @@ export async function postFinanceTransactionVoid(transactionId, reason) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason: reason || 'Manual void by user' }),
+  })
+}
+
+export async function postFinancePatchUnits(asset, units, holdingsEur, reason) {
+  return apiFetch('/finance/portfolio-state/patch-units', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      asset,
+      units,
+      holdings_eur: holdingsEur != null ? holdingsEur : undefined,
+      reason: reason || 'Manual data correction',
+    }),
   })
 }
 

@@ -52,14 +52,29 @@ async def _auto_refresh_prices():
         await asyncio.sleep(4 * 60 * 60)
 
 
+async def _auto_research_autopilot():
+    """Run research autopilot once per day to keep memos fresh for weekly recommendation."""
+    await asyncio.sleep(300)  # wait 5 minutes after startup
+    while True:
+        try:
+            from jarvis.api.routers.finance import _run_research_autopilot_internal  # noqa: PLC0415
+            result = _run_research_autopilot_internal()
+            _log.info("Auto research autopilot: %s leg(s) processed", result.get("total_legs", 0))
+        except Exception:
+            _log.exception("Auto research autopilot failed — will retry in 24 h")
+        await asyncio.sleep(24 * 60 * 60)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
     task_keepalive = asyncio.create_task(_keep_alive())
     task_prices = asyncio.create_task(_auto_refresh_prices())
+    task_research = asyncio.create_task(_auto_research_autopilot())
     yield
     task_keepalive.cancel()
     task_prices.cancel()
+    task_research.cancel()
 
 
 # Initialize at import time for direct TestClient usage that does not enter the

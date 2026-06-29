@@ -345,10 +345,15 @@ def finance_summary(
     holdings = engine.investable_holdings(constitution, portfolio_state)
     statuses = engine.current_statuses(constitution, holdings)
     staleness = engine.portfolio_state_staleness_warning(portfolio_state)
+    week_label = _iso_week_label()
+    applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
 
     return {
         "as_of": portfolio_state.get("as_of"),
+        "prices_refreshed_at": portfolio_state.get("prices_refreshed_at"),
         "total_invested": engine.euros(sum(holdings.values())),
+        "week_label": week_label,
+        "week_done": bool(applied_this_week),
         "sleeve_summary": [
             {
                 "name": s.name,
@@ -1212,13 +1217,22 @@ def finance_holdings(
     statuses = engine.current_statuses(constitution, holdings)
     status_map = {s.name: s for s in statuses}
 
+    units_store = portfolio_state.get("units", {})
     active = []
     for key, value in portfolio_state.get("holdings", {}).items():
         s = status_map.get(key)
+        raw_units = units_store.get(key)
+        unit_count = None
+        if raw_units is not None and not isinstance(raw_units, str):
+            try:
+                unit_count = float(raw_units) if raw_units != 0 else None
+            except (TypeError, ValueError):
+                unit_count = None
         active.append({
             "key": key,
             "display_name": _ASSET_DISPLAY_NAMES.get(key, key.replace("_", " ").title()),
             "amount": value,
+            "units": unit_count,
             "sleeve": key,
             "route": constitution.get("asset_routes", {}).get(key),
             "band_status": s.band_status if s else "unknown",
@@ -1334,6 +1348,21 @@ Provide a brief, direct investment summary for this week.\
         )
 
     return {"brief": brief_text, "requires_approval": True}
+
+
+@router.get("/portfolio-state")
+def finance_get_portfolio_state(portfolio_state: dict = Depends(get_portfolio_state)) -> dict:
+    """Return the raw portfolio state (units, holdings, legacy_holdings) for inspection."""
+    return {
+        "as_of": portfolio_state.get("as_of"),
+        "prices_refreshed_at": portfolio_state.get("prices_refreshed_at"),
+        "holdings": portfolio_state.get("holdings", {}),
+        "legacy_holdings": portfolio_state.get("legacy_holdings", {}),
+        "units": {
+            k: v for k, v in portfolio_state.get("units", {}).items()
+            if not isinstance(v, str)
+        },
+    }
 
 
 @router.post("/refresh-prices")
@@ -1473,6 +1502,14 @@ def finance_research_memo(memo_id: int) -> dict:
         "evidence_summary": evidence_summary,
         **_RESEARCH_SAFETY_FLAGS,
     }
+
+
+@router.delete("/research/memos/{memo_id}")
+def finance_delete_research_memo(memo_id: int) -> dict:
+    found = database.delete_research_memo(memo_id)
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
+    return {"deleted": True, "memo_id": memo_id}
 
 
 @router.post("/research/memos")
@@ -2227,18 +2264,22 @@ def finance_research_memo_autopilot(
     return {**result, **_AUTOPILOT_SAFETY_FLAGS}
 
 
-@router.post("/research/autopilot/run")
-def finance_research_autopilot_run(
-    constitution: dict = Depends(get_finance_constitution),
-    portfolio_state: dict = Depends(get_portfolio_state),
-    profile: dict = Depends(get_finance_profile),
+def _run_research_autopilot_internal(
+    constitution: dict | None = None,
+    portfolio_state: dict | None = None,
+    profile: dict | None = None,
 ) -> dict:
-    """Run autonomous research for every current recommendation leg.
+    """Core autopilot logic — callable from both the endpoint and background task."""
+    if constitution is None:
+        constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+    if portfolio_state is None:
+        portfolio_state = database.load_portfolio_state() or {}
+    if profile is None:
+        try:
+            profile = engine.load_json(engine.DEFAULT_PROFILE_PATH)
+        except Exception:
+            profile = {}
 
-    For each leg: finds an existing non-archived memo or creates a draft, then
-    runs the full autopilot pipeline (evidence → adapters → synthesis → quality gate).
-    Never changes recommendation amounts, routes, or portfolio state.
-    """
     try:
         regime = detect_market_regime(portfolio_state)
     except Exception:
@@ -2306,6 +2347,21 @@ def finance_research_autopilot_run(
         "total_legs": len(leg_results),
         **_AUTOPILOT_SAFETY_FLAGS,
     }
+
+
+@router.post("/research/autopilot/run")
+def finance_research_autopilot_run(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+) -> dict:
+    """Run autonomous research for every current recommendation leg.
+
+    For each leg: finds an existing non-archived memo or creates a draft, then
+    runs the full autopilot pipeline (evidence → adapters → synthesis → quality gate).
+    Never changes recommendation amounts, routes, or portfolio state.
+    """
+    return _run_research_autopilot_internal(constitution, portfolio_state, profile)
 
 
 @router.post("/research/memos/{memo_id}/generate-evidence")
@@ -2608,6 +2664,64 @@ def _reverse_transaction_in_portfolio_state(
 class VoidTransactionPayload(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     reason: str = Field(default="Manual void by user", min_length=1)
+
+
+class PatchPortfolioUnitsPayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    asset: str = Field(min_length=1)
+    units: float = Field(ge=0)
+    holdings_eur: float | None = Field(default=None, ge=0)
+    reason: str = Field(default="Manual data correction", min_length=1)
+
+
+@router.post("/portfolio-state/patch-units")
+def finance_patch_portfolio_units(payload: PatchPortfolioUnitsPayload) -> dict:
+    """Directly correct units (and optionally holdings EUR value) for a single asset.
+
+    Use this to fix data entry errors such as a decimal-place slip in unit count.
+    Changes are written to both SQLite and portfolio_state.json.
+    """
+    portfolio_state = database.load_portfolio_state()
+
+    units_store = portfolio_state.get("units", {})
+    if payload.asset not in units_store and payload.asset not in portfolio_state.get("holdings", {}) and payload.asset not in portfolio_state.get("legacy_holdings", {}):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Asset '{payload.asset}' not found in portfolio_state.",
+        )
+
+    before_units = copy.deepcopy(units_store)
+    before_holdings = copy.deepcopy(portfolio_state.get("holdings", {}))
+    before_legacy = copy.deepcopy(portfolio_state.get("legacy_holdings", {}))
+
+    new_state = copy.deepcopy(portfolio_state)
+    if payload.asset in new_state.get("units", {}):
+        new_state["units"][payload.asset] = round(payload.units, 10)
+    if payload.holdings_eur is not None:
+        if payload.asset in new_state.get("holdings", {}):
+            new_state["holdings"][payload.asset] = round(payload.holdings_eur, 2)
+        elif payload.asset in new_state.get("legacy_holdings", {}):
+            new_state["legacy_holdings"][payload.asset] = round(payload.holdings_eur, 2)
+
+    database.save_portfolio_state(new_state)
+
+    return {
+        "asset": payload.asset,
+        "units_before": before_units.get(payload.asset),
+        "units_after": new_state["units"].get(payload.asset),
+        "holdings_eur_before": before_holdings.get(payload.asset) or before_legacy.get(payload.asset),
+        "holdings_eur_after": (
+            new_state.get("holdings", {}).get(payload.asset)
+            or new_state.get("legacy_holdings", {}).get(payload.asset)
+        ),
+        "reason": payload.reason,
+        "portfolio_state_updated": True,
+        "message": (
+            f"Units for '{payload.asset}' corrected from "
+            f"{before_units.get(payload.asset)} to {payload.units}. "
+            "Run /finance/refresh-prices to update the holdings EUR value from live market price."
+        ),
+    }
 
 
 @router.post("/ledger/{transaction_id}/void")

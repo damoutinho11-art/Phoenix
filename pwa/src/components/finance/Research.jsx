@@ -11,6 +11,7 @@ import {
   postFinanceResearchSynthesizeMemo,
   postFinanceResearchMemoAutopilot,
   postFinanceResearchAutopilotRun,
+  deleteFinanceResearchMemo,
 } from '../../api/client'
 
 const border = '1px solid rgba(32,216,236,.18)'
@@ -105,6 +106,7 @@ export default function Research({ onBack }) {
   const [autopilotResults, setAutopilotResults] = useState({})
   const [globalAutopilotRunning, setGlobalAutopilotRunning] = useState(false)
   const [globalAutopilotResult, setGlobalAutopilotResult] = useState(null)
+  const [deletingMemo, setDeletingMemo] = useState(null)
 
   const loadResearch = useCallback(async () => {
     const [memoResponse, validationResponse] = await Promise.all([
@@ -259,6 +261,19 @@ export default function Research({ onBack }) {
       setGlobalAutopilotResult({ error: true })
     } finally {
       setGlobalAutopilotRunning(false)
+    }
+  }
+
+  async function handleDeleteMemo(memoId) {
+    setDeletingMemo(memoId)
+    try {
+      await deleteFinanceResearchMemo(memoId)
+      setMemos(prev => prev.filter(m => m.id !== memoId))
+      if (selectedMemoId === memoId) { setSelectedMemoId(null); setSelectedMemoDetail(null) }
+    } catch {
+      // silent — list stays unchanged
+    } finally {
+      setDeletingMemo(null)
     }
   }
 
@@ -437,13 +452,21 @@ export default function Research({ onBack }) {
           {memos?.map(memo => (
             <article key={memo.id} style={{ padding: '12px 13px', border, borderLeft: `3px solid ${verdictColor[memo.verdict] || '#20d8ec'}`, background: 'rgba(32,216,236,.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>{memo.title}</div>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 4 }}>{[memo.asset, memo.sleeve].filter(Boolean).join(' · ').toUpperCase() || 'UNSCOPED'}</div>
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: verdictColor[memo.verdict] || '#7df0ff' }}>{memo.verdict}</div>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{String(memo.status).toUpperCase()}</div>
+                <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: verdictColor[memo.verdict] || '#7df0ff' }}>{memo.verdict}</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{String(memo.status).toUpperCase()}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMemo(memo.id)}
+                    disabled={deletingMemo === memo.id}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,92,122,.35)', fontFamily: 'var(--mono)', fontSize: 9, cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}
+                  >{deletingMemo === memo.id ? '…' : '✕'}</button>
                 </div>
               </div>
               <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.65, color: 'rgba(199,236,244,.78)', whiteSpace: 'pre-wrap' }}>{memo.thesis}</div>

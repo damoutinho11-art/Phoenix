@@ -1463,6 +1463,22 @@ def get_research_memo(memo_id: int) -> dict[str, Any] | None:
         connection.close()
 
 
+def delete_research_memo(memo_id: int) -> bool:
+    """Delete a research memo and its linked validation records by id."""
+    connection = get_db()
+    try:
+        connection.execute(
+            "DELETE FROM research_validation_records WHERE memo_id = ?", (memo_id,)
+        )
+        cursor = connection.execute(
+            "DELETE FROM research_memos WHERE id = ?", (memo_id,)
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
 _RESEARCH_VALIDATION_CHECK_TYPES = {
     "MARKET_CAP",
     "VALUATION",

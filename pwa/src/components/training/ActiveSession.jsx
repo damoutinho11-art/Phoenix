@@ -324,11 +324,11 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.cyanMuted }}>WEIGHT (KG)</div>
               <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan }}>
-                <button onClick={() => setInputW(v => Math.max(0, Math.round((v - 2.5) * 2) / 2))}
-                  style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>−</button>
+                <div onClick={() => setInputW(v => Math.max(0, Math.round((v - 2.5) * 2) / 2))}
+                  style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>−</div>
                 <div style={{ flex: 1, textAlign: 'center', fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.text }}>{inputW}</div>
-                <button onClick={() => setInputW(v => Math.round((v + 2.5) * 2) / 2)}
-                  style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>+</button>
+                <div onClick={() => setInputW(v => Math.round((v + 2.5) * 2) / 2)}
+                  style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>+</div>
               </div>
               <div style={{ fontFamily: T.mono, fontSize: 7, color: T.cyanMuted, letterSpacing: '.1em', textAlign: 'center' }}>KG</div>
             </div>
@@ -336,11 +336,11 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.cyanMuted }}>{ex.bodyweight ? 'SETS DONE' : 'REPS'}</div>
             <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan }}>
-              <button onClick={() => setInputR(v => Math.max(1, v - 1))}
-                style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>−</button>
+              <div onClick={() => setInputR(v => Math.max(1, v - 1))}
+                style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>−</div>
               <div style={{ flex: 1, textAlign: 'center', fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.text }}>{inputR}</div>
-              <button onClick={() => setInputR(v => v + 1)}
-                style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>+</button>
+              <div onClick={() => setInputR(v => v + 1)}
+                style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>+</div>
             </div>
             <div style={{ fontFamily: T.mono, fontSize: 7, color: T.cyanMuted, letterSpacing: '.1em', textAlign: 'center' }}>
               {ex.bodyweight ? 'COUNT' : 'REPS'}
@@ -348,12 +348,12 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
           </div>
         </div>
 
-        <button
+        <div
           onClick={() => onLog({ w: inputW, r: inputR })}
-          style={{ width: '100%', padding: '18px 0', textAlign: 'center', fontFamily: T.display, fontSize: 18, fontWeight: 700, letterSpacing: '.24em', color: T.bg, background: T.cyan, border: 'none', cursor: 'pointer', boxShadow: `0 0 22px rgba(32,216,236,.4)` }}
+          style={{ width: '100%', padding: '18px 0', textAlign: 'center', fontFamily: T.display, fontSize: 18, fontWeight: 700, letterSpacing: '.24em', color: T.bg, background: T.cyan, cursor: 'pointer', boxShadow: `0 0 22px rgba(32,216,236,.4)`, userSelect: 'none' }}
         >
           LOG SET
-        </button>
+        </div>
       </div>
     </div>
   )
@@ -396,12 +396,12 @@ function RestOverlay({ seconds, total, nextNote, onSkip }) {
           {nextNote}
         </div>
       )}
-      <button
+      <div
         onClick={onSkip}
-        style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.24em', padding: '14px 40px', border: T.borderCyan, color: T.cyanMuted, background: 'transparent', cursor: 'pointer' }}
+        style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.24em', padding: '14px 40px', border: T.borderCyan, color: T.cyanMuted, background: 'transparent', cursor: 'pointer', userSelect: 'none' }}
       >
         SKIP REST →
-      </button>
+      </div>
     </div>
   )
 }
@@ -673,8 +673,12 @@ export default function ActiveSession({ onBack }) {
   const isLastEx = curEx === exercises.length - 1
   const allSessionDone = isLastEx && allExDone
 
+  const totalSetsLogged = exercises.reduce((a, e) => a + e.sets.filter(s => s.logged).length, 0)
+  const totalSetsAll    = exercises.reduce((a, e) => a + e.sets.length, 0)
+
   const mins = Math.floor(ex.restSec / 60), secs = ex.restSec % 60
   const restLabel = `REST ${mins}:${String(secs).padStart(2, '0')}`
+  const topSetNote = status?.today_session?.working_weights?.top_set_note
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, fontFamily: T.body }}>
@@ -693,9 +697,14 @@ export default function ActiveSession({ onBack }) {
       <div style={{ padding: '16px 18px 14px', borderBottom: T.border, background: 'linear-gradient(180deg,rgba(255,143,46,.04),transparent)', flexShrink: 0, position: 'relative' }}>
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: T.orange, opacity: .8 }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.orangeMuted }}>
-            EXERCISE {curEx + 1} OF {exercises.length}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.orangeMuted }}>
+              EXERCISE {curEx + 1} OF {exercises.length}
+            </span>
+            <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.1em', color: totalSetsLogged > 0 ? T.green : T.cyanMuted }}>
+              {totalSetsLogged}/{totalSetsAll} SETS
+            </span>
+          </div>
           <div style={{ display: 'flex', gap: 4 }}>
             {exercises.map((e, i) => {
               const allDone = e.sets.every(s => s.logged)
@@ -713,12 +722,12 @@ export default function ActiveSession({ onBack }) {
             <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.14em', padding: '3px 10px', border: T.border, color: T.orange, background: T.surface }}>{ex.pct}</span>
           )}
           <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.12em', padding: '3px 10px', border: T.borderCyan, color: T.cyanMuted }}>{restLabel}</span>
-          {status?.today_session?.working_weights?.top_set_note && curEx === 0 && (
-            <span style={{ fontFamily: T.mono, fontSize: 7, letterSpacing: '.1em', padding: '3px 8px', border: T.border, color: T.orangeMuted }}>
-              {status.today_session.working_weights.top_set_note}
-            </span>
-          )}
         </div>
+        {topSetNote && curEx === 0 && (
+          <div style={{ marginTop: 8, fontFamily: T.mono, fontSize: 7, letterSpacing: '.1em', color: T.orangeMuted, padding: '5px 10px', border: T.border, background: T.surface }}>
+            ↑ {topSetNote}
+          </div>
+        )}
       </div>
 
       {/* SET LIST */}
@@ -751,8 +760,12 @@ export default function ActiveSession({ onBack }) {
                 cursor: state !== 'upcoming' ? 'pointer' : 'default',
                 boxShadow: state === 'active-set' ? `0 0 14px rgba(32,216,236,.12)` : 'none',
                 opacity: state === 'upcoming' ? .5 : 1,
+                position: 'relative',
               }}
             >
+              {state === 'active-set' && (
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: T.cyan, boxShadow: `0 0 8px ${T.cyan}` }} />
+              )}
               <div style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: T.mono, fontSize: isWarmup ? 8 : 10, fontWeight: 700, background: indBg, color: indColor, border: `1px solid ${indBorder}`, boxShadow: state === 'active-set' ? `0 0 10px rgba(32,216,236,.3)` : 'none' }}>
                 {indContent}
               </div>

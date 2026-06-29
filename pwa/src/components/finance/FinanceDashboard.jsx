@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   getFinanceDataCoverage,
   getFinanceManualBuyChecklist,
+  getFinancePortfolioState,
   getFinanceRecommendation,
   getFinanceResearchMemos,
   getFinanceResearchValidationRecords,
   getFinanceSummary,
+  postFinancePatchUnits,
 } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
@@ -165,7 +167,18 @@ function Header({ summary, checklist, recommendation, actionCopy, loading }) {
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.27)' }}>
-            {summary?.as_of ? `W${getWeekNumber(summary.as_of)} · ${summary.as_of}` : weekLabel}
+            {summary?.prices_refreshed_at
+              ? (() => {
+                  const d = new Date(summary.prices_refreshed_at)
+                  const now = new Date()
+                  const diffMin = Math.round((now - d) / 60000)
+                  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  const age = diffMin < 1 ? 'LIVE' : diffMin < 60 ? `${diffMin}m` : `${Math.round(diffMin / 60)}h`
+                  return `PRICES ${timeStr} · ${age}`
+                })()
+              : summary?.as_of
+                ? `W${getWeekNumber(summary.as_of)} · ${summary.as_of}`
+                : weekLabel}
           </span>
           <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00cc77', boxShadow: '0 0 6px #00cc77' }} />
           <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,204,119,0.53)' }}>ONLINE</span>
@@ -492,6 +505,137 @@ function InstrumentResolution({ researchWinner, checklistCandidate, researchSymb
   )
 }
 
+// ─── Unit Correction Panel ────────────────────────────────────────────────────
+function UnitCorrectionPanel({ portfolioState, onFixed }) {
+  const [open, setOpen]       = useState(false)
+  const [editAsset, setEditAsset] = useState(null)
+  const [editUnits, setEditUnits] = useState('')
+  const [editHoldings, setEditHoldings] = useState('')
+  const [busy, setBusy]       = useState(false)
+  const [msg, setMsg]         = useState(null)
+
+  const units   = portfolioState?.units || {}
+  const holdings = portfolioState?.holdings || {}
+
+  const rows = Object.entries(units).filter(([k, v]) => v != null && v > 0 && k !== '_note')
+
+  if (!rows.length) return null
+
+  function startEdit(asset) {
+    setEditAsset(asset)
+    setEditUnits(String(units[asset] ?? ''))
+    setEditHoldings(String(holdings[asset] ?? ''))
+    setMsg(null)
+  }
+
+  async function applyCorrection() {
+    if (!editAsset) return
+    const u = parseFloat(editUnits)
+    const h = editHoldings !== '' ? parseFloat(editHoldings) : undefined
+    if (!Number.isFinite(u) || u < 0) { setMsg({ err: true, text: 'Invalid units value.' }); return }
+    setBusy(true)
+    try {
+      const res = await postFinancePatchUnits(editAsset, u, h, 'Manual unit correction via dashboard')
+      setMsg({ err: false, text: res.message || 'Correction applied.' })
+      setEditAsset(null)
+      onFixed()
+    } catch (e) {
+      setMsg({ err: true, text: e.message || 'Correction failed.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section style={{ padding: '1rem 2rem 0' }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '10px 14px', border: '1px solid rgba(0,187,221,0.1)', background: 'rgba(0,187,221,0.03)' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.4)' }}>[ DATA CORRECTION ]</span>
+          <span style={{ fontFamily: T.fontDisplay, fontSize: 13, fontWeight: 600, color: 'rgba(184,216,232,0.6)', letterSpacing: '0.06em' }}>UNIT COUNTS · {rows.length} TRACKED</span>
+        </div>
+        <span style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.3)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+      </div>
+
+      {open && (
+        <div style={{ border: '1px solid rgba(0,187,221,0.1)', borderTop: 'none', background: 'rgba(0,0,0,0.2)' }}>
+          {rows.map(([asset, unitCount]) => {
+            const hval = holdings[asset]
+            const isEditing = editAsset === asset
+            const impliedPrice = unitCount > 0 && hval > 0 ? hval / unitCount : null
+            return (
+              <div key={asset} style={{ padding: '10px 14px', borderBottom: '1px solid rgba(0,187,221,0.05)' }}>
+                {!isEditing ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontFamily: T.fontMono, fontSize: 9, letterSpacing: '0.1em', color: 'rgba(0,187,221,0.67)' }}>{asset}</span>
+                      <span style={{ fontFamily: T.fontMono, fontSize: 8, color: 'rgba(90,128,144,0.67)', marginLeft: 10 }}>
+                        {unitCount} units · {money(hval)}
+                        {impliedPrice ? ` · ~${money(impliedPrice)}/unit` : ''}
+                      </span>
+                    </div>
+                    <div
+                      onClick={() => startEdit(asset)}
+                      style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.5)', border: '1px solid rgba(0,187,221,0.2)', padding: '3px 8px', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      EDIT
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontFamily: T.fontMono, fontSize: 9, letterSpacing: '0.1em', color: '#00bbdd', marginBottom: 8 }}>{asset}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div>
+                        <div style={{ fontFamily: T.fontMono, fontSize: 7, color: 'rgba(0,187,221,0.4)', marginBottom: 3 }}>UNITS</div>
+                        <input
+                          value={editUnits}
+                          onChange={e => setEditUnits(e.target.value)}
+                          style={{ fontFamily: T.fontMono, fontSize: 10, color: '#eef6f9', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,187,221,0.3)', padding: '5px 8px', width: 140, outline: 'none' }}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: T.fontMono, fontSize: 7, color: 'rgba(0,187,221,0.4)', marginBottom: 3 }}>HOLDINGS EUR (optional)</div>
+                        <input
+                          value={editHoldings}
+                          onChange={e => setEditHoldings(e.target.value)}
+                          placeholder="leave blank to keep"
+                          style={{ fontFamily: T.fontMono, fontSize: 10, color: '#eef6f9', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,187,221,0.2)', padding: '5px 8px', width: 180, outline: 'none' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <div
+                          onClick={busy ? null : applyCorrection}
+                          style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: busy ? 'rgba(0,187,221,0.3)' : '#4dffb4', border: `1px solid ${busy ? 'rgba(0,187,221,0.15)' : 'rgba(77,255,180,0.3)'}`, padding: '6px 12px', cursor: busy ? 'default' : 'pointer', userSelect: 'none' }}
+                        >
+                          {busy ? 'SAVING…' : 'APPLY'}
+                        </div>
+                        <div
+                          onClick={() => { setEditAsset(null); setMsg(null) }}
+                          style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.4)', border: '1px solid rgba(0,187,221,0.15)', padding: '6px 12px', cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          CANCEL
+                        </div>
+                      </div>
+                    </div>
+                    {msg && (
+                      <div style={{ fontFamily: T.fontMono, fontSize: 8, marginTop: 6, color: msg.err ? '#ff5c7a' : '#4dffb4' }}>{msg.text}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          <div style={{ padding: '8px 14px', fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)' }}>
+            AFTER CORRECTION · RUN REFRESH PRICES TO UPDATE EUR VALUES
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ─── Portfolio Snapshot ───────────────────────────────────────────────────────
 function PortfolioSnapshot({ sleeves, total, asOf }) {
   const svgRef = useRef(null)
@@ -598,8 +742,16 @@ function PortfolioSnapshot({ sleeves, total, asOf }) {
                   <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)' }}>{sleeve.name}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: T.fontBody, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, color: isActive ? meta.color : 'rgba(42,74,90,0.87)' }}>
-                    {percent(sleeve.current_weight)}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                    {sleeve.band_status === 'above_max' && isActive && (
+                      <span style={{ fontFamily: T.fontMono, fontSize: 6, letterSpacing: '0.12em', padding: '2px 5px', border: '1px solid rgba(255,92,122,.35)', color: '#ff5c7a', background: 'rgba(255,92,122,.07)' }}>OVER</span>
+                    )}
+                    {sleeve.band_status === 'below_min' && isActive && (
+                      <span style={{ fontFamily: T.fontMono, fontSize: 6, letterSpacing: '0.12em', padding: '2px 5px', border: '1px solid rgba(255,213,107,.35)', color: '#ffd56b', background: 'rgba(255,213,107,.07)' }}>UNDER</span>
+                    )}
+                    <div style={{ fontFamily: T.fontBody, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, color: !isActive ? 'rgba(42,74,90,0.87)' : sleeve.band_status === 'above_max' ? '#ff5c7a' : sleeve.band_status === 'below_min' ? '#ffd56b' : '#4dffb4' }}>
+                      {percent(sleeve.current_weight)}
+                    </div>
                   </div>
                   <div style={{ fontFamily: T.fontBody, fontSize: 9, color: 'rgba(90,122,138,0.87)', marginTop: 2 }}>{money(sleeve.value)}</div>
                   <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.12em', color: 'rgba(0,187,221,0.2)', marginTop: 2 }}>TARGET {percent(sleeve.target_weight)}</div>
@@ -776,8 +928,34 @@ export default function FinanceDashboard({ onNav }) {
   const [coverage, setCoverage]         = useState(null)
   const [memos, setMemos]               = useState([])
   const [records, setRecords]           = useState([])
+  const [portfolioState, setPortfolioState] = useState(null)
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState('')
+
+  function loadAll(active) {
+    Promise.allSettled([
+      getFinanceSummary(),
+      getFinanceRecommendation(),
+      getFinanceManualBuyChecklist(),
+      getFinanceDataCoverage(),
+      getFinanceResearchMemos(),
+      getFinanceResearchValidationRecords(),
+      getFinancePortfolioState(),
+    ]).then((results) => {
+      if (!active) return
+      const [summaryR, recR, checkR, covR, memosR, recsR, psR] = results
+      if (summaryR.status === 'fulfilled') setSummary(summaryR.value)
+      if (recR.status    === 'fulfilled') setRecommendation(recR.value)
+      if (checkR.status  === 'fulfilled') setChecklist(checkR.value)
+      if (covR.status    === 'fulfilled') setCoverage(covR.value)
+      if (memosR.status  === 'fulfilled') setMemos(memosR.value?.memos || [])
+      if (recsR.status   === 'fulfilled') setRecords(recsR.value?.records || [])
+      if (psR.status     === 'fulfilled') setPortfolioState(psR.value)
+      const failed = results.filter(r => r.status === 'rejected').length
+      if (failed) setError(`${failed} finance data source${failed === 1 ? '' : 's'} unavailable.`)
+      setLoading(false)
+    })
+  }
 
   useEffect(() => {
     // Inject fonts
@@ -797,26 +975,7 @@ export default function FinanceDashboard({ onNav }) {
     }
 
     let active = true
-    Promise.allSettled([
-      getFinanceSummary(),
-      getFinanceRecommendation(),
-      getFinanceManualBuyChecklist(),
-      getFinanceDataCoverage(),
-      getFinanceResearchMemos(),
-      getFinanceResearchValidationRecords(),
-    ]).then((results) => {
-      if (!active) return
-      const [summaryR, recR, checkR, covR, memosR, recsR] = results
-      if (summaryR.status === 'fulfilled') setSummary(summaryR.value)
-      if (recR.status    === 'fulfilled') setRecommendation(recR.value)
-      if (checkR.status  === 'fulfilled') setChecklist(checkR.value)
-      if (covR.status    === 'fulfilled') setCoverage(covR.value)
-      if (memosR.status  === 'fulfilled') setMemos(memosR.value?.memos || [])
-      if (recsR.status   === 'fulfilled') setRecords(recsR.value?.records || [])
-      const failed = results.filter(r => r.status === 'rejected').length
-      if (failed) setError(`${failed} finance data source${failed === 1 ? '' : 's'} unavailable.`)
-      setLoading(false)
-    })
+    loadAll(active)
     return () => { active = false }
   }, [])
 
@@ -895,6 +1054,12 @@ export default function FinanceDashboard({ onNav }) {
         {sleeves.length > 0 && (
           <PortfolioSnapshot sleeves={sleeves} total={summary?.total_invested} asOf={summary?.as_of} />
         )}
+
+        {/* ── Unit Correction (collapsed by default) ── */}
+        <UnitCorrectionPanel
+          portfolioState={portfolioState}
+          onFixed={() => loadAll(true)}
+        />
 
         {/* ── Advanced Audit ── */}
         <AdvancedAudit

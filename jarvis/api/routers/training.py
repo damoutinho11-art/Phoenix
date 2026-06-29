@@ -1,6 +1,6 @@
 """Training API routes. Routers call engines; no business logic lives here."""
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Literal
 
 import anthropic
@@ -244,6 +244,25 @@ def training_status(
     )
     result = _serialize_status(status)
     result["today_session"]["exercises"] = _resolve_exercises(result["today_session"], constitution)
+
+    weight_history_raw = database.get_weight_history(days=90)
+    wh = [{"date": e["log_date"], "weight_kg": e["weight_kg"]} for e in weight_history_raw]
+    result["cut_status"]["weight_history"] = wh
+
+    weekly_delta_kg = None
+    avg_weekly_loss_kg = None
+    if len(wh) >= 2:
+        latest_w = wh[-1]["weight_kg"]
+        cutoff_date = (date.today() - timedelta(days=8)).isoformat()
+        older_w = next((e["weight_kg"] for e in reversed(wh[:-1]) if e["date"] <= cutoff_date), None)
+        if older_w is not None:
+            weekly_delta_kg = round(latest_w - older_w, 2)
+        days_span = (date.fromisoformat(wh[-1]["date"]) - date.fromisoformat(wh[0]["date"])).days
+        if days_span >= 7:
+            avg_weekly_loss_kg = round((wh[0]["weight_kg"] - latest_w) / (days_span / 7), 2)
+    result["cut_status"]["weekly_delta_kg"] = weekly_delta_kg
+    result["cut_status"]["avg_weekly_loss_kg"] = avg_weekly_loss_kg
+
     return result
 
 
