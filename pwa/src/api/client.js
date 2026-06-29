@@ -283,6 +283,14 @@ export async function postFinanceTransactionApply(transactionId) {
   return apiFetch(`/finance/ledger/${transactionId}/apply`, { method: 'POST' })
 }
 
+export async function postFinanceTransactionVoid(transactionId, reason) {
+  return apiFetch(`/finance/ledger/${transactionId}/void`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason || 'Manual void by user' }),
+  })
+}
+
 export async function getNutritionMealBuilder() {
   return apiFetch('/nutrition/meal-builder')
 }

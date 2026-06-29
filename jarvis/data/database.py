@@ -327,6 +327,28 @@ def _migrate_research_memos_quality_columns(connection: sqlite3.Connection) -> N
     connection.commit()
 
 
+def _migrate_finance_transaction_void_columns(connection: sqlite3.Connection) -> None:
+    """Add void columns to finance_transaction_ledger if not present."""
+    existing = {
+        row[1]
+        for row in connection.execute(
+            "PRAGMA table_info(finance_transaction_ledger)"
+        ).fetchall()
+    }
+    new_cols = [
+        ("voided", "INTEGER NOT NULL DEFAULT 0"),
+        ("voided_at", "TEXT"),
+        ("void_reason", "TEXT"),
+        ("void_snapshot_json", "TEXT"),
+    ]
+    for col_name, col_def in new_cols:
+        if col_name not in existing:
+            connection.execute(
+                f"ALTER TABLE finance_transaction_ledger ADD COLUMN {col_name} {col_def}"
+            )
+    connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
@@ -334,6 +356,7 @@ def init_db() -> None:
         connection.executescript(_SCHEMA)
         connection.commit()
         _migrate_finance_transaction_ledger(connection)
+        _migrate_finance_transaction_void_columns(connection)
         _migrate_research_memos_quality_columns(connection)
     finally:
         connection.close()
@@ -942,6 +965,29 @@ def mark_finance_transaction_applied(
             WHERE id = ?
             """,
             (_utc_now(), apply_snapshot_json, transaction_id),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+def void_finance_transaction(
+    transaction_id: int, void_reason: str, void_snapshot_json: str
+) -> bool:
+    """Mark a transaction as voided; returns True if the row existed and was updated."""
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE finance_transaction_ledger
+            SET voided = 1,
+                voided_at = ?,
+                void_reason = ?,
+                void_snapshot_json = ?
+            WHERE id = ?
+            """,
+            (_utc_now(), void_reason, void_snapshot_json, transaction_id),
         )
         connection.commit()
         return cursor.rowcount > 0

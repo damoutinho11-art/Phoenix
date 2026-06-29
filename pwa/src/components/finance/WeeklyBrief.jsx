@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getFinanceLedger, getFinanceManualBuyChecklist, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceResearchAutopilotRun, postFinanceTransactionApply, postManualFinanceTransaction } from '../../api/client'
+import { getFinanceLedger, getFinanceManualBuyChecklist, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceResearchAutopilotRun, postFinanceTransactionApply, postFinanceTransactionVoid, postManualFinanceTransaction } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `
@@ -376,12 +376,16 @@ function FormField({ label, children }) {
 
 function LedgerApplyRow({ transaction, onApplied }) {
   const applied = Boolean(transaction.portfolio_state_updated)
+  const voided = Boolean(transaction.voided)
   const [preview, setPreview] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState('')
   const [applying, setApplying] = useState(false)
   const [applyResult, setApplyResult] = useState(null)
   const [applyError, setApplyError] = useState('')
+  const [voiding, setVoiding] = useState(false)
+  const [voidResult, setVoidResult] = useState(null)
+  const [voidError, setVoidError] = useState('')
 
   async function loadPreview() {
     setPreviewLoading(true); setPreviewError('')
@@ -400,6 +404,31 @@ function LedgerApplyRow({ transaction, onApplied }) {
     finally { setApplying(false) }
   }
 
+  async function voidTransaction() {
+    if (!window.confirm('Void this transaction? If it was applied, the portfolio state will be reversed.')) return
+    setVoiding(true); setVoidError('')
+    try {
+      const result = await postFinanceTransactionVoid(transaction.id, 'Manual void by user')
+      setVoidResult(result)
+      if (onApplied) onApplied()
+    } catch (err) { setVoidError(err?.message || 'Void failed.') }
+    finally { setVoiding(false) }
+  }
+
+  if (voided || voidResult) {
+    return (
+      <div style={{ borderTop: border, paddingTop: 8, marginTop: 2, opacity: 0.45 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontFamily: MONO, fontSize: 8 }}>
+          <span style={{ color: '#ff5c7a', minWidth: 0, overflowWrap: 'anywhere', textDecoration: 'line-through' }}>{transaction.symbol || transaction.asset} · {transaction.units} UNITS</span>
+          <span style={{ color: 'rgba(199,236,244,.4)', flexShrink: 0 }}>{formatEur(transaction.amount_eur)}</span>
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: 7, color: '#ff5c7a', letterSpacing: '.12em', marginTop: 4 }}>
+          VOIDED{voidResult?.portfolio_state_reversed ? ' · PORTFOLIO STATE REVERSED' : ''}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ borderTop: border, paddingTop: 8, marginTop: 2 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontFamily: MONO, fontSize: 8 }}>
@@ -411,11 +440,22 @@ function LedgerApplyRow({ transaction, onApplied }) {
           <div style={{ fontFamily: MONO, fontSize: 7, color: '#4dffb4', letterSpacing: '.12em' }}>
             APPLIED TO PORTFOLIO STATE
             {applyResult && <div style={{ color: 'rgba(77,255,180,.75)', letterSpacing: '.08em', marginTop: 3, lineHeight: 1.5, textTransform: 'none' }}>Portfolio state updated from your manual record.</div>}
+            <div style={{ marginTop: 6 }}>
+              {voidError && <div style={{ color: '#ff5c7a', marginBottom: 4 }}>{voidError}</div>}
+              <button onClick={voidTransaction} disabled={voiding} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '4px 8px', border: '1px solid rgba(255,92,122,.5)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer' }}>
+                {voiding ? 'VOIDING…' : 'VOID & REVERSE'}
+              </button>
+            </div>
           </div>
         ) : (
           <>
             {!preview && !previewLoading && (
-              <button onClick={loadPreview} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: ACCENT, background: 'transparent', cursor: 'pointer' }}>PREVIEW PORTFOLIO IMPACT</button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={loadPreview} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: ACCENT, background: 'transparent', cursor: 'pointer' }}>PREVIEW PORTFOLIO IMPACT</button>
+                <button onClick={voidTransaction} disabled={voiding} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '5px 8px', border: '1px solid rgba(255,92,122,.4)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer' }}>
+                  {voiding ? 'VOIDING…' : 'VOID'}
+                </button>
+              </div>
             )}
             {previewLoading && <span style={{ fontFamily: MONO, fontSize: 7, color: muted }}>LOADING PREVIEW…</span>}
             {previewError && <span style={{ fontFamily: MONO, fontSize: 7, color: '#ff5c7a' }}>{previewError}</span>}
