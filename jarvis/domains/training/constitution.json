@@ -43,8 +43,12 @@
       "posterior_chain": "hip_thrust",
       "lower_leg": "seated_calf_raise",
       "general_push": "bench_press",
+      "general_horizontal_pull": "barbell_row",
       "general_pull": "lat_pulldown",
-      "general_shoulder": "lateral_raise"
+      "general_bicep": "bicep_curl",
+      "general_tricep": "tricep_pushdown",
+      "general_shoulder": "lateral_raise",
+      "general_rear_delt": "face_pull"
     },
     "month_2": {
       "name": "max_strength",
@@ -61,8 +65,12 @@
       "posterior_chain": "hip_thrust",
       "lower_leg": "seated_calf_raise",
       "general_push": "bench_press",
+      "general_horizontal_pull": "barbell_row",
       "general_pull": "weighted_pullup",
-      "general_shoulder": "lateral_raise"
+      "general_bicep": "bicep_curl",
+      "general_tricep": "tricep_pushdown",
+      "general_shoulder": "lateral_raise",
+      "general_rear_delt": "face_pull"
     },
     "peak": {
       "name": "peak_week",

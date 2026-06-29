@@ -81,10 +81,13 @@ function buildExercises(todaySession) {
   }
 
   if (stype === 'general') {
+    const isMonth2 = todaySession.phase === 'month_2'
+    const pullName = isMonth2 ? 'Weighted Pull Up' : 'Lat Pulldown'
+
     return [
       {
         name: 'Shoulder Rehab',
-        focus: 'Pre-hab — bands or light plate, full ROM',
+        focus: 'Pre-hab — bands or light plate, full ROM. Non-negotiable.',
         pct: null, restSec: 60, bodyweight: true,
         sets: [
           { type: 'work', targetWeight: null, targetReps: 10 },
@@ -94,32 +97,74 @@ function buildExercises(todaySession) {
       },
       {
         name: 'Bench Press',
-        focus: 'Hypertrophy — 3×10 @ RPE 7, controlled',
+        focus: 'Hypertrophy — 3×10 @ RPE 7, 2s down, pause at chest',
         pct: null, restSec: 120, bodyweight: false,
         sets: [
+          { type: 'warmup', targetWeight: 40, targetReps: 10 },
           { type: 'work', targetWeight: 60, targetReps: 10 },
           { type: 'work', targetWeight: 60, targetReps: 10 },
           { type: 'work', targetWeight: 60, targetReps: 10 },
         ],
       },
       {
-        name: 'Lat Pulldown',
-        focus: 'Hypertrophy — 3×10 @ RPE 7, full stretch',
+        name: 'Barbell Row',
+        focus: 'Hypertrophy — 3×10 @ RPE 7, chest to bar, squeeze at top',
+        pct: null, restSec: 120, bodyweight: false,
+        sets: [
+          { type: 'warmup', targetWeight: 40, targetReps: 10 },
+          { type: 'work', targetWeight: 60, targetReps: 10 },
+          { type: 'work', targetWeight: 60, targetReps: 10 },
+          { type: 'work', targetWeight: 60, targetReps: 10 },
+        ],
+      },
+      {
+        name: pullName,
+        focus: 'Hypertrophy — 3×10 @ RPE 7, full stretch at bottom',
         pct: null, restSec: 120, bodyweight: false,
         sets: [
           { type: 'work', targetWeight: 50, targetReps: 10 },
           { type: 'work', targetWeight: 50, targetReps: 10 },
           { type: 'work', targetWeight: 50, targetReps: 10 },
+        ],
+      },
+      {
+        name: 'Bicep Curl',
+        focus: 'Hypertrophy — 3×12, slow curl, no swinging',
+        pct: null, restSec: 60, bodyweight: false,
+        sets: [
+          { type: 'work', targetWeight: 12, targetReps: 12 },
+          { type: 'work', targetWeight: 12, targetReps: 12 },
+          { type: 'work', targetWeight: 12, targetReps: 12 },
+        ],
+      },
+      {
+        name: 'Tricep Pushdown',
+        focus: 'Hypertrophy — 3×12, full extension, elbows fixed',
+        pct: null, restSec: 60, bodyweight: false,
+        sets: [
+          { type: 'work', targetWeight: 20, targetReps: 12 },
+          { type: 'work', targetWeight: 20, targetReps: 12 },
+          { type: 'work', targetWeight: 20, targetReps: 12 },
         ],
       },
       {
         name: 'Lateral Raise',
-        focus: 'Hypertrophy — 3×15 light, elbows soft',
+        focus: 'Hypertrophy — 3×15 light, elbows soft, top of range',
         pct: null, restSec: 60, bodyweight: false,
         sets: [
           { type: 'work', targetWeight: 8, targetReps: 15 },
           { type: 'work', targetWeight: 8, targetReps: 15 },
           { type: 'work', targetWeight: 8, targetReps: 15 },
+        ],
+      },
+      {
+        name: 'Face Pull',
+        focus: 'Shoulder health — 3×15, cable or band, elbows at 90°',
+        pct: null, restSec: 60, bodyweight: false,
+        sets: [
+          { type: 'work', targetWeight: 10, targetReps: 15 },
+          { type: 'work', targetWeight: 10, targetReps: 15 },
+          { type: 'work', targetWeight: 10, targetReps: 15 },
         ],
       },
     ]
