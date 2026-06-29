@@ -1,6 +1,31 @@
 import { useState, useEffect, useRef } from 'react'
 import { getTrainingStatus, logSession } from '../../api/client'
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const T = {
+  bg:          '#010608',
+  surface:     'rgba(255,143,46,.032)',
+  surfaceCyan: 'rgba(32,216,236,.035)',
+  orange:      '#ff8f2e',
+  orangeDim:   'rgba(255,143,46,.18)',
+  orangeMuted: 'rgba(255,143,46,.42)',
+  orangeBorder:'rgba(255,143,46,.16)',
+  cyan:        '#20d8ec',
+  cyanBr:      '#7df0ff',
+  cyanDim:     'rgba(32,216,236,.18)',
+  cyanMuted:   'rgba(32,216,236,.4)',
+  green:       '#4dffb4',
+  yellow:      '#ffd56b',
+  red:         '#ff5c7a',
+  text:        'rgba(199,236,244,.92)',
+  textDim:     'rgba(132,212,226,.58)',
+  border:      '1px solid rgba(255,143,46,.14)',
+  borderCyan:  '1px solid rgba(32,216,236,.18)',
+  mono:        'var(--mono)',
+  display:     'var(--display)',
+  body:        'var(--body)',
+}
+
 // ─── Session builders ────────────────────────────────────────────────────────
 
 const SESSION_NAMES = {
@@ -274,49 +299,47 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
     ? ex.bodyweight ? `PREV: ${prevLogged.logged.r}` : `PREV SET: ${prevLogged.logged.w}kg × ${prevLogged.logged.r}`
     : ex.bodyweight ? `TARGET: ${set.targetReps} reps` : `TARGET: ${set.targetWeight}kg × ${set.targetReps}`
 
-  const CYAN = '#20d8ec'
-  const BORDER = 'rgba(32,216,236,.18)'
-  const MUTED = 'rgba(32,216,236,.38)'
-
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 30, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(1,6,8,.9)', zIndex: 30, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div style={{ width: '100%', maxWidth: 430, background: '#000', borderTop: `1px solid ${BORDER}`, padding: '20px 20px 36px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 16 }}>
-          <span>{ex.name.toUpperCase()} · SET {setIdx + 1}</span>
-          <span style={{ cursor: 'pointer', fontSize: 16 }} onClick={onClose}>✕</span>
+      <div style={{ width: '100%', maxWidth: 430, background: T.bg, borderTop: T.borderCyan, padding: '20px 20px 40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.22em', color: T.cyanMuted }}>
+            {ex.name.toUpperCase()} · SET {setIdx + 1}
+          </div>
+          <span style={{ cursor: 'pointer', fontSize: 16, color: T.cyanMuted }} onClick={onClose}>✕</span>
         </div>
 
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(125,188,200,.55)', textAlign: 'center', marginBottom: 16, padding: '6px', border: `1px solid rgba(32,216,236,.1)` }}>
+        <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.1em', color: T.textDim, textAlign: 'center', marginBottom: 18, padding: '8px', border: T.borderCyan, background: T.surfaceCyan }}>
           {prevNote}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: ex.bodyweight ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: ex.bodyweight ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 18 }}>
           {!ex.bodyweight && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: MUTED }}>WEIGHT (KG)</div>
-              <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.04)' }}>
+              <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.cyanMuted }}>WEIGHT (KG)</div>
+              <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan }}>
                 <button onClick={() => setInputW(v => Math.max(0, Math.round((v - 2.5) * 2) / 2))}
-                  style={{ width: 50, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--display)', fontSize: 20, color: CYAN, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>−</button>
-                <div style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--display)', fontSize: 28, fontWeight: 700, color: '#fff', letterSpacing: '.02em' }}>{inputW}</div>
+                  style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>−</button>
+                <div style={{ flex: 1, textAlign: 'center', fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.text }}>{inputW}</div>
                 <button onClick={() => setInputW(v => Math.round((v + 2.5) * 2) / 2)}
-                  style={{ width: 50, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--display)', fontSize: 20, color: CYAN, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>+</button>
+                  style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>+</button>
               </div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: MUTED, letterSpacing: '.1em', textAlign: 'center' }}>KG</div>
+              <div style={{ fontFamily: T.mono, fontSize: 7, color: T.cyanMuted, letterSpacing: '.1em', textAlign: 'center' }}>KG</div>
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: MUTED }}>{ex.bodyweight ? 'SETS DONE' : 'REPS'}</div>
-            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.04)' }}>
+            <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.cyanMuted }}>{ex.bodyweight ? 'SETS DONE' : 'REPS'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan }}>
               <button onClick={() => setInputR(v => Math.max(1, v - 1))}
-                style={{ width: 50, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--display)', fontSize: 20, color: CYAN, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>−</button>
-              <div style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--display)', fontSize: 28, fontWeight: 700, color: '#fff', letterSpacing: '.02em' }}>{inputR}</div>
+                style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>−</button>
+              <div style={{ flex: 1, textAlign: 'center', fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.text }}>{inputR}</div>
               <button onClick={() => setInputR(v => v + 1)}
-                style={{ width: 50, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--display)', fontSize: 20, color: CYAN, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>+</button>
+                style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>+</button>
             </div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: MUTED, letterSpacing: '.1em', textAlign: 'center' }}>
+            <div style={{ fontFamily: T.mono, fontSize: 7, color: T.cyanMuted, letterSpacing: '.1em', textAlign: 'center' }}>
               {ex.bodyweight ? 'COUNT' : 'REPS'}
             </div>
           </div>
@@ -324,7 +347,7 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
 
         <button
           onClick={() => onLog({ w: inputW, r: inputR })}
-          style={{ width: '100%', padding: '18px 0', textAlign: 'center', fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, letterSpacing: '.24em', color: '#000', background: CYAN, border: 'none', cursor: 'pointer', boxShadow: `0 0 20px rgba(32,216,236,.45)` }}
+          style={{ width: '100%', padding: '18px 0', textAlign: 'center', fontFamily: T.display, fontSize: 18, fontWeight: 700, letterSpacing: '.24em', color: T.bg, background: T.cyan, border: 'none', cursor: 'pointer', boxShadow: `0 0 22px rgba(32,216,236,.4)` }}
         >
           LOG SET
         </button>
@@ -353,26 +376,26 @@ function RestOverlay({ seconds, total, nextNote, onSkip }) {
   const timeStr = `${m}:${String(s).padStart(2, '0')}`
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.3em', color: 'rgba(32,216,236,.38)', marginBottom: 16 }}>REST PERIOD</div>
-      <div style={{ fontFamily: 'var(--display)', fontSize: 88, fontWeight: 700, lineHeight: 1, letterSpacing: '-.02em', color: '#7df0ff', filter: 'drop-shadow(0 0 26px rgba(32,216,236,.45))' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(1,6,8,.96)', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.32em', color: T.cyanMuted, marginBottom: 18 }}>REST PERIOD</div>
+      <div style={{ fontFamily: T.display, fontSize: 96, fontWeight: 700, lineHeight: 1, letterSpacing: '-.02em', color: T.cyanBr, filter: `drop-shadow(0 0 28px rgba(32,216,236,.5))` }}>
         {timeStr}
       </div>
-      <svg width="160" height="160" viewBox="0 0 160 160" style={{ margin: '20px 0' }}>
-        <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(32,216,236,.1)" strokeWidth="6" />
-        <circle ref={arcRef} cx="80" cy="80" r="70" fill="none" stroke="#20d8ec"
-          strokeWidth="6" strokeLinecap="round"
+      <svg width="160" height="160" viewBox="0 0 160 160" style={{ margin: '24px 0' }}>
+        <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(32,216,236,.08)" strokeWidth="5" />
+        <circle ref={arcRef} cx="80" cy="80" r="70" fill="none" stroke={T.cyan}
+          strokeWidth="5" strokeLinecap="round"
           strokeDasharray="439.8" strokeDashoffset="0"
           transform="rotate(-90 80 80)" />
       </svg>
       {nextNote && (
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.16em', color: 'rgba(125,188,200,.55)', marginBottom: 32, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.14em', color: T.textDim, marginBottom: 36, textAlign: 'center', maxWidth: 280, lineHeight: 1.7, padding: '0 24px' }}>
           {nextNote}
         </div>
       )}
       <button
         onClick={onSkip}
-        style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.24em', padding: '14px 36px', border: '1px solid rgba(32,216,236,.18)', color: 'rgba(32,216,236,.38)', background: 'transparent', cursor: 'pointer' }}
+        style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.24em', padding: '14px 40px', border: T.borderCyan, color: T.cyanMuted, background: 'transparent', cursor: 'pointer' }}
       >
         SKIP REST →
       </button>
@@ -394,57 +417,59 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
       })()
     : '—'
 
-  const BORDER = 'rgba(32,216,236,.18)'
-  const MUTED = 'rgba(32,216,236,.38)'
-  const POS = '#4dffb4'
-
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: '#000', color: 'rgba(199,236,244,.92)' }}>
-      <div style={{ padding: '40px 24px 28px', borderBottom: `1px solid ${BORDER}`, textAlign: 'center', background: 'linear-gradient(180deg,rgba(32,216,236,.035),transparent)' }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🔥</div>
-        <div style={{ fontFamily: 'var(--display)', fontSize: 28, fontWeight: 700, letterSpacing: '.12em', color: POS, filter: 'drop-shadow(0 0 16px rgba(77,255,180,.5))', marginBottom: 6 }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: T.bg, color: T.text }}>
+
+      {/* Hero */}
+      <div style={{ padding: '44px 24px 28px', borderBottom: T.borderCyan, textAlign: 'center', background: 'linear-gradient(180deg,rgba(77,255,180,.04),transparent)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${T.green},transparent)` }} />
+        <div style={{ fontFamily: T.display, fontSize: 36, fontWeight: 700, letterSpacing: '.1em', color: T.green, filter: `drop-shadow(0 0 18px rgba(77,255,180,.5))`, marginBottom: 8 }}>
           SESSION DONE
         </div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.18em', color: MUTED }}>
-          {sessionName} · {mins} MIN · {totalSets} SETS LOGGED
+        <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.18em', color: T.cyanMuted }}>
+          {sessionName} · {mins} MIN · {totalSets} SETS
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: `1px solid ${BORDER}` }}>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: T.borderCyan }}>
         {[
-          { label: 'DURATION', val: `${mins}m` },
-          { label: 'SETS DONE', val: totalSets },
-          { label: 'TOP LIFT', val: topLift },
-        ].map(({ label, val }, i) => (
-          <div key={i} style={{ padding: '16px 12px', borderRight: i < 2 ? `1px solid ${BORDER}` : 'none', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED, marginBottom: 5 }}>{label}</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 700, color: POS }}>{val}</div>
+          { label: 'DURATION', val: `${mins}m`,   color: T.cyanBr },
+          { label: 'SETS',     val: totalSets,     color: T.green },
+          { label: 'TOP LIFT', val: topLift,       color: T.orange },
+        ].map(({ label, val, color }, i) => (
+          <div key={i} style={{ padding: '16px 10px', borderRight: i < 2 ? T.borderCyan : 'none', textAlign: 'center' }}>
+            <div style={{ fontFamily: T.mono, fontSize: 7, letterSpacing: '.16em', color: T.cyanMuted, marginBottom: 6 }}>{label}</div>
+            <div style={{ fontFamily: T.display, fontSize: 24, fontWeight: 700, color }}>{val}</div>
           </div>
         ))}
       </div>
 
+      {/* Exercise breakdown */}
       <div>
         {exercises.map((ex, i) => {
-          const done = ex.sets.filter(s => s.logged).length
+          const done  = ex.sets.filter(s => s.logged).length
           const total = ex.sets.length
-          const maxS = ex.sets.filter(s => s.logged && s.logged.w).sort((a, b) => b.logged.w - a.logged.w)
+          const maxS  = ex.sets.filter(s => s.logged && s.logged.w).sort((a, b) => b.logged.w - a.logged.w)
           const detail = !ex.bodyweight && maxS.length
-            ? `${maxS[0].logged.w}kg max · ${done}/${total} sets`
+            ? `${maxS[0].logged.w}kg · ${done}/${total}`
             : `${done}/${total} sets`
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: 'rgba(32,216,236,.07) solid 1px' }}>
-              <span style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 14, fontWeight: 400, color: 'rgba(199,236,244,.82)' }}>{ex.name}</span>
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: POS, letterSpacing: '.08em' }}>{detail}</span>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid rgba(32,216,236,.07)` }}>
+              <span style={{ fontFamily: T.body, fontSize: 14, color: T.text }}>{ex.name}</span>
+              <span style={{ fontFamily: T.mono, fontSize: 9, color: T.green, letterSpacing: '.08em' }}>{detail}</span>
             </div>
           )
         })}
       </div>
 
-      <div
-        onClick={onBack}
-        style={{ margin: '20px 18px 0', padding: '16px 0', textAlign: 'center', fontFamily: 'var(--display)', fontSize: 14, fontWeight: 700, letterSpacing: '.22em', color: '#000', background: POS, cursor: 'pointer', boxShadow: '0 0 20px rgba(77,255,180,.35)' }}
-      >
-        ← BACK TO DASHBOARD
+      <div style={{ padding: '20px 18px 40px' }}>
+        <div
+          onClick={onBack}
+          style={{ padding: '16px 0', textAlign: 'center', fontFamily: T.display, fontSize: 16, fontWeight: 700, letterSpacing: '.22em', color: T.bg, background: T.green, cursor: 'pointer', boxShadow: `0 0 22px rgba(77,255,180,.3)` }}
+        >
+          ← BACK TO DASHBOARD
+        </div>
       </div>
     </div>
   )
@@ -453,24 +478,21 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
 // ─── Loading / Error views ────────────────────────────────────────────────────
 
 function LoadingView() {
-  const MUTED = 'rgba(32,216,236,.38)'
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', gap: 12 }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.28em', color: MUTED }}>LOADING SESSION…</div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: T.bg, gap: 12 }}>
+      <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.28em', color: T.cyanMuted }}>LOADING SESSION…</div>
     </div>
   )
 }
 
 function RestDayView({ onBack }) {
-  const MUTED = 'rgba(32,216,236,.38)'
-  const CYAN = '#20d8ec'
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', gap: 16, padding: '0 32px', textAlign: 'center' }}>
-      <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.14em', color: '#fff' }}>REST DAY</div>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.16em', color: MUTED, lineHeight: 1.8 }}>Recovery is training. Sleep, eat, stay off your feet.</div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: T.bg, gap: 16, padding: '0 36px', textAlign: 'center' }}>
+      <div style={{ fontFamily: T.display, fontSize: 28, fontWeight: 700, letterSpacing: '.14em', color: T.text }}>REST DAY</div>
+      <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.14em', color: T.cyanMuted, lineHeight: 1.9, maxWidth: 260 }}>Recovery is training. Sleep, eat, stay off your feet.</div>
       <div
         onClick={onBack}
-        style={{ marginTop: 24, padding: '14px 32px', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: '#000', background: CYAN, cursor: 'pointer' }}
+        style={{ marginTop: 24, padding: '14px 36px', fontFamily: T.mono, fontSize: 9, letterSpacing: '.22em', color: T.bg, background: T.cyan, cursor: 'pointer', boxShadow: `0 0 16px rgba(32,216,236,.3)` }}
       >
         ← BACK
       </div>
@@ -620,13 +642,11 @@ export default function ActiveSession({ onBack }) {
   }
 
   if (loadError || !exercises.length) {
-    const MUTED = 'rgba(32,216,236,.38)'
-    const CYAN = '#20d8ec'
     return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', gap: 12, padding: '0 32px', textAlign: 'center' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: MUTED }}>COULD NOT LOAD SESSION</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'rgba(125,188,200,.4)', letterSpacing: '.1em', lineHeight: 1.8 }}>Backend offline or no session scheduled.</div>
-        <div onClick={onBack} style={{ marginTop: 16, padding: '14px 32px', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: '#000', background: CYAN, cursor: 'pointer' }}>← BACK</div>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: T.bg, gap: 12, padding: '0 36px', textAlign: 'center' }}>
+        <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.22em', color: T.cyanMuted }}>COULD NOT LOAD SESSION</div>
+        <div style={{ fontFamily: T.mono, fontSize: 8, color: T.textDim, letterSpacing: '.1em', lineHeight: 1.8 }}>Backend offline or no session scheduled.</div>
+        <div onClick={onBack} style={{ marginTop: 16, padding: '14px 36px', fontFamily: T.mono, fontSize: 9, letterSpacing: '.22em', color: T.bg, background: T.cyan, cursor: 'pointer' }}>← BACK</div>
       </div>
     )
   }
@@ -639,52 +659,44 @@ export default function ActiveSession({ onBack }) {
   const mins = Math.floor(ex.restSec / 60), secs = ex.restSec % 60
   const restLabel = `REST ${mins}:${String(secs).padStart(2, '0')}`
 
-  const BORDER = 'rgba(32,216,236,.18)'
-  const MUTED = 'rgba(32,216,236,.38)'
-  const CYAN = '#20d8ec'
-  const CYAN_BR = '#7df0ff'
-  const ORANGE = '#ff8f2e'
-  const POS = '#4dffb4'
-
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif" }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, fontFamily: T.body }}>
 
       {/* TOP BAR */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.97)', backdropFilter: 'blur(12px)', zIndex: 10, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: T.border, position: 'sticky', top: 0, background: 'rgba(1,6,8,.97)', backdropFilter: 'blur(14px)', zIndex: 10, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: CYAN_BR }}>
-            {sessionName}
-          </span>
+          <span onClick={onBack} style={{ color: T.orange, fontSize: 16, marginRight: 12, cursor: 'pointer' }}>←</span>
+          <span style={{ fontFamily: T.display, fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: T.orange }}>{sessionName}</span>
         </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 14, letterSpacing: '.1em', color: CYAN }}>{fmt(elapsed)}</span>
+        <span style={{ fontFamily: T.mono, fontSize: 15, letterSpacing: '.08em', color: T.cyan }}>{fmt(elapsed)}</span>
       </div>
 
       {/* EXERCISE HEADER */}
-      <div style={{ padding: '16px 18px 14px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(32,216,236,.035),transparent)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: MUTED }}>
+      <div style={{ padding: '16px 18px 14px', borderBottom: T.border, background: 'linear-gradient(180deg,rgba(255,143,46,.04),transparent)', flexShrink: 0, position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: T.orange, opacity: .8 }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.orangeMuted }}>
             EXERCISE {curEx + 1} OF {exercises.length}
           </span>
-          <div style={{ display: 'flex', gap: 5 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
             {exercises.map((e, i) => {
               const allDone = e.sets.every(s => s.logged)
               const isCur = i === curEx
               return (
-                <div key={i} style={{ width: 20, height: 3, borderRadius: 1, background: allDone ? POS : isCur ? CYAN : 'rgba(32,216,236,.18)', transition: 'background .3s' }} />
+                <div key={i} style={{ width: 22, height: 3, borderRadius: 2, background: allDone ? T.green : isCur ? T.orange : T.orangeDim, transition: 'background .3s', boxShadow: isCur ? `0 0 6px ${T.orange}` : 'none' }} />
               )
             })}
           </div>
         </div>
-        <div style={{ fontFamily: 'var(--display)', fontSize: 24, fontWeight: 700, letterSpacing: '.05em', color: '#fff', lineHeight: 1.1, marginBottom: 5 }}>{ex.name}</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(125,188,200,.55)', lineHeight: 1.5 }}>{ex.focus}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+        <div style={{ fontFamily: T.display, fontSize: 26, fontWeight: 700, letterSpacing: '.04em', color: T.text, lineHeight: 1.1, marginBottom: 6 }}>{ex.name}</div>
+        <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.1em', color: T.textDim, lineHeight: 1.6 }}>{ex.focus}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {ex.pct && (
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', padding: '3px 8px', border: `1px solid rgba(255,143,46,.35)`, color: ORANGE, background: 'rgba(255,143,46,.07)' }}>{ex.pct}</span>
+            <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.14em', padding: '3px 10px', border: T.border, color: T.orange, background: T.surface }}>{ex.pct}</span>
           )}
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', padding: '3px 8px', border: `1px solid ${BORDER}`, color: MUTED }}>{restLabel}</span>
+          <span style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.12em', padding: '3px 10px', border: T.borderCyan, color: T.cyanMuted }}>{restLabel}</span>
           {status?.today_session?.working_weights?.top_set_note && curEx === 0 && (
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', padding: '3px 8px', border: `1px solid rgba(255,143,46,.2)`, color: 'rgba(255,143,46,.6)' }}>
+            <span style={{ fontFamily: T.mono, fontSize: 7, letterSpacing: '.1em', padding: '3px 8px', border: T.border, color: T.orangeMuted }}>
               {status.today_session.working_weights.top_set_note}
             </span>
           )}
@@ -692,33 +704,22 @@ export default function ActiveSession({ onBack }) {
       </div>
 
       {/* SET LIST */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 18px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 7 }}>
         {ex.sets.map((set, i) => {
-          const logged = set.logged
+          const logged       = set.logged
           const prevSetsDone = ex.sets.slice(0, i).every(s => s.logged)
-          const state = logged ? 'completed' : prevSetsDone ? 'active-set' : 'upcoming'
-          const isWarmup = set.type === 'warmup'
+          const state        = logged ? 'completed' : prevSetsDone ? 'active-set' : 'upcoming'
+          const isWarmup     = set.type === 'warmup'
 
-          const rowBorder = state === 'completed'
-            ? 'rgba(77,255,180,.2)'
-            : state === 'active-set' ? CYAN : isWarmup ? 'rgba(255,213,107,.15)' : 'rgba(32,216,236,.1)'
-          const rowBg = state === 'completed'
-            ? 'rgba(77,255,180,.04)'
-            : state === 'active-set' ? 'rgba(32,216,236,.06)' : isWarmup ? 'rgba(255,213,107,.02)' : 'transparent'
-          const indBg = state === 'completed'
-            ? 'rgba(77,255,180,.15)'
-            : state === 'active-set' ? 'rgba(32,216,236,.15)' : isWarmup ? 'rgba(255,213,107,.1)' : 'transparent'
-          const indBorder = state === 'completed'
-            ? 'rgba(77,255,180,.3)'
-            : state === 'active-set' ? CYAN : isWarmup ? 'rgba(255,213,107,.2)' : 'rgba(32,216,236,.18)'
-          const indColor = state === 'completed'
-            ? POS
-            : state === 'active-set' ? CYAN_BR : isWarmup ? '#ffd56b' : MUTED
-          const indContent = state === 'completed' ? '✓' : state === 'active-set' ? '●' : (i + 1)
-          const indDisplay = isWarmup ? 'W' : indContent
+          const rowBorder = state === 'completed' ? `1px solid rgba(77,255,180,.22)` : state === 'active-set' ? T.borderCyan : isWarmup ? `1px solid rgba(255,213,107,.14)` : `1px solid rgba(32,216,236,.08)`
+          const rowBg     = state === 'completed' ? 'rgba(77,255,180,.04)' : state === 'active-set' ? T.surfaceCyan : isWarmup ? 'rgba(255,213,107,.02)' : 'transparent'
+          const indBg     = state === 'completed' ? 'rgba(77,255,180,.14)' : state === 'active-set' ? 'rgba(32,216,236,.14)' : isWarmup ? 'rgba(255,213,107,.1)' : 'rgba(32,216,236,.05)'
+          const indColor  = state === 'completed' ? T.green : state === 'active-set' ? T.cyanBr : isWarmup ? T.yellow : T.cyanMuted
+          const indBorder = state === 'completed' ? `rgba(77,255,180,.3)` : state === 'active-set' ? T.cyan : isWarmup ? `rgba(255,213,107,.25)` : T.cyanDim
+          const indContent= state === 'completed' ? '✓' : isWarmup ? 'W' : (i + 1)
 
           const prescribed = ex.bodyweight
-            ? `${set.targetReps === 1 ? 'MARK DONE' : set.targetReps + ' reps'}`
+            ? (set.targetReps === 1 ? 'MARK DONE' : `${set.targetReps} reps`)
             : `${set.targetWeight}kg × ${set.targetReps}`
 
           return (
@@ -727,32 +728,31 @@ export default function ActiveSession({ onBack }) {
               onClick={() => state !== 'upcoming' && openModal(curEx, i)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '14px 14px',
-                border: `1px solid ${rowBorder}`,
-                background: rowBg,
+                padding: '15px 14px',
+                border: rowBorder, background: rowBg,
                 cursor: state !== 'upcoming' ? 'pointer' : 'default',
-                boxShadow: state === 'active-set' ? '0 0 12px rgba(32,216,236,.15)' : 'none',
-                opacity: state === 'upcoming' && !isWarmup ? .55 : 1,
+                boxShadow: state === 'active-set' ? `0 0 14px rgba(32,216,236,.12)` : 'none',
+                opacity: state === 'upcoming' ? .5 : 1,
               }}
             >
-              <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'var(--mono)', fontSize: isWarmup ? 8 : 10, fontWeight: 700, background: indBg, color: indColor, border: `1px solid ${indBorder}`, boxShadow: state === 'active-set' ? '0 0 8px rgba(32,216,236,.3)' : 'none' }}>
-                {indDisplay}
+              <div style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: T.mono, fontSize: isWarmup ? 8 : 10, fontWeight: 700, background: indBg, color: indColor, border: `1px solid ${indBorder}`, boxShadow: state === 'active-set' ? `0 0 10px rgba(32,216,236,.3)` : 'none' }}>
+                {indContent}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED, marginBottom: 2 }}>
+                <div style={{ fontFamily: T.mono, fontSize: 7, letterSpacing: '.16em', color: T.cyanMuted, marginBottom: 3 }}>
                   {isWarmup ? 'WARM-UP' : 'WORK SET'} {i + 1}
                 </div>
                 {logged ? (
-                  <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, letterSpacing: '.04em', color: POS, lineHeight: 1 }}>
+                  <div style={{ fontFamily: T.display, fontSize: 20, fontWeight: 700, letterSpacing: '.04em', color: T.green, lineHeight: 1 }}>
                     {ex.bodyweight ? `Done ×${logged.r}` : `${logged.w}kg × ${logged.r}`}
                   </div>
                 ) : (
-                  <div style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 15, fontWeight: 400, color: 'rgba(199,236,244,.75)' }}>
+                  <div style={{ fontFamily: T.body, fontSize: 16, color: T.text }}>
                     {prescribed}
                   </div>
                 )}
               </div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: logged ? 'rgba(77,255,180,.5)' : CYAN }}>
+              <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.12em', color: logged ? `rgba(77,255,180,.5)` : T.cyan }}>
                 {logged ? 'EDIT' : 'LOG →'}
               </div>
             </div>
@@ -761,33 +761,26 @@ export default function ActiveSession({ onBack }) {
       </div>
 
       {/* NAV FOOTER */}
-      <div style={{ padding: '14px 18px', borderTop: `1px solid ${BORDER}`, display: 'flex', gap: 10, position: 'sticky', bottom: 0, background: 'rgba(0,0,0,.97)', backdropFilter: 'blur(12px)', flexShrink: 0 }}>
+      <div style={{ padding: '12px 14px', borderTop: T.border, display: 'flex', gap: 10, position: 'sticky', bottom: 0, background: 'rgba(1,6,8,.97)', backdropFilter: 'blur(14px)', flexShrink: 0 }}>
         <div
           onClick={() => curEx > 0 && setCurEx(c => c - 1)}
-          style={{ flex: 1, padding: '14px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: MUTED, border: `1px solid ${BORDER}`, cursor: curEx > 0 ? 'pointer' : 'default', opacity: curEx === 0 ? .35 : 1 }}
+          style={{ flex: 1, padding: '15px 0', textAlign: 'center', fontFamily: T.mono, fontSize: 9, letterSpacing: '.2em', color: T.cyanMuted, border: T.borderCyan, cursor: curEx > 0 ? 'pointer' : 'default', opacity: curEx === 0 ? .3 : 1 }}
         >
           ← PREV
         </div>
-        {allSessionDone ? (
+        {allSessionDone || isLastEx ? (
           <div
             onClick={!submitting ? finishSession : undefined}
-            style={{ flex: 2, padding: '14px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: '#000', fontWeight: 700, background: POS, border: `1px solid ${POS}`, cursor: 'pointer', boxShadow: '0 0 16px rgba(77,255,180,.35)' }}
+            style={{ flex: 2, padding: '15px 0', textAlign: 'center', fontFamily: T.mono, fontSize: 9, letterSpacing: '.2em', color: T.bg, fontWeight: 700, background: T.green, border: 'none', cursor: 'pointer', boxShadow: `0 0 20px rgba(77,255,180,.35)` }}
           >
-            {submitting ? 'SAVING…' : 'FINISH SESSION ✓'}
-          </div>
-        ) : isLastEx ? (
-          <div
-            onClick={finishSession}
-            style={{ flex: 2, padding: '14px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: '#000', fontWeight: 700, background: POS, border: `1px solid ${POS}`, cursor: 'pointer' }}
-          >
-            FINISH SESSION ✓
+            {submitting ? 'SAVING…' : 'FINISH ✓'}
           </div>
         ) : (
           <div
             onClick={() => setCurEx(c => Math.min(exercises.length - 1, c + 1))}
-            style={{ flex: 2, padding: '14px 0', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.2em', color: '#000', fontWeight: 700, background: CYAN, border: `1px solid ${CYAN}`, cursor: 'pointer', boxShadow: '0 0 16px rgba(32,216,236,.34)' }}
+            style={{ flex: 2, padding: '15px 0', textAlign: 'center', fontFamily: T.mono, fontSize: 9, letterSpacing: '.2em', color: T.bg, fontWeight: 700, background: T.cyan, border: 'none', cursor: 'pointer', boxShadow: `0 0 16px rgba(32,216,236,.3)` }}
           >
-            NEXT EXERCISE →
+            NEXT →
           </div>
         )}
       </div>
