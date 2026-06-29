@@ -219,6 +219,18 @@ export async function postManualFinanceTransaction(payload) {
   })
 }
 
+export async function logSleep(eventType) {
+  return apiFetch('/training/log/sleep', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_type: eventType }),
+  })
+}
+
+export async function getLastSleep() {
+  return apiFetch('/training/sleep/last')
+}
+
 export async function logSession(payload) {
   return apiFetch('/training/log/session', {
     method: 'POST',

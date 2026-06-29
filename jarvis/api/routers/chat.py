@@ -172,6 +172,15 @@ def _build_training_context() -> str:
         elif status.fatigue_warning:
             lines.append(f"Fatigue note: {status.fatigue_warning}")
 
+        sleep = database.get_last_sleep()
+        if sleep:
+            lines.append(
+                f"Last sleep: {sleep['duration_hours']:.1f}h "
+                f"(score {sleep['score']}/100)"
+            )
+        else:
+            lines.append("Last sleep: not logged yet")
+
         return "\n".join(lines)
     except Exception:
         return "TRAINING: Context unavailable."
@@ -214,11 +223,45 @@ def _build_calendar_context() -> str:
         return "CALENDAR: Context unavailable."
 
 
+_SLEEP_BEDTIME_KEYWORDS = [
+    "going to sleep", "going to bed", "good night", "goodnight",
+    "heading to bed", "time to sleep", "off to sleep", "bedtime",
+    "nite", "night night", "i'm going to bed", "im going to bed",
+]
+_SLEEP_WAKEUP_KEYWORDS = [
+    "just woke up", "good morning", "i woke up", "woke up",
+    "just got up", "i'm up", "im up", "waking up", "morning",
+    "i got up",
+]
+
+
+def _detect_sleep_intent(message: str) -> str | None:
+    """Return 'bedtime', 'wakeup', or None based on message keywords."""
+    lower = message.lower().strip()
+    for kw in _SLEEP_BEDTIME_KEYWORDS:
+        if kw in lower:
+            return "bedtime"
+    for kw in _SLEEP_WAKEUP_KEYWORDS:
+        if kw in lower:
+            return "wakeup"
+    return None
+
+
 @router.post("/chat")
 def jarvis_chat(request: ChatRequest) -> dict:
     domain = request.domain.lower()
     context_parts = []
     requires_approval = False
+
+    # Auto-log sleep events before building context
+    sleep_event = _detect_sleep_intent(request.message)
+    sleep_logged_note = ""
+    if sleep_event:
+        try:
+            database.log_sleep_event(sleep_event)
+            sleep_logged_note = f"\n[SYSTEM: {sleep_event} event auto-logged at {date.today().isoformat()}]"
+        except Exception:
+            pass
 
     if domain in ("finance", "home"):
         finance_ctx, fin_approval = _build_finance_context()
@@ -245,7 +288,8 @@ def jarvis_chat(request: ChatRequest) -> dict:
 
     context = "\n\n".join(p for p in context_parts if p)
     user_content = (
-        f"Live data:\n{context}\n\nQuestion: {request.message}" if context else request.message
+        f"Live data:\n{context}{sleep_logged_note}\n\nQuestion: {request.message}"
+        if context else request.message
     )
 
     messages = [*request.history, {"role": "user", "content": user_content}]

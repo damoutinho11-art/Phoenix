@@ -1,63 +1,206 @@
 import { useState, useEffect, useRef } from 'react'
 import { getTrainingStatus, logSession } from '../../api/client'
 
-// ─── Session Data (prototype spec) ───────────────────────────────────────────
+// ─── Session builders ────────────────────────────────────────────────────────
 
-const PROTO_SESSION = {
-  name: 'ME LOWER',
-  exercises: [
-    {
-      name: 'Hex Bar Deadlift Jump',
-      focus: 'Work to 3RM — explosive intent, reset between reps',
-      pct: null,
-      restSec: 240,
-      bodyweight: false,
-      sets: [
-        { type: 'warmup', targetWeight: 60,  targetReps: 5  },
-        { type: 'warmup', targetWeight: 90,  targetReps: 3  },
-        { type: 'work',   targetWeight: 110, targetReps: 3  },
-        { type: 'work',   targetWeight: 125, targetReps: 3  },
-        { type: 'work',   targetWeight: 135, targetReps: 3  },
-      ],
-    },
-    {
-      name: 'Romanian Deadlift',
-      focus: '65% of training max — 3 sec eccentric, controlled',
-      pct: '65% TM',
-      restSec: 120,
-      bodyweight: false,
-      sets: [
-        { type: 'work', targetWeight: 85, targetReps: 6 },
-        { type: 'work', targetWeight: 85, targetReps: 6 },
-        { type: 'work', targetWeight: 85, targetReps: 6 },
-        { type: 'work', targetWeight: 85, targetReps: 6 },
-      ],
-    },
-    {
-      name: 'Glute Ham Raise',
-      focus: 'Bodyweight — full ROM, 2 sec pause at bottom',
-      pct: 'BW',
-      restSec: 90,
-      bodyweight: true,
-      sets: [
-        { type: 'work', targetWeight: null, targetReps: 8 },
-        { type: 'work', targetWeight: null, targetReps: 8 },
-        { type: 'work', targetWeight: null, targetReps: 8 },
-      ],
-    },
-    {
-      name: 'Single-Leg Calf Raise',
-      focus: '15 reps each leg — slow, full ROM',
-      pct: 'BW',
-      restSec: 60,
-      bodyweight: true,
-      sets: [
-        { type: 'work', targetWeight: null, targetReps: 15 },
-        { type: 'work', targetWeight: null, targetReps: 15 },
-        { type: 'work', targetWeight: null, targetReps: 15 },
-      ],
-    },
-  ],
+const SESSION_NAMES = {
+  high_intensity: 'HIGH INTENSITY',
+  general: 'GENERAL UPPER',
+  jump: 'JUMP SESSION',
+  iso_only: 'ISO ONLY',
+  peak: 'PEAK SESSION',
+  attempt: 'DUNK ATTEMPT',
+}
+
+const SESSION_TYPE_LOG = {
+  high_intensity: 'Lower',
+  general: 'Upper',
+  jump: 'Lower',
+  iso_only: 'Lower',
+  peak: 'Lower',
+  attempt: 'Lower',
+}
+
+function fmtName(s) {
+  return s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function buildWorkSets(kg, nSets, reps) {
+  const w1 = Math.round((kg * 0.5) / 2.5) * 2.5
+  const w2 = Math.round((kg * 0.75) / 2.5) * 2.5
+  return [
+    { type: 'warmup', targetWeight: w1,  targetReps: reps + 2 },
+    { type: 'warmup', targetWeight: w2,  targetReps: reps },
+    ...Array.from({ length: nSets }, () => ({ type: 'work', targetWeight: kg, targetReps: reps })),
+  ]
+}
+
+function isoSets(n = 3) {
+  return Array.from({ length: n }, () => ({ type: 'work', targetWeight: null, targetReps: 1 }))
+}
+
+function buildExercises(todaySession) {
+  const stype = todaySession.session_type
+  const ww = todaySession.working_weights
+
+  if (stype === 'high_intensity' && ww) {
+    return [
+      {
+        name: fmtName(ww.explosive_exercise),
+        focus: `${ww.sets}×${ww.reps} @ ${ww.intensity_pct}% — explosive intent, reset between reps`,
+        pct: `${ww.explosive_kg}kg`,
+        restSec: 240,
+        bodyweight: false,
+        sets: buildWorkSets(ww.explosive_kg, ww.sets, ww.reps),
+      },
+      {
+        name: fmtName(ww.knee_extension_exercise),
+        focus: `${ww.sets}×${ww.reps} @ ${ww.intensity_pct}% — controlled descent`,
+        pct: `${ww.knee_extension_kg}kg`,
+        restSec: 180,
+        bodyweight: false,
+        sets: buildWorkSets(ww.knee_extension_kg, ww.sets, ww.reps),
+      },
+      {
+        name: fmtName(ww.posterior_chain_exercise),
+        focus: `${ww.sets}×${ww.reps} @ ${ww.intensity_pct}% — full ROM, 2s pause at top`,
+        pct: `${ww.posterior_chain_kg}kg`,
+        restSec: 150,
+        bodyweight: false,
+        sets: buildWorkSets(ww.posterior_chain_kg, ww.sets, ww.reps),
+      },
+      {
+        name: fmtName(ww.lower_leg_exercise),
+        focus: `${ww.sets}×${ww.reps} — slow, full ROM`,
+        pct: `${ww.lower_leg_kg}kg`,
+        restSec: 90,
+        bodyweight: false,
+        sets: buildWorkSets(ww.lower_leg_kg, ww.sets, ww.reps),
+      },
+    ]
+  }
+
+  if (stype === 'general') {
+    return [
+      {
+        name: 'Shoulder Rehab',
+        focus: 'Pre-hab — bands or light plate, full ROM',
+        pct: null, restSec: 60, bodyweight: true,
+        sets: [
+          { type: 'work', targetWeight: null, targetReps: 10 },
+          { type: 'work', targetWeight: null, targetReps: 10 },
+          { type: 'work', targetWeight: null, targetReps: 10 },
+        ],
+      },
+      {
+        name: 'Bench Press',
+        focus: 'Hypertrophy — 3×10 @ RPE 7, controlled',
+        pct: null, restSec: 120, bodyweight: false,
+        sets: [
+          { type: 'work', targetWeight: 60, targetReps: 10 },
+          { type: 'work', targetWeight: 60, targetReps: 10 },
+          { type: 'work', targetWeight: 60, targetReps: 10 },
+        ],
+      },
+      {
+        name: 'Lat Pulldown',
+        focus: 'Hypertrophy — 3×10 @ RPE 7, full stretch',
+        pct: null, restSec: 120, bodyweight: false,
+        sets: [
+          { type: 'work', targetWeight: 50, targetReps: 10 },
+          { type: 'work', targetWeight: 50, targetReps: 10 },
+          { type: 'work', targetWeight: 50, targetReps: 10 },
+        ],
+      },
+      {
+        name: 'Lateral Raise',
+        focus: 'Hypertrophy — 3×15 light, elbows soft',
+        pct: null, restSec: 60, bodyweight: false,
+        sets: [
+          { type: 'work', targetWeight: 8, targetReps: 15 },
+          { type: 'work', targetWeight: 8, targetReps: 15 },
+          { type: 'work', targetWeight: 8, targetReps: 15 },
+        ],
+      },
+    ]
+  }
+
+  if (stype === 'jump') {
+    return [
+      {
+        name: 'Knee Extension ISO',
+        focus: 'Activation — 3×30s @ 70%, max effort isometric',
+        pct: null, restSec: 60, bodyweight: true,
+        sets: isoSets(3),
+      },
+      {
+        name: 'Dynamic Flexibility',
+        focus: 'Warmup — hip circles, leg swings, lunge rotations',
+        pct: null, restSec: 60, bodyweight: true,
+        sets: isoSets(1),
+      },
+      {
+        name: 'Sprint Development',
+        focus: 'CNS Primer — 3×20m @ 85%, full recovery between',
+        pct: null, restSec: 120, bodyweight: true,
+        sets: isoSets(3),
+      },
+      {
+        name: 'Jump Ramp 10→100%',
+        focus: 'Build to max — 5 jumps progressively harder',
+        pct: null, restSec: 90, bodyweight: true,
+        sets: isoSets(5),
+      },
+      {
+        name: 'Max Approach Jumps',
+        focus: 'Max effort — record height each attempt',
+        pct: 'MAX', restSec: 180, bodyweight: true,
+        sets: isoSets(5),
+      },
+    ]
+  }
+
+  if (stype === 'iso_only') {
+    return [
+      {
+        name: 'Knee Extension ISO',
+        focus: '3–5 × 30–45s @ 70% — max effort, no movement',
+        pct: null, restSec: 90, bodyweight: true,
+        sets: isoSets(3),
+      },
+      {
+        name: 'Hip Flexor ISO',
+        focus: '3–5 × 30–45s @ 70% — standing or supine',
+        pct: null, restSec: 90, bodyweight: true,
+        sets: isoSets(3),
+      },
+      {
+        name: 'Calf ISO',
+        focus: '3–5 × 30–45s @ 70% — single leg, top of range',
+        pct: null, restSec: 90, bodyweight: true,
+        sets: isoSets(3),
+      },
+    ]
+  }
+
+  if (stype === 'peak' || stype === 'attempt') {
+    return [
+      {
+        name: 'Knee Extension ISO',
+        focus: '3×30s @ 70% — activation only, stay fresh',
+        pct: null, restSec: 90, bodyweight: true,
+        sets: isoSets(3),
+      },
+      {
+        name: 'Max Approach Jumps',
+        focus: 'Max effort attempts — full recovery between',
+        pct: 'MAX', restSec: 240, bodyweight: true,
+        sets: isoSets(5),
+      },
+    ]
+  }
+
+  return []
 }
 
 function fmt(s) {
@@ -83,10 +226,9 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
   const [inputR, setInputR] = useState(initR)
 
   const prevNote = prevLogged
-    ? ex.bodyweight ? `PREV: ${prevLogged.logged.r} reps` : `PREV SET: ${prevLogged.logged.w}kg × ${prevLogged.logged.r}`
+    ? ex.bodyweight ? `PREV: ${prevLogged.logged.r}` : `PREV SET: ${prevLogged.logged.w}kg × ${prevLogged.logged.r}`
     : ex.bodyweight ? `TARGET: ${set.targetReps} reps` : `TARGET: ${set.targetWeight}kg × ${set.targetReps}`
 
-  const ORANGE = '#ff8f2e'
   const CYAN = '#20d8ec'
   const BORDER = 'rgba(32,216,236,.18)'
   const MUTED = 'rgba(32,216,236,.38)'
@@ -121,7 +263,7 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: MUTED }}>REPS</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: MUTED }}>{ex.bodyweight ? 'SETS DONE' : 'REPS'}</div>
             <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.04)' }}>
               <button onClick={() => setInputR(v => Math.max(1, v - 1))}
                 style={{ width: 50, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--display)', fontSize: 20, color: CYAN, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>−</button>
@@ -129,7 +271,9 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
               <button onClick={() => setInputR(v => v + 1)}
                 style={{ width: 50, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--display)', fontSize: 20, color: CYAN, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>+</button>
             </div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: MUTED, letterSpacing: '.1em', textAlign: 'center' }}>REPS</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: MUTED, letterSpacing: '.1em', textAlign: 'center' }}>
+              {ex.bodyweight ? 'COUNT' : 'REPS'}
+            </div>
           </div>
         </div>
 
@@ -155,7 +299,6 @@ function RestOverlay({ seconds, total, nextNote, onSkip }) {
     const offset = (1 - pct) * 439.8
     arcRef.current.style.transition = 'stroke-dashoffset .95s linear'
     arcRef.current.setAttribute('stroke-dashoffset', offset)
-    // colour shift
     const color = pct < 0.25 ? '#ff5c7a' : pct < 0.5 ? '#ffd56b' : '#20d8ec'
     arcRef.current.setAttribute('stroke', color)
   }, [seconds, total])
@@ -165,10 +308,7 @@ function RestOverlay({ seconds, total, nextNote, onSkip }) {
   const timeStr = `${m}:${String(s).padStart(2, '0')}`
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 40,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.3em', color: 'rgba(32,216,236,.38)', marginBottom: 16 }}>REST PERIOD</div>
       <div style={{ fontFamily: 'var(--display)', fontSize: 88, fontWeight: 700, lineHeight: 1, letterSpacing: '-.02em', color: '#7df0ff', filter: 'drop-shadow(0 0 26px rgba(32,216,236,.45))' }}>
         {timeStr}
@@ -201,10 +341,13 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
   const totalSets = exercises.reduce((a, ex) => a + ex.sets.filter(s => s.logged).length, 0)
   const mins = Math.floor(elapsed / 60)
 
-  // find top hex bar lift
-  const hex = exercises[0]
-  const maxLogged = hex.sets.filter(s => s.logged && s.logged.w).sort((a, b) => b.logged.w - a.logged.w)
-  const topLift = maxLogged.length ? `${maxLogged[0].logged.w}kg` : '—'
+  const weightedEx = exercises.find(ex => !ex.bodyweight)
+  const topLift = weightedEx
+    ? (() => {
+        const maxS = weightedEx.sets.filter(s => s.logged && s.logged.w).sort((a, b) => b.logged.w - a.logged.w)
+        return maxS.length ? `${maxS[0].logged.w}kg` : '—'
+      })()
+    : '—'
 
   const BORDER = 'rgba(32,216,236,.18)'
   const MUTED = 'rgba(32,216,236,.38)'
@@ -262,32 +405,88 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
   )
 }
 
+// ─── Loading / Error views ────────────────────────────────────────────────────
+
+function LoadingView() {
+  const MUTED = 'rgba(32,216,236,.38)'
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', gap: 12 }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.28em', color: MUTED }}>LOADING SESSION…</div>
+    </div>
+  )
+}
+
+function RestDayView({ onBack }) {
+  const MUTED = 'rgba(32,216,236,.38)'
+  const CYAN = '#20d8ec'
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', gap: 16, padding: '0 32px', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, letterSpacing: '.14em', color: '#fff' }}>REST DAY</div>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.16em', color: MUTED, lineHeight: 1.8 }}>Recovery is training. Sleep, eat, stay off your feet.</div>
+      <div
+        onClick={onBack}
+        style={{ marginTop: 24, padding: '14px 32px', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: '#000', background: CYAN, cursor: 'pointer' }}
+      >
+        ← BACK
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ActiveSession({ onBack }) {
-  const [exercises, setExercises] = useState(() =>
-    PROTO_SESSION.exercises.map(ex => ({
-      ...ex,
-      sets: ex.sets.map(s => ({ ...s, logged: null })),
-    }))
-  )
+  const [status, setStatus] = useState(null)
+  const [loadError, setLoadError] = useState(false)
+  const [exercises, setExercises] = useState([])
+  const [sessionName, setSessionName] = useState('SESSION')
+  const [sessionTypeLock, setSessionTypeLock] = useState('Lower')
+  const [weekLock, setWeekLock] = useState(null)
+
   const [curEx, setCurEx] = useState(0)
-  const [logModal, setLogModal] = useState(null) // { exIdx, setIdx }
-  const [rest, setRest] = useState(null)         // { seconds, total, nextNote }
+  const [logModal, setLogModal] = useState(null)
+  const [rest, setRest] = useState(null)
   const [elapsed, setElapsed] = useState(0)
-  const [phase, setPhase] = useState('active')   // 'active' | 'complete'
+  const [phase, setPhase] = useState('loading')
   const [submitting, setSubmitting] = useState(false)
 
-  // API load — merge into exercises if available
+  // Fetch status and build session
   useEffect(() => {
-    getTrainingStatus().catch(() => {})
+    getTrainingStatus()
+      .then(s => {
+        const today = s.today_session
+        if (today.session_type === 'rest') {
+          setPhase('rest')
+          return
+        }
+        const built = buildExercises(today)
+        if (!built.length) {
+          setLoadError(true)
+          setPhase('active')
+          return
+        }
+        setExercises(built.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(set => ({ ...set, logged: null })),
+        })))
+        setSessionName(SESSION_NAMES[today.session_type] || today.session_type.toUpperCase())
+        setSessionTypeLock(SESSION_TYPE_LOG[today.session_type] || 'Lower')
+        setWeekLock(today.week_of_mesocycle ?? null)
+        setStatus(s)
+        setPhase('active')
+      })
+      .catch(() => {
+        setLoadError(true)
+        setPhase('active')
+      })
   }, [])
 
-  // Elapsed timer
+  // Elapsed timer (only runs during active phase)
   useEffect(() => {
+    if (phase !== 'active') return
     const id = setInterval(() => setElapsed(s => s + 1), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [phase])
 
   // Rest countdown
   useEffect(() => {
@@ -319,7 +518,6 @@ export default function ActiveSession({ onBack }) {
 
     const ex = exercises[exIdx]
     const set = ex.sets[setIdx]
-    // Start rest unless last set logged
     const nextSetIdx = setIdx + 1
     const nextSet = ex.sets[nextSetIdx]
     const sec = set.type === 'warmup' ? 60 : ex.restSec
@@ -327,7 +525,7 @@ export default function ActiveSession({ onBack }) {
     let nextNote = ''
     if (nextSet) {
       nextNote = ex.bodyweight
-        ? `Next: Set ${nextSetIdx + 1} · ${nextSet.targetReps} reps`
+        ? `Next: Set ${nextSetIdx + 1}`
         : `Next: Set ${nextSetIdx + 1} · ${nextSet.targetWeight}kg × ${nextSet.targetReps}`
     } else {
       nextNote = 'Last set done — move to next exercise'
@@ -336,20 +534,24 @@ export default function ActiveSession({ onBack }) {
   }
 
   async function finishSession() {
-    if (submitting) return
+    if (submitting || !exercises.length) return
     setSubmitting(true)
 
-    // Build API payload
     const exercisePayload = exercises.map(ex => ({
       name: ex.name,
-      sets: ex.sets.filter(s => s.logged).map(s => ({ reps: s.logged.r, weight_kg: s.logged.w || 0 })),
-    }))
+      body_region: ex.bodyweight ? 'upper' : 'lower',
+      sets: ex.sets.filter(s => s.logged).map(s => ({
+        reps: s.logged.r,
+        weight_kg: s.logged.w || 0,
+        target_reps: s.targetReps,
+      })),
+    })).filter(ex => ex.sets.length > 0)
 
     try {
       await logSession({
         date: new Date().toISOString().slice(0, 10),
-        session_type: 'Legs',
-        week_number: 3,
+        session_type: sessionTypeLock,
+        week_number: weekLock,
         exercises: exercisePayload,
         notes: '',
       })
@@ -359,14 +561,28 @@ export default function ActiveSession({ onBack }) {
     setPhase('complete')
   }
 
+  if (phase === 'loading') return <LoadingView />
+  if (phase === 'rest') return <RestDayView onBack={onBack} />
   if (phase === 'complete') {
     return (
       <CompleteView
-        sessionName={PROTO_SESSION.name}
+        sessionName={sessionName}
         elapsed={elapsed}
         exercises={exercises}
         onBack={onBack}
       />
+    )
+  }
+
+  if (loadError || !exercises.length) {
+    const MUTED = 'rgba(32,216,236,.38)'
+    const CYAN = '#20d8ec'
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', gap: 12, padding: '0 32px', textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: MUTED }}>COULD NOT LOAD SESSION</div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'rgba(125,188,200,.4)', letterSpacing: '.1em', lineHeight: 1.8 }}>Backend offline or no session scheduled.</div>
+        <div onClick={onBack} style={{ marginTop: 16, padding: '14px 32px', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.22em', color: '#000', background: CYAN, cursor: 'pointer' }}>← BACK</div>
+      </div>
     )
   }
 
@@ -393,7 +609,7 @@ export default function ActiveSession({ onBack }) {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
           <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: CYAN_BR }}>
-            {PROTO_SESSION.name}
+            {sessionName}
           </span>
         </div>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 14, letterSpacing: '.1em', color: CYAN }}>{fmt(elapsed)}</span>
@@ -422,6 +638,11 @@ export default function ActiveSession({ onBack }) {
             <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', padding: '3px 8px', border: `1px solid rgba(255,143,46,.35)`, color: ORANGE, background: 'rgba(255,143,46,.07)' }}>{ex.pct}</span>
           )}
           <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', padding: '3px 8px', border: `1px solid ${BORDER}`, color: MUTED }}>{restLabel}</span>
+          {status?.today_session?.working_weights?.top_set_note && curEx === 0 && (
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', padding: '3px 8px', border: `1px solid rgba(255,143,46,.2)`, color: 'rgba(255,143,46,.6)' }}>
+              {status.today_session.working_weights.top_set_note}
+            </span>
+          )}
         </div>
       </div>
 
@@ -435,36 +656,24 @@ export default function ActiveSession({ onBack }) {
 
           const rowBorder = state === 'completed'
             ? 'rgba(77,255,180,.2)'
-            : state === 'active-set'
-              ? CYAN
-              : isWarmup ? 'rgba(255,213,107,.15)' : 'rgba(32,216,236,.1)'
-
+            : state === 'active-set' ? CYAN : isWarmup ? 'rgba(255,213,107,.15)' : 'rgba(32,216,236,.1)'
           const rowBg = state === 'completed'
             ? 'rgba(77,255,180,.04)'
-            : state === 'active-set'
-              ? 'rgba(32,216,236,.06)'
-              : isWarmup ? 'rgba(255,213,107,.02)' : 'transparent'
-
+            : state === 'active-set' ? 'rgba(32,216,236,.06)' : isWarmup ? 'rgba(255,213,107,.02)' : 'transparent'
           const indBg = state === 'completed'
             ? 'rgba(77,255,180,.15)'
-            : state === 'active-set'
-              ? 'rgba(32,216,236,.15)'
-              : isWarmup ? 'rgba(255,213,107,.1)' : 'transparent'
+            : state === 'active-set' ? 'rgba(32,216,236,.15)' : isWarmup ? 'rgba(255,213,107,.1)' : 'transparent'
           const indBorder = state === 'completed'
             ? 'rgba(77,255,180,.3)'
-            : state === 'active-set'
-              ? CYAN
-              : isWarmup ? 'rgba(255,213,107,.2)' : 'rgba(32,216,236,.18)'
+            : state === 'active-set' ? CYAN : isWarmup ? 'rgba(255,213,107,.2)' : 'rgba(32,216,236,.18)'
           const indColor = state === 'completed'
             ? POS
-            : state === 'active-set'
-              ? CYAN_BR
-              : isWarmup ? '#ffd56b' : MUTED
+            : state === 'active-set' ? CYAN_BR : isWarmup ? '#ffd56b' : MUTED
           const indContent = state === 'completed' ? '✓' : state === 'active-set' ? '●' : (i + 1)
           const indDisplay = isWarmup ? 'W' : indContent
 
           const prescribed = ex.bodyweight
-            ? `${set.targetReps} reps`
+            ? `${set.targetReps === 1 ? 'MARK DONE' : set.targetReps + ' reps'}`
             : `${set.targetWeight}kg × ${set.targetReps}`
 
           return (
@@ -490,7 +699,7 @@ export default function ActiveSession({ onBack }) {
                 </div>
                 {logged ? (
                   <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, letterSpacing: '.04em', color: POS, lineHeight: 1 }}>
-                    {ex.bodyweight ? `${logged.r} reps` : `${logged.w}kg × ${logged.r}`}
+                    {ex.bodyweight ? `Done ×${logged.r}` : `${logged.w}kg × ${logged.r}`}
                   </div>
                 ) : (
                   <div style={{ fontFamily: "'Saira Condensed',sans-serif", fontSize: 15, fontWeight: 400, color: 'rgba(199,236,244,.75)' }}>

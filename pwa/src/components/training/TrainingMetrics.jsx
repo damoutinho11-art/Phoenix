@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getTrainingHistory, getTrainingStatus, logJump } from '../../api/client'
+import { getTrainingHistory, getTrainingStatus, getLastSleep, logJump } from '../../api/client'
 
 // ─── Jump Chart SVG ───────────────────────────────────────────────────────────
 
@@ -80,40 +80,61 @@ function JumpChart({ jumpData, targetLine = 32.0 }) {
 
 // ─── Recovery Ring ────────────────────────────────────────────────────────────
 
-function RecoveryRing({ pct = 75 }) {
+function RecoveryRing({ sleep }) {
+  const sleepHours = sleep?.duration_hours ?? null
+  const sleepScore = sleep?.score ?? null
+  const pct = sleepScore ?? 0
+
   const circ = 213.6
   const offset = circ * (1 - pct / 100)
+
+  const sleepColor = sleepScore == null ? 'rgba(32,216,236,.25)' : sleepScore >= 75 ? '#4dffb4' : sleepScore >= 50 ? '#ffd56b' : '#ff5c7a'
+  const sleepVal = sleepHours != null
+    ? `${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`
+    : '—'
+  const sleepPct = sleepScore ?? 0
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '14px 18px', borderTop: '1px solid rgba(32,216,236,.18)' }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <svg width="80" height="80" viewBox="0 0 80 80">
           <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(32,216,236,.1)" strokeWidth="6" />
-          <circle cx="40" cy="40" r="34" fill="none" stroke="#7df0ff" strokeWidth="6"
+          <circle cx="40" cy="40" r="34" fill="none" stroke={sleepColor} strokeWidth="6"
             strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
             transform="rotate(-90 40 40)"
             style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)' }} />
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#7df0ff', lineHeight: 1 }}>{pct}%</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: 'rgba(32,216,236,.38)' }}>RECOVERY</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: sleepColor, lineHeight: 1 }}>
+            {sleepScore != null ? `${sleepScore}%` : '—'}
+          </div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: 'rgba(32,216,236,.38)' }}>SLEEP</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: 'rgba(32,216,236,.38)', marginBottom: 6 }}>
-          READINESS BREAKDOWN
+          READINESS
         </div>
+
+        {/* Sleep — real data */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(32,216,236,.38)' }}>SLEEP</span>
+          <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }}>
+            <div style={{ height: '100%', borderRadius: 1, background: sleepColor, width: `${sleepPct}%`, transition: 'width 1s ease' }} />
+          </div>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: sleepColor }}>{sleepVal}</span>
+        </div>
+
+        {/* Soreness + HRV — tell PHOENIX to update */}
         {[
-          { label: 'SLEEP',    pct: 82, color: '#4dffb4', val: '7h 20m', valColor: '#7df0ff' },
-          { label: 'SORENESS', pct: 60, color: '#ffd56b', val: 'MOD',    valColor: '#ffd56b' },
-          { label: 'HRV',      pct: 78, color: '#4dffb4', val: '68ms',   valColor: '#7df0ff' },
-        ].map(({ label, pct: p, color, val, valColor }) => (
+          { label: 'SORENESS', val: 'tell PHOENIX' },
+          { label: 'HRV',      val: 'tell PHOENIX' },
+        ].map(({ label, val }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: 'rgba(32,216,236,.38)' }}>{label}</span>
-            <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }}>
-              <div style={{ height: '100%', borderRadius: 1, background: color, width: `${p}%` }} />
-            </div>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: valColor }}>{val}</span>
+            <div style={{ height: 3, background: 'rgba(32,216,236,.1)', flex: 1, margin: '0 10px', borderRadius: 1 }} />
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: 'rgba(32,216,236,.22)', letterSpacing: '.06em' }}>{val}</span>
           </div>
         ))}
       </div>
@@ -241,11 +262,13 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
   const [modalOpen, setModalOpen] = useState(false)
   const [statusData, setStatusData] = useState(null)
   const [history, setHistory] = useState(null)
+  const [sleepData, setSleepData] = useState(null)
 
   async function loadData() {
-    const [s, h] = await Promise.allSettled([getTrainingStatus(), getTrainingHistory()])
+    const [s, h, sl] = await Promise.allSettled([getTrainingStatus(), getTrainingHistory(), getLastSleep()])
     if (s.status === 'fulfilled') setStatusData(s.value)
     if (h.status === 'fulfilled') setHistory(h.value)
+    if (sl.status === 'fulfilled' && sl.value?.available) setSleepData(sl.value)
   }
 
   useEffect(() => { loadData() }, [])
@@ -418,7 +441,7 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
         </div>
 
         {/* RECOVERY RING */}
-        <RecoveryRing pct={75} />
+        <RecoveryRing sleep={sleepData} />
 
         {/* BODYWEIGHT TREND */}
         <WeightBars currentKg={currentBodyweightKg} targetKg={81} startKg={87} />

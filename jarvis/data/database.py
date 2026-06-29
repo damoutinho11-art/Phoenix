@@ -224,6 +224,14 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_unique
 ON budget_transactions(date, merchant, amount_eur);
+
+CREATE TABLE IF NOT EXISTS sleep_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL CHECK (event_type IN ('bedtime', 'wakeup')),
+    logged_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sleep_log_logged_at ON sleep_log(logged_at);
 """
 
 
@@ -1796,3 +1804,45 @@ def get_meal_history(days: int = 14, target_calories: float = 2200.0) -> list[di
                 "has_data": False,
             })
     return result
+
+
+def log_sleep_event(event_type: str) -> int:
+    """Log a bedtime or wakeup event. Returns the new row id."""
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO sleep_log (event_type, logged_at) VALUES (?, ?)",
+            (event_type, _utc_now()),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_last_sleep() -> dict[str, Any] | None:
+    """Return duration info for the most recent completed sleep period (bedtime → wakeup)."""
+    with get_db() as conn:
+        wakeup_row = conn.execute(
+            "SELECT logged_at FROM sleep_log WHERE event_type='wakeup' ORDER BY logged_at DESC LIMIT 1"
+        ).fetchone()
+        if not wakeup_row:
+            return None
+        wakeup_at = datetime.fromisoformat(wakeup_row["logged_at"])
+
+        bedtime_row = conn.execute(
+            "SELECT logged_at FROM sleep_log WHERE event_type='bedtime' AND logged_at < ? ORDER BY logged_at DESC LIMIT 1",
+            (wakeup_row["logged_at"],),
+        ).fetchone()
+        if not bedtime_row:
+            return None
+        bedtime_at = datetime.fromisoformat(bedtime_row["logged_at"])
+
+        duration_h = (wakeup_at - bedtime_at).total_seconds() / 3600
+        if duration_h <= 0 or duration_h > 16:
+            return None
+
+        score = min(100, max(0, int((duration_h / 8.0) * 100)))
+        return {
+            "bedtime": bedtime_at.isoformat(),
+            "wakeup": wakeup_at.isoformat(),
+            "duration_hours": round(duration_h, 2),
+            "score": score,
+        }

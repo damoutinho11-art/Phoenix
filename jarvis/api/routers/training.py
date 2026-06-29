@@ -314,3 +314,21 @@ def training_brief(
         )
 
     return {"brief": brief_text, "requires_approval": True}
+
+
+class SleepLogRequest(BaseModel):
+    event_type: Literal["bedtime", "wakeup"]
+
+
+@router.post("/log/sleep")
+def log_sleep(request: SleepLogRequest) -> dict:
+    event_id = database.log_sleep_event(request.event_type)
+    return {"status": "logged", "event_type": request.event_type, "id": event_id}
+
+
+@router.get("/sleep/last")
+def get_last_sleep() -> dict:
+    data = database.get_last_sleep()
+    if not data:
+        return {"available": False}
+    return {"available": True, **data}
