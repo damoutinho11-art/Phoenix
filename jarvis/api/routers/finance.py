@@ -1217,13 +1217,22 @@ def finance_holdings(
     statuses = engine.current_statuses(constitution, holdings)
     status_map = {s.name: s for s in statuses}
 
+    units_store = portfolio_state.get("units", {})
     active = []
     for key, value in portfolio_state.get("holdings", {}).items():
         s = status_map.get(key)
+        raw_units = units_store.get(key)
+        unit_count = None
+        if raw_units is not None and not isinstance(raw_units, str):
+            try:
+                unit_count = float(raw_units) if raw_units != 0 else None
+            except (TypeError, ValueError):
+                unit_count = None
         active.append({
             "key": key,
             "display_name": _ASSET_DISPLAY_NAMES.get(key, key.replace("_", " ").title()),
             "amount": value,
+            "units": unit_count,
             "sleeve": key,
             "route": constitution.get("asset_routes", {}).get(key),
             "band_status": s.band_status if s else "unknown",
@@ -1339,6 +1348,21 @@ Provide a brief, direct investment summary for this week.\
         )
 
     return {"brief": brief_text, "requires_approval": True}
+
+
+@router.get("/portfolio-state")
+def finance_get_portfolio_state(portfolio_state: dict = Depends(get_portfolio_state)) -> dict:
+    """Return the raw portfolio state (units, holdings, legacy_holdings) for inspection."""
+    return {
+        "as_of": portfolio_state.get("as_of"),
+        "prices_refreshed_at": portfolio_state.get("prices_refreshed_at"),
+        "holdings": portfolio_state.get("holdings", {}),
+        "legacy_holdings": portfolio_state.get("legacy_holdings", {}),
+        "units": {
+            k: v for k, v in portfolio_state.get("units", {}).items()
+            if not isinstance(v, str)
+        },
+    }
 
 
 @router.post("/refresh-prices")
@@ -2640,6 +2664,64 @@ def _reverse_transaction_in_portfolio_state(
 class VoidTransactionPayload(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     reason: str = Field(default="Manual void by user", min_length=1)
+
+
+class PatchPortfolioUnitsPayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    asset: str = Field(min_length=1)
+    units: float = Field(ge=0)
+    holdings_eur: float | None = Field(default=None, ge=0)
+    reason: str = Field(default="Manual data correction", min_length=1)
+
+
+@router.post("/portfolio-state/patch-units")
+def finance_patch_portfolio_units(payload: PatchPortfolioUnitsPayload) -> dict:
+    """Directly correct units (and optionally holdings EUR value) for a single asset.
+
+    Use this to fix data entry errors such as a decimal-place slip in unit count.
+    Changes are written to both SQLite and portfolio_state.json.
+    """
+    portfolio_state = database.load_portfolio_state()
+
+    units_store = portfolio_state.get("units", {})
+    if payload.asset not in units_store and payload.asset not in portfolio_state.get("holdings", {}) and payload.asset not in portfolio_state.get("legacy_holdings", {}):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Asset '{payload.asset}' not found in portfolio_state.",
+        )
+
+    before_units = copy.deepcopy(units_store)
+    before_holdings = copy.deepcopy(portfolio_state.get("holdings", {}))
+    before_legacy = copy.deepcopy(portfolio_state.get("legacy_holdings", {}))
+
+    new_state = copy.deepcopy(portfolio_state)
+    if payload.asset in new_state.get("units", {}):
+        new_state["units"][payload.asset] = round(payload.units, 10)
+    if payload.holdings_eur is not None:
+        if payload.asset in new_state.get("holdings", {}):
+            new_state["holdings"][payload.asset] = round(payload.holdings_eur, 2)
+        elif payload.asset in new_state.get("legacy_holdings", {}):
+            new_state["legacy_holdings"][payload.asset] = round(payload.holdings_eur, 2)
+
+    database.save_portfolio_state(new_state)
+
+    return {
+        "asset": payload.asset,
+        "units_before": before_units.get(payload.asset),
+        "units_after": new_state["units"].get(payload.asset),
+        "holdings_eur_before": before_holdings.get(payload.asset) or before_legacy.get(payload.asset),
+        "holdings_eur_after": (
+            new_state.get("holdings", {}).get(payload.asset)
+            or new_state.get("legacy_holdings", {}).get(payload.asset)
+        ),
+        "reason": payload.reason,
+        "portfolio_state_updated": True,
+        "message": (
+            f"Units for '{payload.asset}' corrected from "
+            f"{before_units.get(payload.asset)} to {payload.units}. "
+            "Run /finance/refresh-prices to update the holdings EUR value from live market price."
+        ),
+    }
 
 
 @router.post("/ledger/{transaction_id}/void")

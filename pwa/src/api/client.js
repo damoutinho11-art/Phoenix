@@ -123,6 +123,10 @@ export async function getFinanceHoldings() {
   return apiFetch('/finance/holdings')
 }
 
+export async function getFinancePortfolioState() {
+  return apiFetch('/finance/portfolio-state')
+}
+
 export async function postFinanceRefreshPrices() {
   return apiFetch('/finance/refresh-prices', { method: 'POST' })
 }
@@ -308,6 +312,19 @@ export async function postFinanceTransactionVoid(transactionId, reason) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason: reason || 'Manual void by user' }),
+  })
+}
+
+export async function postFinancePatchUnits(asset, units, holdingsEur, reason) {
+  return apiFetch('/finance/portfolio-state/patch-units', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      asset,
+      units,
+      holdings_eur: holdingsEur != null ? holdingsEur : undefined,
+      reason: reason || 'Manual data correction',
+    }),
   })
 }
 
