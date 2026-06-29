@@ -236,10 +236,12 @@ function getWeekNumber(dateStr) {
 // ─── Authorization Core ───────────────────────────────────────────────────────
 function AuthorizationCore({ checklist, recommendation }) {
   const weekBudget = checklist?.week_budget ?? recommendation?.week_budget
+  const weekLabel = checklist?.week_label ?? recommendation?.week_label
   const checklistItems = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
   const deploymentSymbols = checklistItems.map(i => i?.symbol || i?.ticker).filter(Boolean).join(' + ')
   const manualBuyCount = checklistItems.length
-  const isPending = checklist?.requires_approval !== false
+  const briefStatus = checklist?.brief_status ?? recommendation?.brief_status
+  const isPending = checklist?.requires_approval !== false && briefStatus !== 'approved' && briefStatus !== 'rejected'
 
   const C = 2 * Math.PI * 65
   const arcStyle = {
@@ -285,7 +287,25 @@ function AuthorizationCore({ checklist, recommendation }) {
         </div>
       </div>
 
-      {isPending && (
+      {briefStatus === 'approved' ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          background: 'rgba(0,220,120,0.07)', border: '1px solid rgba(0,220,120,0.35)',
+          borderRadius: 2, padding: '6px 14px', margin: '0 auto 1.2rem', width: 'fit-content',
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00dc78', boxShadow: '0 0 6px #00dc78' }} />
+          <span style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.2em', color: 'rgba(0,220,120,0.93)' }}>{weekLabel} APPROVED</span>
+        </div>
+      ) : briefStatus === 'rejected' ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          background: 'rgba(0,187,221,0.04)', border: '1px solid rgba(0,187,221,0.15)',
+          borderRadius: 2, padding: '6px 14px', margin: '0 auto 1.2rem', width: 'fit-content',
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(0,187,221,0.4)' }} />
+          <span style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.4)' }}>{weekLabel} REVIEWED</span>
+        </div>
+      ) : isPending ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           background: 'rgba(255,170,0,0.07)', border: '1px solid rgba(255,170,0,0.4)',
@@ -294,7 +314,7 @@ function AuthorizationCore({ checklist, recommendation }) {
           <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ffaa00', boxShadow: '0 0 6px #ffaa00', animation: 'phBlink 1.2s ease-in-out infinite' }} />
           <span style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.2em', color: 'rgba(255,170,0,0.93)' }}>PENDING APPROVAL</span>
         </div>
-      )}
+      ) : null}
 
       <div style={{ borderTop: '1px solid rgba(0,187,221,0.1)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {checklistItems.map((item, i) => (
