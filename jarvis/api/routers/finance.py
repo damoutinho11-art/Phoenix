@@ -4,11 +4,11 @@ import copy
 import json
 from datetime import date, datetime, timezone
 from typing import Any, Literal
-import anthropic
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
+from jarvis.api import ai_gateway
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.etf_scoring import load_etf_universe
 from jarvis.domains.finance.market_data import (
@@ -1333,14 +1333,14 @@ Provide a brief, direct investment summary for this week.\
 """
 
     try:
-        client = anthropic.Anthropic()
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=256,
-            system=_BRIEF_SYSTEM_PROMPT,
+        result = ai_gateway.generate_text(
+            system_prompt=_BRIEF_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
+            max_tokens=256,
         )
-        brief_text = message.content[0].text
+        brief_text = result.text if result.ok else (
+            "AI brief unavailable. Raw recommendation available via /finance/recommendation."
+        )
     except Exception:
         brief_text = (
             "Unable to generate brief. "

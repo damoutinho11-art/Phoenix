@@ -14,7 +14,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, finance, health, nutrition, training
+from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, finance, health, news, nutrition, training
 from jarvis.data import database
 from jarvis.data.database import init_db
 from jarvis.domains.finance import engine as finance_engine
@@ -125,6 +125,7 @@ app.include_router(nutrition.router, prefix="/nutrition", tags=["nutrition"])
 app.include_router(crossdomain.router, prefix="/cross-domain", tags=["cross-domain"])
 app.include_router(barcode.router, prefix="/barcode", tags=["barcode"])
 app.include_router(chat.router, prefix="/jarvis", tags=["jarvis"])
+app.include_router(news.router, prefix="/news", tags=["news"])
 app.include_router(health.router, prefix="/health", tags=["health"])
 
 
@@ -140,5 +141,6 @@ def health() -> dict:
             "cross-domain",
             "barcode",
             "jarvis",
+            "news",
         ],
     }

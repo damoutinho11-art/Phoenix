@@ -3,11 +3,11 @@
 import json
 from datetime import date
 
-import anthropic
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from jarvis.data import database
+from jarvis.api import ai_gateway
 
 router = APIRouter()
 
@@ -28,7 +28,6 @@ class SaveRequest(BaseModel):
 
 
 def _parse_transactions_with_claude(raw_text: str, source: str = "text") -> list[dict]:
-    client = anthropic.Anthropic()
     prompt = f"""Extract all transactions from this LHV bank statement text.
 
 For each transaction return a JSON object with:
@@ -56,12 +55,14 @@ Categorisation rules:
 Raw text:
 {raw_text}"""
 
-    result = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2000,
+    result = ai_gateway.generate_text(
+        system_prompt="You extract bank transactions. Return only strict JSON.",
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=2000,
     )
-    text = result.content[0].text.strip()
+    if not result.ok:
+        raise RuntimeError(result.text)
+    text = result.text.strip()
     text = text.replace("```json", "").replace("```", "").strip()
     transactions = json.loads(text)
     for t in transactions:
@@ -71,7 +72,6 @@ Raw text:
 
 
 def _generate_budget_insight(summary: dict, month: str) -> str:
-    client = anthropic.Anthropic()
     prompt = f"""Budget summary for {month}:
 {json.dumps(summary, indent=2)}
 
@@ -80,12 +80,14 @@ Maximum 3 sentences. Be concise. Cover: savings rate vs 25% target,
 top spending category, one specific thing to cut.
 No markdown, no symbols, natural spoken sentences.
 Address the user as Sir."""
-    result = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=200,
+    result = ai_gateway.generate_text(
+        system_prompt="You are PHOENIX. Return concise budget insight only.",
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=200,
     )
-    return result.content[0].text.strip()
+    if not result.ok:
+        return ""
+    return result.text.strip()
 
 
 @router.post("/parse")

@@ -111,6 +111,22 @@ export async function lookupBarcode(barcode) {
   return apiFetch(`/barcode/lookup/${encodeURIComponent(barcode)}`)
 }
 
+export async function getJarvisAiStatus() {
+  return apiFetch('/jarvis/ai/status')
+}
+
+export async function getJarvisActivity() {
+  return apiFetch('/jarvis/activity')
+}
+
+export async function getNewsStatus() {
+  return apiFetch('/news/status')
+}
+
+export async function getNewsHeadlines(topic = 'home', limit = 5) {
+  return apiFetch(`/news/headlines?topic=${encodeURIComponent(topic)}&limit=${limit}`)
+}
+
 export async function getWeightHistory(days = 30) {
   return apiFetch(`/nutrition/log/weight/history?days=${days}`)
 }

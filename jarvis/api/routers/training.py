@@ -3,11 +3,11 @@
 from datetime import date, timedelta
 from typing import Literal
 
-import anthropic
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from jarvis.api.dependencies import get_training_constitution
+from jarvis.api import ai_gateway
 from jarvis.data import database
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.training import engine, progression
@@ -321,14 +321,14 @@ def training_brief(
     user_message = _build_brief_user_message(status_dict)
 
     try:
-        client = anthropic.Anthropic()
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=256,
-            system=_TRAINING_BRIEF_SYSTEM,
+        result = ai_gateway.generate_text(
+            system_prompt=_TRAINING_BRIEF_SYSTEM,
             messages=[{"role": "user", "content": user_message}],
+            max_tokens=256,
         )
-        brief_text = message.content[0].text
+        brief_text = result.text if result.ok else (
+            "AI training brief unavailable. Raw training status available via /training/status."
+        )
     except Exception:
         brief_text = (
             "Unable to generate brief. "

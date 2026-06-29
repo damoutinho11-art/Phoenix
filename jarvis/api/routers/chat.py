@@ -5,11 +5,12 @@ import re
 from datetime import date
 from pathlib import Path
 
-import anthropic
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from jarvis.data import database
+from jarvis.api import ai_gateway
+from jarvis.domains.news import engine as news_engine
 from jarvis.domains.calendar import engine as calendar_engine
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.finance import engine as finance_engine
@@ -226,6 +227,38 @@ def _build_calendar_context() -> str:
         return "CALENDAR: Context unavailable."
 
 
+
+
+def _build_app_context() -> str:
+    """Explain what Phoenix is doing/fetching without requiring AI."""
+    try:
+        ai = ai_gateway.status().as_dict()
+    except Exception:
+        ai = {"selected_provider": "unknown", "configured": False, "missing": ["status_error"]}
+    try:
+        recipes = len(nutrition_engine.load_recipes())
+        staples = len(nutrition_engine.load_lidl_staples())
+    except Exception:
+        recipes = staples = 0
+    try:
+        calendar_snapshot = calendar_engine.parse_snapshot(LIVE_SNAPSHOT_RAW)
+        calendar_events = len(calendar_snapshot.events)
+    except Exception:
+        calendar_events = 0
+    news = news_engine.status()
+    return (
+        "APP OPERATIONS:\n"
+        f"AI provider: {ai.get('selected_provider')} | configured={ai.get('configured')} | model={ai.get('model')}\n"
+        f"AI missing config: {', '.join(ai.get('missing') or []) or 'none'}\n"
+        "Core modules do not require AI: nutrition, calendar, finance, training, barcode, shopping, weekly prep.\n"
+        f"Nutrition food brain: {recipes} recipes, {staples} Lidl staples.\n"
+        f"Calendar snapshot events currently loaded: {calendar_events}.\n"
+        "Background jobs: Railway keepalive.\n"
+        f"News: enabled={news.get('enabled')} source={news.get('source')} optional=true.\n"
+        "Safety: no automatic trading, no automatic food logging, no Plaan mutation, no Google writes."
+    )
+
+
 _WEIGHT_PATTERNS = [
     re.compile(r'(?:i\s+)?weigh\s+(\d{2,3}(?:\.\d{1,2})?)', re.IGNORECASE),
     re.compile(r'weight\s+(?:is\s+)?(\d{2,3}(?:\.\d{1,2})?)', re.IGNORECASE),
@@ -285,11 +318,49 @@ def _detect_sleep_intent(message: str) -> str | None:
     return None
 
 
+
+@router.get("/ai/status")
+def jarvis_ai_status() -> dict:
+    return ai_gateway.status().as_dict()
+
+
+@router.get("/activity")
+def jarvis_activity() -> dict:
+    """Machine-readable summary of what Phoenix is doing/fetching."""
+    ai = ai_gateway.status().as_dict()
+    news = news_engine.status()
+    try:
+        recipes = len(nutrition_engine.load_recipes())
+        staples = len(nutrition_engine.load_lidl_staples())
+    except Exception:
+        recipes = staples = 0
+    return {
+        "ai": ai,
+        "news": news,
+        "background_jobs": [
+            {"name": "keepalive", "cadence": "10 minutes", "effect": "pings /health"},
+        ],
+        "inventory": {"recipes": recipes, "lidl_staples": staples},
+        "safety": {
+            "automatic_trades": False,
+            "automatic_food_logging": False,
+            "plaan_mutations": False,
+            "google_writes": False,
+            "raw_pages_sent_to_ai": False,
+        },
+    }
+
+
 @router.post("/chat")
 def jarvis_chat(request: ChatRequest) -> dict:
     domain = request.domain.lower()
     context_parts = []
     requires_approval = False
+    lower_message = request.message.lower()
+    app_status_intent = domain in ("home", "app", "system") or any(
+        phrase in lower_message
+        for phrase in ["what are you doing", "what is the app doing", "what are you fetching", "fetching", "ai status", "provider status"]
+    )
 
     # Auto-log biometric signals before building context
     sleep_event = _detect_sleep_intent(request.message)
@@ -340,6 +411,12 @@ def jarvis_chat(request: ChatRequest) -> dict:
         except Exception:
             pass
 
+    if app_status_intent:
+        context_parts.append(_build_app_context())
+
+    if news_engine.should_fetch_for_message(domain, request.message):
+        context_parts.append(news_engine.context_text(topic=domain if domain != "home" else "markets", limit=5))
+
     context = "\n\n".join(p for p in context_parts if p)
     user_content = (
         f"Live data:\n{context}{sleep_logged_note}\n\nQuestion: {request.message}"
@@ -354,23 +431,19 @@ def jarvis_chat(request: ChatRequest) -> dict:
         tools = [{"type": "web_search_20250305", "name": "web_search"}]
         system_prompt = _SYSTEM_PROMPT + _FINANCE_WEB_SEARCH_ADDENDUM
 
-    try:
-        client = anthropic.Anthropic()
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=512,
-            system=system_prompt,
+    ai_status = ai_gateway.status()
+    if app_status_intent and not ai_status.configured:
+        response_text = _build_app_context()
+        if news_engine.should_fetch_for_message(domain, request.message):
+            response_text += "\n\n" + news_engine.context_text(topic=domain if domain != "home" else "markets", limit=5)
+    else:
+        ai_result = ai_gateway.generate_text(
+            system_prompt=system_prompt,
             messages=messages,
-            **({"tools": tools} if tools else {}),
+            max_tokens=512,
+            tools=tools if ai_status.supports_web_search_tool else None,
         )
-        # web_search returns multiple content blocks (text + tool_use + tool_result)
-        response_text = " ".join(
-            block.text for block in msg.content if hasattr(block, "text")
-        ).strip() or "No response generated."
-    except Exception:
-        response_text = (
-            "Unable to reach the AI backend. Check your ANTHROPIC_API_KEY and try again."
-        )
+        response_text = ai_result.text
 
     if not requires_approval and "requires your approval" in response_text.lower():
         requires_approval = True
@@ -379,5 +452,6 @@ def jarvis_chat(request: ChatRequest) -> dict:
         "response": response_text,
         "domain": domain,
         "requires_approval": requires_approval,
+        "ai": ai_gateway.status().as_dict(),
         "context_summary": f"{domain} context loaded as of {date.today().isoformat()}",
     }

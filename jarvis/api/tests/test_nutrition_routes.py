@@ -1,9 +1,10 @@
-"""Tests for nutrition API routes. Mocks Anthropic API call."""
+"""Tests for nutrition API routes. Mocks the provider-agnostic AI gateway."""
 
 import unittest
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from jarvis.api.main import app
+from jarvis.api.ai_gateway import AIResult
 
 client = TestClient(app)
 
@@ -14,14 +15,8 @@ _MOCK_BRIEF = (
     "Remaining protein target: 165g."
 )
 
-_MOCK_RESPONSE = MagicMock()
-_MOCK_RESPONSE.content = [MagicMock(text=_MOCK_BRIEF)]
-
-
-def _make_mock_claude():
-    mock = MagicMock()
-    mock.messages.create.return_value = _MOCK_RESPONSE
-    return mock
+def _make_mock_ai_result(text: str = _MOCK_BRIEF, ok: bool = True) -> AIResult:
+    return AIResult(text=text, provider="test", model="test-model", ok=ok)
 
 
 class NutritionStatusRouteTests(unittest.TestCase):
@@ -138,39 +133,37 @@ class StaplesRouteTests(unittest.TestCase):
 
 class NutritionBriefRouteTests(unittest.TestCase):
     def test_brief_returns_200(self):
-        with patch("jarvis.api.routers.nutrition.anthropic.Anthropic",
-                   return_value=_make_mock_claude()):
+        with patch("jarvis.api.routers.nutrition.ai_gateway.generate_text",
+                   return_value=_make_mock_ai_result()):
             assert client.get("/nutrition/brief").status_code == 200
 
     def test_brief_has_brief_field(self):
-        with patch("jarvis.api.routers.nutrition.anthropic.Anthropic",
-                   return_value=_make_mock_claude()):
+        with patch("jarvis.api.routers.nutrition.ai_gateway.generate_text",
+                   return_value=_make_mock_ai_result()):
             data = client.get("/nutrition/brief").json()
         assert "brief" in data
         assert isinstance(data["brief"], str)
 
     def test_requires_approval_always_true(self):
-        with patch("jarvis.api.routers.nutrition.anthropic.Anthropic",
-                   return_value=_make_mock_claude()):
+        with patch("jarvis.api.routers.nutrition.ai_gateway.generate_text",
+                   return_value=_make_mock_ai_result()):
             data = client.get("/nutrition/brief").json()
         assert data["requires_approval"] is True
 
-    def test_claude_failure_returns_fallback(self):
-        mock = MagicMock()
-        mock.messages.create.side_effect = Exception("timeout")
-        with patch("jarvis.api.routers.nutrition.anthropic.Anthropic",
-                   return_value=mock):
+    def test_ai_gateway_failure_returns_fallback(self):
+        with patch("jarvis.api.routers.nutrition.ai_gateway.generate_text",
+                   return_value=_make_mock_ai_result(ok=False)):
             data = client.get("/nutrition/brief").json()
-        assert "Unable to generate brief" in data["brief"]
+        assert "AI nutrition brief unavailable" in data["brief"]
         assert data["requires_approval"] is True
 
-    def test_correct_model_used(self):
-        mock = _make_mock_claude()
-        with patch("jarvis.api.routers.nutrition.anthropic.Anthropic",
-                   return_value=mock):
+    def test_ai_gateway_called_with_expected_model_boundary(self):
+        with patch("jarvis.api.routers.nutrition.ai_gateway.generate_text",
+                   return_value=_make_mock_ai_result()) as mock:
             client.get("/nutrition/brief")
-        kwargs = mock.messages.create.call_args.kwargs
-        assert kwargs["model"] == "claude-sonnet-4-6"
+        kwargs = mock.call_args.kwargs
+        assert kwargs["max_tokens"] == 256
+        assert kwargs["system_prompt"]
 
 
 class NutritionRecoveryContractTests(unittest.TestCase):

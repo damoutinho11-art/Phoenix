@@ -1,12 +1,12 @@
 """Nutrition API routes."""
 
-import anthropic
 from collections import Counter
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from jarvis.api.dependencies import get_nutrition_constitution
+from jarvis.api import ai_gateway
 from jarvis.data import database
 from jarvis.domains.nutrition import engine
 from jarvis.domains.nutrition.data_contracts import NutritionStatus, Recipe, LidlStaple
@@ -952,14 +952,14 @@ def nutrition_brief(
     user_message += "\nProvide a brief, direct nutrition summary for today."
 
     try:
-        client = anthropic.Anthropic()
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=256,
-            system=_NUTRITION_BRIEF_SYSTEM,
+        result = ai_gateway.generate_text(
+            system_prompt=_NUTRITION_BRIEF_SYSTEM,
             messages=[{"role": "user", "content": user_message}],
+            max_tokens=256,
         )
-        brief_text = message.content[0].text
+        brief_text = result.text if result.ok else (
+            "AI nutrition brief unavailable. Raw nutrition status available via /nutrition/status."
+        )
     except Exception:
         brief_text = (
             "Unable to generate brief. "

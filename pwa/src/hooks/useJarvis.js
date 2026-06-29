@@ -6,6 +6,8 @@ import {
   getTrainingStatus,
   getNutritionStatus,
   getCrossDomainAlerts,
+  getJarvisActivity,
+  getNewsHeadlines,
   logMeal,
   deleteMeal,
   logWeight,
@@ -86,17 +88,29 @@ export function useJarvis() {
   const greet = useCallback(async () => {
     setLoading(true)
     try {
-      const [summary, calendar, trainingData, nutritionData, alerts] = await Promise.all([
+      const [summary, calendar, trainingData, nutritionData, alerts, activity, news] = await Promise.all([
         getFinanceSummary(),
         getCalendarSnapshot(),
         getTrainingStatus(),
         getNutritionStatus(),
         getCrossDomainAlerts(),
+        getJarvisActivity().catch(() => null),
+        getNewsHeadlines('markets', 3).catch(() => null),
       ])
       setApiStatus('ok')
       const lines = [`Good ${timeOfDay()}.`]
       if (alerts.alerts && alerts.alerts.length > 0) {
         lines.push(...alerts.alerts)
+      }
+      if (activity?.ai) {
+        lines.push(activity.ai.configured
+          ? `AI: ${activity.ai.selected_provider} ready${activity.ai.model ? ` · ${activity.ai.model}` : ''}.`
+          : `AI: ${activity.ai.selected_provider || 'off'} not configured; core systems online.`)
+      }
+      if (news?.headlines?.length) {
+        lines.push(`News: ${news.headlines.length} market headline(s) fetched.`)
+      } else if (activity?.news?.enabled) {
+        lines.push('News: optional live fetcher ready; no headlines cached yet.')
       }
       lines.push(
         formatFinanceSummary(summary),
