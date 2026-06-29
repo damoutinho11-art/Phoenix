@@ -3,11 +3,11 @@
   "version": "0",
   "system": "Isiah Rivera Long Conjugate Sequence System",
   "goal": "dunk",
-  "start_date": "2026-06-23",
-  "dunk_attempt_window_start": "2026-08-25",
-  "dunk_deadline": "2026-08-31",
-  "cut_end_date": "2026-08-17",
-  "peak_week_start": "2026-08-18",
+  "start_date": "2026-06-29",
+  "dunk_attempt_window_start": "2026-08-31",
+  "dunk_deadline": "2026-09-06",
+  "cut_end_date": "2026-08-23",
+  "peak_week_start": "2026-08-24",
   "current_bodyweight_kg": 73.4,
   "current_bf_percent": 25.0,
   "target_bf_percent": 19.0,
@@ -30,8 +30,8 @@
   "mesocycle_progression": {
     "month_1": {
       "name": "hypertrophy_volume",
-      "start_date": "2026-06-23",
-      "end_date": "2026-07-20",
+      "start_date": "2026-06-29",
+      "end_date": "2026-07-26",
       "weeks": {
         "1": {"sets": 5, "reps": 6, "intensity_pct": 75},
         "2": {"sets": 6, "reps": 5, "intensity_pct": 80},
@@ -48,8 +48,8 @@
     },
     "month_2": {
       "name": "max_strength",
-      "start_date": "2026-07-21",
-      "end_date": "2026-08-17",
+      "start_date": "2026-07-27",
+      "end_date": "2026-08-23",
       "weeks": {
         "1": {"sets": 5, "reps": 5, "intensity_pct": 78},
         "2": {"sets": 6, "reps": 4, "intensity_pct": 83},
@@ -66,14 +66,14 @@
     },
     "peak": {
       "name": "peak_week",
-      "start_date": "2026-08-18",
-      "end_date": "2026-08-24",
+      "start_date": "2026-08-24",
+      "end_date": "2026-08-30",
       "description": "Jump sessions and isometrics only. No heavy lifting. Fatigue dissipates, fitness surfaces."
     },
     "attempt": {
       "name": "attempt_week",
-      "start_date": "2026-08-25",
-      "end_date": "2026-08-31",
+      "start_date": "2026-08-31",
+      "end_date": "2026-09-06",
       "description": "Max effort jump sessions. Body fresh. This is when you dunk."
     }
   },
