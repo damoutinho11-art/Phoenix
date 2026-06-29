@@ -305,11 +305,9 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 
 /* ── BOTTOM NAV ── */
 .nav-rail {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   width: min(680px, calc(100vw - 22px));
+  margin: 0 auto;
   z-index: 100;
   padding-bottom: env(safe-area-inset-bottom);
 }
