@@ -66,7 +66,7 @@ function PnlRow({ pnl }) {
         <Field label="GAIN / LOSS EUR" value={`${gain >= 0 ? '+' : ''}${formatEur(gain)}`} color={gainColor} />
         <Field label="GAIN / LOSS %" value={`${gainPct >= 0 ? '+' : ''}${Number(gainPct).toFixed(2)}%`} color={gainColor} />
         {pnl.avg_price_eur != null && <Field label="AVG PRICE EUR" value={formatEur(pnl.avg_price_eur)} />}
-        {pnl.units != null && <Field label="UNITS (BOUGHT)" value={String(pnl.units)} />}
+        {pnl.units != null && <Field label="UNITS (BOUGHT)" value={Number(pnl.units).toLocaleString('en-US', { maximumFractionDigits: 8 })} />}
       </div>
     </div>
   )

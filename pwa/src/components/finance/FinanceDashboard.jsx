@@ -219,10 +219,17 @@ function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTo
           const gainPct = Number(pnlTotals.totals?.gain_pct)
           const isPos = gain >= 0
           const gainColor = isPos ? '#4dffb4' : '#ff5c7a'
-          const gainStr = `${isPos ? '+' : ''}€${Math.abs(gain).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${isPos ? '+' : ''}${gainPct.toFixed(2)}%)`
+          const gainEurStr = `${isPos ? '+' : '−'}€${Math.abs(gain).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          const gainPctStr = `${isPos ? '+' : ''}${gainPct.toFixed(2)}%`
           return (
-            <div style={{ fontFamily: T.fontMono, fontSize: 11, letterSpacing: '0.08em', color: gainColor, marginBottom: 8, textShadow: isPos ? '0 0 12px rgba(77,255,180,0.4)' : '0 0 12px rgba(255,92,122,0.4)' }}>
-              {gainStr}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.22em', color: 'rgba(0,187,221,0.3)' }}>TOTAL RETURN</span>
+              <span style={{ fontFamily: T.fontMono, fontSize: 13, letterSpacing: '0.06em', color: gainColor, textShadow: isPos ? '0 0 12px rgba(77,255,180,0.35)' : '0 0 12px rgba(255,92,122,0.35)' }}>
+                {gainEurStr}
+              </span>
+              <span style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.06em', color: isPos ? 'rgba(77,255,180,0.6)' : 'rgba(255,92,122,0.6)' }}>
+                ({gainPctStr})
+              </span>
             </div>
           )
         })()}
@@ -906,15 +913,14 @@ function NavCards({ onNav, summary }) {
       <div style={{ ...s.sectionTitle, marginBottom: '1.2rem' }}>NAVIGATE</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         {cards.map(card => (
-          <button
+          <div
             key={card.key}
-            type="button"
             onClick={() => onNav(card.key)}
             style={{
               gridColumn: card.wide ? 'span 2' : undefined,
               background: T.card, border: T.border, borderRadius: 4,
               padding: '12px 12px 10px', position: 'relative', overflow: 'hidden',
-              cursor: 'pointer', textAlign: 'left',
+              cursor: 'pointer', textAlign: 'left', userSelect: 'none',
             }}
           >
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,0.4), transparent)', opacity: 0 }} />
@@ -927,7 +933,7 @@ function NavCards({ onNav, summary }) {
               <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)' }}>{card.tag}</span>
               <span style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.2)' }}>→</span>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </section>

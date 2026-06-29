@@ -48,16 +48,13 @@ function AuditSection({ title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div style={{ borderBottom: border }}>
-      <button
+      <div
         onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 18px', background: 'transparent', border: 'none', cursor: 'pointer',
-        }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', cursor: 'pointer', userSelect: 'none' }}
       >
         <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.22em', color: 'rgba(0,187,221,.3)' }}>{title}</span>
         <span style={{ fontFamily: MONO, fontSize: 9, color: 'rgba(0,187,221,.3)', flexShrink: 0, marginLeft: 8 }}>{open ? '▲' : '▼'}</span>
-      </button>
+      </div>
       {open && <div style={{ padding: '0 18px 16px' }}>{children}</div>}
     </div>
   )
@@ -442,19 +439,19 @@ function LedgerApplyRow({ transaction, onApplied }) {
             {applyResult && <div style={{ color: 'rgba(77,255,180,.75)', letterSpacing: '.08em', marginTop: 3, lineHeight: 1.5, textTransform: 'none' }}>Portfolio state updated from your manual record.</div>}
             <div style={{ marginTop: 6 }}>
               {voidError && <div style={{ color: '#ff5c7a', marginBottom: 4 }}>{voidError}</div>}
-              <button onClick={voidTransaction} disabled={voiding} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '4px 8px', border: '1px solid rgba(255,92,122,.5)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer' }}>
+              <div onClick={!voiding ? voidTransaction : undefined} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '4px 8px', border: '1px solid rgba(255,92,122,.5)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer', userSelect: 'none', display: 'inline-block', opacity: voiding ? 0.6 : 1 }}>
                 {voiding ? 'VOIDING…' : 'VOID & REVERSE'}
-              </button>
+              </div>
             </div>
           </div>
         ) : (
           <>
             {!preview && !previewLoading && (
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={loadPreview} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: ACCENT, background: 'transparent', cursor: 'pointer' }}>PREVIEW PORTFOLIO IMPACT</button>
-                <button onClick={voidTransaction} disabled={voiding} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '5px 8px', border: '1px solid rgba(255,92,122,.4)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer' }}>
+                <div onClick={loadPreview} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: ACCENT, background: 'transparent', cursor: 'pointer', userSelect: 'none' }}>PREVIEW PORTFOLIO IMPACT</div>
+                <div onClick={!voiding ? voidTransaction : undefined} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '5px 8px', border: '1px solid rgba(255,92,122,.4)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer', userSelect: 'none', opacity: voiding ? 0.6 : 1 }}>
                   {voiding ? 'VOIDING…' : 'VOID'}
-                </button>
+                </div>
               </div>
             )}
             {previewLoading && <span style={{ fontFamily: MONO, fontSize: 7, color: muted }}>LOADING PREVIEW…</span>}
@@ -479,9 +476,9 @@ function LedgerApplyRow({ transaction, onApplied }) {
                   {preview.fee_eur > 0 && ` · fee ${formatEur(preview.fee_eur)}`}
                 </div>
                 {applyError && <div style={{ color: '#ff5c7a', fontSize: 7, marginTop: 5 }}>{applyError}</div>}
-                <button onClick={applyTransaction} disabled={applying} style={{ marginTop: 8, width: '100%', padding: '8px 0', border: `1px solid ${ACCENT}`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 7, fontWeight: 700, letterSpacing: '.14em', cursor: applying ? 'wait' : 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)' }}>
+                <div onClick={!applying ? applyTransaction : undefined} style={{ marginTop: 8, width: '100%', padding: '8px 0', border: `1px solid ${ACCENT}`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 7, fontWeight: 700, letterSpacing: '.14em', cursor: applying ? 'wait' : 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)', userSelect: 'none', textAlign: 'center', opacity: applying ? 0.6 : 1, boxSizing: 'border-box' }}>
                   {applying ? 'APPLYING…' : 'APPLY TO PORTFOLIO STATE'}
-                </button>
+                </div>
               </div>
             )}
           </>
@@ -696,7 +693,7 @@ export default function WeeklyBrief({ onBack }) {
   const portfolioModeDetails = rec?.portfolio_mode_details && typeof rec.portfolio_mode_details === 'object' ? rec.portfolio_mode_details : {}
   const approvalSummary = rec?.approval_ticket_summary && typeof rec.approval_ticket_summary === 'object' ? rec.approval_ticket_summary : {}
 
-  const approvalBtnBase = { fontFamily: MONO, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', border: 'none', background: 'transparent' }
+  const approvalBtnBase = { fontFamily: MONO, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', background: 'transparent', userSelect: 'none', textAlign: 'center' }
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
@@ -811,11 +808,11 @@ export default function WeeklyBrief({ onBack }) {
                 {actionError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
                 {isApproved && <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: '#4dffb4', textAlign: 'center', marginBottom: 8 }}>APPROVED · NO TRADE EXECUTED</div>}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.6fr', gap: 10 }}>
-                  <button onClick={() => handleAction('defer')} disabled={acting} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(180,200,210,.35)', color: '#b4c8d2' }}>DEFER</button>
-                  <button onClick={() => handleAction('reject')} disabled={acting} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(255,92,122,.6)', color: '#ff8fa0', textShadow: '0 0 8px rgba(255,92,122,.5)' }}>REJECT</button>
-                  <button onClick={() => handleAction('approve')} disabled={acting || isApproved} style={{ ...approvalBtnBase, fontSize: 10, fontWeight: 700, letterSpacing: '.18em', border: `1px solid rgba(0,187,221,${isApproved ? '.3' : '.8'})`, color: isApproved ? 'rgba(0,187,221,.5)' : '#ffffff', textShadow: isApproved ? 'none' : '0 0 16px rgba(0,187,221,1), 0 0 32px rgba(0,187,221,.6)', animation: isApproved ? 'none' : 'phApproveGlow 2s ease-in-out infinite', cursor: (acting || isApproved) ? 'default' : 'pointer' }}>
+                  <div onClick={!acting ? () => handleAction('defer') : undefined} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(180,200,210,.35)', color: '#b4c8d2', opacity: acting ? 0.5 : 1 }}>DEFER</div>
+                  <div onClick={!acting ? () => handleAction('reject') : undefined} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(255,92,122,.6)', color: '#ff8fa0', textShadow: '0 0 8px rgba(255,92,122,.5)', opacity: acting ? 0.5 : 1 }}>REJECT</div>
+                  <div onClick={!acting && !isApproved ? () => handleAction('approve') : undefined} style={{ ...approvalBtnBase, fontSize: 10, fontWeight: 700, letterSpacing: '.18em', border: `1px solid rgba(0,187,221,${isApproved ? '.3' : '.8'})`, color: isApproved ? 'rgba(0,187,221,.5)' : '#ffffff', textShadow: isApproved ? 'none' : '0 0 16px rgba(0,187,221,1), 0 0 32px rgba(0,187,221,.6)', animation: isApproved ? 'none' : 'phApproveGlow 2s ease-in-out infinite', cursor: (acting || isApproved) ? 'default' : 'pointer', opacity: acting ? 0.5 : 1 }}>
                     {isApproved ? '✓ APPROVED' : '▶ APPROVE'}
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -860,9 +857,9 @@ export default function WeeklyBrief({ onBack }) {
                           PHOENIX runs research autonomously. This does not approve or execute a trade.
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <button type="button" onClick={handleFinanceAutopilot} disabled={autopilotRunning} style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'transparent', color: '#4dffb4', fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', cursor: autopilotRunning ? 'wait' : 'pointer' }}>
+                          <div onClick={!autopilotRunning ? handleFinanceAutopilot : undefined} style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'transparent', color: '#4dffb4', fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', cursor: autopilotRunning ? 'wait' : 'pointer', userSelect: 'none', opacity: autopilotRunning ? 0.6 : 1 }}>
                             {autopilotRunning ? 'RUNNING AUTOPILOT…' : 'RUN FINANCE AUTOPILOT'}
-                          </button>
+                          </div>
                           {autopilotResult && !autopilotResult.error && <span style={{ fontFamily: MONO, fontSize: 7, color: '#4dffb4' }}>{autopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY</span>}
                           {autopilotResult?.error && <span style={{ fontFamily: MONO, fontSize: 7, color: '#ff5c7a' }}>AUTOPILOT ERROR</span>}
                         </div>
