@@ -2502,3 +2502,87 @@ def finance_ledger_apply(transaction_id: int) -> dict:
             "PHOENIX did not execute a trade."
         ),
     }
+
+
+def _reverse_transaction_in_portfolio_state(
+    transaction: dict, portfolio_state: dict
+) -> tuple[dict, dict, dict]:
+    """Return (updated_portfolio_state, before, after) with the transaction effect reversed."""
+    asset = transaction["asset"]
+    holdings = portfolio_state.get("holdings", {})
+
+    if asset not in holdings:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Asset '{asset}' not found in portfolio_state holdings.",
+        )
+
+    before_holdings = copy.deepcopy(holdings)
+    before_units = copy.deepcopy(portfolio_state.get("units", {}))
+
+    after_holdings = copy.deepcopy(before_holdings)
+    after_holdings[asset] = round(
+        max(0.0, (after_holdings.get(asset) or 0.0) - transaction["amount_eur"]), 10
+    )
+
+    after_units = copy.deepcopy(before_units)
+    if asset in after_units:
+        current = after_units[asset]
+        if current is None:
+            current = 0.0
+        after_units[asset] = round(max(0.0, current - transaction["units"]), 10)
+
+    before = {"holdings": before_holdings, "units": before_units, "as_of": portfolio_state.get("as_of")}
+    after = {"holdings": after_holdings, "units": after_units, "as_of": datetime.now(timezone.utc).date().isoformat()}
+
+    new_state = copy.deepcopy(portfolio_state)
+    new_state["holdings"] = after["holdings"]
+    if after["units"]:
+        new_state["units"] = after["units"]
+    new_state["as_of"] = after["as_of"]
+
+    return new_state, before, after
+
+
+class VoidTransactionPayload(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    reason: str = Field(default="Manual void by user", min_length=1)
+
+
+@router.post("/ledger/{transaction_id}/void")
+def finance_ledger_void(transaction_id: int, payload: VoidTransactionPayload = VoidTransactionPayload()) -> dict:
+    """Void a manual ledger transaction and reverse its portfolio state impact if applied."""
+    transaction = database.get_finance_transaction(transaction_id)
+    if transaction is None:
+        raise HTTPException(status_code=404, detail=f"Transaction {transaction_id} not found")
+    if transaction.get("voided"):
+        raise HTTPException(status_code=409, detail=f"Transaction {transaction_id} is already voided.")
+
+    was_applied = bool(transaction.get("portfolio_state_updated"))
+    before = after = None
+
+    if was_applied:
+        portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+        new_state, before, after = _reverse_transaction_in_portfolio_state(transaction, portfolio_state)
+        engine.DEFAULT_PORTFOLIO_STATE_PATH.write_text(
+            json.dumps(new_state, indent=2), encoding="utf-8"
+        )
+
+    void_snapshot = json.dumps({"before": before, "after": after, "was_applied": was_applied})
+    database.void_finance_transaction(transaction_id, payload.reason, void_snapshot)
+
+    return {
+        "transaction_id": transaction_id,
+        "voided": True,
+        "portfolio_state_reversed": was_applied,
+        "before": before,
+        "after": after,
+        "reason": payload.reason,
+        "manual_record_only": True,
+        "trades_executed": False,
+        "message": (
+            "Transaction voided and portfolio state reversed."
+            if was_applied
+            else "Transaction voided. Portfolio state was not affected (transaction had not been applied)."
+        ),
+    }
