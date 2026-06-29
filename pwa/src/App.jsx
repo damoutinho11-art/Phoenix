@@ -14,6 +14,7 @@ import WeeklyPlanner from './components/nutrition/WeeklyPlanner'
 import NutritionAcceptanceGate from './components/nutrition/NutritionAcceptanceGate'
 import TrainingMetrics from './components/training/TrainingMetrics'
 import ActiveSession from './components/training/ActiveSession'
+import JumpLog from './components/training/JumpLog'
 import FinanceDashboard from './components/finance/FinanceDashboard'
 import WeeklyBrief from './components/finance/WeeklyBrief'
 import Holdings from './components/finance/Holdings'
@@ -76,9 +77,14 @@ export default function App() {
   function renderContent() {
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
     if (tab === 'training') {
-      if (trainingScreen === 'active-session')
-        return <ActiveSession onBack={() => setTrainingScreen('dashboard')} />
-      return <TrainingMetrics onQuickAsk={handleQuickAsk} onNav={setTrainingScreen} />
+      switch (trainingScreen) {
+        case 'active-session':
+          return <ActiveSession onBack={() => setTrainingScreen('dashboard')} />
+        case 'jump-log':
+          return <JumpLog onBack={() => setTrainingScreen('dashboard')} />
+        default:
+          return <TrainingMetrics onQuickAsk={handleQuickAsk} onNav={setTrainingScreen} />
+      }
     }
     if (tab === 'calendar') {
       switch (calendarScreen) {
