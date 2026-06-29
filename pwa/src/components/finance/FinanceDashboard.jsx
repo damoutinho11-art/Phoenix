@@ -241,7 +241,8 @@ function AuthorizationCore({ checklist, recommendation }) {
   const deploymentSymbols = checklistItems.map(i => i?.symbol || i?.ticker).filter(Boolean).join(' + ')
   const manualBuyCount = checklistItems.length
   const briefStatus = checklist?.brief_status ?? recommendation?.brief_status
-  const isPending = checklist?.requires_approval !== false && briefStatus !== 'approved' && briefStatus !== 'rejected'
+  const weekDone = recommendation?.week_done === true
+  const isPending = !weekDone && checklist?.requires_approval !== false && briefStatus !== 'approved' && briefStatus !== 'rejected'
 
   const C = 2 * Math.PI * 65
   const arcStyle = {
@@ -278,16 +279,38 @@ function AuthorizationCore({ checklist, recommendation }) {
           <circle cx="90" cy="90" r="74" fill="none" stroke="rgba(0,187,221,0.07)" strokeWidth="2" />
         </svg>
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', width: 140 }}>
-          <div style={{ fontFamily: T.fontBody, fontSize: 36, fontWeight: 700, color: T.accent, letterSpacing: '-0.02em', lineHeight: 1, textShadow: '0 0 20px rgba(0,187,221,0.4)' }}>
-            {money(weekBudget)}
-          </div>
-          <div style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.67)', letterSpacing: '0.15em', marginTop: 6 }}>
-            {manualBuyCount} MANUAL {manualBuyCount === 1 ? 'BUY' : 'BUYS'}
-          </div>
+          {weekDone ? (
+            <>
+              <div style={{ fontFamily: T.fontBody, fontSize: 28, fontWeight: 700, color: '#00dc78', letterSpacing: '-0.02em', lineHeight: 1, textShadow: '0 0 20px rgba(0,220,120,0.4)' }}>
+                {money(recommendation?.total_deployed_eur ?? weekBudget)}
+              </div>
+              <div style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,220,120,0.67)', letterSpacing: '0.15em', marginTop: 6 }}>
+                DEPLOYED
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontFamily: T.fontBody, fontSize: 36, fontWeight: 700, color: T.accent, letterSpacing: '-0.02em', lineHeight: 1, textShadow: '0 0 20px rgba(0,187,221,0.4)' }}>
+                {money(weekBudget)}
+              </div>
+              <div style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.67)', letterSpacing: '0.15em', marginTop: 6 }}>
+                {manualBuyCount} MANUAL {manualBuyCount === 1 ? 'BUY' : 'BUYS'}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {briefStatus === 'approved' ? (
+      {weekDone ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          background: 'rgba(0,220,120,0.07)', border: '1px solid rgba(0,220,120,0.35)',
+          borderRadius: 2, padding: '6px 14px', margin: '0 auto 1.2rem', width: 'fit-content',
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00dc78', boxShadow: '0 0 6px #00dc78' }} />
+          <span style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.2em', color: 'rgba(0,220,120,0.93)' }}>{weekLabel} DEPLOYED</span>
+        </div>
+      ) : briefStatus === 'approved' ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           background: 'rgba(0,220,120,0.07)', border: '1px solid rgba(0,220,120,0.35)',

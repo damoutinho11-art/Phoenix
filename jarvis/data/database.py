@@ -969,6 +969,44 @@ def get_finance_transaction(transaction_id: int) -> dict[str, Any] | None:
         connection.close()
 
 
+def get_applied_transactions_for_iso_week(week_label: str) -> list[dict[str, Any]]:
+    """Return applied transactions whose executed_at date falls within the ISO week.
+
+    week_label format: 'W27 2026'
+    Uses executed_at (broker trade date) to determine the week, not applied_at.
+    """
+    try:
+        parts = week_label.split()
+        iso_week = int(parts[0].lstrip("W"))
+        iso_year = int(parts[1])
+    except (IndexError, ValueError):
+        return []
+
+    # Compute Monday of that ISO week
+    from datetime import date, timedelta
+    jan4 = date(iso_year, 1, 4)  # Jan 4 is always in ISO week 1
+    week1_monday = jan4 - timedelta(days=jan4.isocalendar()[2] - 1)
+    week_monday = week1_monday + timedelta(weeks=iso_week - 1)
+    week_sunday = week_monday + timedelta(days=6)
+
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM finance_transaction_ledger
+            WHERE portfolio_state_updated = 1
+              AND (voided IS NULL OR voided = 0)
+              AND substr(executed_at, 1, 10) >= ?
+              AND substr(executed_at, 1, 10) <= ?
+            ORDER BY executed_at DESC
+            """,
+            (week_monday.isoformat(), week_sunday.isoformat()),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
 def finance_transaction_is_applied(transaction_id: int) -> bool:
     """Return True if this transaction has already been applied to portfolio_state."""
     connection = get_db()

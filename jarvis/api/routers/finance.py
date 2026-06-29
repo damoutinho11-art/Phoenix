@@ -372,6 +372,54 @@ def _build_finance_recommendation(
     *,
     persist_brief: bool,
 ) -> dict:
+    week_label = _iso_week_label()
+
+    # If buys were already applied this week, return a locked "week done" response.
+    applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
+    if applied_this_week:
+        assets_done = ", ".join(sorted({t["asset"].upper() for t in applied_this_week}))
+        total_deployed = sum(t["amount_eur"] for t in applied_this_week)
+        iso = date.today().isocalendar()
+        next_week_num = iso[1] + 1
+        next_week_year = iso[0]
+        if next_week_num > 52:
+            next_week_num = 1
+            next_week_year += 1
+        next_week = f"W{next_week_num} {next_week_year}"
+        latest_brief = database.get_latest_brief_for_week(week_label, "finance")
+        return {
+            "week_label": week_label,
+            "week_budget": portfolio_state.get("weekly_investment_budget", 0),
+            "recommendations": [],
+            "rationale": (
+                f"{week_label} buys already executed: {assets_done} "
+                f"(€{total_deployed:.2f} deployed). Next window opens {next_week}."
+            ),
+            "portfolio_mode": "week_done",
+            "regime": None,
+            "phase": None,
+            "phase_label": None,
+            "dynamic_targets": None,
+            "sleeve_targets": None,
+            "warnings": [],
+            "news_thesis": "",
+            "requires_approval": False,
+            "week_done": True,
+            "assets_executed": assets_done,
+            "total_deployed_eur": round(total_deployed, 2),
+            "next_window": next_week,
+            "etf_scoring_verdict": {},
+            "weekly_dual_lane_mandate": {},
+            "portfolio_mode_details": {},
+            "approval_ticket_summary": {},
+            "research_context": [],
+            "research_gate_summary": {},
+            "autopilot_available": False,
+            "research_autopilot_hint": "",
+            "brief_id": latest_brief["id"] if latest_brief else None,
+            "brief_status": latest_brief["status"] if latest_brief else None,
+        }
+
     regime = detect_market_regime(portfolio_state)
     result = engine.allocate_weekly_budget(
         constitution, portfolio_state, regime=regime, profile=profile
@@ -475,7 +523,6 @@ def _build_finance_recommendation(
     )
 
     # Auto-save brief (once per ISO week — idempotent on repeated calls)
-    week_label = _iso_week_label()
     response["week_label"] = week_label
     if persist_brief and not database.brief_exists_for_week(week_label, "finance"):
         coverage = _build_data_coverage_from_recommendation(response, etf_universe)
