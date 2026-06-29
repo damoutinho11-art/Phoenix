@@ -135,6 +135,10 @@ export async function getFinancePortfolioState() {
   return apiFetch('/finance/portfolio-state')
 }
 
+export async function getFinancePnl() {
+  return apiFetch('/finance/pnl')
+}
+
 export async function postFinanceRefreshPrices() {
   return apiFetch('/finance/refresh-prices', { method: 'POST' })
 }

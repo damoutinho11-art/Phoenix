@@ -1024,6 +1024,34 @@ def delete_brief(brief_id: int) -> bool:
         connection.close()
 
 
+def get_pnl_cost_basis() -> dict[str, dict]:
+    """Return cost basis aggregated by asset from applied, non-voided buy transactions."""
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                asset,
+                SUM(amount_eur) AS cost_basis_eur,
+                SUM(units)      AS total_units_bought
+            FROM finance_transaction_ledger
+            WHERE portfolio_state_updated = 1
+              AND (voided IS NULL OR voided = 0)
+              AND side = 'buy'
+            GROUP BY asset
+            """
+        ).fetchall()
+        return {
+            row["asset"]: {
+                "cost_basis_eur": row["cost_basis_eur"],
+                "total_units_bought": row["total_units_bought"],
+            }
+            for row in rows
+        }
+    finally:
+        connection.close()
+
+
 def save_finance_transaction(payload: dict) -> int:
     """Persist a user-reported manual buy; this function never executes a trade."""
     connection = get_db()

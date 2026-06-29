@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getFinanceHoldings } from '../../api/client'
+import { getFinanceHoldings, getFinancePnl } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
@@ -50,7 +50,29 @@ function Field({ label, value, color = ACCENT }) {
   )
 }
 
-function Drawer({ holding, kind, onClose, onQuickAsk }) {
+function PnlRow({ pnl }) {
+  if (!pnl) return null
+  const gain = Number(pnl.gain_eur)
+  const gainPct = Number(pnl.gain_pct)
+  const isPos = gain > 0
+  const isNeg = gain < 0
+  const gainColor = isPos ? '#4dffb4' : isNeg ? '#ff5c7a' : muted
+  return (
+    <div style={{ marginTop: 8, padding: '10px 12px', border: `1px solid ${isPos ? 'rgba(77,255,180,.2)' : isNeg ? 'rgba(255,92,122,.2)' : 'rgba(0,187,221,.1)'}`, background: isPos ? 'rgba(77,255,180,.03)' : isNeg ? 'rgba(255,92,122,.03)' : 'rgba(0,187,221,.02)' }}>
+      <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: muted, marginBottom: 6 }}>PROFIT / LOSS</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <Field label="COST BASIS" value={formatEur(pnl.cost_basis_eur)} />
+        <Field label="CURRENT VALUE" value={formatEur(pnl.current_value_eur)} />
+        <Field label="GAIN / LOSS EUR" value={`${gain >= 0 ? '+' : ''}${formatEur(gain)}`} color={gainColor} />
+        <Field label="GAIN / LOSS %" value={`${gainPct >= 0 ? '+' : ''}${Number(gainPct).toFixed(2)}%`} color={gainColor} />
+        {pnl.avg_price_eur != null && <Field label="AVG PRICE EUR" value={formatEur(pnl.avg_price_eur)} />}
+        {pnl.units != null && <Field label="UNITS (BOUGHT)" value={String(pnl.units)} />}
+      </div>
+    </div>
+  )
+}
+
+function Drawer({ holding, kind, pnl, onClose, onQuickAsk }) {
   const isActive = kind === 'active'
   const fields = isActive
     ? [
@@ -86,11 +108,12 @@ function Drawer({ holding, kind, onClose, onQuickAsk }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {fields.map(([label, value, color]) => <Field key={label} label={label} value={value} color={color} />)}
           </div>
+          {isActive && <PnlRow pnl={pnl} />}
           {onQuickAsk && (
-            <button
+            <div
               onClick={() => { onQuickAsk(`Tell me more about ${holding.display_name}`); onClose() }}
-              style={{ marginTop: 14, width: '100%', fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', padding: '11px 0', border: `1px solid rgba(0,187,221,.4)`, color: '#7de8ff', background: 'transparent', cursor: 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)' }}
-            >ASK PHOENIX MORE</button>
+              style={{ marginTop: 14, width: '100%', fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', padding: '11px 0', border: `1px solid rgba(0,187,221,.4)`, color: '#7de8ff', background: 'transparent', cursor: 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)', textAlign: 'center', userSelect: 'none' }}
+            >ASK PHOENIX MORE</div>
           )}
         </div>
       </div>
@@ -148,6 +171,7 @@ function LegacyRow({ holding, onClick }) {
 
 export default function Holdings({ onBack, onQuickAsk }) {
   const [data, setData] = useState(null)
+  const [pnlData, setPnlData] = useState(null)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState(null)
 
@@ -166,9 +190,12 @@ export default function Holdings({ onBack, onQuickAsk }) {
 
   useEffect(() => {
     let active = true
-    getFinanceHoldings()
-      .then((response) => { if (active) setData(response) })
-      .catch((requestError) => { if (active) setError(requestError?.message || 'Unable to load holdings.') })
+    Promise.allSettled([getFinanceHoldings(), getFinancePnl()]).then(([holdingsR, pnlR]) => {
+      if (!active) return
+      if (holdingsR.status === 'fulfilled') setData(holdingsR.value)
+      else setError(holdingsR.reason?.message || 'Unable to load holdings.')
+      if (pnlR.status === 'fulfilled') setPnlData(pnlR.value)
+    })
     return () => { active = false }
   }, [])
 
@@ -238,7 +265,15 @@ export default function Holdings({ onBack, onQuickAsk }) {
         </>
       )}
 
-      {selected && <Drawer holding={selected.holding} kind={selected.kind} onClose={() => setSelected(null)} onQuickAsk={onQuickAsk} />}
+      {selected && (
+        <Drawer
+          holding={selected.holding}
+          kind={selected.kind}
+          pnl={selected.kind === 'active' ? (pnlData?.pnl || []).find(p => p.asset === selected.holding.key) : null}
+          onClose={() => setSelected(null)}
+          onQuickAsk={onQuickAsk}
+        />
+      )}
     </div>
   )
 }

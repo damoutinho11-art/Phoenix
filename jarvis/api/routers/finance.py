@@ -1365,6 +1365,53 @@ def finance_get_portfolio_state(portfolio_state: dict = Depends(get_portfolio_st
     }
 
 
+@router.get("/pnl")
+def finance_pnl(portfolio_state: dict = Depends(get_portfolio_state)) -> dict:
+    """Return P&L data grouped by asset from applied, non-voided buy transactions."""
+    rows = database.get_pnl_cost_basis()
+    holdings = portfolio_state.get("holdings", {})
+
+    pnl_list = []
+    no_cost_data = []
+    for asset, current_value in holdings.items():
+        current_eur = float(current_value or 0)
+        row = rows.get(asset)
+        if row is None:
+            no_cost_data.append(asset)
+            continue
+        cost_basis = float(row["cost_basis_eur"])
+        total_units = float(row["total_units_bought"])
+        avg_price = cost_basis / total_units if total_units > 0 else 0.0
+        gain_eur = round(current_eur - cost_basis, 4)
+        gain_pct = round((gain_eur / cost_basis * 100) if cost_basis > 0 else 0.0, 4)
+        pnl_list.append({
+            "asset": asset,
+            "cost_basis_eur": round(cost_basis, 4),
+            "current_value_eur": round(current_eur, 4),
+            "gain_eur": gain_eur,
+            "gain_pct": gain_pct,
+            "avg_price_eur": round(avg_price, 4),
+            "units": round(total_units, 8),
+        })
+
+    total_cost = sum(item["cost_basis_eur"] for item in pnl_list)
+    total_current = sum(item["current_value_eur"] for item in pnl_list)
+    total_gain = round(total_current - total_cost, 4)
+    total_gain_pct = round((total_gain / total_cost * 100) if total_cost > 0 else 0.0, 4)
+
+    return {
+        "pnl": pnl_list,
+        "totals": {
+            "cost_basis_eur": round(total_cost, 4),
+            "current_value_eur": round(total_current, 4),
+            "gain_eur": total_gain,
+            "gain_pct": total_gain_pct,
+        },
+        "has_cost_data": len(pnl_list) > 0,
+        "no_cost_data": no_cost_data,
+    }
+
+
 @router.post("/refresh-prices")
 def finance_refresh_prices() -> dict:
     """Fetch live market prices via yfinance and update portfolio_state.json.

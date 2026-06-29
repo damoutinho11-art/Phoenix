@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   getFinanceDataCoverage,
   getFinanceManualBuyChecklist,
+  getFinancePnl,
   getFinancePortfolioState,
   getFinanceRecommendation,
   getFinanceResearchMemos,
@@ -129,7 +130,7 @@ function ScanLine() {
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
-function Header({ summary, checklist, recommendation, actionCopy, loading }) {
+function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTotals, driftCount }) {
   const weekLabel = checklist?.week_label || recommendation?.week_label || '—'
   return (
     <header style={{
@@ -213,13 +214,39 @@ function Header({ summary, checklist, recommendation, actionCopy, loading }) {
           </span>
         </div>
 
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'rgba(0,187,221,0.05)', border: '1px solid rgba(0,187,221,0.13)',
-          borderRadius: 2, padding: '3px 10px', marginBottom: '1.8rem',
-          fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.4)',
-        }}>
-          PHASE 1 · ACCUMULATION
+        {pnlTotals?.has_cost_data && (() => {
+          const gain = Number(pnlTotals.totals?.gain_eur)
+          const gainPct = Number(pnlTotals.totals?.gain_pct)
+          const isPos = gain >= 0
+          const gainColor = isPos ? '#4dffb4' : '#ff5c7a'
+          const gainStr = `${isPos ? '+' : ''}€${Math.abs(gain).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${isPos ? '+' : ''}${gainPct.toFixed(2)}%)`
+          return (
+            <div style={{ fontFamily: T.fontMono, fontSize: 11, letterSpacing: '0.08em', color: gainColor, marginBottom: 8, textShadow: isPos ? '0 0 12px rgba(77,255,180,0.4)' : '0 0 12px rgba(255,92,122,0.4)' }}>
+              {gainStr}
+            </div>
+          )
+        })()}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1.8rem', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'rgba(0,187,221,0.05)', border: '1px solid rgba(0,187,221,0.13)',
+            borderRadius: 2, padding: '3px 10px',
+            fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.4)',
+          }}>
+            PHASE 1 · ACCUMULATION
+          </div>
+          {driftCount > 0 && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              background: 'rgba(255,170,0,0.08)', border: '1px solid rgba(255,170,0,0.4)',
+              borderRadius: 2, padding: '3px 10px',
+              fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(255,170,0,0.93)',
+              animation: 'phBlink 2s ease-in-out infinite',
+            }}>
+              {driftCount} DRIFT {driftCount === 1 ? 'ALERT' : 'ALERTS'}
+            </div>
+          )}
         </div>
 
         <div style={{ position: 'relative', paddingLeft: 14 }}>
@@ -929,6 +956,7 @@ export default function FinanceDashboard({ onNav }) {
   const [memos, setMemos]               = useState([])
   const [records, setRecords]           = useState([])
   const [portfolioState, setPortfolioState] = useState(null)
+  const [pnlData, setPnlData]           = useState(null)
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState('')
 
@@ -941,9 +969,10 @@ export default function FinanceDashboard({ onNav }) {
       getFinanceResearchMemos(),
       getFinanceResearchValidationRecords(),
       getFinancePortfolioState(),
+      getFinancePnl(),
     ]).then((results) => {
       if (!active) return
-      const [summaryR, recR, checkR, covR, memosR, recsR, psR] = results
+      const [summaryR, recR, checkR, covR, memosR, recsR, psR, pnlR] = results
       if (summaryR.status === 'fulfilled') setSummary(summaryR.value)
       if (recR.status    === 'fulfilled') setRecommendation(recR.value)
       if (checkR.status  === 'fulfilled') setChecklist(checkR.value)
@@ -951,6 +980,7 @@ export default function FinanceDashboard({ onNav }) {
       if (memosR.status  === 'fulfilled') setMemos(memosR.value?.memos || [])
       if (recsR.status   === 'fulfilled') setRecords(recsR.value?.records || [])
       if (psR.status     === 'fulfilled') setPortfolioState(psR.value)
+      if (pnlR.status    === 'fulfilled') setPnlData(pnlR.value)
       const failed = results.filter(r => r.status === 'rejected').length
       if (failed) setError(`${failed} finance data source${failed === 1 ? '' : 's'} unavailable.`)
       setLoading(false)
@@ -981,6 +1011,7 @@ export default function FinanceDashboard({ onNav }) {
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const sleeves          = Array.isArray(summary?.sleeve_summary) ? summary.sleeve_summary : []
+  const driftCount       = sleeves.filter(s => s.band_status === 'above_max' || s.band_status === 'below_min').length
   const checklistItems   = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
   const coverageSections = coverage?.sections || {}
   const coverageSummary  = coverageSections.coverage_summary || {}
@@ -1009,6 +1040,8 @@ export default function FinanceDashboard({ onNav }) {
             recommendation={recommendation}
             actionCopy={actionCopy}
             loading={loading}
+            pnlTotals={pnlData}
+            driftCount={driftCount}
           />
           <div style={{ padding: '2rem 2rem 2rem 0', display: 'flex', alignItems: 'center' }}>
             <AuthorizationCore checklist={checklist} recommendation={recommendation} />

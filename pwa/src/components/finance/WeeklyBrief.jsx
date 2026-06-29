@@ -221,9 +221,9 @@ function ManualBuyChecklistSection({ checklist, error, onRecordTransaction }) {
                     <TextList items={item.pre_buy_checks} />
                   </div>
                 )}
-                <button type="button" onClick={() => onRecordTransaction(item.asset)} style={{ marginTop: 11, width: '100%', padding: '9px 0', border: `1px solid rgba(0,187,221,.6)`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: '.14em', cursor: 'pointer', textShadow: '0 0 10px rgba(0,187,221,.6)' }}>
+                <div onClick={() => onRecordTransaction(item)} style={{ marginTop: 11, width: '100%', padding: '9px 0', border: `1px solid rgba(0,187,221,.6)`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: '.14em', cursor: 'pointer', textShadow: '0 0 10px rgba(0,187,221,.6)', textAlign: 'center', userSelect: 'none' }}>
                   RECORD TRANSACTION →
-                </button>
+                </div>
               </div>
             </CornerCard>
           ))}
@@ -491,12 +491,13 @@ function LedgerApplyRow({ transaction, onApplied }) {
   )
 }
 
-function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
+function ManualBuyPanel({ recommendations, briefId, initialAsset, checklistItem }) {
   const [selectedAsset, setSelectedAsset] = useState(initialAsset || recommendations[0]?.asset || '')
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(null)
+  const [autoApplyState, setAutoApplyState] = useState(null)
   const [transactions, setTransactions] = useState([])
 
   async function refreshLedger() {
@@ -515,22 +516,26 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
     if (recommendation.asset !== selectedAsset) setSelectedAsset(recommendation.asset)
     const instrument = recommendation.instrument || {}
     const resolved = instrument.resolved_candidate || {}
+    const prefillSymbol = checklistItem?.symbol || checklistItem?.ticker || resolved.symbol || instrument.ticker || ''
+    const prefillPlatform = checklistItem?.platform || instrument.platform || recommendation.route || ''
+    const prefillAmount = checklistItem?.amount ?? recommendation.amount ?? ''
     setForm({
       asset: recommendation.asset,
-      symbol: resolved.symbol || instrument.ticker || '',
-      platform: instrument.platform || recommendation.route || '',
+      symbol: prefillSymbol,
+      platform: prefillPlatform,
       suggested_amount_eur: recommendation.amount ?? '',
-      amount_eur: '', units: '', price: '', currency: '', fee_eur: 0, executed_at: '', notes: '',
+      amount_eur: prefillAmount !== '' ? String(prefillAmount) : '',
+      units: '', price: '', currency: '', fee_eur: 0, executed_at: '', notes: '',
     })
-    setError(''); setSaved(null)
+    setError(''); setSaved(null); setAutoApplyState(null)
   }, [selectedAsset, recommendations])
 
   function update(field, value) { setForm((current) => ({ ...current, [field]: value })) }
 
-  const savedTransaction = saved ? transactions.find((t) => t.id === saved.transaction_id) : null
+  const savedTransaction = saved && !autoApplyState ? transactions.find((t) => t.id === saved.transaction_id) : null
 
   async function submit(event) {
-    event.preventDefault(); setSaving(true); setError(''); setSaved(null)
+    event.preventDefault(); setSaving(true); setError(''); setSaved(null); setAutoApplyState(null)
     try {
       const result = await postManualFinanceTransaction({
         brief_id: briefId, asset: form.asset, symbol: form.symbol || null,
@@ -541,6 +546,16 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
       })
       setSaved(result); setForm((current) => ({ ...current, units: '' }))
       await refreshLedger()
+      if (result?.transaction_id) {
+        setAutoApplyState('applying')
+        try {
+          await postFinanceTransactionApply(result.transaction_id)
+          setAutoApplyState('applied')
+          await refreshLedger()
+        } catch {
+          setAutoApplyState('failed')
+        }
+      }
     } catch (requestError) {
       setError(requestError?.message || 'Unable to save manual transaction.')
     } finally { setSaving(false) }
@@ -573,10 +588,31 @@ function ManualBuyPanel({ recommendations, briefId, initialAsset }) {
         </FormField>
         {error && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 8, marginTop: 9 }}>{error}</div>}
         {saved && (
-          <div style={{ marginTop: 10, padding: '10px 11px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.035)', color: '#4dffb4' }}>
-            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em' }}>TRANSACTION #{saved.transaction_id} RECORDED</div>
-            <div style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>{saved.message}</div>
-            {savedTransaction && <LedgerApplyRow transaction={savedTransaction} onApplied={refreshLedger} />}
+          <div style={{ marginTop: 10, padding: '10px 11px', border: `1px solid ${autoApplyState === 'applied' ? 'rgba(77,255,180,.45)' : 'rgba(77,255,180,.3)'}`, background: 'rgba(77,255,180,.035)', color: '#4dffb4' }}>
+            {autoApplyState === 'applied' ? (
+              <>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em' }}>BUY RECORDED + APPLIED TO PORTFOLIO</div>
+                <div style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4, color: 'rgba(77,255,180,.8)' }}>Transaction #{saved.transaction_id} recorded and portfolio state updated.</div>
+              </>
+            ) : autoApplyState === 'applying' ? (
+              <>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em' }}>TRANSACTION #{saved.transaction_id} RECORDED</div>
+                <div style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4, color: muted }}>Applying to portfolio state…</div>
+              </>
+            ) : autoApplyState === 'failed' ? (
+              <>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em' }}>TRANSACTION #{saved.transaction_id} RECORDED</div>
+                <div style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>{saved.message}</div>
+                <div style={{ fontFamily: MONO, fontSize: 7, color: '#ffd56b', marginTop: 5 }}>AUTO-APPLY FAILED — APPLY MANUALLY BELOW</div>
+                {savedTransaction && <LedgerApplyRow transaction={savedTransaction} onApplied={refreshLedger} />}
+              </>
+            ) : (
+              <>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em' }}>TRANSACTION #{saved.transaction_id} RECORDED</div>
+                <div style={{ fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>{saved.message}</div>
+                {savedTransaction && <LedgerApplyRow transaction={savedTransaction} onApplied={refreshLedger} />}
+              </>
+            )}
           </div>
         )}
         <button disabled={saving} type="submit" style={{ marginTop: 11, width: '100%', padding: '11px 0', border: `1px solid ${ACCENT}`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', cursor: saving ? 'wait' : 'pointer', textShadow: '0 0 10px rgba(0,187,221,.6)' }}>
@@ -741,7 +777,7 @@ export default function WeeklyBrief({ onBack }) {
                 SELECT "RECORD TRANSACTION" ON A CHECKLIST ITEM AFTER COMPLETING THE BUY MANUALLY IN YOUR BROKER.
               </div>
             ) : isApproved ? (
-              <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} initialAsset={recordAsset} />
+              <ManualBuyPanel recommendations={recommendations} briefId={rec.brief_id} initialAsset={recordAsset?.asset || recordAsset} checklistItem={typeof recordAsset === 'object' ? recordAsset : null} />
             ) : (
               <div style={{ padding: '13px 14px', border, background: 'rgba(0,187,221,.02)', fontFamily: MONO, fontSize: 8, lineHeight: 1.6, color: muted, letterSpacing: '.08em' }}>
                 APPROVE THIS BRIEF BEFORE RECORDING A MANUAL BUY.
