@@ -1240,9 +1240,9 @@ def finance_holdings(
 
     return {
         "as_of": portfolio_state.get("as_of"),
+        "prices_refreshed_at": portfolio_state.get("prices_refreshed_at"),
         "holdings": active,
         "legacy_holdings": legacy,
-        "note": "Prices not live — update portfolio_state.json for current values",
     }
 
 
@@ -1351,11 +1351,13 @@ def finance_refresh_prices() -> dict:
 
     updated_state, meta = update_portfolio_state_prices(portfolio_state, constitution)
 
+    updated_state["prices_refreshed_at"] = datetime.now(timezone.utc).isoformat()
     database.save_portfolio_state(updated_state)
 
     return {
         "updated": True,
         "as_of": updated_state["as_of"],
+        "prices_refreshed_at": updated_state["prices_refreshed_at"],
         "prices_fetched": meta["prices_fetched"],
         "holdings_updated": meta["holdings_updated"],
         "needs_units": meta["needs_units"],
