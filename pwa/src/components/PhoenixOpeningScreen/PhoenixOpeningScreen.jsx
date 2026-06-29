@@ -3,12 +3,19 @@ import { postJarvisChat } from '../../api/client'
 import { speak, stopSpeaking } from '../../services/tts'
 import './PhoenixOpeningScreen.css'
 
-const PHOENIX_WELCOME_BRIEF = 'Good morning, Sir. PHOENIX is online. Finance, recovery, training, and calendar modules are standing by.'
+function getTimeGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
+const PHOENIX_WELCOME_BRIEF = `${getTimeGreeting()}, Sir. PHOENIX is online. Finance, nutrition, training, and calendar modules are standing by.`
 
 const LOCAL_DOMAIN_PATTERNS = [
   { domain: 'finance', pattern: /\b(finance|money|portfolio|budget|holding|holdings|investment|investments)\b/i, reply: 'Opening finance.' },
   { domain: 'training', pattern: /\b(training|workout|gym|legs|jump|session)\b/i, reply: 'Opening training.' },
-  { domain: 'nutrition', pattern: /\b(recovery|nutrition|meal|food|sleep|readiness)\b/i, reply: 'Opening recovery.' },
+  { domain: 'nutrition', pattern: /\b(recovery|nutrition|meal|food|sleep|readiness)\b/i, reply: 'Opening nutrition.' },
   { domain: 'calendar', pattern: /\b(calendar|schedule|event|events|agenda|meeting)\b/i, reply: 'Opening calendar.' },
 ]
 
