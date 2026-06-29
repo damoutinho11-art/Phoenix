@@ -2387,6 +2387,15 @@ def finance_create_research_validation_record(
     return {"record_id": record_id, "record": record, **_RESEARCH_SAFETY_FLAGS}
 
 
+@router.delete("/performance/snapshot/{snapshot_id}")
+def finance_performance_snapshot_delete(snapshot_id: int) -> dict:
+    """Delete a performance snapshot. Does NOT affect portfolio state or transactions."""
+    found = database.delete_finance_portfolio_snapshot(snapshot_id)
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Snapshot {snapshot_id} not found")
+    return {"deleted": True, "snapshot_id": snapshot_id, "portfolio_state_affected": False}
+
+
 @router.get("/performance/history")
 def finance_performance_history() -> dict:
     """Return real recorded performance snapshots, newest first."""
