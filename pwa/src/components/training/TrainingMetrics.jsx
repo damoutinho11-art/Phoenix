@@ -328,7 +328,11 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
 
   // Session history + progression hints
   const recentSessions = (history?.sessions ?? []).slice(0, 5)
-  const nextHints = history?.next_week_suggestions ?? []
+  const nextHints = Object.entries(history?.next_week_suggestions ?? {}).map(([exercise, data]) => ({
+    exercise,
+    suggested_weight_kg: data.suggested_kg,
+    basis: data.basis,
+  }))
 
   // Conflicts
   const hasConflict = statusData?.has_hard_conflicts
@@ -528,7 +532,7 @@ export default function TrainingMetrics({ onBack, onStartSession, onQuickAsk, on
           <div style={{ padding: '14px 18px 32px', borderTop: `1px solid ${BORDER}` }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>RECENT SESSIONS</div>
             {recentSessions.map((s, i) => {
-              const exs = (() => { try { return JSON.parse(s.exercises) } catch { return [] } })()
+              const exs = Array.isArray(s.exercises) ? s.exercises : []
               const topLift = exs.reduce((best, ex) => {
                 const sets = Array.isArray(ex.sets) ? ex.sets : []
                 const maxKg = sets.reduce((m, st) => Math.max(m, st.weight_kg ?? 0), 0)
