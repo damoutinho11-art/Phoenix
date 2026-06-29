@@ -259,6 +259,12 @@ CREATE TABLE IF NOT EXISTS soreness_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_soreness_log_logged_at ON soreness_log(logged_at);
+
+CREATE TABLE IF NOT EXISTS portfolio_state_store (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    state_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -349,6 +355,20 @@ def _migrate_finance_transaction_void_columns(connection: sqlite3.Connection) ->
     connection.commit()
 
 
+def _migrate_portfolio_state_store(connection: sqlite3.Connection) -> None:
+    """Seed portfolio_state_store from the JSON file if the table is empty."""
+    row = connection.execute("SELECT COUNT(*) FROM portfolio_state_store").fetchone()
+    if row[0] == 0:
+        json_path = Path(__file__).resolve().parent.parent / "domains" / "finance" / "portfolio_state.json"
+        if json_path.exists():
+            state_json = json_path.read_text(encoding="utf-8")
+            connection.execute(
+                "INSERT INTO portfolio_state_store (id, state_json, updated_at) VALUES (1, ?, ?)",
+                (state_json, datetime.now(timezone.utc).isoformat()),
+            )
+            connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
@@ -358,6 +378,7 @@ def init_db() -> None:
         _migrate_finance_transaction_ledger(connection)
         _migrate_finance_transaction_void_columns(connection)
         _migrate_research_memos_quality_columns(connection)
+        _migrate_portfolio_state_store(connection)
     finally:
         connection.close()
 
@@ -993,6 +1014,41 @@ def void_finance_transaction(
         return cursor.rowcount > 0
     finally:
         connection.close()
+
+
+def load_portfolio_state() -> dict[str, Any]:
+    """Load portfolio state from SQLite (preferred) or fall back to JSON file."""
+    connection = get_db()
+    try:
+        row = connection.execute("SELECT state_json FROM portfolio_state_store WHERE id = 1").fetchone()
+        if row:
+            return json.loads(row["state_json"])
+    finally:
+        connection.close()
+    json_path = Path(__file__).resolve().parent.parent / "domains" / "finance" / "portfolio_state.json"
+    if json_path.exists():
+        return json.loads(json_path.read_text(encoding="utf-8"))
+    return {}
+
+
+def save_portfolio_state(state: dict[str, Any]) -> None:
+    """Save portfolio state to SQLite and also write the JSON file as backup."""
+    state_json = json.dumps(state, indent=2, ensure_ascii=False)
+    connection = get_db()
+    try:
+        connection.execute(
+            "INSERT INTO portfolio_state_store (id, state_json, updated_at) VALUES (1, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at",
+            (state_json, datetime.now(timezone.utc).isoformat()),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    json_path = Path(__file__).resolve().parent.parent / "domains" / "finance" / "portfolio_state.json"
+    try:
+        json_path.write_text(state_json, encoding="utf-8")
+    except OSError:
+        pass
 
 
 _CASH_HOLDING_KEYS = {

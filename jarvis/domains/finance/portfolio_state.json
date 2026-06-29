@@ -1,17 +1,17 @@
 {
-  "as_of": "2026-06-26",
+  "as_of": "2026-06-29",
   "currency": "EUR",
   "emergency_fund": {
     "amount": 3600.07,
     "excluded_from_allocation": true
   },
   "holdings": {
-    "btc": 19.18,
+    "btc": 65.2,
     "discovery": 0.0,
     "global_core_etf": 0.0,
     "growth_nasdaq_etf": 0.0,
     "hype": 0.0,
-    "quality_etf": 0.0,
+    "quality_etf": 69.23,
     "tactical_reserve": 4.9,
     "tao": 0.0
   },
@@ -24,13 +24,13 @@
     "lhv_growth_xcha": 125.75
   },
   "units": {
-    "_note": "Coin/share counts used by /finance/refresh-prices. Derived from 2026-06-22 prices \u2014 verify against your broker.",
-    "btc": 0.000363,
+    "_note": "Coin/share counts used by /finance/refresh-prices. Derived from 2026-06-29 prices \u2014 verify against your broker.",
+    "btc": 0.001221,
     "discovery": 0,
     "global_core_etf": 0,
     "growth_nasdaq_etf": 0,
     "hype": 0,
-    "quality_etf": 0,
+    "quality_etf": 8.912801053,
     "tactical_reserve": null,
     "tao": 0,
     "lhv_growth_cash_pending_settlement": 0,

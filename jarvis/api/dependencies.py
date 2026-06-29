@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
+from jarvis.data import database
 from jarvis.domains.calendar import engine as calendar_engine
 from jarvis.domains.finance import engine as finance_engine
 from jarvis.domains.training import engine as training_engine
@@ -34,17 +35,17 @@ def get_finance_profile() -> dict:
 
 
 def get_portfolio_state() -> dict:
-    """Load portfolio_state.json. HTTP 503 if the file is missing."""
-    try:
-        return finance_engine.load_json(finance_engine.DEFAULT_PORTFOLIO_STATE_PATH)
-    except FileNotFoundError:
+    """Load portfolio state from SQLite (persistent) with JSON file fallback."""
+    state = database.load_portfolio_state()
+    if not state:
         raise HTTPException(
             status_code=503,
             detail=(
-                "portfolio_state.json not found. "
+                "portfolio_state not found. "
                 "Populate your holdings data before using this endpoint."
             ),
         )
+    return state
 
 
 def get_calendar_constitution() -> dict:
