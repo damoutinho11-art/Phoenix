@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getFinanceBriefHistory } from '../../api/client'
+import { getFinanceBriefHistory, postBriefAction } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
@@ -76,11 +76,26 @@ function Field({ label, value, color = ACCENT }) {
   )
 }
 
-function Drawer({ brief, onClose }) {
+function Drawer({ brief, onClose, onAction }) {
+  const [acting, setActing] = useState(false)
+  const [acted, setActed] = useState(null)
+  const [actError, setActError] = useState('')
+
+  async function handleAction(action) {
+    setActing(true); setActError('')
+    try {
+      await postBriefAction(brief.id, action)
+      setActed(action)
+      if (onAction) onAction(brief.id, action)
+    } catch (e) { setActError(e?.message || 'Action failed.') }
+    finally { setActing(false) }
+  }
+
   const statusColor = STATUS_COLOR[brief.status] || muted
   const outcomeNote = brief.outcome_note || null
   const outcomePct  = brief.outcome_pct != null ? brief.outcome_pct : null
   const { recommendations, assetLabel, totalAmount } = getBriefSummary(brief)
+  const canAct = !acted && (brief.status === 'pending' || brief.status === 'deferred')
 
   return (
     <>
@@ -141,6 +156,22 @@ function Drawer({ brief, onClose }) {
           {brief.user_action_at && (
             <div style={{ fontFamily: MONO, fontSize: 7, color: muted, letterSpacing: '.1em' }}>
               DECISION AT {formatDate(brief.user_action_at)}
+            </div>
+          )}
+
+          {canAct && (
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: border }}>
+              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 9 }}>ACTIONS</div>
+              {actError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 7, marginBottom: 7 }}>{actError}</div>}
+              <div style={{ display: 'flex', gap: 9 }}>
+                <button onClick={() => handleAction('defer')} disabled={acting} style={{ flex: 1, padding: '10px 0', border: '1px solid rgba(180,200,210,.35)', background: 'transparent', color: '#b4c8d2', fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: acting ? 'wait' : 'pointer' }}>DEFER</button>
+                <button onClick={() => handleAction('reject')} disabled={acting} style={{ flex: 1, padding: '10px 0', border: '1px solid rgba(255,92,122,.6)', background: 'transparent', color: '#ff8fa0', fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: acting ? 'wait' : 'pointer' }}>REJECT</button>
+              </div>
+            </div>
+          )}
+          {acted && (
+            <div style={{ marginTop: 14, padding: '9px 11px', border: `1px solid ${acted === 'reject' ? 'rgba(255,92,122,.4)' : border}`, fontFamily: MONO, fontSize: 8, color: acted === 'reject' ? '#ff8fa0' : muted, letterSpacing: '.12em' }}>
+              BRIEF {acted.toUpperCase()}ED
             </div>
           )}
         </div>
@@ -277,7 +308,15 @@ export default function BriefHistory({ onBack }) {
         })}
       </div>
 
-      {selectedBrief && <Drawer brief={selectedBrief} onClose={() => setSelected(null)} />}
+      {selectedBrief && (
+        <Drawer
+          brief={selectedBrief}
+          onClose={() => setSelected(null)}
+          onAction={(id, action) => {
+            setBriefs(prev => prev.map(b => b.id === id ? { ...b, status: action === 'reject' ? 'rejected' : 'deferred' } : b))
+          }}
+        />
+      )}
     </div>
   )
 }
