@@ -1,0 +1,48 @@
+{
+  "as_of": "2026-06-29",
+  "currency": "EUR",
+  "emergency_fund": {"amount": 3600.07, "excluded_from_allocation": true},
+  "holdings": {
+    "btc": 64.96,
+    "discovery": 0.0,
+    "global_core_etf": 0.0,
+    "growth_nasdaq_etf": 0.0,
+    "hype": 0.0,
+    "quality_etf": 69.68,
+    "tactical_reserve": 4.9,
+    "tao": 0.0
+  },
+  "legacy_holdings": {
+    "lhv_growth_cash_pending_settlement": 0.0,
+    "lhv_growth_euro_bond": 0.15,
+    "lhv_growth_iemm": 364.46,
+    "lhv_growth_sxr8": 627.86,
+    "lhv_growth_world_equities": 1.51,
+    "lhv_growth_xcha": 125.75
+  },
+  "units": {
+    "btc": 0.00123038,
+    "discovery": 0,
+    "global_core_etf": 0,
+    "growth_nasdaq_etf": 0,
+    "hype": 0,
+    "quality_etf": 0.912001053,
+    "tactical_reserve": null,
+    "tao": 0,
+    "lhv_growth_cash_pending_settlement": 0,
+    "lhv_growth_euro_bond": 0.00116,
+    "lhv_growth_iemm": 6.225,
+    "lhv_growth_sxr8": 0.9054,
+    "lhv_growth_world_equities": 0.0335,
+    "lhv_growth_xcha": 6.581
+  },
+  "monthly_investment_budget": 500.0,
+  "weekly_investment_budget": 115.38,
+  "platform_status": {
+    "kraken_ready": false,
+    "lhv_crypto_ready": true,
+    "lightyear_ready": true,
+    "trade_republic_ready": true
+  },
+  "prices_refreshed_at": "2026-06-29T20:21:17.655998+00:00"
+}
