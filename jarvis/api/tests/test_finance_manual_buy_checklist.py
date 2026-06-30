@@ -14,13 +14,13 @@ client = TestClient(app)
 
 _RESOLUTION = {
     "research_winner": {
-        "symbol": "XDEQ.DE",
+        "symbol": "EQQQ.L",
         "label": "Xtrackers MSCI World Quality UCITS ETF",
         "broker_availability_status": "not_publicly_verified",
         "role": "research_winner",
     },
     "checklist_candidate": {
-        "symbol": "IWQU.L",
+        "symbol": "CNDX.L",
         "label": "iShares Edge MSCI World Quality Factor UCITS ETF",
         "raw_price": 75.64,
         "currency": "EUR",
@@ -32,7 +32,7 @@ _RESOLUTION = {
         "alias_for": "checklist_candidate",
     },
     "selected_candidate": {
-        "symbol": "IWQU.L",
+        "symbol": "CNDX.L",
         "label": "iShares Edge MSCI World Quality Factor UCITS ETF",
         "raw_price": 75.64,
         "currency": "EUR",
@@ -44,9 +44,9 @@ _RESOLUTION = {
         "alias_for": "checklist_candidate",
     },
     "research_winner_is_checklist_candidate": False,
-    "research_winner_reason": "XDEQ.DE has the highest product/research score.",
-    "checklist_candidate_reason": "IWQU.L is publicly verified.",
-    "selection_gap_reason": "XDEQ.DE is not publicly verified, so IWQU.L is used for the checklist.",
+    "research_winner_reason": "EQQQ.L has the highest product/research score.",
+    "checklist_candidate_reason": "CNDX.L is publicly verified.",
+    "selection_gap_reason": "EQQQ.L is not publicly verified, so CNDX.L is used for the checklist.",
     "candidates": [],
     "source": "yfinance",
     "broker_source": "lightyear_public_fund_screener",
@@ -103,35 +103,35 @@ def test_btc_item_has_lhv_crypto_manual_instruction() -> None:
     assert "quantity" in btc["broker_instruction"]
 
 
-def test_quality_etf_item_has_lightyear_resolved_candidate() -> None:
+def test_growth_etf_item_has_lightyear_resolved_candidate() -> None:
     data = client.get("/finance/manual-buy-checklist").json()
     item = next(
-        item for item in data["checklist_items"] if item["asset"] == "quality_etf"
+        item for item in data["checklist_items"] if item["asset"] == "growth_nasdaq_etf"
     )
 
     assert item["platform"] == "Lightyear"
-    assert item["ticker"] == "IWQU.L"
-    assert item["resolved_candidate"]["symbol"] == "IWQU.L"
+    assert item["ticker"] == "CNDX.L"
+    assert item["resolved_candidate"]["symbol"] == "CNDX.L"
     assert "Open Lightyear manually" in item["broker_instruction"]
-    assert "IWQU.L" in item["broker_instruction"]
+    assert "CNDX.L" in item["broker_instruction"]
     assert "€69.23" in item["broker_instruction"]
 
 
 def test_checklist_uses_verified_selection_not_unverified_research_winner() -> None:
     recommendation = client.get("/finance/recommendation").json()
     quality_leg = next(
-        leg for leg in recommendation["recommendations"] if leg["asset"] == "quality_etf"
+        leg for leg in recommendation["recommendations"] if leg["asset"] == "growth_nasdaq_etf"
     )
     checklist = client.get("/finance/manual-buy-checklist").json()
     quality_item = next(
-        item for item in checklist["checklist_items"] if item["asset"] == "quality_etf"
+        item for item in checklist["checklist_items"] if item["asset"] == "growth_nasdaq_etf"
     )
 
-    assert quality_leg["instrument"]["research_winner"]["symbol"] == "XDEQ.DE"
-    assert quality_leg["instrument"]["resolved_candidate"]["symbol"] == "IWQU.L"
-    assert quality_item["ticker"] == "IWQU.L"
-    assert quality_item["resolved_candidate"]["symbol"] == "IWQU.L"
-    assert "XDEQ.DE" not in quality_item["broker_instruction"]
+    assert quality_leg["instrument"]["research_winner"]["symbol"] == "EQQQ.L"
+    assert quality_leg["instrument"]["resolved_candidate"]["symbol"] == "CNDX.L"
+    assert quality_item["ticker"] == "CNDX.L"
+    assert quality_item["resolved_candidate"]["symbol"] == "CNDX.L"
+    assert "EQQQ.L" not in quality_item["broker_instruction"]
 
 
 def test_checklist_blocks_etf_when_no_candidate_is_publicly_verified() -> None:
@@ -139,7 +139,7 @@ def test_checklist_blocks_etf_when_no_candidate_is_publicly_verified() -> None:
         **_RESOLUTION,
         "research_winner": {
             **_RESOLUTION["research_winner"],
-            "symbol": "XDEQ.DE",
+            "symbol": "EQQQ.L",
             "broker_availability_status": "not_publicly_verified",
         },
         "checklist_candidate": None,
@@ -149,7 +149,7 @@ def test_checklist_blocks_etf_when_no_candidate_is_publicly_verified() -> None:
             "No live-price ETF candidate is publicly verified on Lightyear."
         ),
         "selection_gap_reason": (
-            "Research winner XDEQ.DE is not publicly verified on Lightyear; "
+            "Research winner EQQQ.L is not publicly verified on Lightyear; "
             "no Phase 1 manual checklist candidate was selected."
         ),
         "broker_verification": "not_verified",
@@ -162,13 +162,13 @@ def test_checklist_blocks_etf_when_no_candidate_is_publicly_verified() -> None:
         checklist = client.get("/finance/manual-buy-checklist").json()
 
     quality_item = next(
-        item for item in checklist["checklist_items"] if item["asset"] == "quality_etf"
+        item for item in checklist["checklist_items"] if item["asset"] == "growth_nasdaq_etf"
     )
     assert quality_item["checklist_eligible"] is False
     assert quality_item["resolved_candidate"] is None
     assert quality_item["ticker"] is None
     assert "Do not use" in quality_item["broker_instruction"]
-    assert "XDEQ.DE" not in quality_item["broker_instruction"]
+    assert "EQQQ.L" not in quality_item["broker_instruction"]
     assert checklist["checklist_status"] == "NEEDS_RESEARCH_REVIEW"
 
 

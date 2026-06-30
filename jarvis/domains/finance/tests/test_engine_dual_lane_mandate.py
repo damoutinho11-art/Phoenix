@@ -11,7 +11,7 @@ class AllocationEngineDualLaneMandateTests(unittest.TestCase):
 
     def test_current_weekly_result_prepares_crypto_and_stock_fund_etf_lanes(self) -> None:
         # Pinned against portfolio_state.json as of 2026-06-22.
-        # Weekly budget: €115.38 (€500/month). BTC and quality_etf amounts
+        # Weekly budget: €115.38 (€500/month). BTC and growth_nasdaq_etf amounts
         # reflect the 40%/60% crypto/ETF split of the weekly budget under
         # current gaps and crypto risk rules.
         result = engine.allocate_weekly_budget(self.constitution, self.state)
@@ -20,12 +20,12 @@ class AllocationEngineDualLaneMandateTests(unittest.TestCase):
 
         self.assertEqual(mandate["mandate"], engine.WEEKLY_DUAL_LANE_MANDATE)
         self.assertEqual(ticket["executable_allocation"]["btc"], 46.15)
-        self.assertEqual(ticket["executable_allocation"]["quality_etf"], 69.23)
+        self.assertEqual(ticket["executable_allocation"]["growth_nasdaq_etf"], 69.23)
         self.assertEqual(mandate["crypto_lane"]["status"], "READY_FOR_MANUAL_BUY")
         self.assertEqual(mandate["crypto_lane"]["asset"], "btc")
         self.assertEqual(mandate["crypto_lane"]["amount"], 46.15)
         self.assertEqual(mandate["stock_fund_etf_lane"]["status"], "READY_FOR_MANUAL_BUY")
-        self.assertEqual(mandate["stock_fund_etf_lane"]["asset"], "quality_etf")
+        self.assertEqual(mandate["stock_fund_etf_lane"]["asset"], "growth_nasdaq_etf")
         self.assertEqual(mandate["stock_fund_etf_lane"]["amount"], 69.23)
         self.assertFalse(ticket["trades_executed"])
         self.assertIn("No broker connection.", ticket["safety_checks"])

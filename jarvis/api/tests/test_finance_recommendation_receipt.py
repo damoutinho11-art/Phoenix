@@ -48,11 +48,11 @@ def test_finance_recommendation_persists_complete_structured_receipt() -> None:
     assert receipt["week_budget"] == recommendation["week_budget"]
     assert recommendations["btc"]["amount"] == 46.15
     assert recommendations["btc"]["route"] == "lhv_crypto"
-    assert recommendations["quality_etf"]["amount"] == 69.23
-    assert recommendations["quality_etf"]["route"] == "lightyear"
+    assert recommendations["growth_nasdaq_etf"]["amount"] == 69.23
+    assert recommendations["growth_nasdaq_etf"]["route"] == "lightyear"
     assert (
-        recommendations["quality_etf"]["instrument"]["resolved_candidate"]["symbol"]
-        == "IS3Q.DE"
+        recommendations["growth_nasdaq_etf"]["instrument"]["resolved_candidate"]["symbol"]
+        == "CNDX.L"
     )
 
 
@@ -60,9 +60,9 @@ def test_finance_receipt_persists_research_and_transparency_evidence() -> None:
     _, receipt = _saved_receipt()
     research = {leg["asset"]: leg for leg in receipt["research_evidence"]}
 
-    assert all(research[asset]["memo_id"] for asset in ("btc", "quality_etf"))
+    assert all(research[asset]["memo_id"] for asset in ("btc", "growth_nasdaq_etf"))
     assert research["btc"]["matching_validation_record_ids"]
-    assert research["quality_etf"]["matching_validation_record_ids"]
+    assert research["growth_nasdaq_etf"]["matching_validation_record_ids"]
     assert receipt["data_coverage"]["verdict"] == "DATA_TRANSPARENT"
     assert receipt["data_coverage"]["blockers"] == []
     assert receipt["acceptance_gate"]["accepted"] is True

@@ -38,6 +38,15 @@ def _items_by_asset(checklist: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
+def _current_etf_asset(sections: dict[str, Any]) -> str | None:
+    assets = [
+        leg.get("asset")
+        for leg in ((sections.get("recommendation_data_provenance") or {}).get("legs") or [])
+        if leg.get("asset") in acceptance_gate.ETF_CANDIDATE_TICKERS
+    ]
+    return assets[0] if len(assets) == 1 else None
+
+
 def evaluate_production_smoke(
     coverage: dict[str, Any], checklist: dict[str, Any]
 ) -> list[str]:
@@ -45,24 +54,25 @@ def evaluate_production_smoke(
     errors = list(evaluate_finance_acceptance(coverage))
     sections = coverage.get("sections") or {}
     sleeves = ((sections.get("etf_candidate_universe") or {}).get("sleeves") or {})
-    quality = sleeves.get("quality_etf") or {}
-    research_winner = quality.get("research_winner")
-    checklist_candidate = quality.get("checklist_candidate")
-    selected_candidate = quality.get("selected_candidate")
+    etf_asset = _current_etf_asset(sections)
+    etf = sleeves.get(etf_asset) or {}
+    research_winner = etf.get("research_winner")
+    checklist_candidate = etf.get("checklist_candidate")
+    selected_candidate = etf.get("selected_candidate")
     research_symbol = _symbol(research_winner)
     checklist_symbol = _symbol(checklist_candidate)
     selected_symbol = _symbol(selected_candidate)
 
     if not research_symbol:
-        errors.append("quality_etf research_winner must be present")
+        errors.append(f"{etf_asset or 'ETF'} research_winner must be present")
     if not checklist_symbol:
-        errors.append("quality_etf checklist_candidate must be present")
+        errors.append(f"{etf_asset or 'ETF'} checklist_candidate must be present")
     if selected_symbol != checklist_symbol:
-        errors.append("quality_etf selected_candidate must equal checklist_candidate")
+        errors.append(f"{etf_asset or 'ETF'} selected_candidate must equal checklist_candidate")
     if checklist_candidate and checklist_candidate.get(
         "broker_availability_status"
     ) != "public_verified":
-        errors.append("quality_etf checklist_candidate must be public_verified")
+        errors.append(f"{etf_asset or 'ETF'} checklist_candidate must be public_verified")
 
     recommendation_quality = next(
         (
@@ -71,42 +81,42 @@ def evaluate_production_smoke(
                 (sections.get("recommendation_data_provenance") or {}).get("legs")
                 or []
             )
-            if leg.get("asset") == "quality_etf"
+            if leg.get("asset") == etf_asset
         ),
         {},
     )
     resolved_symbol = _symbol(recommendation_quality.get("resolved_candidate"))
     if resolved_symbol != checklist_symbol:
         errors.append(
-            "quality_etf recommendation resolved_candidate must equal checklist_candidate"
+            f"{etf_asset or 'ETF'} recommendation resolved_candidate must equal checklist_candidate"
         )
 
     if research_symbol and research_symbol != checklist_symbol:
-        if not str(quality.get("selection_gap_reason") or "").strip():
+        if not str(etf.get("selection_gap_reason") or "").strip():
             errors.append(
-                "quality_etf selection_gap_reason is required when research and checklist candidates differ"
+                f"{etf_asset or 'ETF'} selection_gap_reason is required when research and checklist candidates differ"
             )
         if research_winner.get("broker_availability_status") not in {
             "not_publicly_verified",
             "public_verified",
         }:
             errors.append(
-                "quality_etf research_winner must expose broker_availability_status"
+                f"{etf_asset or 'ETF'} research_winner must expose broker_availability_status"
             )
 
     checklist_items = _items_by_asset(checklist)
-    quality_item = checklist_items.get("quality_etf") or {}
-    manual_symbol = quality_item.get("symbol") or quality_item.get("ticker")
+    etf_item = checklist_items.get(etf_asset) or {}
+    manual_symbol = etf_item.get("symbol") or etf_item.get("ticker")
     if research_symbol != checklist_symbol and manual_symbol == research_symbol:
         errors.append(
-            "manual checklist must not use the quality_etf research winner when it differs from the checklist candidate"
+            f"manual checklist must not use the {etf_asset or 'ETF'} research winner when it differs from the checklist candidate"
         )
     if manual_symbol != checklist_symbol:
         errors.append(
-            "manual checklist quality_etf symbol must equal the current checklist candidate"
+            f"manual checklist {etf_asset or 'ETF'} symbol must equal the current checklist candidate"
         )
-    if quality_item.get("checklist_eligible") is not True:
-        errors.append("manual checklist quality_etf item must be checklist_eligible")
+    if etf_item.get("checklist_eligible") is not True:
+        errors.append(f"manual checklist {etf_asset or 'ETF'} item must be checklist_eligible")
 
     btc = checklist_items.get("btc") or {}
     if btc.get("route") != "lhv_crypto" or btc.get("platform") != "LHV Crypto":
@@ -146,12 +156,7 @@ def _smoke_resolution(sleeve: str) -> dict[str, Any]:
         (candidate for candidate in candidates if candidate.get("symbol") == selected_symbol),
         None,
     )
-    if sleeve == "quality_etf":
-        research = next(
-            candidate for candidate in candidates if candidate.get("symbol") == "XDEQ.DE"
-        )
-    else:
-        research = candidates[0] if candidates else None
+    research = candidates[1] if len(candidates) > 1 else (candidates[0] if candidates else None)
     checklist_candidate = (
         {
             **selected,
@@ -196,13 +201,9 @@ def _compact_result(
     errors: list[str],
 ) -> dict[str, Any]:
     sections = coverage.get("sections") or {}
-    quality = (
-        ((sections.get("etf_candidate_universe") or {}).get("sleeves") or {}).get(
-            "quality_etf"
-        )
-        or {}
-    )
-    quality_item = _items_by_asset(checklist).get("quality_etf") or {}
+    etf_asset = _current_etf_asset(sections)
+    etf = (((sections.get("etf_candidate_universe") or {}).get("sleeves") or {}).get(etf_asset) or {})
+    etf_item = _items_by_asset(checklist).get(etf_asset) or {}
     coverage_safety = sections.get("safety") or {}
     checklist_safety = checklist.get("safety_flags") or {}
     safety = {
@@ -215,11 +216,13 @@ def _compact_result(
         "errors": errors,
         "coverage_verdict": coverage.get("verdict"),
         "checklist_status": checklist.get("checklist_status"),
-        "quality_research_winner": _symbol(quality.get("research_winner")),
-        "quality_checklist_candidate": _symbol(quality.get("checklist_candidate")),
-        "quality_manual_checklist_symbol": (
-            quality_item.get("symbol") or quality_item.get("ticker")
-        ),
+        "etf_asset": etf_asset,
+        "etf_research_winner": _symbol(etf.get("research_winner")),
+        "etf_checklist_candidate": _symbol(etf.get("checklist_candidate")),
+        "etf_manual_checklist_symbol": etf_item.get("symbol") or etf_item.get("ticker"),
+        "quality_research_winner": _symbol(etf.get("research_winner")),
+        "quality_checklist_candidate": _symbol(etf.get("checklist_candidate")),
+        "quality_manual_checklist_symbol": etf_item.get("symbol") or etf_item.get("ticker"),
         "safety": safety,
     }
 

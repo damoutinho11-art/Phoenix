@@ -73,25 +73,27 @@ def evaluate_finance_acceptance(coverage: dict[str, Any]) -> list[str]:
     ):
         errors.append("BTC-USD requires a PASS LIVE_MARKET_FETCH record")
 
-    selected_quality = (
-        (recommendation_legs.get("quality_etf") or {}).get("resolved_candidate") or {}
+    etf_assets = [asset for asset in recommendation_legs if asset in ETF_CANDIDATE_TICKERS]
+    etf_asset = etf_assets[0] if len(etf_assets) == 1 else None
+    if etf_asset is None:
+        errors.append("exactly one current ETF recommendation leg is required")
+    selected_etf = (
+        (recommendation_legs.get(etf_asset) or {}).get("resolved_candidate") or {}
     ).get("symbol")
-    quality = research_legs.get("quality_etf") or {}
-    quality_records = quality.get("validation_records") or []
-    if selected_quality != "IS3Q.DE":
-        errors.append("current accepted quality_etf fixture must resolve to IS3Q.DE")
-    if quality.get("expected_instrument") != selected_quality or not quality.get(
+    etf = research_legs.get(etf_asset) or {}
+    etf_records = etf.get("validation_records") or []
+    if etf.get("expected_instrument") != selected_etf or not etf.get(
         "evidence_matches_current_instrument"
     ):
-        errors.append(f"quality_etf evidence must match current instrument {selected_quality or 'IS3Q.DE'}")
+        errors.append(f"{etf_asset or 'ETF'} evidence must match current instrument {selected_etf or '<missing>'}")
     if not any(
         record.get("field_name") == "market_data_source"
-        and record.get("instrument") == selected_quality
+        and record.get("instrument") == selected_etf
         and record.get("status") == "PASS"
         and record.get("provenance_classification") == "LIVE_MARKET_FETCH"
-        for record in quality_records
+        for record in etf_records
     ):
-        errors.append(f"quality_etf requires instrument-matched live evidence for {selected_quality or 'IS3Q.DE'}")
+        errors.append(f"{etf_asset or 'ETF'} requires instrument-matched live evidence for {selected_etf or '<missing>'}")
 
     for flag in _FALSE_SAFETY_FLAGS:
         if safety.get(flag) is not False:
@@ -115,11 +117,7 @@ def _resolution(sleeve: str) -> dict[str, Any]:
             "selected": False,
         }
         candidates.append(candidate)
-    selected = (
-        next(candidate for candidate in candidates if candidate["symbol"] == "IS3Q.DE")
-        if sleeve == "quality_etf"
-        else candidates[0]
-    )
+    selected = candidates[0]
     selected.update(
         selected=True,
         lightyear_available=True,
@@ -193,17 +191,19 @@ def _seed_acceptance_evidence() -> None:
             },
         ],
     )
-    _create_validated_memo(
-        "quality_etf",
-        "quality_etf",
-        [
+    for sleeve, configured in ETF_CANDIDATE_TICKERS.items():
+        ticker = configured[0]["symbol"]
+        _create_validated_memo(
+            sleeve,
+            sleeve,
+            [
             {
                 "field_name": "market_data_source",
                 "source_primary": "PHOENIX ETF source adapter / yfinance",
                 "raw_json": {
                     "generated_by": marker,
                     "adapter": "etf_source_adapter_v1",
-                    "ticker": "IS3Q.DE",
+                    "ticker": ticker,
                     "source": "yfinance",
                     "fetch_status": "ok",
                 },
@@ -214,12 +214,12 @@ def _seed_acceptance_evidence() -> None:
                 "raw_json": {
                     "generated_by": marker,
                     "adapter": "etf_source_adapter_v1",
-                    "ticker": "IS3Q.DE",
+                    "ticker": ticker,
                     "fetch_status": "verified",
                 },
             },
-        ],
-    )
+            ],
+        )
 
 
 def run_local_acceptance_gate() -> dict[str, Any]:

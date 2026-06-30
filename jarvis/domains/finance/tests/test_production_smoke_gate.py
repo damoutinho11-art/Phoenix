@@ -22,33 +22,33 @@ from jarvis.domains.finance.production_smoke_gate import (
 @pytest.fixture(scope="module")
 def valid_state() -> tuple[dict, dict]:
     coverage = run_local_acceptance_gate()["coverage"]
-    quality_provenance = next(
+    etf_provenance = next(
         leg
         for leg in coverage["sections"]["recommendation_data_provenance"]["legs"]
-        if leg["asset"] == "quality_etf"
+        if leg["asset"] == "growth_nasdaq_etf"
     )
     selected = {
-        **quality_provenance["resolved_candidate"],
+        **etf_provenance["resolved_candidate"],
         "broker_availability_status": "public_verified",
         "role": "checklist_candidate",
         "alias_for": "checklist_candidate",
     }
     research_winner = {
-        "symbol": "XDEQ.DE",
+        "symbol": "EQQQ.L",
         "broker_availability_status": "not_publicly_verified",
         "role": "research_winner",
     }
-    quality_sleeve = coverage["sections"]["etf_candidate_universe"]["sleeves"][
-        "quality_etf"
+    etf_sleeve = coverage["sections"]["etf_candidate_universe"]["sleeves"][
+        "growth_nasdaq_etf"
     ]
-    quality_sleeve.update(
+    etf_sleeve.update(
         research_winner=research_winner,
         checklist_candidate=selected,
         selected_candidate=dict(selected),
         research_winner_is_checklist_candidate=False,
         selection_gap_reason=(
-            "Research winner XDEQ.DE is not publicly verified on Lightyear, "
-            "so Phase 1 selected IS3Q.DE for the manual checklist."
+            "Research winner EQQQ.L is not publicly verified on Lightyear, "
+            "so Phase 1 selected CNDX.L for the manual checklist."
         ),
     )
     checklist = {
@@ -63,11 +63,11 @@ def valid_state() -> tuple[dict, dict]:
                 "checklist_eligible": True,
             },
             {
-                "asset": "quality_etf",
+                "asset": "growth_nasdaq_etf",
                 "route": "lightyear",
                 "platform": "Lightyear",
-                "ticker": "IS3Q.DE",
-                "symbol": "IS3Q.DE",
+                "ticker": "CNDX.L",
+                "symbol": "CNDX.L",
                 "resolved_candidate": selected,
                 "checklist_eligible": True,
             },
@@ -94,6 +94,36 @@ def test_smoke_gate_passes_valid_transparent_cross_endpoint_state(
     assert evaluate_production_smoke(coverage, checklist) == []
 
 
+def test_smoke_gate_passes_synthetic_quality_etf_current_leg(
+    valid_state: tuple[dict, dict],
+) -> None:
+    coverage, checklist = copy.deepcopy(valid_state)
+    sections = coverage["sections"]
+    for leg in sections["recommendation_data_provenance"]["legs"]:
+        if leg["asset"] == "growth_nasdaq_etf":
+            leg["asset"] = "quality_etf"
+            leg["resolved_candidate"]["symbol"] = "IS3Q.DE"
+    for leg in sections["research_evidence_provenance"]["legs"]:
+        if leg["asset"] == "growth_nasdaq_etf":
+            leg["asset"] = "quality_etf"
+            leg["expected_instrument"] = "IS3Q.DE"
+            for record in leg["validation_records"]:
+                if record["field_name"] == "market_data_source":
+                    record["instrument"] = "IS3Q.DE"
+    growth = sections["etf_candidate_universe"]["sleeves"]["growth_nasdaq_etf"]
+    quality = copy.deepcopy(growth)
+    for field in ("checklist_candidate", "selected_candidate"):
+        quality[field]["symbol"] = "IS3Q.DE"
+    quality["research_winner"]["symbol"] = "XDEQ.DE"
+    quality["selection_gap_reason"] = "XDEQ.DE is not publicly verified; IS3Q.DE is selected."
+    sections["etf_candidate_universe"]["sleeves"]["quality_etf"] = quality
+    item = next(item for item in checklist["checklist_items"] if item["asset"] == "growth_nasdaq_etf")
+    item.update(asset="quality_etf", ticker="IS3Q.DE", symbol="IS3Q.DE")
+    item["resolved_candidate"]["symbol"] = "IS3Q.DE"
+
+    assert evaluate_production_smoke(coverage, checklist) == []
+
+
 def test_smoke_gate_rejects_blocked_coverage(valid_state: tuple[dict, dict]) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     coverage["verdict"] = "BLOCKED"
@@ -109,10 +139,10 @@ def test_smoke_gate_rejects_missing_selection_gap_reason(
     valid_state: tuple[dict, dict],
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
-    quality = coverage["sections"]["etf_candidate_universe"]["sleeves"][
-        "quality_etf"
+    etf = coverage["sections"]["etf_candidate_universe"]["sleeves"][
+        "growth_nasdaq_etf"
     ]
-    quality["selection_gap_reason"] = ""
+    etf["selection_gap_reason"] = ""
 
     errors = evaluate_production_smoke(coverage, checklist)
 
@@ -123,11 +153,11 @@ def test_smoke_gate_rejects_manual_checklist_using_research_winner(
     valid_state: tuple[dict, dict],
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
-    quality_item = next(
-        item for item in checklist["checklist_items"] if item["asset"] == "quality_etf"
+    etf_item = next(
+        item for item in checklist["checklist_items"] if item["asset"] == "growth_nasdaq_etf"
     )
-    quality_item["ticker"] = "XDEQ.DE"
-    quality_item["symbol"] = "XDEQ.DE"
+    etf_item["ticker"] = "EQQQ.L"
+    etf_item["symbol"] = "EQQQ.L"
 
     errors = evaluate_production_smoke(coverage, checklist)
 
@@ -149,11 +179,11 @@ def test_smoke_gate_rejects_checklist_etf_symbol_mismatch(
     valid_state: tuple[dict, dict],
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
-    quality_item = next(
-        item for item in checklist["checklist_items"] if item["asset"] == "quality_etf"
+    etf_item = next(
+        item for item in checklist["checklist_items"] if item["asset"] == "growth_nasdaq_etf"
     )
-    quality_item["ticker"] = "OTHER.DE"
-    quality_item["symbol"] = "OTHER.DE"
+    etf_item["ticker"] = "OTHER.DE"
+    etf_item["symbol"] = "OTHER.DE"
 
     errors = evaluate_production_smoke(coverage, checklist)
 
@@ -169,8 +199,11 @@ def test_local_smoke_gate_is_offline_safe_and_read_only() -> None:
     assert result["accepted"] is True, result["errors"]
     assert result["mode"] == "local_offline"
     assert result["coverage_verdict"] == "DATA_TRANSPARENT"
-    assert result["quality_checklist_candidate"] == "IS3Q.DE"
-    assert result["quality_manual_checklist_symbol"] == "IS3Q.DE"
+    assert result["etf_asset"] == "growth_nasdaq_etf"
+    assert result["etf_checklist_candidate"] == "CNDX.L"
+    assert result["etf_manual_checklist_symbol"] == "CNDX.L"
+    assert result["quality_checklist_candidate"] == "CNDX.L"
+    assert result["quality_manual_checklist_symbol"] == "CNDX.L"
     assert all(value is False for value in result["safety"].values())
     assert database.DB_PATH == original_db_path
     assert engine.DEFAULT_PORTFOLIO_STATE_PATH.read_bytes() == portfolio_before

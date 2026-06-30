@@ -370,8 +370,8 @@ def test_btc_recommendation_assets_not_empty() -> None:
     assert "btc" in rec_assets
 
 
-def test_quality_etf_recommendation_leg_mapping_is_pass() -> None:
-    memo_id = _create_memo(asset="quality_etf")
+def test_growth_etf_recommendation_leg_mapping_is_pass() -> None:
+    memo_id = _create_memo(asset="growth_nasdaq_etf")
     data = _generate(memo_id)
 
     leg_records = [r for r in data["records"] if r["field_name"] == "recommendation_leg_mapping"]
@@ -382,13 +382,13 @@ def test_quality_etf_recommendation_leg_mapping_is_pass() -> None:
     )
 
 
-def test_quality_etf_in_recommendation_assets() -> None:
-    memo_id = _create_memo(asset="quality_etf")
+def test_growth_etf_in_recommendation_assets() -> None:
+    memo_id = _create_memo(asset="growth_nasdaq_etf")
     data = _generate(memo_id)
 
     leg_records = [r for r in data["records"] if r["field_name"] == "recommendation_leg_mapping"]
     rec_assets = leg_records[0].get("raw_json", {}).get("recommendation_assets", [])
-    assert "quality_etf" in rec_assets
+    assert "growth_nasdaq_etf" in rec_assets
 
 
 def test_btc_stays_needs_more_evidence_after_generation_with_gate() -> None:

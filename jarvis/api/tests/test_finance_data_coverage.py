@@ -148,7 +148,7 @@ def test_reports_optional_stock_research_universe_without_recommending_it() -> N
 def test_reports_current_recommendation_provenance() -> None:
     data = _coverage()
     legs = data["sections"]["recommendation_data_provenance"]["legs"]
-    quality = next(leg for leg in legs if leg["asset"] == "quality_etf")
+    quality = next(leg for leg in legs if leg["asset"] == "growth_nasdaq_etf")
     btc = next(leg for leg in legs if leg["asset"] == "btc")
 
     assert quality["provenance_classification"] == "CONFIGURED_CANDIDATE_LIVE_PRICE"
@@ -205,7 +205,7 @@ def test_reports_linked_research_evidence_provenance() -> None:
             }
         )
     database.evaluate_research_memo_quality(memo_id)
-    _create_validated_quality_memo("IS3Q.DE")
+    _create_validated_quality_memo("CNDX.L")
 
     data = _coverage()
     btc = next(
@@ -233,11 +233,11 @@ def test_reports_linked_research_evidence_provenance() -> None:
     assert data["blockers"] == []
 
 
-def _create_validated_quality_memo(ticker: str) -> int:
+def _create_validated_quality_memo(ticker: str | None) -> int:
     memo_id = database.create_research_memo(
         {
-            "asset": "quality_etf",
-            "sleeve": "quality_etf",
+            "asset": "growth_nasdaq_etf",
+            "sleeve": "growth_nasdaq_etf",
             "title": f"Quality ETF evidence for {ticker}",
             "thesis": "Instrument-aware evidence test.",
             "risks": ["Market risk"],
@@ -276,7 +276,7 @@ def _create_validated_quality_memo(ticker: str) -> int:
         database.create_research_validation_record(
             {
                 "memo_id": memo_id,
-                "asset": "quality_etf",
+                "asset": "growth_nasdaq_etf",
                 "check_type": "SOURCE_CONFIDENCE",
                 "field_name": record["field_name"],
                 "source_primary": record["source_primary"],
@@ -289,64 +289,64 @@ def _create_validated_quality_memo(ticker: str) -> int:
     return memo_id
 
 
-def test_quality_etf_current_selected_instrument_evidence_is_valid() -> None:
-    memo_id = _create_validated_quality_memo("IS3Q.DE")
+def test_growth_etf_current_selected_instrument_evidence_is_valid() -> None:
+    memo_id = _create_validated_quality_memo("CNDX.L")
 
     data = _coverage()
     quality = next(
         leg
         for leg in data["sections"]["research_evidence_provenance"]["legs"]
-        if leg["asset"] == "quality_etf"
+        if leg["asset"] == "growth_nasdaq_etf"
     )
 
     assert quality["memo_id"] == memo_id
-    assert quality["expected_instrument"] == "IS3Q.DE"
+    assert quality["expected_instrument"] == "CNDX.L"
     assert quality["evidence_matches_current_instrument"] is True
     market_record = next(
         record
         for record in quality["validation_records"]
         if record["field_name"] == "market_data_source"
     )
-    assert market_record["instrument"] == "IS3Q.DE"
+    assert market_record["instrument"] == "CNDX.L"
     assert market_record["provenance_classification"] == "LIVE_MARKET_FETCH"
     assert market_record["id"] in quality["matching_validation_record_ids"]
     assert data["sections"]["coverage_summary"]["current_legs_with_validated_research"] == 1
-    assert not any("quality_etf" in blocker for blocker in data["blockers"])
+    assert not any("growth_nasdaq_etf" in blocker for blocker in data["blockers"])
 
 
-def test_quality_etf_stale_iwqu_evidence_does_not_validate_is3q() -> None:
-    _create_validated_quality_memo("IWQU.L")
+def test_growth_etf_stale_eqqq_evidence_does_not_validate_cndx() -> None:
+    _create_validated_quality_memo("EQQQ.L")
 
     data = _coverage()
     quality = next(
         leg
         for leg in data["sections"]["research_evidence_provenance"]["legs"]
-        if leg["asset"] == "quality_etf"
+        if leg["asset"] == "growth_nasdaq_etf"
     )
 
-    assert quality["expected_instrument"] == "IS3Q.DE"
+    assert quality["expected_instrument"] == "CNDX.L"
     assert quality["evidence_matches_current_instrument"] is False
     assert data["sections"]["coverage_summary"]["current_legs_with_validated_research"] == 0
     assert any(
-        "quality_etf" in blocker and "IS3Q.DE" in blocker
+        "growth_nasdaq_etf" in blocker and "CNDX.L" in blocker
         for blocker in data["blockers"]
     )
 
 
-def test_quality_etf_null_ticker_evidence_does_not_validate_is3q() -> None:
+def test_growth_etf_null_ticker_evidence_does_not_validate_cndx() -> None:
     _create_validated_quality_memo(None)
 
     data = _coverage()
     quality = next(
         leg
         for leg in data["sections"]["research_evidence_provenance"]["legs"]
-        if leg["asset"] == "quality_etf"
+        if leg["asset"] == "growth_nasdaq_etf"
     )
 
-    assert quality["expected_instrument"] == "IS3Q.DE"
+    assert quality["expected_instrument"] == "CNDX.L"
     assert quality["evidence_matches_current_instrument"] is False
     assert any(
-        "quality_etf" in blocker and "IS3Q.DE" in blocker
+        "growth_nasdaq_etf" in blocker and "CNDX.L" in blocker
         for blocker in data["blockers"]
     )
 

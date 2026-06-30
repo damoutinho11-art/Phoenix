@@ -45,28 +45,28 @@ class PhaseDetectionTests(unittest.TestCase):
         phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 6, 23))
         assert phase == Phase.MONTH_1
 
-    def test_phase_is_month_2_after_july_21(self):
-        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 7, 21))
+    def test_phase_is_month_2_after_july_27(self):
+        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 7, 27))
         assert phase == Phase.MONTH_2
 
-    def test_phase_is_peak_after_aug_18(self):
-        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 8, 18))
+    def test_phase_is_peak_after_aug_24(self):
+        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 8, 24))
         assert phase == Phase.PEAK
 
-    def test_phase_is_attempt_after_aug_25(self):
-        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 8, 25))
+    def test_phase_is_attempt_after_aug_31(self):
+        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 8, 31))
         assert phase == Phase.ATTEMPT
 
     def test_week_of_mesocycle_correct_in_month_1(self):
-        # June 23 = week 1; June 30 = week 2
-        _, week = engine.get_current_phase(CONSTITUTION, date(2026, 6, 23))
+        # June 29 = week 1; July 6 = week 2
+        _, week = engine.get_current_phase(CONSTITUTION, date(2026, 6, 29))
         assert week == 1
-        _, week2 = engine.get_current_phase(CONSTITUTION, date(2026, 6, 30))
+        _, week2 = engine.get_current_phase(CONSTITUTION, date(2026, 7, 6))
         assert week2 == 2
 
     def test_week_4_is_deload(self):
-        # July 14 = 21 days after June 23 → week 4
-        _, week = engine.get_current_phase(CONSTITUTION, date(2026, 7, 14))
+        # July 20 = 21 days after June 29 → week 4
+        _, week = engine.get_current_phase(CONSTITUTION, date(2026, 7, 20))
         assert week == 4
         prescription = engine.get_week_prescription(CONSTITUTION, Phase.MONTH_1, 4)
         assert prescription["deload"] is True
@@ -135,8 +135,8 @@ class SessionTypeTests(unittest.TestCase):
         assert st == SessionType.REST
 
     def test_tuesday_week_4_is_rest_not_general(self):
-        # July 14 = Tuesday, month_1 week 4 (deload)
-        st = engine.get_session_type_for_date(CONSTITUTION, date(2026, 7, 14))
+        # July 21 = Tuesday, month_1 week 4 (deload)
+        st = engine.get_session_type_for_date(CONSTITUTION, date(2026, 7, 21))
         assert st == SessionType.REST
 
     def test_tuesday_non_deload_is_general(self):
@@ -157,8 +157,8 @@ class SessionTypeTests(unittest.TestCase):
         assert st == SessionType.PEAK
 
     def test_attempt_saturday_is_attempt_type(self):
-        # Aug 25 = Tuesday (attempt start). Aug 29 = Saturday.
-        st = engine.get_session_type_for_date(CONSTITUTION, date(2026, 8, 29))
+        # Aug 31 = Monday (attempt start). Sep 5 = Saturday.
+        st = engine.get_session_type_for_date(CONSTITUTION, date(2026, 9, 5))
         assert st == SessionType.ATTEMPT
 
 
@@ -316,8 +316,8 @@ class CutStatusTests(unittest.TestCase):
         status = engine.get_cut_status(CONSTITUTION, date(2026, 8, 17))
         assert status.active is True
 
-    def test_cut_inactive_after_aug_17(self):
-        status = engine.get_cut_status(CONSTITUTION, date(2026, 8, 18))
+    def test_cut_inactive_after_aug_23(self):
+        status = engine.get_cut_status(CONSTITUTION, date(2026, 8, 24))
         assert status.active is False
 
     def test_fat_to_lose_calculated_correctly(self):

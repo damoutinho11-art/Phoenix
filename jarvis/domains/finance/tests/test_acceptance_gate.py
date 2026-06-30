@@ -57,39 +57,56 @@ def test_finance_acceptance_gate_rejects_safety_flag_regression(
     assert any("broker_connection" in error for error in errors)
 
 
-def test_finance_acceptance_gate_rejects_stale_quality_etf_evidence(
+def test_finance_acceptance_gate_rejects_stale_current_etf_evidence(
     accepted_result: dict,
 ) -> None:
     coverage = copy.deepcopy(accepted_result["coverage"])
-    quality = next(
+    etf = next(
         leg
         for leg in coverage["sections"]["research_evidence_provenance"]["legs"]
-        if leg["asset"] == "quality_etf"
+        if leg["asset"] == "growth_nasdaq_etf"
     )
-    quality["evidence_matches_current_instrument"] = False
-    for record in quality["validation_records"]:
+    etf["evidence_matches_current_instrument"] = False
+    for record in etf["validation_records"]:
         if record["field_name"] == "market_data_source":
             record["instrument"] = "IWQU.L"
 
     errors = evaluate_finance_acceptance(coverage)
 
-    assert any("IS3Q.DE" in error for error in errors)
+    assert any("CNDX.L" in error for error in errors)
 
 
-def test_finance_acceptance_gate_rejects_null_quality_etf_instrument(
+def test_finance_acceptance_gate_rejects_null_current_etf_instrument(
     accepted_result: dict,
 ) -> None:
     coverage = copy.deepcopy(accepted_result["coverage"])
-    quality = next(
+    etf = next(
         leg
         for leg in coverage["sections"]["research_evidence_provenance"]["legs"]
-        if leg["asset"] == "quality_etf"
+        if leg["asset"] == "growth_nasdaq_etf"
     )
-    quality["evidence_matches_current_instrument"] = False
-    for record in quality["validation_records"]:
+    etf["evidence_matches_current_instrument"] = False
+    for record in etf["validation_records"]:
         if record["field_name"] == "market_data_source":
             record["instrument"] = None
 
     errors = evaluate_finance_acceptance(coverage)
 
-    assert any("IS3Q.DE" in error for error in errors)
+    assert any("CNDX.L" in error for error in errors)
+
+
+def test_finance_acceptance_gate_accepts_synthetic_quality_leg(accepted_result: dict) -> None:
+    coverage = copy.deepcopy(accepted_result["coverage"])
+    for section in ("recommendation_data_provenance", "research_evidence_provenance"):
+        leg = next(iter(coverage["sections"][section]["legs"]))
+        if leg["asset"] == "btc":
+            leg = coverage["sections"][section]["legs"][1]
+        leg["asset"] = "quality_etf"
+        if section == "recommendation_data_provenance":
+            leg["resolved_candidate"]["symbol"] = "IS3Q.DE"
+        else:
+            leg["expected_instrument"] = "IS3Q.DE"
+            for record in leg["validation_records"]:
+                if record["field_name"] == "market_data_source":
+                    record["instrument"] = "IS3Q.DE"
+    assert evaluate_finance_acceptance(coverage) == []

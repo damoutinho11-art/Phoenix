@@ -66,9 +66,9 @@ class FinanceSummaryRouteTests(unittest.TestCase):
             self.assertIn("gap", sleeve)
             self.assertIn("band_status", sleeve)
 
-    def test_summary_as_of_is_2026_06_22(self) -> None:
+    def test_summary_as_of_matches_canonical_fixture(self) -> None:
         data = client.get("/finance/summary").json()
-        self.assertEqual(data["as_of"], "2026-06-26")
+        self.assertEqual(data["as_of"], "2026-06-29")
 
     def test_summary_no_staleness_warning_on_fresh_data(self) -> None:
         # portfolio_state.json as_of is 2026-06-22; today per project context is 2026-06-22
@@ -123,20 +123,20 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         data = client.get("/finance/recommendation").json()
         self.assertAlmostEqual(data["week_budget"], 115.38, places=2)
 
-    def test_recommendation_contains_btc_and_quality_etf(self) -> None:
-        # Pinned: current recommendation is BTC €46.15 + quality_etf €69.23
+    def test_recommendation_contains_btc_and_growth_nasdaq_etf(self) -> None:
+        # Pinned: current recommendation is BTC €46.15 + growth_nasdaq_etf €69.23
         data = client.get("/finance/recommendation").json()
         assets = {r["asset"]: r["amount"] for r in data["recommendations"]}
         self.assertIn("btc", assets)
-        self.assertIn("quality_etf", assets)
+        self.assertIn("growth_nasdaq_etf", assets)
         self.assertAlmostEqual(assets["btc"], 46.15, places=2)
-        self.assertAlmostEqual(assets["quality_etf"], 69.23, places=2)
+        self.assertAlmostEqual(assets["growth_nasdaq_etf"], 69.23, places=2)
 
     def test_recommendation_lanes_are_correct(self) -> None:
         data = client.get("/finance/recommendation").json()
         recs = {r["asset"]: r for r in data["recommendations"]}
         self.assertEqual(recs["btc"]["lane"], "crypto")
-        self.assertEqual(recs["quality_etf"]["lane"], "etf")
+        self.assertEqual(recs["growth_nasdaq_etf"]["lane"], "etf")
 
     def test_recommendation_rationale_uses_valid_euro_symbol(self) -> None:
         data = client.get("/finance/recommendation").json()
@@ -146,7 +146,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         self.assertEqual(
             data["rationale"],
             "Buy BTC €46.15 (crypto lane); "
-            "Buy quality_etf €69.23 (ETF lane)",
+            "Buy growth_nasdaq_etf €69.23 (ETF lane)",
         )
 
     def test_recommendation_routes_and_safety_contract_are_unchanged(self) -> None:
@@ -161,7 +161,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
             recommendations,
             {
                 "btc": (46.15, "lhv_crypto"),
-                "quality_etf": (69.23, "lightyear"),
+                "growth_nasdaq_etf": (69.23, "lightyear"),
             },
         )
         self.assertIn("No broker connection.", safety_checks)
