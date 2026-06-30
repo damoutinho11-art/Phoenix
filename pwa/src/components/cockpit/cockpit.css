@@ -30,6 +30,13 @@
   isolation: isolate;
 }
 
+.phx-cockpit-shell button:focus-visible,
+.phx-cockpit-shell a:focus-visible,
+.phx-cockpit-shell [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--phx-focus);
+}
+
 .phx-cockpit-ambient {
   position: fixed;
   inset: 0;

@@ -44,10 +44,6 @@ function percent(value) {
 function humanize(value) {
   return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
-function symbolOf(candidate) {
-  return candidate && typeof candidate === 'object' ? candidate.symbol || null : null
-}
-
 // ─── Shared tokens ────────────────────────────────────────────────────────────
 const T = {
   bg:      '#060c12',
@@ -69,13 +65,13 @@ const s = {
     fontFamily: T.fontMono,
   },
   shell: {
-    maxWidth: 900,
+    maxWidth: 1120,
     margin: '0 auto',
     padding: '0 0 80px',
   },
   sectionTag: {
     fontFamily: T.fontMono,
-    fontSize: 8,
+    fontSize: 10,
     letterSpacing: '0.3em',
     color: 'rgba(0,187,221,0.53)',
     marginBottom: 4,
@@ -998,6 +994,7 @@ const KEYFRAMES = `
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 export default function FinanceDashboard({ onNav }) {
+  const mountedRef = useRef(false)
   const [summary, setSummary]           = useState(null)
   const [recommendation, setRecommendation] = useState(null)
   const [checklist, setChecklist]       = useState(null)
@@ -1010,7 +1007,7 @@ export default function FinanceDashboard({ onNav }) {
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState('')
 
-  function loadAll(active) {
+  function loadAll() {
     Promise.allSettled([
       getFinanceSummary(),
       getFinanceRecommendation(),
@@ -1022,7 +1019,7 @@ export default function FinanceDashboard({ onNav }) {
       getFinancePnl(),
       getFinancePerformanceHistory(),
     ]).then((results) => {
-      if (!active) return
+      if (!mountedRef.current) return
       const [summaryR, recR, checkR, covR, memosR, recsR, psR, pnlR, performanceR] = results
       if (summaryR.status === 'fulfilled') setSummary(summaryR.value)
       if (recR.status    === 'fulfilled') setRecommendation(recR.value)
@@ -1068,9 +1065,9 @@ export default function FinanceDashboard({ onNav }) {
       document.head.appendChild(style)
     }
 
-    let active = true
-    loadAll(active)
-    return () => { active = false }
+    mountedRef.current = true
+    loadAll()
+    return () => { mountedRef.current = false }
   }, [])
 
   // ── Derived values ──────────────────────────────────────────────────────────
@@ -1179,7 +1176,7 @@ export default function FinanceDashboard({ onNav }) {
         {/* ── Unit Correction (collapsed by default) ── */}
         <UnitCorrectionPanel
           portfolioState={portfolioState}
-          onFixed={() => loadAll(true)}
+          onFixed={loadAll}
         />
 
         {/* ── Advanced Audit ── */}
