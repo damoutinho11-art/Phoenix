@@ -336,6 +336,34 @@
 
   .phx-domain-actions { flex-wrap: wrap; }
   .phx-panel-meta { text-align: left; }
+
+  .finance-hero-grid,
+  .finance-actions-grid,
+  .finance-portfolio-grid,
+  .finance-audit-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .finance-authorization-wrap {
+    padding: 0 1rem 1rem !important;
+  }
+
+  .finance-resolution-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .finance-resolution-grid > :nth-child(2) {
+    min-height: 4rem;
+    transform: rotate(90deg);
+  }
+
+  .finance-nav-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .finance-nav-grid > button:first-child {
+    grid-column: 1 / -1 !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

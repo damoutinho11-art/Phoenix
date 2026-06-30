@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CockpitShell } from '../cockpit/CockpitPrimitives'
+import { CockpitShell, DataPanel, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
+import { MetricLineChart } from '../cockpit/MetricLineChart'
 import {
   getFinanceDataCoverage,
   getFinanceManualBuyChecklist,
   getFinancePnl,
+  getFinancePerformanceHistory,
   getFinancePortfolioState,
   getFinanceRecommendation,
   getFinanceResearchMemos,
@@ -11,6 +13,10 @@ import {
   getFinanceSummary,
   postFinancePatchUnits,
 } from '../../api/client'
+import {
+  buildFinanceDashboardModel,
+  listFailedFinanceSources,
+} from './financeDashboardModel'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 
@@ -59,14 +65,8 @@ const T = {
 // ─── Inline styles ────────────────────────────────────────────────────────────
 const s = {
   wrap: {
-    background: T.bg,
     color: T.white,
-    height: '100%',
     fontFamily: T.fontMono,
-    position: 'relative',
-    overflowX: 'hidden',
-    overflowY: 'auto',
-    paddingBottom: 88,
   },
   shell: {
     maxWidth: 900,
@@ -495,14 +495,14 @@ function InstrumentResolution({ researchWinner, checklistCandidate, researchSymb
       <div style={{ ...s.sectionTitle, marginBottom: '1.2rem' }}>INSTRUMENT RESOLUTION</div>
       <div style={{ ...s.card }}>
         <div style={s.cardTopLine} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr' }}>
+        <div className="finance-resolution-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr' }}>
           {/* Left */}
           <div style={{ padding: '1.5rem', borderRight: '1px solid rgba(0,187,221,0.07)' }}>
             <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.33)', marginBottom: 10 }}>RESEARCH WINNER</div>
             <div style={{ fontFamily: T.fontDisplay, fontSize: 38, fontWeight: 700, letterSpacing: '0.02em', color: 'rgba(138,184,200,0.87)', lineHeight: 1, marginBottom: 6 }}>{researchSymbol || '—'}</div>
             <div style={{ fontFamily: T.fontBody, fontSize: 11, color: 'rgba(74,106,122,0.87)', lineHeight: 1.5, marginBottom: 14 }}>{researchWinner.label || '—'}</div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 2, padding: '4px 10px', fontSize: 8, letterSpacing: '0.2em', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(74,106,122,0.87)', fontFamily: T.fontMono }}>
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(74,106,122,0.87)' }} /> NOT PUBLICLY VERIFIED
+              <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(74,106,122,0.87)' }} /> {humanize(researchWinner.broker_availability_status || 'verification unknown').toUpperCase()}
             </div>
           </div>
 
@@ -521,7 +521,7 @@ function InstrumentResolution({ researchWinner, checklistCandidate, researchSymb
             <div style={{ fontFamily: T.fontDisplay, fontSize: 38, fontWeight: 700, letterSpacing: '0.02em', color: T.accent, lineHeight: 1, marginBottom: 6, textShadow: '0 0 24px rgba(0,187,221,0.27)' }}>{checklistSymbol || '—'}</div>
             <div style={{ fontFamily: T.fontBody, fontSize: 11, color: 'rgba(74,106,122,0.87)', lineHeight: 1.5, marginBottom: 14 }}>{checklistCandidate.label || '—'}</div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 2, padding: '4px 10px', fontSize: 8, letterSpacing: '0.2em', border: '1px solid rgba(0,204,119,0.2)', color: 'rgba(0,204,119,0.67)', fontFamily: T.fontMono, background: 'rgba(0,204,119,0.05)' }}>
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#00cc77', boxShadow: '0 0 5px #00cc77' }} /> PUBLIC VERIFIED
+              <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#00cc77', boxShadow: '0 0 5px #00cc77' }} /> {humanize(checklistCandidate.broker_availability_status || 'verification unknown').toUpperCase()}
             </div>
           </div>
         </div>
@@ -535,7 +535,46 @@ function InstrumentResolution({ researchWinner, checklistCandidate, researchSymb
             BACKEND DECISION · NOT RECOMPUTED BY PHOENIX
           </div>
         </div>
+        {qualityCoverage.selection_gap_reason && (
+          <div style={{ borderTop: '1px solid rgba(0,187,221,0.06)', padding: '12px 1.5rem', fontFamily: T.fontBody, fontSize: 12, lineHeight: 1.55, color: 'rgba(154,184,200,0.87)' }}>
+            {qualityCoverage.selection_gap_reason}
+          </div>
+        )}
       </div>
+    </section>
+  )
+}
+
+function SafetyLock({ dashboard }) {
+  const labels = {
+    broker_connection: 'Broker connection',
+    orders_created: 'Orders created',
+    trades_executed: 'Trades executed',
+    portfolio_state_updated: 'Portfolio updated',
+    recommendation_overridden: 'Recommendation overridden',
+  }
+  return (
+    <section style={{ padding: '2rem 2rem 0' }}>
+      <DataPanel eyebrow="[ SAFETY CONTRACT ]" title="SAFETY LOCK" meta={dashboard.meta.coverageVerdict || 'STATUS UNKNOWN'}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '1rem 1.1rem' }}>
+          {Object.entries(labels).map(([key, label]) => {
+            const value = dashboard.safety[key]
+            const tone = value === false ? 'ready' : value === true ? 'danger' : 'caution'
+            return (
+              <StatusChip key={key} tone={tone}>
+                {label}: {value === null ? 'unknown' : String(value)}
+              </StatusChip>
+            )
+          })}
+          <StatusChip tone={dashboard.hero.requiresApproval === false ? 'caution' : 'verified'}>
+            Approval required: {dashboard.hero.requiresApproval === null ? 'unknown' : String(dashboard.hero.requiresApproval)}
+          </StatusChip>
+          <StatusChip tone="verified">Evidence {dashboard.meta.evidenceLabel}</StatusChip>
+        </div>
+        <p style={{ margin: 0, padding: '0 1.1rem 1.1rem', color: 'rgba(183,202,211,.9)', fontFamily: T.fontBody, fontSize: 13, lineHeight: 1.6 }}>
+          PHOENIX provides a manual checklist only. Broker action remains outside the system, and recorded transactions require a separate explicit portfolio apply.
+        </p>
+      </DataPanel>
     </section>
   )
 }
@@ -723,7 +762,7 @@ function PortfolioSnapshot({ sleeves, total, asOf }) {
         </span>
       </div>
 
-      <div style={{ ...s.card, display: 'grid', gridTemplateColumns: '210px 1fr' }}>
+      <div className="finance-portfolio-grid" style={{ ...s.card, display: 'grid', gridTemplateColumns: '210px 1fr' }}>
         <div style={s.cardTopLine} />
 
         {/* Chart side */}
@@ -801,7 +840,7 @@ function PortfolioSnapshot({ sleeves, total, asOf }) {
 }
 
 // ─── Advanced Audit ───────────────────────────────────────────────────────────
-function AdvancedAudit({ memos, records, qualityCoverage, researchSymbol, checklistSymbol, evidenceLabel, onNav }) {
+function AdvancedAudit({ memos, records, qualityCoverage, etfAsset, researchSymbol, checklistSymbol, evidenceLabel, onNav }) {
   const [open, setOpen] = useState(false)
   const candidates = qualityCoverage?.candidates || []
   const passCount = records.filter(r => r.status === 'PASS').length
@@ -812,9 +851,11 @@ function AdvancedAudit({ memos, records, qualityCoverage, researchSymbol, checkl
         <div style={s.cardTopLine} />
 
         {/* Header row */}
-        <div
+        <button
+          type="button"
           onClick={() => setOpen(o => !o)}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', cursor: 'pointer' }}
+          aria-expanded={open}
+          style={{ width: '100%', border: 0, background: 'transparent', textAlign: 'left', color: 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', cursor: 'pointer' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.67)' }}>[ ADVANCED AUDIT ]</span>
@@ -828,11 +869,11 @@ function AdvancedAudit({ memos, records, qualityCoverage, researchSymbol, checkl
               ▼
             </span>
           </div>
-        </div>
+        </button>
 
         {open && (
           <div style={{ borderTop: '1px solid rgba(0,187,221,0.07)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+            <div className="finance-audit-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
               {/* Memos */}
               <div style={{ padding: '1.2rem 1.5rem', borderRight: '1px solid rgba(0,187,221,0.06)' }}>
                 <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.53)', marginBottom: 12 }}>RESEARCH MEMOS · ADVISORY ONLY</div>
@@ -867,7 +908,7 @@ function AdvancedAudit({ memos, records, qualityCoverage, researchSymbol, checkl
               <>
                 <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(0,187,221,0.1), transparent)', margin: '0 1.5rem' }} />
                 <div style={{ padding: '1.2rem 1.5rem' }}>
-                  <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.53)', marginBottom: 10 }}>QUALITY ETF CANDIDATES · BACKEND COMPARISON</div>
+                  <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.53)', marginBottom: 10 }}>{humanize(etfAsset || 'ETF')} CANDIDATES · BACKEND COMPARISON</div>
                   {candidates.map(candidate => {
                     const isWinner = candidate.symbol === researchSymbol
                     const isCandidate = candidate.symbol === checklistSymbol
@@ -912,16 +953,17 @@ function NavCards({ onNav, summary }) {
     <section style={{ padding: '2rem 2rem 0' }}>
       <div style={s.sectionTag}>[ COMMAND MODULES ]</div>
       <div style={{ ...s.sectionTitle, marginBottom: '1.2rem' }}>NAVIGATE</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+      <div className="finance-nav-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         {cards.map(card => (
-          <div
+          <button
+            type="button"
             key={card.key}
             onClick={() => onNav(card.key)}
             style={{
               gridColumn: card.wide ? 'span 2' : undefined,
               background: T.card, border: T.border, borderRadius: 4,
               padding: '12px 12px 10px', position: 'relative', overflow: 'hidden',
-              cursor: 'pointer', textAlign: 'left', userSelect: 'none',
+              cursor: 'pointer', textAlign: 'left', userSelect: 'none', color: 'inherit',
             }}
           >
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,0.4), transparent)', opacity: 0 }} />
@@ -934,7 +976,7 @@ function NavCards({ onNav, summary }) {
               <span style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)' }}>{card.tag}</span>
               <span style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.2)' }}>→</span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </section>
@@ -964,6 +1006,7 @@ export default function FinanceDashboard({ onNav }) {
   const [records, setRecords]           = useState([])
   const [portfolioState, setPortfolioState] = useState(null)
   const [pnlData, setPnlData]           = useState(null)
+  const [performance, setPerformance]   = useState(null)
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState('')
 
@@ -977,9 +1020,10 @@ export default function FinanceDashboard({ onNav }) {
       getFinanceResearchValidationRecords(),
       getFinancePortfolioState(),
       getFinancePnl(),
+      getFinancePerformanceHistory(),
     ]).then((results) => {
       if (!active) return
-      const [summaryR, recR, checkR, covR, memosR, recsR, psR, pnlR] = results
+      const [summaryR, recR, checkR, covR, memosR, recsR, psR, pnlR, performanceR] = results
       if (summaryR.status === 'fulfilled') setSummary(summaryR.value)
       if (recR.status    === 'fulfilled') setRecommendation(recR.value)
       if (checkR.status  === 'fulfilled') setChecklist(checkR.value)
@@ -988,8 +1032,21 @@ export default function FinanceDashboard({ onNav }) {
       if (recsR.status   === 'fulfilled') setRecords(recsR.value?.records || [])
       if (psR.status     === 'fulfilled') setPortfolioState(psR.value)
       if (pnlR.status    === 'fulfilled') setPnlData(pnlR.value)
-      const failed = results.filter(r => r.status === 'rejected').length
-      if (failed) setError(`${failed} finance data source${failed === 1 ? '' : 's'} unavailable.`)
+      if (performanceR.status === 'fulfilled') setPerformance(performanceR.value)
+      const failedSources = listFailedFinanceSources(results, [
+        'summary',
+        'recommendation',
+        'manual checklist',
+        'data coverage',
+        'research memos',
+        'validation records',
+        'portfolio state',
+        'P&L',
+        'performance history',
+      ])
+      setError(failedSources.length
+        ? `Unavailable finance sources: ${failedSources.join(', ')}.`
+        : '')
       setLoading(false)
     })
   }
@@ -1017,30 +1074,37 @@ export default function FinanceDashboard({ onNav }) {
   }, [])
 
   // ── Derived values ──────────────────────────────────────────────────────────
-  const sleeves          = Array.isArray(summary?.sleeve_summary) ? summary.sleeve_summary : []
+  const dashboard = useMemo(() => buildFinanceDashboardModel({
+    summary,
+    recommendation,
+    checklist,
+    coverage,
+    memos,
+    records,
+    portfolioState,
+    pnl: pnlData,
+    performance,
+  }), [summary, recommendation, checklist, coverage, memos, records, portfolioState, pnlData, performance])
+  const sleeves          = dashboard.portfolio.sleeves
   const driftCount       = sleeves.filter(s => s.band_status === 'above_max' || s.band_status === 'below_min').length
-  const checklistItems   = Array.isArray(checklist?.checklist_items) ? checklist.checklist_items : []
-  const coverageSections = coverage?.sections || {}
-  const coverageSummary  = coverageSections.coverage_summary || {}
-  const qualityCoverage  = coverageSections.etf_candidate_universe?.sleeves?.quality_etf || {}
-  const researchWinner   = qualityCoverage.research_winner || null
-  const checklistCandidate = qualityCoverage.checklist_candidate || qualityCoverage.selected_candidate || null
-  const researchSymbol   = symbolOf(researchWinner)
-  const checklistSymbol  = symbolOf(checklistCandidate)
-  const evidenceCount    = Number(coverageSummary.current_legs_with_validated_research)
-  const legCount         = Number(coverageSummary.total_current_recommendation_legs)
-  const evidenceLabel    = Number.isFinite(evidenceCount) && Number.isFinite(legCount) ? `${evidenceCount}/${legCount}` : '—'
-
-  const actionCopy = checklistItems.length
-    ? `PHOENIX recommends ${checklistItems.map(i => `${money(i.amount)} ${i.symbol || i.ticker || humanize(i.asset)} via ${i.platform || humanize(i.route)}`).join(' and ')}. Manual only — nothing has been ordered or executed.`
-    : 'No complete manual-buy checklist was returned. Nothing has been ordered or executed.'
+  const checklistItems   = dashboard.actions
+  const qualityCoverage  = {
+    ...dashboard.selection,
+    selection_gap_reason: dashboard.selection.gapReason,
+  }
+  const researchWinner   = dashboard.selection.researchWinner
+  const checklistCandidate = dashboard.selection.checklistCandidate
+  const researchSymbol   = dashboard.selection.researchSymbol
+  const checklistSymbol  = dashboard.selection.checklistSymbol
+  const evidenceLabel    = dashboard.meta.evidenceLabel
+  const actionCopy       = dashboard.hero.actionCopy
 
   return (
-    <main style={s.wrap}>
+    <CockpitShell style={s.wrap} aria-label="Finance Command Center">
       <div style={s.shell}>
 
         {/* ── Header + Auth Core ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', alignItems: 'stretch' }}>
+        <div className="finance-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', alignItems: 'stretch' }}>
           <Header
             summary={summary}
             checklist={checklist}
@@ -1050,7 +1114,7 @@ export default function FinanceDashboard({ onNav }) {
             pnlTotals={pnlData}
             driftCount={driftCount}
           />
-          <div style={{ padding: '2rem 2rem 2rem 0', display: 'flex', alignItems: 'center' }}>
+          <div className="finance-authorization-wrap" style={{ padding: '2rem 2rem 2rem 0', display: 'flex', alignItems: 'center' }}>
             <AuthorizationCore checklist={checklist} recommendation={recommendation} />
           </div>
         </div>
@@ -1069,7 +1133,7 @@ export default function FinanceDashboard({ onNav }) {
             <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.4)' }}>BROKER ACTIONS REMAIN OUTSIDE PHOENIX</span>
           </div>
           {checklistItems.length ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="finance-actions-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               {checklistItems.map((item, i) => (
                 <ManualActionCard key={`${item.asset}-${i}`} item={item} index={i} onOpenBrief={() => onNav('brief')} />
               ))}
@@ -1090,10 +1154,27 @@ export default function FinanceDashboard({ onNav }) {
           qualityCoverage={qualityCoverage}
         />
 
+        <SafetyLock dashboard={dashboard} />
+
         {/* ── Portfolio Snapshot ── */}
         {sleeves.length > 0 && (
           <PortfolioSnapshot sleeves={sleeves} total={summary?.total_invested} asOf={summary?.as_of} />
         )}
+
+        <section style={{ padding: '2rem 2rem 0' }}>
+          <DataPanel
+            eyebrow="[ REAL PERFORMANCE ]"
+            title="PORTFOLIO VALUE HISTORY"
+            meta={<SourceStamp source={dashboard.performance.source} asOf={dashboard.performance.points.at(-1)?.timestamp} />}
+          >
+            <MetricLineChart
+              points={dashboard.performance.points}
+              historyStatus={dashboard.performance.historyStatus}
+              source={dashboard.performance.source}
+              unit="EUR"
+            />
+          </DataPanel>
+        </section>
 
         {/* ── Unit Correction (collapsed by default) ── */}
         <UnitCorrectionPanel
@@ -1106,6 +1187,7 @@ export default function FinanceDashboard({ onNav }) {
           memos={memos}
           records={records}
           qualityCoverage={qualityCoverage}
+          etfAsset={dashboard.selection.asset}
           researchSymbol={researchSymbol}
           checklistSymbol={checklistSymbol}
           evidenceLabel={evidenceLabel}
@@ -1116,6 +1198,6 @@ export default function FinanceDashboard({ onNav }) {
         <NavCards onNav={onNav} summary={summary} />
 
       </div>
-    </main>
+    </CockpitShell>
   )
 }

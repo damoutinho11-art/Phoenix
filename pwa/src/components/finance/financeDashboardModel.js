@@ -81,6 +81,12 @@ function normalizePerformance(performance) {
   }
 }
 
+export function listFailedFinanceSources(results, labels) {
+  return asArray(results)
+    .map((result, index) => result?.status === 'rejected' ? labels?.[index] : null)
+    .filter(Boolean)
+}
+
 export function buildFinanceDashboardModel(payload = {}) {
   const summary = payload.summary || {}
   const recommendation = payload.recommendation || {}
@@ -94,7 +100,7 @@ export function buildFinanceDashboardModel(payload = {}) {
     ? sections.etf_candidate_universe?.sleeves?.[etfAsset] || {}
     : {}
   const researchWinner = etfCoverage.research_winner || null
-  const checklistCandidate = etfCoverage.checklist_candidate || null
+  const checklistCandidate = etfCoverage.checklist_candidate || etfCoverage.selected_candidate || null
   const selectedCandidate = etfCoverage.selected_candidate || checklistCandidate
   const validatedLegs = finiteNumber(coverageSummary.current_legs_with_validated_research)
   const totalLegs = finiteNumber(coverageSummary.total_current_recommendation_legs)

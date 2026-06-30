@@ -6,6 +6,7 @@ import {
   formatMoney,
   formatPercent,
   humanizeKey,
+  listFailedFinanceSources,
 } from './financeDashboardModel.js'
 
 test('uses the backend checklist candidate without recomputing ETF selection', () => {
@@ -104,10 +105,42 @@ test('keeps backend checklist empty instead of deriving actions from recommendat
   assert.match(model.hero.actionCopy, /No complete manual-buy checklist/)
 })
 
+test('uses selected candidate as the backward-compatible checklist alias', () => {
+  const model = buildFinanceDashboardModel({
+    coverage: {
+      sections: {
+        recommendation_data_provenance: {
+          legs: [{ asset: 'quality_etf', resolved_candidate: { symbol: 'IS3Q.DE' } }],
+        },
+        etf_candidate_universe: {
+          sleeves: {
+            quality_etf: {
+              selected_candidate: { symbol: 'IS3Q.DE', broker_availability_status: 'public_verified' },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  assert.equal(model.selection.checklistSymbol, 'IS3Q.DE')
+  assert.equal(model.selection.selectedSymbol, 'IS3Q.DE')
+})
+
 test('formatters return honest placeholders for unavailable values', () => {
   assert.equal(formatMoney(null), '—')
   assert.equal(formatMoney(46.15), '€46.15')
   assert.equal(formatPercent(null), '—')
   assert.equal(formatPercent(0.125), '12.5%')
   assert.equal(humanizeKey('growth_nasdaq_etf'), 'Growth Nasdaq Etf')
+})
+
+test('names each unavailable finance source from settled reads', () => {
+  const failures = listFailedFinanceSources([
+    { status: 'fulfilled', value: {} },
+    { status: 'rejected', reason: new Error('HTTP 503') },
+    { status: 'rejected', reason: new Error('HTTP 500') },
+  ], ['summary', 'checklist', 'performance history'])
+
+  assert.deepEqual(failures, ['checklist', 'performance history'])
 })
