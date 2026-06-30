@@ -18,6 +18,12 @@ _DEFAULT_DB_PATH = Path(__file__).resolve().parent / "jarvis.db"
 _ENV_DB_PATH = os.environ.get("JARVIS_DB_PATH")
 DB_PATH: Path = Path(_ENV_DB_PATH) if _ENV_DB_PATH else _DEFAULT_DB_PATH
 _DB_PATH_SOURCE: str = f"env:JARVIS_DB_PATH" if _ENV_DB_PATH else "default"
+_DEFAULT_PORTFOLIO_STATE_JSON_PATH = (
+    Path(__file__).resolve().parent.parent / "domains" / "finance" / "portfolio_state.json"
+)
+PORTFOLIO_STATE_JSON_PATH = Path(
+    os.environ.get("PHOENIX_PORTFOLIO_STATE_PATH", _DEFAULT_PORTFOLIO_STATE_JSON_PATH)
+)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meal_log (
@@ -374,9 +380,8 @@ def _migrate_portfolio_state_store(connection: sqlite3.Connection) -> None:
     """Seed portfolio_state_store from the JSON file if the table is empty."""
     row = connection.execute("SELECT COUNT(*) FROM portfolio_state_store").fetchone()
     if row[0] == 0:
-        json_path = Path(__file__).resolve().parent.parent / "domains" / "finance" / "portfolio_state.json"
-        if json_path.exists():
-            state_json = json_path.read_text(encoding="utf-8")
+        if PORTFOLIO_STATE_JSON_PATH.exists():
+            state_json = PORTFOLIO_STATE_JSON_PATH.read_text(encoding="utf-8")
             connection.execute(
                 "INSERT INTO portfolio_state_store (id, state_json, updated_at) VALUES (1, ?, ?)",
                 (state_json, datetime.now(timezone.utc).isoformat()),
@@ -1223,9 +1228,8 @@ def load_portfolio_state() -> dict[str, Any]:
             return json.loads(row["state_json"])
     finally:
         connection.close()
-    json_path = Path(__file__).resolve().parent.parent / "domains" / "finance" / "portfolio_state.json"
-    if json_path.exists():
-        return json.loads(json_path.read_text(encoding="utf-8"))
+    if PORTFOLIO_STATE_JSON_PATH.exists():
+        return json.loads(PORTFOLIO_STATE_JSON_PATH.read_text(encoding="utf-8"))
     return {}
 
 
@@ -1242,9 +1246,8 @@ def save_portfolio_state(state: dict[str, Any]) -> None:
         connection.commit()
     finally:
         connection.close()
-    json_path = Path(__file__).resolve().parent.parent / "domains" / "finance" / "portfolio_state.json"
     try:
-        json_path.write_text(state_json, encoding="utf-8")
+        PORTFOLIO_STATE_JSON_PATH.write_text(state_json, encoding="utf-8")
     except OSError:
         pass
 

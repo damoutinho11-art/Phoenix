@@ -41,11 +41,11 @@ def brief_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> int:
 def apply_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Fixture wiring an isolated DB and a writable portfolio_state.json."""
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "ledger.db")
-    database.init_db()
-
     state_path = tmp_path / "portfolio_state.json"
     state_path.write_text(json.dumps(_PORTFOLIO_STATE), encoding="utf-8")
     monkeypatch.setattr(engine, "DEFAULT_PORTFOLIO_STATE_PATH", state_path)
+    monkeypatch.setattr(database, "PORTFOLIO_STATE_JSON_PATH", state_path)
+    database.init_db()
 
     brief = database.save_brief(
         "W26 2026", "finance", "BUY", "quality_etf", 69.23, "lightyear", "test", None
@@ -301,10 +301,8 @@ def test_snapshots_without_transaction_id_may_coexist(apply_env: dict) -> None:
 
 
 def test_snapshot_uses_null_when_values_are_not_safely_derivable(apply_env: dict) -> None:
-    state_path: Path = apply_env["state_path"]
-    state_path.write_text(
-        json.dumps({"as_of": "2026-06-27", "holdings": {"btc": None}}),
-        encoding="utf-8",
+    database.save_portfolio_state(
+        {"as_of": "2026-06-27", "holdings": {"btc": None}}
     )
 
     snapshot = database.create_finance_portfolio_snapshot(trigger="manual")

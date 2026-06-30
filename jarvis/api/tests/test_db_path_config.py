@@ -1,5 +1,6 @@
 """Tests for configurable SQLite DB path via JARVIS_DB_PATH env var."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -87,3 +88,29 @@ def test_diagnostics_db_path_matches_patched_path(tmp_path: Path, monkeypatch: p
     diag = database.get_database_diagnostics()
 
     assert diag["db_path"] == str(db)
+
+
+def test_portfolio_state_seed_uses_configured_json_path(tmp_path, monkeypatch) -> None:
+    db = tmp_path / "jarvis.db"
+    state_path = tmp_path / "portfolio.json"
+    state_path.write_text(
+        json.dumps({"as_of": "2026-06-29", "holdings": {}}), encoding="utf-8"
+    )
+    _patch_db(monkeypatch, db, "env:JARVIS_DB_PATH")
+    monkeypatch.setattr(database, "PORTFOLIO_STATE_JSON_PATH", state_path)
+
+    database.init_db()
+
+    assert database.load_portfolio_state()["as_of"] == "2026-06-29"
+
+
+def test_portfolio_state_backup_writes_only_configured_path(tmp_path, monkeypatch) -> None:
+    db = tmp_path / "jarvis.db"
+    state_path = tmp_path / "portfolio.json"
+    _patch_db(monkeypatch, db, "env:JARVIS_DB_PATH")
+    monkeypatch.setattr(database, "PORTFOLIO_STATE_JSON_PATH", state_path)
+    database.init_db()
+
+    database.save_portfolio_state({"as_of": "2026-06-30", "holdings": {"btc": 1.0}})
+
+    assert json.loads(state_path.read_text(encoding="utf-8"))["holdings"]["btc"] == 1.0
