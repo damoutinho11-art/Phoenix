@@ -538,6 +538,16 @@ Before committing, inspect `git diff --cached --name-only` and unstage any gener
 - Modify: `jarvis/domains/training/tests/test_training_engine.py`
 - Modify: `jarvis/domains/training/tests/test_cross_domain_alerts.py`
 - Modify: `jarvis/api/tests/test_finance_routes.py`
+- Modify: `jarvis/api/tests/test_finance_data_coverage.py`
+- Modify: `jarvis/api/tests/test_finance_manual_buy_checklist.py`
+- Modify: `jarvis/api/tests/test_finance_post_buy_ui_contract.py`
+- Modify: `jarvis/api/tests/test_finance_recommendation_receipt.py`
+- Modify: `jarvis/api/tests/test_finance_research_generate_evidence.py`
+- Modify: `jarvis/domains/finance/tests/test_engine_dual_lane_mandate.py`
+- Modify: `jarvis/domains/finance/acceptance_gate.py`
+- Modify: `jarvis/domains/finance/production_smoke_gate.py`
+- Modify: `jarvis/domains/finance/tests/test_acceptance_gate.py`
+- Modify: `jarvis/domains/finance/tests/test_production_smoke_gate.py`
 
 **Interfaces:**
 - Consumes: the dedicated portfolio fixture and current tracked domain constitutions.
@@ -578,7 +588,42 @@ self.assertEqual(data["as_of"], "2026-06-29")
 
 Change route tests that implicitly depend on repository SQLite rows to create the required rows in the isolated database or assert the explicit empty state. Do not copy production database rows.
 
-- [ ] **Step 4: Classify every remaining failure before changing code**
+- [ ] **Step 4: Align Finance tests with the current canonical ETF leg**
+
+The dedicated portfolio fixture and tracked scoring currently select:
+
+```text
+btc: €46.15
+growth_nasdaq_etf: €69.23
+```
+
+Update the listed API/domain tests so the current-leg assertions, evidence fixtures, receipt fixtures, and checklist fixtures use `growth_nasdaq_etf`. Use `CNDX.L` as the deterministic selected instrument where `_resolution("growth_nasdaq_etf")` selects the first configured candidate. Keep quality-specific stale/null-instrument tests as explicit synthetic quality scenarios only when those tests construct a quality recommendation leg themselves.
+
+Do not change portfolio values, ETF scores, recommendation amounts, allocation logic, or production ETF selection to restore `quality_etf`.
+
+- [ ] **Step 5: Make acceptance and smoke gates current-leg-aware**
+
+In `acceptance_gate.py`:
+
+- identify the current ETF recommendation asset from recommendation provenance by membership in `ETF_CANDIDATE_TICKERS`;
+- read its selected instrument from that leg's `resolved_candidate`;
+- validate the matching research-evidence leg and PASS `LIVE_MARKET_FETCH` record;
+- seed deterministic evidence for every configured ETF sleeve so the fixture remains valid when allocation gaps change;
+- remove the requirement that the accepted ETF must be `quality_etf` or `IS3Q.DE`;
+- retain BTC/BTC-USD checks and every false safety flag unchanged.
+
+In `production_smoke_gate.py`:
+
+- derive the ETF asset from current recommendation provenance;
+- cross-check that sleeve's research winner, checklist candidate, selected candidate, recommendation resolved candidate, and manual-checklist symbol;
+- require `public_verified` for the dynamic checklist candidate;
+- add compact output fields `etf_asset`, `etf_research_winner`, `etf_checklist_candidate`, and `etf_manual_checklist_symbol`;
+- retain `quality_research_winner`, `quality_checklist_candidate`, and `quality_manual_checklist_symbol` as backward-compatible aliases of the dynamic ETF values for existing consumers;
+- keep every safety flag and read-only/no-mutation check unchanged.
+
+Add focused tests proving both `growth_nasdaq_etf` and a synthetic `quality_etf` fixture can satisfy the gate when their evidence matches, and that stale/null evidence for either current leg is rejected.
+
+- [ ] **Step 6: Classify every remaining failure before changing code**
 
 For each failure, record one classification in the implementation notes:
 
@@ -592,9 +637,21 @@ NONDETERMINISTIC_TIME
 
 Fix `STALE_TEST`, `TEST_ISOLATION`, `NETWORK_NOT_MOCKED`, and `NONDETERMINISTIC_TIME` at their test/configuration boundary. For `REAL_LOGIC_REGRESSION`, write a focused failing regression test before changing implementation.
 
-If a failure outside the three files listed for this task requires a code or assertion change, stop this task and amend the plan with that exact file, failing assertion, root-cause classification, and focused verification command before editing it.
+If a failure outside the files listed for this task requires a code or assertion change, stop this task and amend the plan with that exact file, failing assertion, root-cause classification, and focused verification command before editing it.
 
-- [ ] **Step 5: Run focused suites after each classification group**
+The approved classification for the current baseline is:
+
+```text
+STALE_TEST: 30 failures
+REAL_LOGIC_REGRESSION: 2 failures and 12 setup errors in acceptance/smoke gates
+TEST_ISOLATION: 0
+NETWORK_NOT_MOCKED: 0
+NONDETERMINISTIC_TIME: 0
+```
+
+The gate regression is resolved dynamically as specified in Step 5; it must not be resolved by re-canonicalizing Quality.
+
+- [ ] **Step 7: Run focused suites after each classification group**
 
 Run:
 
@@ -603,15 +660,16 @@ python -m pytest jarvis/domains/training/tests jarvis/api/tests/test_training_ro
 python -m pytest jarvis/domains/finance/tests jarvis/api/tests/test_finance_routes.py -q
 python -m pytest jarvis/domains/nutrition/tests jarvis/api/tests/test_nutrition_routes.py -q
 python -m pytest jarvis/domains/calendar/tests jarvis/api/tests/test_calendar_routes.py -q
+python -m pytest jarvis/domains/finance/tests/test_acceptance_gate.py jarvis/domains/finance/tests/test_production_smoke_gate.py -q
 ```
 
 Expected: each focused suite passes before proceeding.
 
-- [ ] **Step 6: Commit fixture reconciliation**
+- [ ] **Step 8: Commit fixture and gate reconciliation**
 
 ```powershell
-git add jarvis/domains/training/tests jarvis/api/tests
-git commit -m "test: align fixtures with current PHOENIX contracts"
+git add jarvis/domains/training/tests jarvis/api/tests jarvis/domains/finance/acceptance_gate.py jarvis/domains/finance/production_smoke_gate.py jarvis/domains/finance/tests
+git commit -m "fix: align gates with current finance contract"
 ```
 
 Use `git diff --cached --name-only` to ensure production logic is absent unless a focused red-green regression required a real fix.
