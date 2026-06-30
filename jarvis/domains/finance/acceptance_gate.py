@@ -80,6 +80,8 @@ def evaluate_finance_acceptance(coverage: dict[str, Any]) -> list[str]:
     selected_etf = (
         (recommendation_legs.get(etf_asset) or {}).get("resolved_candidate") or {}
     ).get("symbol")
+    if not selected_etf:
+        errors.append(f"{etf_asset or 'ETF'} selected instrument must be present")
     etf = research_legs.get(etf_asset) or {}
     etf_records = etf.get("validation_records") or []
     if etf.get("expected_instrument") != selected_etf or not etf.get(

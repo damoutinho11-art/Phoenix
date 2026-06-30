@@ -110,3 +110,70 @@ def test_finance_acceptance_gate_accepts_synthetic_quality_leg(accepted_result: 
                 if record["field_name"] == "market_data_source":
                     record["instrument"] = "IS3Q.DE"
     assert evaluate_finance_acceptance(coverage) == []
+
+
+def _synthetic_quality_coverage(accepted_result: dict) -> dict:
+    coverage = copy.deepcopy(accepted_result["coverage"])
+    recommendation = next(
+        leg
+        for leg in coverage["sections"]["recommendation_data_provenance"]["legs"]
+        if leg["asset"] == "growth_nasdaq_etf"
+    )
+    research = next(
+        leg
+        for leg in coverage["sections"]["research_evidence_provenance"]["legs"]
+        if leg["asset"] == "growth_nasdaq_etf"
+    )
+    recommendation["asset"] = research["asset"] = "quality_etf"
+    recommendation["resolved_candidate"]["symbol"] = "IS3Q.DE"
+    research["expected_instrument"] = "IS3Q.DE"
+    for record in research["validation_records"]:
+        if record["field_name"] == "market_data_source":
+            record["instrument"] = "IS3Q.DE"
+    return coverage
+
+
+def test_finance_acceptance_gate_rejects_fully_null_selected_etf_instrument(
+    accepted_result: dict,
+) -> None:
+    coverage = copy.deepcopy(accepted_result["coverage"])
+    recommendation = next(
+        leg
+        for leg in coverage["sections"]["recommendation_data_provenance"]["legs"]
+        if leg["asset"] == "growth_nasdaq_etf"
+    )
+    research = next(
+        leg
+        for leg in coverage["sections"]["research_evidence_provenance"]["legs"]
+        if leg["asset"] == "growth_nasdaq_etf"
+    )
+    recommendation["resolved_candidate"]["symbol"] = None
+    research["expected_instrument"] = None
+    research["evidence_matches_current_instrument"] = True
+    for record in research["validation_records"]:
+        if record["field_name"] == "market_data_source":
+            record["instrument"] = None
+
+    errors = evaluate_finance_acceptance(coverage)
+
+    assert any("selected instrument" in error for error in errors)
+
+
+@pytest.mark.parametrize("instrument", ["IWQU.L", None])
+def test_finance_acceptance_gate_rejects_synthetic_quality_stale_or_null_evidence(
+    accepted_result: dict, instrument: str | None,
+) -> None:
+    coverage = _synthetic_quality_coverage(accepted_result)
+    research = next(
+        leg
+        for leg in coverage["sections"]["research_evidence_provenance"]["legs"]
+        if leg["asset"] == "quality_etf"
+    )
+    research["evidence_matches_current_instrument"] = False
+    for record in research["validation_records"]:
+        if record["field_name"] == "market_data_source":
+            record["instrument"] = instrument
+
+    errors = evaluate_finance_acceptance(coverage)
+
+    assert any("quality_etf evidence must match current instrument IS3Q.DE" in error for error in errors)

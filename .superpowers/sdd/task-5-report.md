@@ -42,3 +42,11 @@ Modified exactly the 13 brief-listed files exercised by the baseline failures: s
 ## Concerns
 
 None. CRLF normalization warnings are repository working-tree behavior only; `git diff --check` is clean.
+
+## Reviewer follow-up: null selected ETF instrument
+
+- RED: `python -m pytest jarvis/domains/finance/tests/test_acceptance_gate.py::test_finance_acceptance_gate_rejects_fully_null_selected_etf_instrument -q` -> 1 failed. A null recommendation resolved symbol, null expected instrument, `evidence_matches_current_instrument=True`, and PASS live record with null instrument were incorrectly accepted.
+- Fix: acceptance now requires the dynamically selected ETF recommendation instrument to be non-empty before evidence comparisons.
+- Coverage: added a direct fully-null selected-instrument regression and parameterized synthetic `quality_etf` stale (`IWQU.L`) and null evidence variants, retaining the canonical Growth negatives.
+- GREEN: `python -m pytest jarvis/domains/finance/tests/test_acceptance_gate.py jarvis/domains/finance/tests/test_production_smoke_gate.py -q` -> 20 passed in 3.76s.
+- Scope: only `acceptance_gate.py`, its focused test file, and this report changed. Safety flags, allocation, scoring, recommendation behavior, frontend, database, and portfolio state remain untouched.
