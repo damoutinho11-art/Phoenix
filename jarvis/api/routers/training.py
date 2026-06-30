@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from jarvis.api.dependencies import get_training_constitution
 from jarvis.api import ai_gateway
+from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.training import engine, progression
@@ -239,7 +240,7 @@ def training_status(
         constitution = {**constitution, "current_bodyweight_kg": latest_kg}
     status = engine.check_training(
         constitution,
-        today=date.today(),
+        today=clock.today(),
         opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
     )
     result = _serialize_status(status)
@@ -253,7 +254,7 @@ def training_status(
     avg_weekly_loss_kg = None
     if len(wh) >= 2:
         latest_w = wh[-1]["weight_kg"]
-        cutoff_date = (date.today() - timedelta(days=8)).isoformat()
+        cutoff_date = (clock.today() - timedelta(days=8)).isoformat()
         older_w = next((e["weight_kg"] for e in reversed(wh[:-1]) if e["date"] <= cutoff_date), None)
         if older_w is not None:
             weekly_delta_kg = round(latest_w - older_w, 2)
@@ -314,7 +315,7 @@ def training_brief(
 ) -> dict:
     status = engine.check_training(
         constitution,
-        today=date.today(),
+        today=clock.today(),
         opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
     )
     status_dict = _serialize_status(status)

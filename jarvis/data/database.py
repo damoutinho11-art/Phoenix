@@ -14,6 +14,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from jarvis.core import clock
+
 _DEFAULT_DB_PATH = Path(__file__).resolve().parent / "jarvis.db"
 _ENV_DB_PATH = os.environ.get("JARVIS_DB_PATH")
 DB_PATH: Path = Path(_ENV_DB_PATH) if _ENV_DB_PATH else _DEFAULT_DB_PATH
@@ -290,7 +292,7 @@ CREATE TABLE IF NOT EXISTS portfolio_state_store (
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return clock.utc_now_iso()
 
 
 def _date_value(value: date | str) -> str:
@@ -384,7 +386,7 @@ def _migrate_portfolio_state_store(connection: sqlite3.Connection) -> None:
             state_json = PORTFOLIO_STATE_JSON_PATH.read_text(encoding="utf-8")
             connection.execute(
                 "INSERT INTO portfolio_state_store (id, state_json, updated_at) VALUES (1, ?, ?)",
-                (state_json, datetime.now(timezone.utc).isoformat()),
+                (state_json, clock.utc_now_iso()),
             )
             connection.commit()
 
@@ -730,7 +732,7 @@ def log_weight(log_date: date | str, weight_kg: float) -> int:
 def get_weight_history(days: int = 30) -> list[dict[str, Any]]:
     if days < 1:
         return []
-    cutoff = (date.today() - timedelta(days=days - 1)).isoformat()
+    cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
     connection = get_db()
     try:
         rows = connection.execute(
@@ -1241,7 +1243,7 @@ def save_portfolio_state(state: dict[str, Any]) -> None:
         connection.execute(
             "INSERT INTO portfolio_state_store (id, state_json, updated_at) VALUES (1, ?, ?) "
             "ON CONFLICT(id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at",
-            (state_json, datetime.now(timezone.utc).isoformat()),
+            (state_json, clock.utc_now_iso()),
         )
         connection.commit()
     finally:
@@ -2084,7 +2086,7 @@ def brief_exists_by_id(brief_id: int) -> bool:
 def save_budget_transactions(transactions: list[dict]) -> int:
     """Insert transactions; skip duplicates by (date, merchant, amount_eur)."""
     connection = get_db()
-    now = datetime.now(timezone.utc).isoformat()
+    now = clock.utc_now_iso()
     count = 0
     try:
         for t in transactions:
@@ -2247,7 +2249,7 @@ def get_meal_history(days: int = 14, target_calories: float = 2200.0) -> list[di
     """Return one row per day for the last `days` days with daily totals and target_met flag."""
     if days < 1:
         return []
-    cutoff = (date.today() - timedelta(days=days - 1)).isoformat()
+    cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
     connection = get_db()
     try:
         rows = connection.execute(
@@ -2269,7 +2271,7 @@ def get_meal_history(days: int = 14, target_calories: float = 2200.0) -> list[di
     by_date = {row["log_date"]: dict(row) for row in rows}
     result = []
     for i in range(days):
-        d = (date.today() - timedelta(days=days - 1 - i)).isoformat()
+        d = (clock.today() - timedelta(days=days - 1 - i)).isoformat()
         entry = by_date.get(d)
         if entry:
             cal = entry["total_calories"]
@@ -2322,7 +2324,7 @@ def get_last_soreness() -> dict[str, Any] | None:
         if not row:
             return None
         logged_at = datetime.fromisoformat(row["logged_at"])
-        age_h = (datetime.now(timezone.utc) - logged_at.replace(tzinfo=timezone.utc)).total_seconds() / 3600
+        age_h = (clock.utc_now() - logged_at.replace(tzinfo=timezone.utc)).total_seconds() / 3600
         if age_h > 24:
             return None
         score = int(row["score"])

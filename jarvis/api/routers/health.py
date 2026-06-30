@@ -1,7 +1,9 @@
 """Health and persistence diagnostic routes."""
 
-from jarvis.data import database
 from fastapi import APIRouter
+
+from jarvis.core import clock
+from jarvis.data import database
 
 router = APIRouter()
 
@@ -22,9 +24,7 @@ def health_persistence_probe() -> dict:
     It does not create finance transactions, does not mutate
     portfolio_state.json, and does not call any broker or execution logic.
     """
-    from datetime import datetime, timezone
-
-    value = datetime.now(timezone.utc).isoformat()
+    value = clock.utc_now_iso()
     marker = database.set_persistence_marker(_PROBE_KEY, value)
     diagnostics = database.get_database_diagnostics()
 

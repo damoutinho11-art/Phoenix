@@ -1,13 +1,13 @@
 """Budget API — parse, save, and summarise personal bank transactions."""
 
 import json
-from datetime import date
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from jarvis.data import database
 from jarvis.api import ai_gateway
+from jarvis.core import clock
+from jarvis.data import database
 
 router = APIRouter()
 
@@ -105,7 +105,7 @@ def save_transactions(request: SaveRequest) -> dict:
 @router.get("/summary")
 def budget_summary(month: str = "") -> dict:
     if not month:
-        month = date.today().strftime("%Y-%m")
+        month = clock.today().strftime("%Y-%m")
     summary = database.get_budget_summary(month)
     insight = ""
     if summary["income_total"] > 0 or summary["expenses_total"] > 0:
@@ -120,7 +120,7 @@ def budget_summary(month: str = "") -> dict:
 @router.get("/transactions")
 def budget_transactions(month: str = "") -> dict:
     if not month:
-        month = date.today().strftime("%Y-%m")
+        month = clock.today().strftime("%Y-%m")
     transactions = database.get_budget_transactions(month)
     return {"transactions": transactions, "month": month}
 

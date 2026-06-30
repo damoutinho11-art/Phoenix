@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
@@ -15,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, finance, health, news, nutrition, training
+from jarvis.core import clock
 from jarvis.data import database
 from jarvis.data.database import init_db
 from jarvis.domains.finance import engine as finance_engine
@@ -60,7 +60,7 @@ async def _auto_refresh_prices():
             constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
             if state and constitution:
                 updated, meta = update_portfolio_state_prices(state, constitution)
-                updated["prices_refreshed_at"] = datetime.now(timezone.utc).isoformat()
+                updated["prices_refreshed_at"] = clock.utc_now_iso()
                 database.save_portfolio_state(updated)
                 _log.info("Auto price refresh: updated %s", meta.get("holdings_updated"))
         except Exception:

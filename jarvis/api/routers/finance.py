@@ -2,13 +2,13 @@
 
 import copy
 import json
-from datetime import date, datetime, timezone
 from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.api import ai_gateway
+from jarvis.core import clock
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.etf_scoring import load_etf_universe
 from jarvis.domains.finance.market_data import (
@@ -27,7 +27,7 @@ router = APIRouter()
 
 def _iso_week_label() -> str:
     """Return e.g. 'W26 2026' for the current ISO week."""
-    today = date.today()
+    today = clock.today()
     iso = today.isocalendar()
     return f"W{iso[1]} {iso[0]}"
 
@@ -384,7 +384,7 @@ def _build_finance_recommendation(
     if applied_this_week:
         assets_done = ", ".join(sorted({t["asset"].upper() for t in applied_this_week}))
         total_deployed = sum(t["amount_eur"] for t in applied_this_week)
-        iso = date.today().isocalendar()
+        iso = clock.today().isocalendar()
         next_week_num = iso[1] + 1
         next_week_year = iso[0]
         if next_week_num > 52:
@@ -1427,7 +1427,7 @@ def finance_refresh_prices() -> dict:
 
     updated_state, meta = update_portfolio_state_prices(portfolio_state, constitution)
 
-    updated_state["prices_refreshed_at"] = datetime.now(timezone.utc).isoformat()
+    updated_state["prices_refreshed_at"] = clock.utc_now_iso()
     database.save_portfolio_state(updated_state)
 
     return {
@@ -2567,7 +2567,7 @@ def _build_transaction_apply_preview(
     after: dict = {
         "holdings": after_holdings,
         "units": after_units,
-        "as_of": datetime.now(timezone.utc).date().isoformat(),
+        "as_of": clock.utc_now().date().isoformat(),
     }
     return before, after
 
@@ -2697,7 +2697,7 @@ def _reverse_transaction_in_portfolio_state(
         after_units[asset] = round(max(0.0, current - transaction["units"]), 10)
 
     before = {"holdings": before_holdings, "units": before_units, "as_of": portfolio_state.get("as_of")}
-    after = {"holdings": after_holdings, "units": after_units, "as_of": datetime.now(timezone.utc).date().isoformat()}
+    after = {"holdings": after_holdings, "units": after_units, "as_of": clock.utc_now().date().isoformat()}
 
     new_state = copy.deepcopy(portfolio_state)
     new_state["holdings"] = after["holdings"]

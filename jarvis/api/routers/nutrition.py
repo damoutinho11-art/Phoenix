@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from jarvis.api.dependencies import get_nutrition_constitution
 from jarvis.api import ai_gateway
+from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.nutrition import engine
 from jarvis.domains.nutrition.data_contracts import NutritionStatus, Recipe, LidlStaple
@@ -254,7 +255,7 @@ def _status_for_date(constitution: dict, target_date: date) -> tuple[NutritionSt
 def nutrition_status(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
-    status, meals = _status_for_date(constitution, date.today())
+    status, meals = _status_for_date(constitution, clock.today())
     response = _serialize_status(status)
     response["meal_log"] = meals
     entries = database.get_nutrition_memory()
@@ -264,7 +265,7 @@ def nutrition_status(
 
 @router.post("/log/meal")
 def create_meal_log(request: LogMealRequest) -> dict:
-    log_date = request.log_date or date.today()
+    log_date = request.log_date or clock.today()
     meal_id = database.log_meal(
         log_date=log_date,
         item_id=request.item_id,
@@ -297,7 +298,7 @@ def remove_meal_log(meal_id: int) -> dict:
 
 @router.post("/log/weight")
 def create_weight_log(request: LogWeightRequest) -> dict:
-    log_date = request.log_date or date.today()
+    log_date = request.log_date or clock.today()
     weight_id = database.log_weight(log_date, request.weight_kg)
     return {
         "status": "logged",
@@ -358,7 +359,7 @@ def meal_history(
         round(sum(r["total_protein_g"] for r in days_with_data) / len(days_with_data), 1)
         if days_with_data else None
     )
-    today_target = engine.get_macro_target(constitution, date.today())
+    today_target = engine.get_macro_target(constitution, clock.today())
 
     return {
         "days": days,
@@ -389,7 +390,7 @@ def nutrition_calendar_bridge(
     It does not fetch Plaan live, mutate Plaan, send raw calendar pages to AI, or
     log meals automatically.
     """
-    bridge_date = start_date or date.today()
+    bridge_date = start_date or clock.today()
     status, _meals = _status_for_date(constitution, bridge_date)
     entries = database.get_nutrition_memory()
     latest_import = database.get_latest_calendar_snapshot_import()
@@ -427,7 +428,7 @@ def nutrition_acceptance_gate(
     memory_entries = database.get_nutrition_memory()
     report = engine.build_nutrition_acceptance_gate(
         constitution,
-        today=date.today(),
+        today=clock.today(),
         memory_entries=memory_entries,
     )
     report["api_contract"] = {
@@ -483,12 +484,12 @@ def delete_memory(memory_id: int) -> dict:
 
 @router.get("/repeat/yesterday")
 def repeat_yesterday_preview() -> dict:
-    yesterday = date.today() - timedelta(days=1)
+    yesterday = clock.today() - timedelta(days=1)
     meals = database.get_meals_for_date(yesterday)
     total = _total_plan_items(meals) if meals else {"calories": 0, "protein_g": 0, "fat_g": 0, "carbs_g": 0, "price_eur": 0}
     return {
         "source_date": yesterday.isoformat(),
-        "target_date": date.today().isoformat(),
+        "target_date": clock.today().isoformat(),
         "count": len(meals),
         "meals": meals,
         "total": total,
@@ -499,14 +500,14 @@ def repeat_yesterday_preview() -> dict:
 
 @router.post("/log/repeat-yesterday")
 def log_repeat_yesterday() -> dict:
-    yesterday = date.today() - timedelta(days=1)
+    yesterday = clock.today() - timedelta(days=1)
     source_meals = database.get_meals_for_date(yesterday)
     if not source_meals:
         raise HTTPException(status_code=404, detail="No meals logged yesterday")
     logged = []
     for meal in source_meals:
         meal_id = database.log_meal(
-            log_date=date.today(),
+            log_date=clock.today(),
             item_id=f"repeat-yesterday-{meal['item_id']}",
             item_type=meal["item_type"],
             name=f"Repeat Yesterday: {meal['name']}",
@@ -521,7 +522,7 @@ def log_repeat_yesterday() -> dict:
     return {
         "status": "logged",
         "source_date": yesterday.isoformat(),
-        "target_date": date.today().isoformat(),
+        "target_date": clock.today().isoformat(),
         "meal_count": len(logged),
         "meals": logged,
         "total": _total_plan_items(source_meals),
@@ -583,7 +584,7 @@ def list_staples(
 
 
 def _builder_context(constitution: dict) -> dict:
-    status, _ = _status_for_date(constitution, date.today())
+    status, _ = _status_for_date(constitution, clock.today())
     staples = engine.load_lidl_staples()
     recipes = engine.load_recipes()
     memory_entries = database.get_nutrition_memory()
@@ -603,7 +604,7 @@ def meal_builder(
 
 
 def _day_plan_context(constitution: dict) -> dict:
-    status, _ = _status_for_date(constitution, date.today())
+    status, _ = _status_for_date(constitution, clock.today())
     staples = engine.load_lidl_staples()
     recipes = engine.load_recipes()
     memory_entries = database.get_nutrition_memory()
@@ -680,7 +681,7 @@ def nutrition_shopping_list(
 
 
 def _weekly_plan_context(constitution: dict, start: date | None = None, days: int = 7) -> dict:
-    start_date = start or date.today()
+    start_date = start or clock.today()
     staples = engine.load_lidl_staples()
     recipes = engine.load_recipes()
     memory_entries = database.get_nutrition_memory()
@@ -808,7 +809,7 @@ def log_day_plan(
     if not raw_meals:
         raise HTTPException(status_code=400, detail="Day plan must contain at least one meal")
 
-    log_date = request.log_date or date.today()
+    log_date = request.log_date or clock.today()
     logged_meals = []
     for meal in raw_meals:
         raw_items = meal.get("items") or []
@@ -893,7 +894,7 @@ def log_built_meal(
 
     edited = bool(request.items)
     title = (request.title or suggestion["title"]).strip() or suggestion["title"]
-    log_date = request.log_date or date.today()
+    log_date = request.log_date or clock.today()
     meal_id = database.log_meal(
         log_date=log_date,
         item_id=f"builder-{suggestion['id']}",
@@ -924,7 +925,7 @@ def log_built_meal(
 def nutrition_brief(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
-    status, _ = _status_for_date(constitution, date.today())
+    status, _ = _status_for_date(constitution, clock.today())
     s = _serialize_status(status)
     t = s["target"]
 

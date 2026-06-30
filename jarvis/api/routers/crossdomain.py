@@ -1,13 +1,12 @@
 """Cross-domain intelligence router. Wires training × nutrition × calendar."""
 
-from datetime import date
-
 from fastapi import APIRouter, Depends
 
 from jarvis.api.dependencies import (
     get_nutrition_constitution,
     get_training_constitution,
 )
+from jarvis.core import clock
 from jarvis.domains.calendar.engine import parse_snapshot
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.training.engine import get_cross_domain_alerts
@@ -26,7 +25,7 @@ def cross_domain_alerts(
     except Exception:
         opera_raw = None
 
-    today = date.today()
+    today = clock.today()
     alerts = get_cross_domain_alerts(
         training_constitution=training_constitution,
         nutrition_constitution=nutrition_constitution,

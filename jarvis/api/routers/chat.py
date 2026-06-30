@@ -2,7 +2,6 @@
 
 import json
 import re
-from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -16,6 +15,7 @@ from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.finance import engine as finance_engine
 from jarvis.domains.nutrition import engine as nutrition_engine
 from jarvis.domains.training import engine as training_engine
+from jarvis.core import clock
 
 router = APIRouter()
 
@@ -132,7 +132,7 @@ def _build_training_context() -> str:
         with open(training_engine.DEFAULT_CONSTITUTION_PATH) as f:
             constitution = json.load(f)
         status = training_engine.check_training(
-            constitution, today=date.today(), opera_snapshot_raw=LIVE_SNAPSHOT_RAW
+            constitution, today=clock.today(), opera_snapshot_raw=LIVE_SNAPSHOT_RAW
         )
         g = status.dunk_goal
         c = status.cut_status
@@ -194,12 +194,12 @@ def _build_nutrition_context() -> str:
     try:
         with open(_NUTRITION_CONSTITUTION_PATH) as f:
             constitution = json.load(f)
-        meals = database.get_meals_for_date(date.today())
+        meals = database.get_meals_for_date(clock.today())
         items = [
             {k: m[k] for k in ("item_id", "item_type", "name", "servings", "calories", "protein_g", "fat_g", "carbs_g")}
             for m in meals
         ]
-        status = nutrition_engine.check_nutrition(constitution, daily_log_items=items, today=date.today())
+        status = nutrition_engine.check_nutrition(constitution, daily_log_items=items, today=clock.today())
         t = status.target
 
         return (
@@ -375,7 +375,7 @@ def jarvis_chat(request: ChatRequest) -> dict:
     bodyweight = _detect_bodyweight(request.message)
     if bodyweight:
         try:
-            database.log_weight(date.today(), bodyweight)
+            database.log_weight(clock.today(), bodyweight)
             sleep_logged_note += f"\n[SYSTEM: bodyweight {bodyweight}kg logged]"
         except Exception:
             pass
@@ -405,7 +405,7 @@ def jarvis_chat(request: ChatRequest) -> dict:
 
     if domain == "budget":
         try:
-            month = date.today().strftime("%Y-%m")
+            month = clock.today().strftime("%Y-%m")
             budget_summary = database.get_budget_summary(month)
             context_parts.append(f"BUDGET ({month}):\n{json.dumps(budget_summary)}")
         except Exception:
@@ -453,5 +453,5 @@ def jarvis_chat(request: ChatRequest) -> dict:
         "domain": domain,
         "requires_approval": requires_approval,
         "ai": ai_gateway.status().as_dict(),
-        "context_summary": f"{domain} context loaded as of {date.today().isoformat()}",
+        "context_summary": f"{domain} context loaded as of {clock.today().isoformat()}",
     }
