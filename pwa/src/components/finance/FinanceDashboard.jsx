@@ -130,7 +130,7 @@ function ScanLine() {
 function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTotals, driftCount }) {
   const weekLabel = checklist?.week_label || recommendation?.week_label || '—'
   return (
-    <header style={{
+    <header className="finance-hero-panel" style={{
       ...s.card,
       padding: '2rem 2.5rem 2.5rem',
       marginBottom: 0,
@@ -139,7 +139,7 @@ function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTo
       borderRight: 'none',
       borderTop: 'none',
     }}>
-      <div style={{
+      <div className="finance-header-topbar" style={{
         position: 'absolute', inset: 0,
         backgroundImage: 'radial-gradient(circle, rgba(0,187,221,0.06) 1px, transparent 1px)',
         backgroundSize: '28px 28px',
@@ -185,7 +185,7 @@ function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTo
 
       <div style={{ position: 'relative' }}>
         <div style={s.sectionTag}>PHOENIX</div>
-        <h1 style={{ fontFamily: T.fontDisplay, fontSize: 52, fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1, margin: '0 0 2rem' }}>
+        <h1 className="finance-command-title" style={{ fontFamily: T.fontDisplay, fontSize: 52, fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1, margin: '0 0 2rem' }}>
           <span style={{ display: 'block', color: '#dff0f5' }}>FINANCE</span>
           <span style={{ display: 'block', color: T.accent, textShadow: '0 0 30px rgba(0,187,221,0.27)' }}>COMMAND CENTER</span>
         </h1>
@@ -200,7 +200,7 @@ function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTo
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
           <span style={{ fontFamily: T.fontBody, fontSize: 28, fontWeight: 300, color: 'rgba(0,187,221,0.53)', lineHeight: 1 }}>€</span>
-          <span style={{
+          <span className="finance-total-value" style={{
             fontFamily: T.fontBody, fontSize: 68, fontWeight: 700, color: T.accent,
             letterSpacing: '-0.04em', lineHeight: 1,
             textShadow: '0 0 40px rgba(0,187,221,0.27), 0 0 80px rgba(0,187,221,0.11)',
@@ -1125,7 +1125,7 @@ export default function FinanceDashboard({ onNav }) {
         {/* ── Manual Actions ── */}
         <section style={{ padding: '2rem 2rem 0' }}>
           <div style={s.sectionTag}>[ THIS WEEK ]</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
+          <div className="finance-section-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
             <div style={s.sectionTitle}>MANUAL ACTIONS</div>
             <span style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.4)' }}>BROKER ACTIONS REMAIN OUTSIDE PHOENIX</span>
           </div>

@@ -355,6 +355,25 @@
     padding: 0 1rem 1rem !important;
   }
 
+  .finance-hero-panel {
+    padding: 1.25rem !important;
+  }
+
+  .finance-header-topbar,
+  .finance-section-heading {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: .75rem;
+  }
+
+  .finance-command-title {
+    font-size: clamp(2.35rem, 12vw, 3.25rem) !important;
+  }
+
+  .finance-total-value {
+    font-size: clamp(3rem, 16vw, 4.25rem) !important;
+  }
+
   .finance-resolution-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
