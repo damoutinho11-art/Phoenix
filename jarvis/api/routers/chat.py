@@ -327,6 +327,8 @@ def jarvis_ai_status() -> dict:
 @router.get("/activity")
 def jarvis_activity() -> dict:
     """Machine-readable summary of what Phoenix is doing/fetching."""
+    from jarvis.api.main import background_job_descriptions  # noqa: PLC0415
+
     ai = ai_gateway.status().as_dict()
     news = news_engine.status()
     try:
@@ -337,9 +339,7 @@ def jarvis_activity() -> dict:
     return {
         "ai": ai,
         "news": news,
-        "background_jobs": [
-            {"name": "keepalive", "cadence": "10 minutes", "effect": "pings /health"},
-        ],
+        "background_jobs": background_job_descriptions(),
         "inventory": {"recipes": recipes, "lidl_staples": staples},
         "safety": {
             "automatic_trades": False,

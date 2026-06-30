@@ -23,6 +23,22 @@ from jarvis.domains.finance.market_data import update_portfolio_state_prices
 _log = logging.getLogger(__name__)
 
 
+def background_jobs_enabled() -> bool:
+    return os.getenv("PHOENIX_BACKGROUND_JOBS_ENABLED", "true").strip().lower() not in {
+        "0", "false", "off", "no"
+    }
+
+
+def background_job_descriptions() -> list[dict[str, str]]:
+    if not background_jobs_enabled():
+        return []
+    return [
+        {"name": "keepalive", "cadence": "10 minutes", "effect": "pings /health"},
+        {"name": "finance_price_refresh", "cadence": "4 hours", "effect": "refreshes stored market values"},
+        {"name": "finance_research_autopilot", "cadence": "24 hours", "effect": "refreshes research evidence"},
+    ]
+
+
 async def _keep_alive():
     """Ping /health every 10 minutes so Railway doesn't sleep the dyno."""
     await asyncio.sleep(60)  # wait for startup
@@ -68,13 +84,20 @@ async def _auto_research_autopilot():
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
-    task_keepalive = asyncio.create_task(_keep_alive())
-    task_prices = asyncio.create_task(_auto_refresh_prices())
-    task_research = asyncio.create_task(_auto_research_autopilot())
-    yield
-    task_keepalive.cancel()
-    task_prices.cancel()
-    task_research.cancel()
+    tasks = []
+    try:
+        if background_jobs_enabled():
+            tasks = [
+                asyncio.create_task(_keep_alive()),
+                asyncio.create_task(_auto_refresh_prices()),
+                asyncio.create_task(_auto_research_autopilot()),
+            ]
+        yield
+    finally:
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 # Initialize at import time for direct TestClient usage that does not enter the
