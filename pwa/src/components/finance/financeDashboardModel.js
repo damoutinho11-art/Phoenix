@@ -60,8 +60,14 @@ function normalizePerformance(performance) {
       cash: finiteNumber(snapshot?.cash_eur),
       invested: finiteNumber(snapshot?.invested_value_eur),
     }))
-    .filter(point => point.timestamp && point.value !== null)
-    .sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp))
+    .filter(point => (
+      point.timestamp
+      && point.value !== null
+      && Number.isFinite(new Date(point.timestamp).getTime())
+    ))
+    .sort((left, right) => (
+      new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()
+    ))
 
   return {
     source: performance?.source || 'unknown',

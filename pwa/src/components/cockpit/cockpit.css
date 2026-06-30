@@ -209,6 +209,75 @@
   line-height: 1.55;
 }
 
+.phx-chart-empty {
+  display: grid;
+  min-height: 12rem;
+  place-content: center;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.phx-chart-empty p {
+  max-width: 32rem;
+  margin: .65rem auto;
+  color: var(--phx-body);
+  font-size: .88rem;
+  line-height: 1.55;
+}
+
+.phx-chart-source {
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: .68rem;
+  letter-spacing: .12em;
+}
+
+.phx-line-chart {
+  margin: 0;
+  padding: 1rem;
+}
+
+.phx-line-chart svg {
+  display: block;
+  width: 100%;
+  height: clamp(11rem, 30vw, 15rem);
+  overflow: visible;
+}
+
+.phx-chart-grid {
+  stroke: color-mix(in srgb, var(--phx-accent) 10%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.phx-chart-path {
+  stroke: var(--phx-accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--phx-accent) 55%, transparent));
+  vector-effect: non-scaling-stroke;
+  animation: phx-chart-reveal .8s ease-out both;
+}
+
+.phx-chart-point {
+  fill: var(--phx-bg);
+  stroke: var(--phx-accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.phx-chart-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: .65rem;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: .7rem;
+  letter-spacing: .08em;
+}
+
 .phx-audit-drawer {
   border: 1px solid var(--phx-edge);
   border-radius: 4px;
@@ -251,6 +320,11 @@
 @keyframes phx-panel-scan {
   from { transform: translateX(0); }
   to { transform: translateX(450%); }
+}
+
+@keyframes phx-chart-reveal {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 680px) {

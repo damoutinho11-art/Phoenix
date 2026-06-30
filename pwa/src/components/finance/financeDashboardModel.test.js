@@ -66,6 +66,22 @@ test('marks one real performance point as insufficient history', () => {
   assert.equal(model.performance.source, 'real_sqlite')
 })
 
+test('orders real performance observations and rejects invalid timestamps', () => {
+  const model = buildFinanceDashboardModel({
+    performance: {
+      snapshots: [
+        { id: 2, created_at: '2026-06-30T10:00:00Z', total_value_eur: 105 },
+        { id: 3, created_at: 'not-a-date', total_value_eur: 999 },
+        { id: 1, created_at: '2026-06-29T10:00:00Z', total_value_eur: 100 },
+        { id: 4, created_at: '2026-07-01T10:00:00Z', total_value_eur: null },
+      ],
+    },
+  })
+
+  assert.deepEqual(model.performance.points.map(point => point.id), [1, 2])
+  assert.equal(model.performance.historyStatus, 'READY')
+})
+
 test('preserves explicit false safety flags and treats missing flags as unknown', () => {
   const model = buildFinanceDashboardModel({
     checklist: { safety_flags: { trades_executed: false } },
