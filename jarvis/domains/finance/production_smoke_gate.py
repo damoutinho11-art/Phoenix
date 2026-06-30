@@ -38,15 +38,6 @@ def _items_by_asset(checklist: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
-def _current_etf_asset(sections: dict[str, Any]) -> str | None:
-    assets = [
-        leg.get("asset")
-        for leg in ((sections.get("recommendation_data_provenance") or {}).get("legs") or [])
-        if leg.get("asset") in acceptance_gate.ETF_CANDIDATE_TICKERS
-    ]
-    return assets[0] if len(assets) == 1 else None
-
-
 def evaluate_production_smoke(
     coverage: dict[str, Any], checklist: dict[str, Any]
 ) -> list[str]:
@@ -54,7 +45,7 @@ def evaluate_production_smoke(
     errors = list(evaluate_finance_acceptance(coverage))
     sections = coverage.get("sections") or {}
     sleeves = ((sections.get("etf_candidate_universe") or {}).get("sleeves") or {})
-    etf_asset = _current_etf_asset(sections)
+    etf_asset = acceptance_gate.current_etf_asset(sections)
     etf = sleeves.get(etf_asset) or {}
     research_winner = etf.get("research_winner")
     checklist_candidate = etf.get("checklist_candidate")
@@ -201,7 +192,7 @@ def _compact_result(
     errors: list[str],
 ) -> dict[str, Any]:
     sections = coverage.get("sections") or {}
-    etf_asset = _current_etf_asset(sections)
+    etf_asset = acceptance_gate.current_etf_asset(sections)
     etf = (((sections.get("etf_candidate_universe") or {}).get("sleeves") or {}).get(etf_asset) or {})
     etf_item = _items_by_asset(checklist).get(etf_asset) or {}
     coverage_safety = sections.get("safety") or {}

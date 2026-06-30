@@ -31,6 +31,18 @@ _FALSE_SAFETY_FLAGS = (
 )
 
 
+def current_etf_asset(sections: dict[str, Any]) -> str | None:
+    """Return the single ETF asset in current recommendation provenance."""
+    assets = [
+        leg.get("asset")
+        for leg in (
+            (sections.get("recommendation_data_provenance") or {}).get("legs") or []
+        )
+        if leg.get("asset") in ETF_CANDIDATE_TICKERS
+    ]
+    return assets[0] if len(assets) == 1 else None
+
+
 def evaluate_finance_acceptance(coverage: dict[str, Any]) -> list[str]:
     """Return contract violations; an empty list means the gate passes."""
     errors: list[str] = []
@@ -73,8 +85,7 @@ def evaluate_finance_acceptance(coverage: dict[str, Any]) -> list[str]:
     ):
         errors.append("BTC-USD requires a PASS LIVE_MARKET_FETCH record")
 
-    etf_assets = [asset for asset in recommendation_legs if asset in ETF_CANDIDATE_TICKERS]
-    etf_asset = etf_assets[0] if len(etf_assets) == 1 else None
+    etf_asset = current_etf_asset(sections)
     if etf_asset is None:
         errors.append("exactly one current ETF recommendation leg is required")
     selected_etf = (
