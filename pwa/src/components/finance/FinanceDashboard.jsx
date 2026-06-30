@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CockpitShell } from '../cockpit/CockpitPrimitives'
 import {
   getFinanceDataCoverage,
   getFinanceManualBuyChecklist,
