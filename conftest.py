@@ -41,5 +41,10 @@ def pytest_sessionfinish(session, exitstatus) -> None:
         session.exitstatus = 1
 
 
+def _remove_generated_test_runtime(runtime: Path = TEST_RUNTIME) -> None:
+    """Remove only the directory generated when this conftest was imported."""
+    shutil.rmtree(runtime, ignore_errors=True)
+
+
 def pytest_unconfigure(config) -> None:
-    shutil.rmtree(TEST_RUNTIME, ignore_errors=True)
+    _remove_generated_test_runtime()
