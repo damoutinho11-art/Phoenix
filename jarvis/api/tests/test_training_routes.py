@@ -113,3 +113,128 @@ class TestTrainingBriefRoute:
         with patch("jarvis.api.routers.training.ai_gateway.generate_text", return_value=_make_ai_result(ok=False)):
             data = client.get("/training/brief").json()
         assert data["requires_approval"] is True
+
+
+class TestTrainingReadinessAndRouting:
+    def test_readiness_scan_validates_score_range(self):
+        response = client.post(
+            "/training/readiness-scan",
+            json={
+                "knee": 11,
+                "ankle": 0,
+                "hip": 0,
+                "hamstring": 0,
+                "calf_achilles": 0,
+                "lower_back_pelvic": 0,
+            },
+        )
+        assert response.status_code == 422
+
+    def test_readiness_scan_classifies_and_persists(self):
+        with patch(
+            "jarvis.api.routers.training.database.save_training_readiness_scan",
+            return_value=41,
+        ) as save:
+            response = client.post(
+                "/training/readiness-scan",
+                json={
+                    "knee": 4,
+                    "ankle": 1,
+                    "hip": 0,
+                    "hamstring": 0,
+                    "calf_achilles": 0,
+                    "lower_back_pelvic": 0,
+                    "note": "Knee feels loaded",
+                },
+            )
+        assert response.status_code == 200
+        assert response.json()["readiness_status"] == "caution"
+        assert response.json()["scan_id"] == 41
+        assert save.call_args.args[0]["readiness_status"] == "caution"
+
+    def test_routed_session_is_unchecked_and_gates_high_neural_without_scan(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_latest_training_readiness_scan",
+            return_value=None,
+        ), patch("jarvis.api.routers.training.clock.today", return_value=__import__("datetime").date(2026, 7, 1)):
+            response = client.get("/training/routed-session")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["readiness_status"] == "unchecked"
+        assert data["readiness_required"] is True
+        assert data["high_neural_allowed"] is False
+        assert any(block["key"] == "sled_balance" for block in data["capacity_blocks"])
+
+    def test_capacity_block_log_is_explicit(self):
+        with patch(
+            "jarvis.api.routers.training.database.save_training_capacity_log",
+            return_value=8,
+        ):
+            response = client.post(
+                "/training/log/capacity-block",
+                json={"block_key": "sled_balance", "completed": True, "minutes": 8},
+            )
+        assert response.status_code == 200
+        assert response.json() == {"status": "logged", "capacity_log_id": 8}
+
+    def test_user_can_explicitly_request_recovery_reset(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_latest_training_readiness_scan",
+            return_value=None,
+        ), patch("jarvis.api.routers.training.clock.today", return_value=__import__("datetime").date(2026, 7, 1)):
+            response = client.get("/training/routed-session?explicit_reset=true")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["show_recovery_reset"] is True
+        assert [block["key"] for block in data["capacity_blocks"]] == ["recovery_reset"]
+
+    def test_jump_balance_accepts_supported_plant_and_one_rep(self):
+        with patch(
+            "jarvis.api.routers.training.database.save_training_jump_balance_log",
+            return_value=9,
+        ):
+            response = client.post(
+                "/training/log/jump-balance",
+                json={
+                    "plant_pattern": "two_foot_left_right",
+                    "rep_count": 1,
+                    "jump_variant": "arms_free",
+                    "quality": {"ground_contact_feel": "controlled"},
+                },
+            )
+        assert response.status_code == 200
+        assert response.json()["jump_balance_log_id"] == 9
+
+    def test_jump_balance_rejects_unknown_plant_and_more_than_ten_reps(self):
+        unknown = client.post(
+            "/training/log/jump-balance",
+            json={"plant_pattern": "wrong", "rep_count": 1, "jump_variant": "arms_free"},
+        )
+        excessive = client.post(
+            "/training/log/jump-balance",
+            json={
+                "plant_pattern": "one_foot_left",
+                "rep_count": 11,
+                "jump_variant": "arms_free",
+            },
+        )
+        assert unknown.status_code == 422
+        assert excessive.status_code == 422
+
+    def test_history_includes_additive_training_records(self):
+        with patch("jarvis.api.routers.training.database.get_sessions", return_value=[]), patch(
+            "jarvis.api.routers.training.database.get_jumps", return_value=[]
+        ), patch(
+            "jarvis.api.routers.training.database.list_training_readiness_scans",
+            return_value=[{"id": 1}],
+        ), patch(
+            "jarvis.api.routers.training.database.list_training_capacity_logs",
+            return_value=[{"id": 2}],
+        ), patch(
+            "jarvis.api.routers.training.database.list_training_jump_balance_logs",
+            return_value=[{"id": 3}],
+        ):
+            data = client.get("/training/history").json()
+        assert data["readiness_scans"] == [{"id": 1}]
+        assert data["capacity_logs"] == [{"id": 2}]
+        assert data["jump_balance_logs"] == [{"id": 3}]

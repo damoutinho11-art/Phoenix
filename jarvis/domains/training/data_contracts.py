@@ -21,6 +21,76 @@ class Phase(str, Enum):
     ATTEMPT = "attempt"
 
 
+class ReadinessStatus(str, Enum):
+    CLEAR = "clear"
+    CAUTION = "caution"
+    REGRESS = "regress"
+    RECOVERY_ONLY = "recovery_only"
+    UNCHECKED = "unchecked"
+
+
+@dataclass(frozen=True)
+class BodyAreaDiscomfort:
+    knee: int
+    ankle: int
+    hip: int
+    hamstring: int
+    calf_achilles: int
+    lower_back_pelvic: int
+
+    def __post_init__(self) -> None:
+        for value in self.values():
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10:
+                raise ValueError("Discomfort scores must be integers between 0 and 10")
+
+    def values(self) -> tuple[int, ...]:
+        return (
+            self.knee,
+            self.ankle,
+            self.hip,
+            self.hamstring,
+            self.calf_achilles,
+            self.lower_back_pelvic,
+        )
+
+
+@dataclass(frozen=True)
+class ReadinessScan:
+    discomfort: BodyAreaDiscomfort
+    note: str | None = None
+    sharp_pain: bool = False
+    limping: bool = False
+    next_day_worsening: bool = False
+
+
+@dataclass(frozen=True)
+class CapacityBlockRecommendation:
+    key: str
+    label: str
+    purpose: str
+    exercises: tuple[dict, ...]
+
+
+@dataclass(frozen=True)
+class SubstitutionReason:
+    area: str
+    reason: str
+    action: str
+
+
+@dataclass(frozen=True)
+class SessionRoutingResult:
+    readiness_status: ReadinessStatus
+    readiness_required: bool
+    high_neural_allowed: bool
+    planned_session: dict
+    capacity_blocks: tuple[CapacityBlockRecommendation, ...]
+    substitutions: tuple[SubstitutionReason, ...]
+    show_jump_balance: bool
+    show_recovery_reset: bool
+    safety_note: str
+
+
 @dataclass(frozen=True)
 class WorkingWeights:
     explosive_exercise: str

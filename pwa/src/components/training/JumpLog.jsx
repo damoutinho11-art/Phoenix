@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getTrainingHistory, getTrainingStatus, logJump } from '../../api/client'
+import { getTrainingHistory, getTrainingStatus, logJump, postTrainingJumpBalance } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `
@@ -178,6 +178,120 @@ function JumpModal({ onClose, onSuccess }) {
   )
 }
 
+const PLANT_PATTERNS = [
+  ['one_foot_left', 'One-foot · left leg'],
+  ['one_foot_right', 'One-foot · right leg'],
+  ['two_foot_left_right', 'Two-foot · left-right plant'],
+  ['two_foot_right_left', 'Two-foot · right-left plant'],
+]
+
+function JumpBalancePanel({ onLogged }) {
+  const [plant, setPlant] = useState('one_foot_left')
+  const [reps, setReps] = useState(1)
+  const [variant, setVariant] = useState('arms_free')
+  const [contact, setContact] = useState('controlled')
+  const [landing, setLanding] = useState('confident')
+  const [approach, setApproach] = useState('comfortable')
+  const [penultimate, setPenultimate] = useState('controlled')
+  const [squattyWarning, setSquattyWarning] = useState(false)
+  const [stiffnessNote, setStiffnessNote] = useState('balanced')
+  const [fatigueDropOff, setFatigueDropOff] = useState('none')
+  const [heightCm, setHeightCm] = useState('')
+  const [videoNote, setVideoNote] = useState('')
+  const [qualityNote, setQualityNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function submit() {
+    setSaving(true); setSaved(false)
+    try {
+      await postTrainingJumpBalance({
+        plant_pattern: plant,
+        rep_count: reps,
+        jump_variant: variant,
+        height_cm: heightCm ? Number(heightCm) : null,
+        video_note: videoNote || null,
+        notes: qualityNote || null,
+        quality: {
+          ground_contact_feel: contact,
+          landing_braking_confidence: landing,
+          approach_speed_comfort: approach,
+          penultimate_step_quality: penultimate,
+          squatty_jump_warning: squattyWarning,
+          stiffness_compliance_note: stiffnessNote,
+          fatigue_drop_off: fatigueDropOff,
+        },
+      })
+      setSaved(true)
+      onLogged?.()
+    } finally { setSaving(false) }
+  }
+
+  const inputStyle = { width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.25)', border: ORANGE_BDR, color: TEXT, padding: '10px', fontFamily: BODY, fontSize: 12 }
+  return (
+    <div style={{ padding: '14px 18px', borderBottom: ORANGE_BDR }}>
+      <Label>JUMP BALANCE</Label>
+      <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 700, color: ORANGE }}>Jump Balance</div>
+      <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM, lineHeight: 1.55, margin: '4px 0 12px' }}>
+        Start low—even one quality rep counts. Progress slowly and stop at ten quality reps per plant.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8 }}>
+        <select value={plant} onChange={e => setPlant(e.target.value)} style={inputStyle} aria-label="Plant pattern">
+          {PLANT_PATTERNS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        <select value={variant} onChange={e => setVariant(e.target.value)} style={inputStyle} aria-label="Jump variant">
+          <option value="arms_free">Arms-free jump</option>
+          <option value="ball_in_hand">Ball-in-hand jump</option>
+        </select>
+        <label style={{ fontFamily: MONO, fontSize: 8, color: TEXT_DIM }}>QUALITY REPS · {reps}
+          <input type="range" min="1" max="10" value={reps} onChange={e => setReps(Number(e.target.value))} style={{ width: '100%', accentColor: ORANGE }} />
+        </label>
+        <select value={contact} onChange={e => setContact(e.target.value)} style={inputStyle} aria-label="Ground contact feel">
+          <option value="controlled">Ground contact · controlled</option>
+          <option value="stiff">Ground contact · stiff</option>
+          <option value="compliant">Ground contact · compliant</option>
+          <option value="heavy">Ground contact · heavy</option>
+        </select>
+        <select value={landing} onChange={e => setLanding(e.target.value)} style={inputStyle} aria-label="Landing braking confidence">
+          <option value="confident">Landing / braking · confident</option>
+          <option value="mixed">Landing / braking · mixed</option>
+          <option value="low">Landing / braking · low</option>
+        </select>
+        <select value={approach} onChange={e => setApproach(e.target.value)} style={inputStyle} aria-label="Approach speed comfort">
+          <option value="comfortable">Approach speed · comfortable</option>
+          <option value="rushed">Approach speed · rushed</option>
+          <option value="hesitant">Approach speed · hesitant</option>
+        </select>
+        <select value={penultimate} onChange={e => setPenultimate(e.target.value)} style={inputStyle} aria-label="Penultimate step quality">
+          <option value="controlled">Penultimate step · controlled</option>
+          <option value="long">Penultimate step · too long</option>
+          <option value="short">Penultimate step · too short</option>
+        </select>
+        <select value={stiffnessNote} onChange={e => setStiffnessNote(e.target.value)} style={inputStyle} aria-label="Stiffness compliance note">
+          <option value="balanced">Stiffness / compliance · balanced</option>
+          <option value="too_stiff">Stiffness / compliance · too stiff</option>
+          <option value="too_soft">Stiffness / compliance · too soft</option>
+        </select>
+        <select value={fatigueDropOff} onChange={e => setFatigueDropOff(e.target.value)} style={inputStyle} aria-label="Fatigue drop-off">
+          <option value="none">Fatigue drop-off · none</option>
+          <option value="mild">Fatigue drop-off · mild</option>
+          <option value="clear">Fatigue drop-off · clear</option>
+        </select>
+        <label style={{ ...inputStyle, display: 'flex', gap: 7, alignItems: 'center' }}>
+          <input type="checkbox" checked={squattyWarning} onChange={e => setSquattyWarning(e.target.checked)} /> Squatty jump warning
+        </label>
+        <input type="number" min="1" max="400" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="Rim touch / attempt height cm (optional)" style={inputStyle} />
+        <input value={videoNote} onChange={e => setVideoNote(e.target.value)} maxLength={500} placeholder="Slow-motion video note (optional)" style={inputStyle} />
+        <input value={qualityNote} onChange={e => setQualityNote(e.target.value)} maxLength={500} placeholder="Jump-quality note (optional)" style={inputStyle} />
+      </div>
+      <button onClick={submit} disabled={saving} style={{ width: '100%', marginTop: 10, padding: 11, background: 'rgba(255,143,46,.09)', border: ORANGE_BDR_STR, color: saved ? GREEN : ORANGE, fontFamily: MONO, fontSize: 8, letterSpacing: '.18em' }}>
+        {saving ? 'LOGGING…' : saved ? '✓ JUMP BALANCE LOGGED' : 'LOG QUALITY REPS'}
+      </button>
+      {/* API quality keys: ground_contact_feel · landing_braking_confidence · approach_speed_comfort · penultimate_step_quality · squatty_jump_warning · stiffness_compliance_note · fatigue_drop_off */}
+    </div>
+  )
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 export default function JumpLog({ onBack }) {
@@ -251,7 +365,7 @@ export default function JumpLog({ onBack }) {
         <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: ORANGE_MUT }}>TARGET {TARGET_IN}"</span>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
+          <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
 
         {/* HERO */}
         <div style={{ padding: '18px 18px 14px', borderBottom: ORANGE_BDR, background: 'linear-gradient(155deg,rgba(255,143,46,.05),transparent 65%)', position: 'relative', overflow: 'hidden' }}>
@@ -304,14 +418,17 @@ export default function JumpLog({ onBack }) {
           </div>
         </div>
 
-        {/* LOG JUMP BUTTON */}
+            {/* LOG JUMP BUTTON */}
         <div style={{ padding: '12px 14px', borderBottom: ORANGE_BDR }}>
           <CornerCard onClick={() => setModalOpen(true)} style={{ animation: 'phGlow 2.5s ease-in-out infinite' }}>
             <div style={{ padding: '14px 0', textAlign: 'center', fontFamily: MONO, fontSize: 9, letterSpacing: '.26em', color: ORANGE }}>
               + LOG VERTICAL JUMP
             </div>
+
           </CornerCard>
         </div>
+
+        {statusData?.today_session?.session_type === 'jump' && <JumpBalancePanel onLogged={loadData} />}
 
         {/* JUMP HISTORY */}
         <div style={{ padding: '14px 18px 32px' }}>

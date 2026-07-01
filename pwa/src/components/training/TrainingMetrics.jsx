@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react'
-import { getTrainingHistory, getTrainingStatus, getTrainingRecovery, getTrainingBrief, logSleep, logSoreness } from '../../api/client'
+import {
+  getTrainingBrief,
+  getTrainingHistory,
+  getTrainingRecovery,
+  getTrainingRoutedSession,
+  getTrainingStatus,
+  logSleep,
+  logSoreness,
+  postTrainingCapacityBlock,
+  postTrainingReadinessScan,
+} from '../../api/client'
+import { canStartHighNeural, readinessLabel, readinessTone, routeFallback } from './trainingViewModel'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `
@@ -181,6 +192,119 @@ function DomainButton({ label, onClick }) {
   )
 }
 
+const READINESS_AREAS = [
+  ['knee', 'Knee'],
+  ['ankle', 'Ankle'],
+  ['hip', 'Hip'],
+  ['hamstring', 'Hamstring'],
+  ['calf_achilles', 'Calf / Achilles'],
+  ['lower_back_pelvic', 'Lower back / pelvic'],
+]
+
+function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, setNote, saving, onSubmit, onCompleteBlock, onRequestReset }) {
+  const current = routeFallback(route)
+  const tone = readinessTone(current.readiness_status)
+  const toneColor = tone === 'ready' ? GREEN : tone === 'caution' ? YELLOW : RED
+
+  return (
+    <div style={{ padding: '14px', borderBottom: ORANGE_BDR, background: 'linear-gradient(145deg,rgba(255,143,46,.04),rgba(32,216,236,.018))' }}>
+      <CornerCard style={{ marginBottom: 12 }}>
+        <div style={{ padding: '15px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+            <div>
+              <Label>READINESS SCAN</Label>
+              <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 700, color: TEXT }}>Readiness Scan</div>
+              <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.68)', marginTop: 4 }}>
+                Quick readiness scan — this helps Phoenix tune today’s warm-up and substitutions.
+              </div>
+            </div>
+            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.12em', color: toneColor, border: `1px solid ${toneColor}55`, padding: '5px 8px', whiteSpace: 'nowrap' }}>
+              {readinessLabel(current.readiness_status)}
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: '10px 14px' }}>
+            {READINESS_AREAS.map(([key, label]) => (
+              <label key={key} style={{ display: 'block' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: 8, color: TEXT_DIM, marginBottom: 5 }}>
+                  <span>{label}</span><span style={{ color: scores[key] >= 5 ? RED : scores[key] >= 3 ? YELLOW : GREEN }}>{scores[key]}</span>
+                </div>
+                <input type="range" min="0" max="10" value={scores[key]}
+                  aria-label={`${label} discomfort`}
+                  onChange={e => setScores({ ...scores, [key]: Number(e.target.value) })}
+                  style={{ width: '100%', accentColor: ORANGE }} />
+              </label>
+            ))}
+          </div>
+          <input value={note} onChange={e => setNote(e.target.value)} placeholder="What feels off? (optional)" maxLength={500}
+            style={{ width: '100%', boxSizing: 'border-box', marginTop: 12, padding: '10px 11px', background: 'rgba(0,0,0,.25)', border: ORANGE_BDR, color: TEXT, fontFamily: BODY, fontSize: 12 }} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 10 }}>
+            {[
+              ['sharp_pain', 'Sharp pain'], ['limping', 'Limping'], ['next_day_worsening', 'Next-day worsening'],
+            ].map(([key, label]) => (
+              <label key={key} style={{ fontFamily: MONO, fontSize: 8, color: TEXT_DIM, display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="checkbox" checked={flags[key]} onChange={e => setFlags({ ...flags, [key]: e.target.checked })} /> {label}
+              </label>
+            ))}
+          </div>
+          <button onClick={onSubmit} disabled={saving}
+            style={{ width: '100%', marginTop: 13, padding: '12px', border: ORANGE_BDR_STR, background: 'rgba(255,143,46,.1)', color: ORANGE, fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', cursor: saving ? 'wait' : 'pointer' }}>
+            {saving ? 'ROUTING…' : 'TUNE TODAY’S SESSION'}
+          </button>
+          <button onClick={onRequestReset} disabled={saving}
+            style={{ width: '100%', marginTop: 7, padding: 9, border: CYAN_BDR, background: 'rgba(32,216,236,.035)', color: CYAN_BR, fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: saving ? 'wait' : 'pointer' }}>
+            SELECT RECOVERY RESET
+          </button>
+        </div>
+      </CornerCard>
+
+      <CornerCard>
+        <div style={{ padding: '15px 16px' }}>
+          <Label cyan>TODAY’S ROUTE</Label>
+          <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 700, color: CYAN_BR }}>Today’s Route</div>
+          <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT, marginTop: 5 }}>
+            {current.readiness_status === 'unchecked'
+              ? 'Complete the scan before jumps, sprints, or heavy lower-body work. A conservative warm-up is available now.'
+              : current.readiness_status === 'clear'
+                ? 'Planned session is available with progressive preparation.'
+                : 'Phoenix adjusted today’s session based on your readiness scan.'}
+          </div>
+          {current.substitutions.map((item, index) => (
+            <div key={`${item.area}-${index}`} style={{ marginTop: 9, padding: '9px 10px', border: `1px solid ${toneColor}35`, background: `${toneColor}09` }}>
+              <div style={{ fontFamily: MONO, fontSize: 8, color: toneColor, textTransform: 'uppercase' }}>{item.reason}</div>
+              <div style={{ fontFamily: BODY, fontSize: 11, color: TEXT, marginTop: 4, lineHeight: 1.5 }}>{item.action}</div>
+            </div>
+          ))}
+          <div style={{ fontFamily: MONO, fontSize: 8, lineHeight: 1.55, color: TEXT_DIM, marginTop: 10 }}>{current.safety_note}</div>
+        </div>
+      </CornerCard>
+
+      <div style={{ marginTop: 12 }}>
+        <Label>JOINT CAPACITY BLOCK</Label>
+        <div style={{ fontFamily: DISPLAY, fontSize: 22, color: TEXT, fontWeight: 700, marginBottom: 9 }}>Joint Capacity Block</div>
+        {current.capacity_blocks.length === 0 && <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM }}>Submit the readiness scan to load today’s real capacity route.</div>}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
+          {current.capacity_blocks.map(block => (
+            <CornerCard key={block.key}>
+              <div style={{ padding: '13px 14px' }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 19, fontWeight: 700, color: block.key === 'recovery_reset' ? CYAN_BR : ORANGE }}>{block.label}</div>
+                <div style={{ fontFamily: BODY, fontSize: 11, lineHeight: 1.5, color: TEXT_DIM, margin: '4px 0 8px' }}>{block.purpose}</div>
+                {block.exercises.slice(0, 6).map((exercise, i) => (
+                  <div key={i} style={{ fontFamily: BODY, fontSize: 11, color: 'rgba(199,236,244,.78)', padding: '5px 0', borderTop: i ? '1px solid rgba(255,143,46,.08)' : 'none' }}>
+                    {exercise.name || exercise.zone?.replaceAll('_', ' ')}
+                    {exercise.dose && <span style={{ color: ORANGE_MUT }}> · {exercise.dose}</span>}
+                  </div>
+                ))}
+                <button onClick={() => onCompleteBlock(block.key)} style={{ width: '100%', marginTop: 9, padding: 8, background: 'rgba(255,143,46,.06)', border: ORANGE_BDR, color: ORANGE, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em' }}>LOG COMPLETE</button>
+              </div>
+            </CornerCard>
+          ))}
+        </div>
+        {/* Labels remain explicit for conditional routes: Sled Balance · Squat Balance · Pelvic Control · Recovery Reset · Jump Balance */}
+      </div>
+    </div>
+  )
+}
+
 export default function TrainingMetrics({ onBack, onNav }) {
   const [statusData, setStatusData]   = useState(null)
   const [history, setHistory]         = useState(null)
@@ -189,6 +313,11 @@ export default function TrainingMetrics({ onBack, onNav }) {
   const [briefLoading, setBriefLoading] = useState(false)
   const [recoveryLogging, setRecoveryLogging] = useState(null)
   const [recoveryLoggedKey, setRecoveryLoggedKey] = useState(null)
+  const [route, setRoute] = useState(null)
+  const [routeSaving, setRouteSaving] = useState(false)
+  const [scores, setScores] = useState({ knee: 0, ankle: 0, hip: 0, hamstring: 0, calf_achilles: 0, lower_back_pelvic: 0 })
+  const [readinessFlags, setReadinessFlags] = useState({ sharp_pain: false, limping: false, next_day_worsening: false })
+  const [readinessNote, setReadinessNote] = useState('')
 
   useEffect(() => {
     if (!document.getElementById('ph-fonts')) {
@@ -205,12 +334,13 @@ export default function TrainingMetrics({ onBack, onNav }) {
 
   useEffect(() => {
     async function load() {
-      const [s, h, r] = await Promise.allSettled([
-        getTrainingStatus(), getTrainingHistory(), getTrainingRecovery(),
+      const [s, h, r, routed] = await Promise.allSettled([
+        getTrainingStatus(), getTrainingHistory(), getTrainingRecovery(), getTrainingRoutedSession(),
       ])
       if (s.status === 'fulfilled') setStatusData(s.value)
       if (h.status === 'fulfilled') setHistory(h.value)
       if (r.status === 'fulfilled') setRecovery(r.value)
+      if (routed.status === 'fulfilled') setRoute(routed.value)
     }
     load()
   }, [])
@@ -250,6 +380,26 @@ export default function TrainingMetrics({ onBack, onNav }) {
     setRecoveryLogging(null)
   }
 
+  async function handleReadinessSubmit() {
+    setRouteSaving(true)
+    try {
+      await postTrainingReadinessScan({ ...scores, ...readinessFlags, note: readinessNote || null })
+      setRoute(await getTrainingRoutedSession())
+    } finally {
+      setRouteSaving(false)
+    }
+  }
+
+  async function handleCompleteBlock(blockKey) {
+    await postTrainingCapacityBlock({ block_key: blockKey, completed: true })
+  }
+
+  async function handleRequestReset() {
+    setRouteSaving(true)
+    try { setRoute(await getTrainingRoutedSession({ explicitReset: true })) }
+    finally { setRouteSaving(false) }
+  }
+
   function nav(screen) { if (onNav) onNav(screen) }
 
   // ── Derived values ──────────────────────────────────────────────────────────
@@ -265,6 +415,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
   const exercises      = todaySession?.exercises ?? []
   const hasConflict    = statusData?.has_hard_conflicts
   const conflictDetail = statusData?.conflicts?.[0]?.detail ?? ''
+  const sessionStartAllowed = canStartHighNeural(route)
 
   const jumpProgression = history?.jump_progression ?? []
   const jumpDataInches  = jumpProgression
@@ -381,11 +532,20 @@ export default function TrainingMetrics({ onBack, onNav }) {
           </div>
         </div>
 
+        <ReadinessCockpit
+          route={route} scores={scores} setScores={setScores}
+          flags={readinessFlags} setFlags={setReadinessFlags}
+          note={readinessNote} setNote={setReadinessNote}
+          saving={routeSaving} onSubmit={handleReadinessSubmit}
+          onCompleteBlock={handleCompleteBlock}
+          onRequestReset={handleRequestReset}
+        />
+
         {/* TODAY'S SESSION CARD */}
         <div style={{ padding: '12px 14px', borderBottom: ORANGE_BDR }}>
           <CornerCard>
             <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: ORANGE, boxShadow: `0 0 12px rgba(255,143,46,.45)` }} />
-            <div style={{ padding: '13px 14px 13px 18px', cursor: 'pointer' }} onClick={() => nav('active-session')}>
+            <div style={{ padding: '13px 14px 13px 18px', cursor: sessionStartAllowed ? 'pointer' : 'default' }} onClick={() => sessionStartAllowed && nav('active-session')}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div>
                   <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.22em', color: ORANGE, marginBottom: 4 }}>{sessionType}</div>
@@ -393,7 +553,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
                 </div>
                 <span style={{ fontSize: 15, color: 'rgba(255,143,46,.6)', paddingTop: 4 }}>→</span>
               </div>
-              {exercises.length > 0 && (
+              {sessionStartAllowed && exercises.length > 0 && (
                 <div>
                   {exercises.slice(0, 3).map((ex, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < Math.min(exercises.length, 3) - 1 ? `1px solid rgba(255,143,46,.08)` : 'none' }}>
@@ -405,10 +565,10 @@ export default function TrainingMetrics({ onBack, onNav }) {
               )}
             </div>
             <div
-              onClick={() => nav('active-session')}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', background: 'rgba(255,143,46,.07)', borderTop: ORANGE_BDR, fontFamily: MONO, fontSize: 8, letterSpacing: '.24em', color: ORANGE, cursor: 'pointer', animation: 'phGlow 2.5s ease-in-out infinite' }}
+              onClick={() => sessionStartAllowed && nav('active-session')}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', background: sessionStartAllowed ? 'rgba(255,143,46,.07)' : 'rgba(255,213,107,.04)', borderTop: ORANGE_BDR, fontFamily: MONO, fontSize: 8, letterSpacing: '.2em', color: sessionStartAllowed ? ORANGE : YELLOW, cursor: sessionStartAllowed ? 'pointer' : 'default', animation: sessionStartAllowed ? 'phGlow 2.5s ease-in-out infinite' : 'none' }}
             >
-              ▶ START SESSION
+              {sessionStartAllowed ? '▶ START SESSION' : 'COMPLETE READINESS SCAN'}
             </div>
           </CornerCard>
         </div>

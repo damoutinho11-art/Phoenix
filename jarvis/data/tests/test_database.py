@@ -55,7 +55,81 @@ class DatabaseTests(unittest.TestCase):
             "finance_portfolio_snapshots",
             "research_memos",
             "research_validation_records",
+            "training_readiness_scans",
+            "training_capacity_logs",
+            "training_jump_balance_logs",
         } <= names
+
+    def test_training_readiness_scan_round_trip_is_newest_first(self):
+        first = database.save_training_readiness_scan(
+            {
+                "scan_date": "2026-07-01",
+                "knee": 1,
+                "ankle": 2,
+                "hip": 0,
+                "hamstring": 0,
+                "calf_achilles": 1,
+                "lower_back_pelvic": 0,
+                "note": "First",
+                "sharp_pain": False,
+                "limping": False,
+                "next_day_worsening": False,
+                "readiness_status": "clear",
+            }
+        )
+        second = database.save_training_readiness_scan(
+            {
+                "scan_date": "2026-07-01",
+                "knee": 4,
+                "ankle": 0,
+                "hip": 0,
+                "hamstring": 0,
+                "calf_achilles": 0,
+                "lower_back_pelvic": 0,
+                "note": "Second",
+                "sharp_pain": False,
+                "limping": False,
+                "next_day_worsening": False,
+                "readiness_status": "caution",
+            }
+        )
+
+        rows = database.list_training_readiness_scans()
+        latest = database.get_latest_training_readiness_scan("2026-07-01")
+
+        assert [row["id"] for row in rows] == [second, first]
+        assert latest["id"] == second
+        assert latest["readiness_status"] == "caution"
+
+    def test_training_capacity_and_jump_balance_logs_round_trip(self):
+        capacity_id = database.save_training_capacity_log(
+            {
+                "log_date": "2026-07-01",
+                "block_key": "sled_balance",
+                "completion": {"completed": True, "minutes": 8},
+                "notes": "Controlled",
+            }
+        )
+        jump_id = database.save_training_jump_balance_log(
+            {
+                "log_date": "2026-07-01",
+                "plant_pattern": "one_foot_left",
+                "rep_count": 1,
+                "jump_variant": "arms_free",
+                "height_cm": None,
+                "video_note": None,
+                "quality": {"ground_contact_feel": "controlled"},
+                "notes": None,
+            }
+        )
+
+        capacity = database.list_training_capacity_logs()
+        jumps = database.list_training_jump_balance_logs()
+
+        assert capacity[0]["id"] == capacity_id
+        assert capacity[0]["completion"]["minutes"] == 8
+        assert jumps[0]["id"] == jump_id
+        assert jumps[0]["quality"]["ground_contact_feel"] == "controlled"
 
     def test_init_db_is_idempotent(self):
         database.init_db()

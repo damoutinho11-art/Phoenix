@@ -54,6 +54,34 @@ export async function getTrainingHistory() {
   return apiFetch('/training/history')
 }
 
+export async function getTrainingRoutedSession({ explicitReset = false } = {}) {
+  return apiFetch(`/training/routed-session${explicitReset ? '?explicit_reset=true' : ''}`)
+}
+
+export async function postTrainingReadinessScan(payload) {
+  return apiFetch('/training/readiness-scan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function postTrainingCapacityBlock(payload) {
+  return apiFetch('/training/log/capacity-block', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function postTrainingJumpBalance(payload) {
+  return apiFetch('/training/log/jump-balance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function logJump({ date, jump_type, height_cm, notes }) {
   return apiFetch('/training/log/jump', {
     method: 'POST',

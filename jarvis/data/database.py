@@ -120,6 +120,54 @@ CREATE TABLE IF NOT EXISTS jump_log (
 
 CREATE INDEX IF NOT EXISTS idx_jump_log_date ON jump_log(date);
 
+CREATE TABLE IF NOT EXISTS training_readiness_scans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    knee INTEGER NOT NULL,
+    ankle INTEGER NOT NULL,
+    hip INTEGER NOT NULL,
+    hamstring INTEGER NOT NULL,
+    calf_achilles INTEGER NOT NULL,
+    lower_back_pelvic INTEGER NOT NULL,
+    note TEXT,
+    sharp_pain INTEGER NOT NULL DEFAULT 0,
+    limping INTEGER NOT NULL DEFAULT 0,
+    next_day_worsening INTEGER NOT NULL DEFAULT 0,
+    readiness_status TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_training_readiness_scans_date
+ON training_readiness_scans(scan_date, id);
+
+CREATE TABLE IF NOT EXISTS training_capacity_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    log_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    block_key TEXT NOT NULL,
+    completion_json TEXT NOT NULL,
+    notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_training_capacity_logs_date
+ON training_capacity_logs(log_date, id);
+
+CREATE TABLE IF NOT EXISTS training_jump_balance_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    log_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    plant_pattern TEXT NOT NULL,
+    rep_count INTEGER NOT NULL,
+    jump_variant TEXT NOT NULL,
+    height_cm REAL,
+    video_note TEXT,
+    quality_json TEXT NOT NULL,
+    notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_training_jump_balance_logs_date
+ON training_jump_balance_logs(log_date, id);
+
 CREATE TABLE IF NOT EXISTS brief_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
@@ -910,6 +958,166 @@ def delete_jump(jump_id: int) -> bool:
         cursor = connection.execute("DELETE FROM jump_log WHERE id = ?", (jump_id,))
         connection.commit()
         return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+def save_training_readiness_scan(payload: dict[str, Any]) -> int:
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO training_readiness_scans (
+                scan_date, created_at, knee, ankle, hip, hamstring,
+                calf_achilles, lower_back_pelvic, note, sharp_pain,
+                limping, next_day_worsening, readiness_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload["scan_date"],
+                _utc_now(),
+                payload["knee"],
+                payload["ankle"],
+                payload["hip"],
+                payload["hamstring"],
+                payload["calf_achilles"],
+                payload["lower_back_pelvic"],
+                payload.get("note"),
+                int(bool(payload.get("sharp_pain"))),
+                int(bool(payload.get("limping"))),
+                int(bool(payload.get("next_day_worsening"))),
+                payload["readiness_status"],
+            ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def _readiness_row(row: sqlite3.Row) -> dict[str, Any]:
+    result = dict(row)
+    for key in ("sharp_pain", "limping", "next_day_worsening"):
+        result[key] = bool(result[key])
+    return result
+
+
+def get_latest_training_readiness_scan(on_date: str | None = None) -> dict[str, Any] | None:
+    connection = get_db()
+    try:
+        if on_date is None:
+            row = connection.execute(
+                "SELECT * FROM training_readiness_scans ORDER BY scan_date DESC, id DESC LIMIT 1"
+            ).fetchone()
+        else:
+            row = connection.execute(
+                "SELECT * FROM training_readiness_scans WHERE scan_date = ? ORDER BY id DESC LIMIT 1",
+                (on_date,),
+            ).fetchone()
+        return _readiness_row(row) if row else None
+    finally:
+        connection.close()
+
+
+def list_training_readiness_scans(limit: int = 50) -> list[dict[str, Any]]:
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT * FROM training_readiness_scans ORDER BY scan_date DESC, id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [_readiness_row(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def save_training_capacity_log(payload: dict[str, Any]) -> int:
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO training_capacity_logs
+                (log_date, created_at, block_key, completion_json, notes)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                payload["log_date"],
+                _utc_now(),
+                payload["block_key"],
+                json.dumps(payload.get("completion", {}), separators=(",", ":")),
+                payload.get("notes"),
+            ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def list_training_capacity_logs(limit: int = 50) -> list[dict[str, Any]]:
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT * FROM training_capacity_logs ORDER BY log_date DESC, id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["completion"] = json.loads(item.pop("completion_json"))
+            result.append(item)
+        return result
+    finally:
+        connection.close()
+
+
+def save_training_jump_balance_log(payload: dict[str, Any]) -> int:
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO training_jump_balance_logs (
+                log_date, created_at, plant_pattern, rep_count, jump_variant,
+                height_cm, video_note, quality_json, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload["log_date"],
+                _utc_now(),
+                payload["plant_pattern"],
+                payload["rep_count"],
+                payload["jump_variant"],
+                payload.get("height_cm"),
+                payload.get("video_note"),
+                json.dumps(payload.get("quality", {}), separators=(",", ":")),
+                payload.get("notes"),
+            ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def list_training_jump_balance_logs(limit: int = 50) -> list[dict[str, Any]]:
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            "SELECT * FROM training_jump_balance_logs ORDER BY log_date DESC, id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["quality"] = json.loads(item.pop("quality_json"))
+            result.append(item)
+        return result
     finally:
         connection.close()
 

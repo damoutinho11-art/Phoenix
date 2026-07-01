@@ -1,7 +1,7 @@
 """Training API routes. Routers call engines; no business logic lives here."""
 
 from datetime import date, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -11,9 +11,11 @@ from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
-from jarvis.domains.training import engine, progression
+from jarvis.domains.training import engine, joint_capacity, progression
 from jarvis.domains.training.data_contracts import (
+    BodyAreaDiscomfort,
     PlannedSession,
+    ReadinessScan,
     TrainingConflict,
     TrainingStatus,
 )
@@ -58,6 +60,40 @@ class JumpLogRequest(BaseModel):
     jump_type: Literal["approach", "standing"]
     height_cm: float = Field(gt=0, le=200)
     notes: str | None = None
+
+
+class ReadinessScanRequest(BaseModel):
+    knee: int = Field(ge=0, le=10)
+    ankle: int = Field(ge=0, le=10)
+    hip: int = Field(ge=0, le=10)
+    hamstring: int = Field(ge=0, le=10)
+    calf_achilles: int = Field(ge=0, le=10)
+    lower_back_pelvic: int = Field(ge=0, le=10)
+    note: str | None = Field(default=None, max_length=500)
+    sharp_pain: bool = False
+    limping: bool = False
+    next_day_worsening: bool = False
+
+
+class CapacityBlockLogRequest(BaseModel):
+    block_key: Literal[
+        "sled_balance", "squat_balance", "pelvic_control", "jump_balance", "recovery_reset"
+    ]
+    completed: bool
+    minutes: int | None = Field(default=None, ge=1, le=180)
+    notes: str | None = Field(default=None, max_length=500)
+
+
+class JumpBalanceLogRequest(BaseModel):
+    plant_pattern: Literal[
+        "one_foot_left", "one_foot_right", "two_foot_left_right", "two_foot_right_left"
+    ]
+    rep_count: int = Field(ge=1, le=10)
+    jump_variant: Literal["arms_free", "ball_in_hand"]
+    height_cm: float | None = Field(default=None, gt=0, le=400)
+    video_note: str | None = Field(default=None, max_length=500)
+    quality: dict[str, Any] = Field(default_factory=dict)
+    notes: str | None = Field(default=None, max_length=500)
 
 _TRAINING_BRIEF_SYSTEM = """\
 You are PHOENIX, a personal training assistant following the Isiah Rivera Long Conjugate Sequence System. You are concise, direct, and motivating without being cheesy. Maximum 4 sentences. Always end with the session type for today. Never invent data.\
@@ -191,6 +227,62 @@ def _serialize_status(status: TrainingStatus) -> dict:
     }
 
 
+def _scan_from_values(values: dict[str, Any] | ReadinessScanRequest) -> ReadinessScan:
+    get = values.get if isinstance(values, dict) else lambda key, default=None: getattr(values, key, default)
+    return ReadinessScan(
+        discomfort=BodyAreaDiscomfort(
+            knee=get("knee"),
+            ankle=get("ankle"),
+            hip=get("hip"),
+            hamstring=get("hamstring"),
+            calf_achilles=get("calf_achilles"),
+            lower_back_pelvic=get("lower_back_pelvic"),
+        ),
+        note=get("note"),
+        sharp_pain=bool(get("sharp_pain", False)),
+        limping=bool(get("limping", False)),
+        next_day_worsening=bool(get("next_day_worsening", False)),
+    )
+
+
+def _serialize_route(result) -> dict:
+    return {
+        "readiness_status": result.readiness_status.value,
+        "readiness_required": result.readiness_required,
+        "high_neural_allowed": result.high_neural_allowed,
+        "planned_session": result.planned_session,
+        "capacity_blocks": [
+            {
+                "key": block.key,
+                "label": block.label,
+                "purpose": block.purpose,
+                "exercises": list(block.exercises),
+            }
+            for block in result.capacity_blocks
+        ],
+        "substitutions": [
+            {"area": item.area, "reason": item.reason, "action": item.action}
+            for item in result.substitutions
+        ],
+        "show_jump_balance": result.show_jump_balance,
+        "show_recovery_reset": result.show_recovery_reset,
+        "safety_note": result.safety_note,
+    }
+
+
+def _current_status(constitution: dict) -> tuple[TrainingStatus, dict]:
+    latest_kg = database.get_latest_weight_kg()
+    effective = (
+        {**constitution, "current_bodyweight_kg": latest_kg} if latest_kg else constitution
+    )
+    status = engine.check_training(
+        effective,
+        today=clock.today(),
+        opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
+    )
+    return status, effective
+
+
 def _build_brief_user_message(status: dict) -> str:
     g = status["dunk_goal"]
     c = status["cut_status"]
@@ -235,14 +327,7 @@ def _build_brief_user_message(status: dict) -> str:
 def training_status(
     constitution: dict = Depends(get_training_constitution),
 ) -> dict:
-    latest_kg = database.get_latest_weight_kg()
-    if latest_kg:
-        constitution = {**constitution, "current_bodyweight_kg": latest_kg}
-    status = engine.check_training(
-        constitution,
-        today=clock.today(),
-        opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
-    )
+    status, constitution = _current_status(constitution)
     result = _serialize_status(status)
     result["today_session"]["exercises"] = _resolve_exercises(result["today_session"], constitution)
 
@@ -264,6 +349,37 @@ def training_status(
     result["cut_status"]["weekly_delta_kg"] = weekly_delta_kg
     result["cut_status"]["avg_weekly_loss_kg"] = avg_weekly_loss_kg
 
+    return result
+
+
+@router.post("/readiness-scan")
+def create_readiness_scan(request: ReadinessScanRequest) -> dict:
+    scan = _scan_from_values(request)
+    status = joint_capacity.classify_readiness(scan)
+    payload = request.model_dump()
+    payload.update(
+        {
+            "scan_date": clock.today().isoformat(),
+            "readiness_status": status.value,
+        }
+    )
+    scan_id = database.save_training_readiness_scan(payload)
+    return {"status": "logged", "scan_id": scan_id, **payload}
+
+
+@router.get("/routed-session")
+def routed_training_session(
+    explicit_reset: bool = False,
+    constitution: dict = Depends(get_training_constitution),
+) -> dict:
+    status, effective = _current_status(constitution)
+    session = _serialize_session(status.today_session)
+    session["exercises"] = _resolve_exercises(session, effective)
+    row = database.get_latest_training_readiness_scan(clock.today().isoformat())
+    scan = _scan_from_values(row) if row else None
+    route = joint_capacity.route_session(session, scan, explicit_reset=explicit_reset)
+    result = _serialize_route(route)
+    result["readiness_scan"] = row
     return result
 
 
@@ -298,6 +414,33 @@ def create_jump_log(request: JumpLogRequest) -> dict:
     }
 
 
+@router.post("/log/capacity-block")
+def create_capacity_block_log(request: CapacityBlockLogRequest) -> dict:
+    capacity_log_id = database.save_training_capacity_log(
+        {
+            "log_date": clock.today().isoformat(),
+            "block_key": request.block_key,
+            "completion": {
+                "completed": request.completed,
+                **({"minutes": request.minutes} if request.minutes is not None else {}),
+            },
+            "notes": request.notes,
+        }
+    )
+    return {"status": "logged", "capacity_log_id": capacity_log_id}
+
+
+@router.post("/log/jump-balance")
+def create_jump_balance_log(request: JumpBalanceLogRequest) -> dict:
+    jump_balance_log_id = database.save_training_jump_balance_log(
+        {
+            "log_date": clock.today().isoformat(),
+            **request.model_dump(),
+        }
+    )
+    return {"status": "logged", "jump_balance_log_id": jump_balance_log_id}
+
+
 @router.get("/history")
 def training_history() -> dict:
     sessions = database.get_sessions()
@@ -306,6 +449,9 @@ def training_history() -> dict:
         "sessions": sessions,
         "jump_progression": progression.build_jump_progression(jumps),
         "next_week_suggestions": progression.get_next_week_suggestions(sessions),
+        "readiness_scans": database.list_training_readiness_scans(),
+        "capacity_logs": database.list_training_capacity_logs(),
+        "jump_balance_logs": database.list_training_jump_balance_logs(),
     }
 
 

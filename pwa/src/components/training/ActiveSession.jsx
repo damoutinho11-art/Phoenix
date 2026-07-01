@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { getTrainingStatus, logSession } from '../../api/client'
+import { getTrainingRoutedSession, getTrainingStatus, logSession } from '../../api/client'
+import { canStartHighNeural, readinessLabel } from './trainingViewModel'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
@@ -512,6 +513,7 @@ export default function ActiveSession({ onBack }) {
   const [sessionName, setSessionName] = useState('SESSION')
   const [sessionTypeLock, setSessionTypeLock] = useState('Lower')
   const [weekLock, setWeekLock] = useState(null)
+  const [route, setRoute] = useState(null)
 
   const [curEx, setCurEx] = useState(0)
   const [logModal, setLogModal] = useState(null)
@@ -536,8 +538,9 @@ export default function ActiveSession({ onBack }) {
 
   // Fetch status and build session
   useEffect(() => {
-    getTrainingStatus()
-      .then(s => {
+    Promise.all([getTrainingStatus(), getTrainingRoutedSession()])
+      .then(([s, routed]) => {
+        setRoute(routed)
         const today = s.today_session
         if (today.session_type === 'rest') {
           setPhase('rest')
@@ -557,7 +560,7 @@ export default function ActiveSession({ onBack }) {
         setSessionTypeLock(SESSION_TYPE_LOG[today.session_type] || 'Lower')
         setWeekLock(today.week_of_mesocycle ?? null)
         setStatus(s)
-        setPhase('active')
+        setPhase(canStartHighNeural(routed) ? 'active' : 'gated')
       })
       .catch(() => {
         setLoadError(true)
@@ -647,6 +650,26 @@ export default function ActiveSession({ onBack }) {
 
   if (phase === 'loading') return <LoadingView />
   if (phase === 'rest') return <RestDayView onBack={onBack} />
+  if (phase === 'gated') return (
+    <div style={{ minHeight: '100%', overflowY: 'auto', padding: '48px 24px 120px', boxSizing: 'border-box', background: T.bg, color: T.text, fontFamily: T.body }}>
+      <div style={{ maxWidth: 620, margin: '0 auto', border: T.border, background: 'linear-gradient(145deg,rgba(255,143,46,.06),rgba(32,216,236,.025))', padding: 24, boxShadow: '0 24px 70px rgba(0,0,0,.42)' }}>
+        <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.22em', color: T.orangeMuted }}>READINESS GATE</div>
+        <div style={{ fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.orange, marginTop: 8 }}>Complete Readiness Scan</div>
+        <div style={{ fontFamily: T.mono, fontSize: 9, color: T.yellow, marginTop: 6, letterSpacing: '.12em' }}>{readinessLabel(route?.readiness_status)}</div>
+        <p style={{ fontSize: 14, lineHeight: 1.7, color: T.textDim }}>
+          High-neural work is held until today’s quick scan is complete. Phoenix has not cleared jumps, sprints, or heavy lower-body exposure yet.
+        </p>
+        {(route?.capacity_blocks || []).map(block => (
+          <div key={block.key} style={{ borderTop: T.border, padding: '12px 0' }}>
+            <div style={{ fontFamily: T.display, fontSize: 19, color: T.cyanBr }}>{block.label}</div>
+            <div style={{ fontFamily: T.mono, fontSize: 8, lineHeight: 1.6, color: T.textDim, marginTop: 3 }}>{block.purpose}</div>
+          </div>
+        ))}
+        <div style={{ fontFamily: T.mono, fontSize: 8, lineHeight: 1.65, color: T.cyanMuted, marginTop: 12 }}>{route?.safety_note}</div>
+        <button onClick={onBack} style={{ marginTop: 18, width: '100%', padding: 13, border: T.border, background: T.surface, color: T.orange, fontFamily: T.mono, letterSpacing: '.18em' }}>← RETURN TO READINESS</button>
+      </div>
+    </div>
+  )
   if (phase === 'complete') {
     return (
       <CompleteView
@@ -692,6 +715,17 @@ export default function ActiveSession({ onBack }) {
         </div>
         <span style={{ fontFamily: T.mono, fontSize: 15, letterSpacing: '.08em', color: T.cyan }}>{fmt(elapsed)}</span>
       </div>
+
+      {route?.substitutions?.length > 0 && (
+        <div style={{ padding: '12px 18px', borderBottom: T.border, background: 'rgba(255,213,107,.035)', flexShrink: 0 }}>
+          <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.16em', color: T.yellow, marginBottom: 6 }}>PHOENIX SESSION ADJUSTMENT</div>
+          {route.substitutions.map((item, index) => (
+            <div key={`${item.area}-${index}`} style={{ fontFamily: T.body, fontSize: 12, color: T.text, lineHeight: 1.55, marginTop: index ? 5 : 0 }}>
+              {item.action}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* EXERCISE HEADER */}
       <div style={{ padding: '16px 18px 14px', borderBottom: T.border, background: 'linear-gradient(180deg,rgba(255,143,46,.04),transparent)', flexShrink: 0, position: 'relative' }}>
