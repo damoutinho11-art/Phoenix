@@ -2,6 +2,8 @@
 
 import io
 import json
+import re
+from datetime import datetime
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -71,6 +73,135 @@ def _extract_pdf_text(pdf_bytes: bytes) -> str:
         )
     return extracted
 
+
+
+def _clean_statement_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip(" /\\-")
+
+
+def _parse_statement_money(value: str) -> float:
+    return float(value.replace(" ", "").replace("\u00a0", ""))
+
+
+def _clean_merchant(value: str) -> str:
+    merchant = _clean_statement_text(value)
+    merchant = re.sub(r"\(\.\.\d+\).*$", "", merchant).strip()
+    merchant = re.sub(r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,}\b.*$", "", merchant).strip()
+    merchant = re.sub(r"\s+\(from account$", "", merchant).strip()
+    return _clean_statement_text(merchant) or "Unknown"
+
+
+def _categorise_lhv_transaction(merchant: str, description: str, is_income: int) -> str:
+    text = f"{merchant} {description}".lower()
+    if is_income or any(token in text for token in ["töötasu", "tootasu", "salary", "cash deposit"]):
+        return "Income"
+    if any(token in text for token in ["rent", "utilities", "electricity", "internet", "alexela", "elisa", "pärnu mnt 131", "parnu mnt 131"]):
+        return "Housing"
+    if any(token in text for token in ["selver", "rimi", "prisma", "maxima", "lidl", "toidupood"]):
+        return "Food & Groceries"
+    if any(token in text for token in [
+        "wolt", "vapiano", "restaurant", "restoran", "caffeine", "coffee", "kohvik",
+        "mcdonald", "hesburger", "bistro", "soogituba", "churrascaria", "la muu",
+        "kivi paber", "om house", "vegan restoran",
+    ]):
+        return "Eating Out"
+    if any(token in text for token in ["bolt.eu", "uber", "pilet.ee", "toilet service paygo", "parking"]):
+        return "Transport"
+    if any(token in text for token in [
+        "spotify", "netflix", "adobe", "apple", "google", "github", "anthropic",
+        "openai", "elevenlabs", "microsoft 365", "supercell",
+    ]):
+        return "Subscriptions"
+    if any(token in text for token in ["fitness", "gym", "aptee", "linnaapteek", "pulse wrld"]):
+        return "Health & Sport"
+    if any(token in text for token in ["microinvestment", "growth account", "crypto", "lightyear", "emergency fund"]):
+        return "Investment"
+    if any(token in text for token in ["card monthly fee", "monthly fee", "conversion fee"]):
+        return "Banking & Fees"
+    if any(token in text for token in ["sinsay", "euronics", "ikea", "airbaltic"]):
+        return "Shopping"
+    return "Other"
+
+
+def _parse_lhv_statement_transactions(raw_text: str, source: str = "pdf") -> list[dict]:
+    """Parse LHV account statement rows deterministically.
+
+    LHV PDF text extraction is already structured enough to parse locally. This
+    avoids sending long statements to the AI gateway where large outputs can be
+    truncated or fail when AI credentials are missing.
+    """
+    date_re = re.compile(r"^\d{2}\.\d{2}\.\d{4}\b")
+    money_re = r"-?\d[\d ]*\.\d{2}"
+    tail_re = re.compile(
+        rf"(?P<bank_reference>\d{{10}})\s+(?P<bank_amount>{money_re})\s+(?P<balance>{money_re})(?=\s|$)"
+    )
+    iban_re = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,}\b")
+
+    rows: list[str] = []
+    current: list[str] = []
+    for raw_line in raw_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if date_re.match(line):
+            if current:
+                rows.append(" ".join(current))
+            current = [line]
+        elif current:
+            current.append(line)
+    if current:
+        rows.append(" ".join(current))
+
+    transactions: list[dict] = []
+    seen_refs: set[str] = set()
+    for row in rows:
+        if "Starting balance" in row or "Final balance" in row:
+            continue
+        tail = tail_re.search(row)
+        if not tail:
+            continue
+
+        bank_reference = tail.group("bank_reference")
+        if bank_reference in seen_refs:
+            continue
+        seen_refs.add(bank_reference)
+
+        date = datetime.strptime(row[:10], "%d.%m.%Y").strftime("%Y-%m-%d")
+        bank_amount = _parse_statement_money(tail.group("bank_amount"))
+        is_income = 1 if bank_amount > 0 else 0
+        amount_eur = round(-bank_amount if is_income else abs(bank_amount), 2)
+        body = _clean_statement_text(row[10:tail.start()])
+
+        description = ""
+        if "(.." in body:
+            merchant = _clean_merchant(body.split("(..", 1)[0])
+            description = body
+        else:
+            iban = iban_re.search(body)
+            if iban:
+                merchant = _clean_merchant(body[: iban.start()])
+                description = _clean_statement_text(body[iban.end() :])
+            else:
+                merchant = _clean_merchant(body)
+                description = body
+
+        if not description:
+            description = body
+        category = _categorise_lhv_transaction(merchant, description, is_income)
+        transactions.append(
+            {
+                "date": date,
+                "merchant": merchant,
+                "amount_eur": amount_eur,
+                "category": category,
+                "is_income": is_income,
+                "description": description[:240],
+                "month": date[:7],
+                "source": source,
+            }
+        )
+
+    return transactions
 
 def _parse_transactions_with_claude(raw_text: str, source: str = "text") -> list[dict]:
     prompt = f"""Extract all transactions from this LHV bank statement text.
@@ -153,12 +284,17 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
         raise HTTPException(status_code=413, detail="PDF is too large. Maximum size is 8 MB")
 
     raw_text = _extract_pdf_text(pdf_bytes)
-    transactions = _parse_transactions_with_claude(raw_text, source="pdf")
+    transactions = _parse_lhv_statement_transactions(raw_text, source="pdf")
+    parser = "lhv_pdf"
+    if not transactions:
+        transactions = _parse_transactions_with_claude(raw_text, source="pdf")
+        parser = "ai_fallback"
     return {
         "transactions": transactions,
         "count": len(transactions),
         "filename": filename,
         "extracted_chars": len(raw_text),
+        "parser": parser,
     }
 
 
