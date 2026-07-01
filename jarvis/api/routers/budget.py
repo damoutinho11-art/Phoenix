@@ -1,15 +1,20 @@
 """Budget API — parse, save, and summarise personal bank transactions."""
 
+import io
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
+from pypdf import PdfReader
 
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
 
 router = APIRouter()
+
+MAX_PDF_BYTES = 8 * 1024 * 1024
+MAX_PDF_PAGES = 40
 
 CATEGORIES = [
     "Housing", "Food & Groceries", "Eating Out", "Transport",
@@ -25,6 +30,46 @@ class ParseRequest(BaseModel):
 
 class SaveRequest(BaseModel):
     transactions: list[dict]
+
+
+def _extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Extract machine-readable text from an uploaded PDF statement.
+
+    The PDF is never persisted to disk. This intentionally supports text PDFs
+    such as LHV account statements; scanned image-only PDFs need OCR and fail
+    closed with a clear 422 response instead of sending empty text to AI.
+    """
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded PDF is empty")
+
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+    except Exception as exc:  # pypdf raises a few parser-specific exceptions.
+        raise HTTPException(status_code=400, detail="Could not read PDF file") from exc
+
+    if reader.is_encrypted:
+        try:
+            reader.decrypt("")
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail="Encrypted PDFs are not supported") from exc
+
+    pages = reader.pages[:MAX_PDF_PAGES]
+    text_parts: list[str] = []
+    for page in pages:
+        try:
+            page_text = page.extract_text() or ""
+        except Exception:
+            page_text = ""
+        if page_text.strip():
+            text_parts.append(page_text)
+
+    extracted = "\n".join(text_parts).strip()
+    if not extracted:
+        raise HTTPException(
+            status_code=422,
+            detail="No selectable text found in PDF. Export/download the bank statement as a text PDF, or use Paste Text.",
+        )
+    return extracted
 
 
 def _parse_transactions_with_claude(raw_text: str, source: str = "text") -> list[dict]:
@@ -94,6 +139,27 @@ Address the user as Sir."""
 def parse_transactions(request: ParseRequest) -> dict:
     transactions = _parse_transactions_with_claude(request.raw_text, request.source)
     return {"transactions": transactions, "count": len(transactions)}
+
+
+@router.post("/parse-pdf")
+async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
+    filename = file.filename or "statement.pdf"
+    content_type = (file.content_type or "").lower()
+    if not filename.lower().endswith(".pdf") and "pdf" not in content_type:
+        raise HTTPException(status_code=400, detail="Please upload a PDF file")
+
+    pdf_bytes = await file.read(MAX_PDF_BYTES + 1)
+    if len(pdf_bytes) > MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail="PDF is too large. Maximum size is 8 MB")
+
+    raw_text = _extract_pdf_text(pdf_bytes)
+    transactions = _parse_transactions_with_claude(raw_text, source="pdf")
+    return {
+        "transactions": transactions,
+        "count": len(transactions),
+        "filename": filename,
+        "extracted_chars": len(raw_text),
+    }
 
 
 @router.post("/save")

@@ -2,8 +2,16 @@ const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').repla
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(`${BASE_URL}${path}`, options)
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  return response.json()
+  const contentType = response.headers.get('content-type') || ''
+  const payload = contentType.includes('application/json')
+    ? await response.json()
+    : await response.text()
+
+  if (!response.ok) {
+    const detail = payload?.detail || payload?.message || payload || `HTTP ${response.status}`
+    throw new Error(detail)
+  }
+  return payload
 }
 
 export async function getHealth() {
@@ -332,6 +340,15 @@ export async function parseBudgetTransactions(rawText) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ raw_text: rawText, source: 'text' }),
+  })
+}
+
+export async function parseBudgetPdf(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiFetch('/budget/parse-pdf', {
+    method: 'POST',
+    body: formData,
   })
 }
 
