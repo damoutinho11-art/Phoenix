@@ -315,6 +315,13 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_unique
 ON budget_transactions(date, merchant, amount_eur);
 
+CREATE TABLE IF NOT EXISTS budget_memory (
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sleep_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_type TEXT NOT NULL CHECK (event_type IN ('bedtime', 'wakeup')),
@@ -2332,24 +2339,54 @@ def get_budget_summary(month: str) -> dict[str, Any]:
     connection = get_db()
     try:
         rows = connection.execute(
-            """SELECT category, SUM(amount_eur) as total, COUNT(*) as count
-               FROM budget_transactions WHERE month=? GROUP BY category""",
+            """SELECT category, is_income, SUM(amount_eur) as total, COUNT(*) as count
+               FROM budget_transactions WHERE month=? GROUP BY category, is_income""",
             (month,)
         ).fetchall()
     finally:
         connection.close()
-    by_category = {r["category"]: {"total": round(r["total"], 2), "count": r["count"]} for r in rows}
-    income = sum(v["total"] for k, v in by_category.items() if k == "Income")
-    expenses = sum(v["total"] for k, v in by_category.items() if k != "Income" and k != "Investment")
-    invested = by_category.get("Investment", {}).get("total", 0)
-    savings_rate = round((income - expenses) / income * 100, 1) if income > 0 else 0
+
+    non_spending_categories = {"Income", "Investment", "Emergency Fund", "Transfers"}
+    by_category: dict[str, dict[str, Any]] = {}
+    income = 0.0
+    expenses = 0.0
+    invested = 0.0
+    emergency_fund = 0.0
+    transfers = 0.0
+
+    for row in rows:
+        category = row["category"] or "Other"
+        total = abs(float(row["total"] or 0))
+        count = int(row["count"] or 0)
+        existing = by_category.setdefault(category, {"total": 0.0, "count": 0})
+        existing["total"] = round(float(existing["total"]) + total, 2)
+        existing["count"] = int(existing["count"]) + count
+
+        if category == "Income" and int(row["is_income"] or 0) == 1:
+            income += total
+        elif category == "Investment":
+            invested += total
+        elif category == "Emergency Fund":
+            emergency_fund += total
+        elif category == "Transfers":
+            transfers += total
+        elif category not in non_spending_categories and int(row["is_income"] or 0) == 0:
+            expenses += total
+
+    savings_total = invested + emergency_fund
+    savings_rate = round(savings_total / income * 100, 1) if income > 0 else 0
+    cashflow_rate = round((income - expenses) / income * 100, 1) if income > 0 else 0
     return {
         "month": month,
         "by_category": by_category,
         "income_total": round(income, 2),
         "expenses_total": round(expenses, 2),
         "invested_total": round(invested, 2),
+        "emergency_fund_total": round(emergency_fund, 2),
+        "transfers_total": round(transfers, 2),
+        "savings_total": round(savings_total, 2),
         "savings_rate": savings_rate,
+        "cashflow_rate": cashflow_rate,
     }
 
 
@@ -2360,6 +2397,46 @@ def get_budget_months() -> list[str]:
             "SELECT DISTINCT month FROM budget_transactions ORDER BY month DESC"
         ).fetchall()
         return [r["month"] for r in rows]
+    finally:
+        connection.close()
+
+
+def get_budget_memory_profile() -> dict[str, Any] | None:
+    """Return the stored personal budget memory profile, if one exists."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT value_json FROM budget_memory WHERE key = ?",
+            ("profile",),
+        ).fetchone()
+        if row is None:
+            return None
+        return json.loads(row["value_json"] or "{}")
+    except sqlite3.OperationalError:
+        # Older local databases may not have the table until init_db runs.
+        return None
+    finally:
+        connection.close()
+
+
+def save_budget_memory_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    """Persist the personal budget memory profile used for classification."""
+    now = _utc_now()
+    value_json = json.dumps(profile or {}, ensure_ascii=False, sort_keys=True)
+    connection = get_db()
+    try:
+        connection.execute(
+            """
+            INSERT INTO budget_memory (key, value_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value_json = excluded.value_json,
+                updated_at = excluded.updated_at
+            """,
+            ("profile", value_json, now, now),
+        )
+        connection.commit()
+        return json.loads(value_json)
     finally:
         connection.close()
 
