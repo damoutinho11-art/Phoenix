@@ -4,7 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
-from jarvis.api.routers.budget import _parse_lhv_statement_transactions
+from jarvis.api.routers.budget import _generate_budget_insight, _parse_lhv_statement_transactions
 
 
 client = TestClient(app)
@@ -14,6 +14,37 @@ def test_default_transaction_month_uses_shared_clock() -> None:
     with patch("jarvis.core.clock.today", return_value=date(2030, 1, 2)):
         data = client.get("/budget/transactions").json()
     assert data["month"] == "2030-01"
+
+
+
+
+def test_budget_insight_is_deterministic_and_does_not_leak_prompt_text() -> None:
+    summary = {
+        "income_total": 0,
+        "expenses_total": 60.29,
+        "savings_rate": 0,
+        "by_category": {
+            "Eating Out": {"total": 40.95, "count": 3},
+            "Transport": {"total": 13.87, "count": 2},
+            "Food & Groceries": {"total": 5.47, "count": 1},
+        },
+    }
+
+    with patch("jarvis.api.routers.budget.ai_gateway.generate_text") as generate_text:
+        insight = _generate_budget_insight(summary, "2026-06")
+
+    generate_text.assert_not_called()
+    assert "Sir, your June 2026 savings rate is 0 percent" in insight
+    assert "Your highest spending category is Eating Out at 40 euros and 95 cents." in insight
+    assert "cut one restaurant or delivery order this week" in insight
+    leaked_fragments = [
+        "Generate a spoken",
+        "Maximum 3 sentences",
+        "No markdown",
+        "We need to",
+        "Data:",
+    ]
+    assert all(fragment not in insight for fragment in leaked_fragments)
 
 
 def test_parse_pdf_transactions_reads_pdf_with_local_lhv_parser() -> None:

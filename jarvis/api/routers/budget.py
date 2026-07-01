@@ -247,23 +247,71 @@ Raw text:
     return transactions
 
 
-def _generate_budget_insight(summary: dict, month: str) -> str:
-    prompt = f"""Budget summary for {month}:
-{json.dumps(summary, indent=2)}
+def _month_label(month: str) -> str:
+    try:
+        year, month_number = month.split("-", 1)
+        return clock.date(int(year), int(month_number), 1).strftime("%B %Y")
+    except Exception:
+        return month or "this month"
 
-Generate a spoken PHOENIX budget brief for Sir.
-Maximum 3 sentences. Be concise. Cover: savings rate vs 25% target,
-top spending category, one specific thing to cut.
-No markdown, no symbols, natural spoken sentences.
-Address the user as Sir."""
-    result = ai_gateway.generate_text(
-        system_prompt="You are PHOENIX. Return concise budget insight only.",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=200,
-    )
-    if not result.ok:
-        return ""
-    return result.text.strip()
+
+def _brief_amount(value: float) -> str:
+    euros = int(abs(value))
+    cents = int(round((abs(value) - euros) * 100))
+    if cents == 100:
+        euros += 1
+        cents = 0
+    euro_word = "euro" if euros == 1 else "euros"
+    if cents == 0:
+        return f"{euros} {euro_word}"
+    cent_word = "cent" if cents == 1 else "cents"
+    return f"{euros} {euro_word} and {cents} {cent_word}"
+
+
+def _cut_suggestion(category: str) -> str:
+    suggestions = {
+        "Eating Out": "cut one restaurant or delivery order this week",
+        "Transport": "replace one short ride with walking or public transport",
+        "Food & Groceries": "plan one grocery trip before buying extras",
+        "Subscriptions": "pause or cancel one subscription you do not need this month",
+        "Shopping": "delay one nonessential purchase for a week",
+        "Health & Sport": "review small fitness or pharmacy extras before buying more",
+        "Housing": "review fixed housing bills for any avoidable charge",
+        "Banking & Fees": "avoid one avoidable card, bank, or conversion fee",
+        "Other": "review the largest uncategorised transaction and classify it",
+    }
+    return suggestions.get(category, "review the largest flexible expense before spending more")
+
+
+def _generate_budget_insight(summary: dict, month: str) -> str:
+    """Return a deterministic PHOENIX budget brief.
+
+    This used to call the AI gateway, but budget summary is a critical UI card
+    and voice surface. Deterministic text prevents prompt/reasoning leakage into
+    the UI while keeping the answer concise and stable.
+    """
+    savings_rate = float(summary.get("savings_rate") or 0)
+    target = 25
+    relation = "above" if savings_rate >= target else "below"
+    by_category = summary.get("by_category") or {}
+    spending_categories = [
+        (category, data)
+        for category, data in by_category.items()
+        if category not in {"Income", "Investment"} and float(data.get("total") or 0) > 0
+    ]
+    spending_categories.sort(key=lambda item: float(item[1].get("total") or 0), reverse=True)
+
+    month_label = _month_label(month)
+    first = f"Sir, your {month_label} savings rate is {savings_rate:.0f} percent, {relation} the {target} percent target."
+
+    if not spending_categories:
+        return f"{first} There is no flexible spending category to cut yet. Keep importing transactions so Phoenix can give a sharper recommendation."
+
+    top_category, top_data = spending_categories[0]
+    amount = _brief_amount(float(top_data.get("total") or 0))
+    second = f"Your highest spending category is {top_category} at {amount}."
+    third = f"To improve this month, {_cut_suggestion(top_category)}."
+    return f"{first} {second} {third}"
 
 
 @router.post("/parse")
