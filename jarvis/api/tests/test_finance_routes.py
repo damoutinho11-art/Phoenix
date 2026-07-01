@@ -252,6 +252,26 @@ class FinanceBriefIdentityTests(unittest.TestCase):
         self.assertEqual(after["brief_id"], first["brief_id"])
         self.assertEqual(after["brief_status"], "approved")
         self.assertEqual(after["brief_user_action"], "approved")
+        self.assertEqual(after["recommendations"], [])
+        self.assertTrue(after["week_closed"])
+        self.assertFalse(after["week_done"])
+        self.assertFalse(after["requires_approval"])
+        self.assertEqual(after["portfolio_mode"], "week_approved")
+        self.assertNotIn("executed", after["rationale"].lower())
+        self.assertNotIn("deployed", after["rationale"].lower())
+
+    def test_approved_week_returns_closed_manual_checklist(self) -> None:
+        first = client.get("/finance/recommendation").json()
+        client.post(f"/finance/brief/{first['brief_id']}/approve")
+
+        checklist = client.get("/finance/manual-buy-checklist").json()
+
+        self.assertEqual(checklist["brief_id"], first["brief_id"])
+        self.assertEqual(checklist["brief_status"], "approved")
+        self.assertEqual(checklist["checklist_status"], "WEEK_CLOSED")
+        self.assertEqual(checklist["checklist_items"], [])
+        self.assertFalse(checklist["requires_approval"])
+        self.assertFalse(checklist["safety_flags"]["manual_broker_action_required"])
 
     def test_approval_response_has_no_trade_safety_flags(self) -> None:
         brief = client.get("/finance/recommendation").json()

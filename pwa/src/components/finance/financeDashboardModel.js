@@ -110,6 +110,8 @@ export function buildFinanceDashboardModel(payload = {}) {
     symbol: item?.symbol || item?.ticker || symbolOf(item?.resolved_candidate),
     label: item?.instrument_display_name || item?.instrument?.display_name || humanizeKey(item?.asset),
   }))
+  const weekClosed = checklist.checklist_status === 'WEEK_CLOSED'
+    || recommendation.week_closed === true
 
   const safetySources = [sections.safety || {}, checklist.safety_flags || {}]
   const safety = Object.fromEntries(SAFETY_KEYS.map(key => {
@@ -117,7 +119,9 @@ export function buildFinanceDashboardModel(payload = {}) {
     return [key, source ? source[key] : null]
   }))
 
-  const actionCopy = actions.length
+  const actionCopy = weekClosed
+    ? `${checklist.week_label || recommendation.week_label || 'Current week'} approved. Recommendation window closed; next window ${recommendation.next_window || 'next week'}.`
+    : actions.length
     ? `PHOENIX recommends ${actions
       .map(item => `${formatMoney(item.amount)} ${item.symbol || item.label} via ${item.platform || humanizeKey(item.route)}`)
       .join(' and ')}. Manual only — nothing has been ordered or executed.`
@@ -141,6 +145,8 @@ export function buildFinanceDashboardModel(payload = {}) {
       requiresApproval: checklist.requires_approval ?? recommendation.requires_approval ?? null,
       briefStatus: checklist.brief_status || recommendation.brief_status || null,
       weekDone: recommendation.week_done === true,
+      weekClosed,
+      nextWindow: recommendation.next_window || null,
       actionCopy,
     },
     actions,

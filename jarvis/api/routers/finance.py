@@ -2,6 +2,7 @@
 
 import copy
 import json
+from datetime import timedelta
 from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -30,6 +31,11 @@ def _iso_week_label() -> str:
     today = clock.today()
     iso = today.isocalendar()
     return f"W{iso[1]} {iso[0]}"
+
+
+def _next_iso_week_label() -> str:
+    next_iso = (clock.today() + timedelta(days=7)).isocalendar()
+    return f"W{next_iso[1]} {next_iso[0]}"
 
 _CRYPTO_ASSETS = {"btc", "hype", "tao"}
 
@@ -589,6 +595,7 @@ def _build_finance_recommendation(
     response["brief_status"] = latest_brief["status"] if latest_brief else None
     if latest_brief and latest_brief.get("user_action") is not None:
         response["brief_user_action"] = latest_brief["user_action"]
+        response["brief_user_action_at"] = latest_brief.get("user_action_at")
     return response
 
 
@@ -598,9 +605,28 @@ def finance_recommendation(
     portfolio_state: dict = Depends(get_portfolio_state),
     profile: dict = Depends(get_finance_profile),
 ) -> dict:
-    return _build_finance_recommendation(
+    response = _build_finance_recommendation(
         constitution, portfolio_state, profile, persist_brief=True
     )
+    if response.get("brief_status") != "approved":
+        return response
+
+    approved_at = response.get("brief_user_action_at")
+    approved_date = str(approved_at)[:10] if approved_at else "the recorded approval date"
+    next_window = _next_iso_week_label()
+    return {
+        **response,
+        "recommendations": [],
+        "rationale": (
+            f"{response['week_label']} brief approved on {approved_date}. "
+            f"Recommendation window closed; next window opens {next_window}."
+        ),
+        "portfolio_mode": "week_approved",
+        "requires_approval": False,
+        "week_closed": True,
+        "week_done": False,
+        "next_window": next_window,
+    }
 
 
 _DATA_COVERAGE_SAFETY = {
@@ -1161,6 +1187,10 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
         or item["research_warning"]
         for item in checklist_items
     )
+    week_closed = recommendation.get("week_closed") is True
+    safety_flags = dict(_MANUAL_BUY_SAFETY_FLAGS)
+    if week_closed:
+        safety_flags["manual_broker_action_required"] = False
     return {
         "week_label": recommendation.get("week_label"),
         "week_budget": recommendation.get("week_budget"),
@@ -1169,11 +1199,13 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
         "brief_status": recommendation.get("brief_status"),
         "requires_approval": recommendation.get("requires_approval", True),
         "checklist_status": (
-            "NEEDS_RESEARCH_REVIEW" if needs_research else "READY_FOR_MANUAL_REVIEW"
+            "WEEK_CLOSED"
+            if week_closed
+            else "NEEDS_RESEARCH_REVIEW" if needs_research else "READY_FOR_MANUAL_REVIEW"
         ),
         "research_gate_summary": recommendation.get("research_gate_summary") or {},
         "checklist_items": checklist_items,
-        "safety_flags": dict(_MANUAL_BUY_SAFETY_FLAGS),
+        "safety_flags": safety_flags,
     }
 
 

@@ -105,6 +105,29 @@ test('keeps backend checklist empty instead of deriving actions from recommendat
   assert.match(model.hero.actionCopy, /No complete manual-buy checklist/)
 })
 
+test('explains that an approved weekly window is closed', () => {
+  const model = buildFinanceDashboardModel({
+    recommendation: {
+      week_label: 'W27 2026',
+      week_closed: true,
+      next_window: 'W28 2026',
+      brief_status: 'approved',
+      recommendations: [],
+    },
+    checklist: {
+      week_label: 'W27 2026',
+      checklist_status: 'WEEK_CLOSED',
+      checklist_items: [],
+    },
+  })
+
+  assert.deepEqual(model.actions, [])
+  assert.equal(
+    model.hero.actionCopy,
+    'W27 2026 approved. Recommendation window closed; next window W28 2026.',
+  )
+})
+
 test('uses selected candidate as the backward-compatible checklist alias', () => {
   const model = buildFinanceDashboardModel({
     coverage: {

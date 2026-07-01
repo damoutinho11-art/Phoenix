@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CockpitShell, DataPanel, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
+import { CockpitShell, DataPanel, SourceStamp } from '../cockpit/CockpitPrimitives'
 import { MetricLineChart } from '../cockpit/MetricLineChart'
 import {
   getFinanceDataCoverage,
@@ -402,7 +402,9 @@ function AuthorizationCore({ checklist, recommendation }) {
       </div>
 
       <div style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.15em', color: 'rgba(0,187,221,0.2)', textAlign: 'center', marginTop: '1rem' }}>
-        MANUAL ONLY · NO TRADES EXECUTED · APPROVAL REQUIRED
+        {briefStatus === 'approved'
+          ? `${weekLabel || 'THIS WEEK'} APPROVED · NEXT RECOMMENDATION ${recommendation?.next_window || 'NEXT WEEK'}`
+          : 'MANUAL ONLY · NO TRADES EXECUTED · APPROVAL REQUIRED'}
       </div>
     </div>
   )
@@ -537,40 +539,6 @@ function InstrumentResolution({ researchWinner, checklistCandidate, researchSymb
           </div>
         )}
       </div>
-    </section>
-  )
-}
-
-function SafetyLock({ dashboard }) {
-  const labels = {
-    broker_connection: 'Broker connection',
-    orders_created: 'Orders created',
-    trades_executed: 'Trades executed',
-    portfolio_state_updated: 'Portfolio updated',
-    recommendation_overridden: 'Recommendation overridden',
-  }
-  return (
-    <section style={{ padding: '2rem 2rem 0' }}>
-      <DataPanel eyebrow="[ SAFETY CONTRACT ]" title="SAFETY LOCK" meta={dashboard.meta.coverageVerdict || 'STATUS UNKNOWN'}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '1rem 1.1rem' }}>
-          {Object.entries(labels).map(([key, label]) => {
-            const value = dashboard.safety[key]
-            const tone = value === false ? 'ready' : value === true ? 'danger' : 'caution'
-            return (
-              <StatusChip key={key} tone={tone}>
-                {label}: {value === null ? 'unknown' : String(value)}
-              </StatusChip>
-            )
-          })}
-          <StatusChip tone={dashboard.hero.requiresApproval === false ? 'caution' : 'verified'}>
-            Approval required: {dashboard.hero.requiresApproval === null ? 'unknown' : String(dashboard.hero.requiresApproval)}
-          </StatusChip>
-          <StatusChip tone="verified">Evidence {dashboard.meta.evidenceLabel}</StatusChip>
-        </div>
-        <p style={{ margin: 0, padding: '0 1.1rem 1.1rem', color: 'rgba(183,202,211,.9)', fontFamily: T.fontBody, fontSize: 13, lineHeight: 1.6 }}>
-          PHOENIX provides a manual checklist only. Broker action remains outside the system, and recorded transactions require a separate explicit portfolio apply.
-        </p>
-      </DataPanel>
     </section>
   )
 }
@@ -935,10 +903,10 @@ function AdvancedAudit({ memos, records, qualityCoverage, etfAsset, researchSymb
 }
 
 // ─── Nav Cards ────────────────────────────────────────────────────────────────
-function NavCards({ onNav, summary }) {
+function NavCards({ onNav, summary, dashboard }) {
   const month = new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' })
   const cards = [
-    { key: 'brief',       label: 'WEEKLY BRIEF',  tag: 'ACTIVE THIS WEEK', wide: true,  icon: <BriefIcon /> },
+    { key: 'brief',       label: 'WEEKLY BRIEF',  tag: dashboard?.hero?.weekClosed ? 'APPROVED THIS WEEK' : 'ACTIVE THIS WEEK', wide: true,  icon: <BriefIcon /> },
     { key: 'holdings',   label: 'HOLDINGS',       tag: `${(summary?.sleeve_summary || []).length || 8} SLEEVES`, icon: <HoldingsIcon /> },
     { key: 'performance',label: 'PERFORMANCE',    tag: 'REAL DATA ONLY',  icon: <PerfIcon /> },
     { key: 'history',    label: 'BRIEF HISTORY',  tag: 'AUDIT TRAIL',     icon: <HistoryIcon /> },
@@ -1137,21 +1105,23 @@ export default function FinanceDashboard({ onNav }) {
             </div>
           ) : (
             <div style={{ fontFamily: T.fontMono, fontSize: 9, color: 'rgba(0,187,221,0.27)', padding: '2rem', textAlign: 'center', border: T.border, borderRadius: 4 }}>
-              NO MANUAL ACTIONS RETURNED · DO NOT INFER OR PLACE A TRADE
+              {dashboard.hero.weekClosed
+                ? `${dashboard.meta.weekLabel || 'THIS WEEK'} APPROVED · NO FURTHER RECOMMENDATION UNTIL ${dashboard.hero.nextWindow || 'NEXT WEEK'}`
+                : 'NO MANUAL ACTIONS RETURNED · DO NOT INFER OR PLACE A TRADE'}
             </div>
           )}
         </section>
 
         {/* ── Instrument Resolution ── */}
-        <InstrumentResolution
-          researchWinner={researchWinner}
-          checklistCandidate={checklistCandidate}
-          researchSymbol={researchSymbol}
-          checklistSymbol={checklistSymbol}
-          qualityCoverage={qualityCoverage}
-        />
-
-        <SafetyLock dashboard={dashboard} />
+        {!dashboard.hero.weekClosed && (
+          <InstrumentResolution
+            researchWinner={researchWinner}
+            checklistCandidate={checklistCandidate}
+            researchSymbol={researchSymbol}
+            checklistSymbol={checklistSymbol}
+            qualityCoverage={qualityCoverage}
+          />
+        )}
 
         {/* ── Portfolio Snapshot ── */}
         {sleeves.length > 0 && (
@@ -1192,7 +1162,7 @@ export default function FinanceDashboard({ onNav }) {
         />
 
         {/* ── Nav Cards ── */}
-        <NavCards onNav={onNav} summary={summary} />
+        <NavCards onNav={onNav} summary={summary} dashboard={dashboard} />
 
       </div>
     </CockpitShell>
