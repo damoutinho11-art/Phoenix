@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { parseBudgetTransactions, saveBudgetTransactions } from '../../api/client'
+import { parseBudgetPdf, parseBudgetTransactions, saveBudgetTransactions } from '../../api/client'
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
@@ -64,6 +64,7 @@ function CategoryPicker({ current, onChange, onClose }) {
 export default function BudgetUpload({ onBack, onSaved }) {
   const [tab, setTab] = useState('text')
   const [raw, setRaw] = useState('')
+  const [pdfFile, setPdfFile] = useState(null)
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState('')
   const [transactions, setTransactions] = useState(null)
@@ -88,8 +89,19 @@ export default function BudgetUpload({ onBack, onSaved }) {
     try {
       const r = await parseBudgetTransactions(raw.trim())
       setTransactions(r.transactions)
-    } catch {
-      setParseError('Parse failed. Check your text and try again.')
+    } catch (err) {
+      setParseError(err.message || 'Parse failed. Check your text and try again.')
+    } finally { setParsing(false) }
+  }
+
+  async function handlePdfParse() {
+    if (!pdfFile) return
+    setParsing(true); setParseError('')
+    try {
+      const r = await parseBudgetPdf(pdfFile)
+      setTransactions(r.transactions)
+    } catch (err) {
+      setParseError(err.message || 'PDF parse failed. Use a text-based PDF or paste the statement text.')
     } finally { setParsing(false) }
   }
 
@@ -125,7 +137,7 @@ export default function BudgetUpload({ onBack, onSaved }) {
               {[['text', 'PASTE TEXT'], ['pdf', 'UPLOAD PDF']].map(([t, label]) => (
                 <div
                   key={t}
-                  onClick={() => setTab(t)}
+                  onClick={() => { setTab(t); setParseError('') }}
                   style={{
                     flex: 1, textAlign: 'center', padding: '10px 0',
                     fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.18em',
@@ -140,9 +152,53 @@ export default function BudgetUpload({ onBack, onSaved }) {
             </div>
 
             {tab === 'pdf' ? (
-              <div style={{ padding: '40px 0', textAlign: 'center', color: muted, fontFamily: DISPLAY, fontSize: 14, letterSpacing: '.1em' }}>
-                PDF IMPORT COMING SOON
-              </div>
+              <>
+                <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.15em', marginBottom: 8 }}>
+                  UPLOAD LHV PDF STATEMENT
+                </div>
+                <label
+                  htmlFor="budget-pdf-upload"
+                  style={{
+                    display: 'block', padding: '28px 14px', textAlign: 'center', cursor: 'pointer',
+                    border: pdfFile ? `1px solid rgba(0,187,221,.6)` : border,
+                    background: pdfFile ? 'rgba(0,187,221,.06)' : 'rgba(0,187,221,.02)',
+                    boxShadow: pdfFile ? '0 0 30px rgba(0,187,221,.08)' : 'none',
+                    borderRadius: 3, marginBottom: 10,
+                  }}
+                >
+                  <input
+                    id="budget-pdf-upload"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={e => { setPdfFile(e.target.files?.[0] || null); setParseError('') }}
+                    style={{ display: 'none' }}
+                  />
+                  <div style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.16em', color: pdfFile ? '#7de8ff' : muted, marginBottom: 8 }}>
+                    {pdfFile ? pdfFile.name : 'TAP TO SELECT PDF'}
+                  </div>
+                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'rgba(0,187,221,.35)', lineHeight: 1.6 }}>
+                    Text-based bank PDFs only · max 8 MB · file is parsed, not stored
+                  </div>
+                </label>
+                {parseError && (
+                  <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 11, marginTop: 8 }}>{parseError}</div>
+                )}
+                <div
+                  onClick={!parsing && pdfFile ? handlePdfParse : undefined}
+                  style={{
+                    width: '100%', marginTop: 12, padding: '12px 0',
+                    border: `1px solid ${!pdfFile || parsing ? 'rgba(0,187,221,.2)' : 'rgba(0,187,221,.6)'}`,
+                    background: !pdfFile || parsing ? 'transparent' : 'rgba(0,187,221,.06)',
+                    color: !pdfFile || parsing ? muted : '#7de8ff',
+                    fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em',
+                    textAlign: 'center', cursor: !pdfFile || parsing ? 'default' : 'pointer',
+                    textShadow: !pdfFile || parsing ? 'none' : '0 0 10px rgba(0,187,221,.5)',
+                    userSelect: 'none', borderRadius: 2, boxSizing: 'border-box',
+                  }}
+                >
+                  {parsing ? 'EXTRACTING PDF…' : 'PARSE PDF TRANSACTIONS'}
+                </div>
+              </>
             ) : (
               <>
                 <div style={{ fontFamily: MONO, fontSize: 8, color: muted, letterSpacing: '.15em', marginBottom: 8 }}>
