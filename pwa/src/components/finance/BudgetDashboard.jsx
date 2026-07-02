@@ -23,9 +23,52 @@ const CAT_COLORS = {
   'Health & Sport':   '#7dffb4',
   'Shopping':         '#ffd56b',
   'Investment':       '#ffd56b',
+  'Emergency Fund':   '#4dffb4',
+  'Transfers':        '#2c7080',
   'Banking & Fees':   '#888',
   'Income':           '#fff',
   'Other':            'rgba(132,212,226,.5)',
+}
+
+const FIXED_CATEGORIES = new Set(['Housing'])
+const SAVINGS_CATEGORIES = new Set(['Investment', 'Emergency Fund'])
+const TRANSFER_CATEGORIES = new Set(['Transfers'])
+const NON_SPENDING_CATEGORIES = new Set(['Income', ...SAVINGS_CATEGORIES, ...TRANSFER_CATEGORIES])
+
+function euro(value, digits = 2) {
+  const n = Number(value || 0)
+  return n > 0 ? `€${n.toFixed(digits)}` : '—'
+}
+
+function BudgetBreakdownSection({ title, subtitle, rows, maxValue, mutedSection = false }) {
+  if (!rows.length) return null
+  const safeMax = maxValue || Math.max(...rows.map(([, v]) => v.total), 1)
+  return (
+    <div style={{ padding: '16px 18px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+        <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.22em', color: muted }}>{title}</div>
+        {subtitle && <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: 'rgba(199,236,244,.38)', textAlign: 'right' }}>{subtitle}</div>}
+      </div>
+      <div style={{ background: CARD, border, borderRadius: 4, overflow: 'hidden', position: 'relative', opacity: mutedSection ? .82 : 1 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, rgba(0,187,221,.4), rgba(0,187,221,.1), transparent)` }} />
+        {rows.map(([cat, data], i) => {
+          const color = CAT_COLORS[cat] || muted
+          const pct = Math.max(4, (data.total / safeMax) * 100)
+          return (
+            <div key={cat} style={{ padding: '10px 14px', borderBottom: i < rows.length - 1 ? '1px solid rgba(0,187,221,.08)' : 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontFamily: BODY, fontSize: 13, color: mutedSection ? 'rgba(199,236,244,.62)' : 'rgba(199,236,244,.87)' }}>{cat}</span>
+                <span style={{ fontFamily: BODY, fontSize: 13, fontWeight: 600, color }}>{euro(data.total)}</span>
+              </div>
+              <div style={{ height: 3, background: 'rgba(255,255,255,.06)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}`, borderRadius: 2, transition: 'width .4s ease' }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function fmtMonth(m) {
@@ -85,12 +128,18 @@ export default function BudgetDashboard({ onBack, onUpload }) {
   }
 
   const hasData = summary && (summary.income_total > 0 || summary.expenses_total > 0)
-  const expenses = summary?.by_category
-    ? Object.entries(summary.by_category)
-        .filter(([cat]) => cat !== 'Income' && cat !== 'Investment')
-        .sort((a, b) => b[1].total - a[1].total)
-    : []
-  const maxExpense = expenses.length ? Math.max(...expenses.map(([, v]) => v.total)) : 1
+  const categories = summary?.by_category || {}
+  const rows = Object.entries(categories).sort((a, b) => b[1].total - a[1].total)
+  const savingsRows = rows.filter(([cat]) => SAVINGS_CATEGORIES.has(cat))
+  const fixedRows = rows.filter(([cat]) => FIXED_CATEGORIES.has(cat))
+  const flexibleRows = rows.filter(([cat]) => !NON_SPENDING_CATEGORIES.has(cat) && !FIXED_CATEGORIES.has(cat))
+  const transferRows = rows.filter(([cat]) => TRANSFER_CATEGORIES.has(cat))
+  const maxFlexible = flexibleRows.length ? Math.max(...flexibleRows.map(([, v]) => v.total)) : 1
+  const maxFixed = fixedRows.length ? Math.max(...fixedRows.map(([, v]) => v.total)) : 1
+  const maxSavings = savingsRows.length ? Math.max(...savingsRows.map(([, v]) => v.total)) : 1
+  const maxTransfers = transferRows.length ? Math.max(...transferRows.map(([, v]) => v.total)) : 1
+  const emergencyTotal = categories['Emergency Fund']?.total || 0
+  const totalSavings = (summary?.invested_total || 0) + emergencyTotal
   const savingsGood = summary?.savings_rate >= 25
 
   return (
@@ -146,44 +195,47 @@ export default function BudgetDashboard({ onBack, onUpload }) {
             )}
           </div>
 
-          {/* Income / Expenses / Invested */}
+          {/* Income / Expenses / Savings */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, padding: '16px 18px 0' }}>
             {[
               { label: 'INCOME',   value: summary.income_total,   color: '#4dffb4' },
               { label: 'EXPENSES', value: summary.expenses_total,  color: '#ff5c7a' },
-              { label: 'INVESTED', value: summary.invested_total,  color: GOLD },
+              { label: 'SAVINGS',  value: totalSavings,             color: GOLD },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ background: 'rgba(0,187,221,.02)', border, borderRadius: 3, padding: '10px 12px', textAlign: 'center' }}>
                 <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: muted, marginBottom: 5 }}>{label}</div>
-                <div style={{ fontFamily: BODY, fontSize: 16, fontWeight: 700, color }}>{value > 0 ? `€${value.toFixed(0)}` : '—'}</div>
+                <div style={{ fontFamily: BODY, fontSize: 16, fontWeight: 700, color }}>{euro(value, 0)}</div>
               </div>
             ))}
           </div>
 
-          {/* Category breakdown */}
-          {expenses.length > 0 && (
-            <div style={{ padding: '16px 18px 0' }}>
-              <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.22em', color: muted, marginBottom: 10 }}>BY CATEGORY</div>
-              <div style={{ background: CARD, border, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, rgba(0,187,221,.4), rgba(0,187,221,.1), transparent)` }} />
-                {expenses.map(([cat, data], i) => {
-                  const color = CAT_COLORS[cat] || muted
-                  const pct = Math.max(4, (data.total / maxExpense) * 100)
-                  return (
-                    <div key={cat} style={{ padding: '10px 14px', borderBottom: i < expenses.length - 1 ? '1px solid rgba(0,187,221,.08)' : 'none' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontFamily: BODY, fontSize: 13, color: 'rgba(199,236,244,.87)' }}>{cat}</span>
-                        <span style={{ fontFamily: BODY, fontSize: 13, fontWeight: 600, color }}>€{data.total.toFixed(2)}</span>
-                      </div>
-                      <div style={{ height: 3, background: 'rgba(255,255,255,.06)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}`, borderRadius: 2, transition: 'width .4s ease' }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          {/* Budget memory breakdown */}
+          <BudgetBreakdownSection
+            title="SAVINGS"
+            subtitle="Emergency fund and investments count toward savings rate"
+            rows={savingsRows}
+            maxValue={maxSavings}
+          />
+          <BudgetBreakdownSection
+            title="FIXED COSTS"
+            subtitle="Tracked, but not treated as the main cut target"
+            rows={fixedRows}
+            maxValue={maxFixed}
+            mutedSection
+          />
+          <BudgetBreakdownSection
+            title="FLEXIBLE SPENDING"
+            subtitle="This is where Phoenix looks for improvements"
+            rows={flexibleRows}
+            maxValue={maxFlexible}
+          />
+          <BudgetBreakdownSection
+            title="INTERNAL TRANSFERS"
+            subtitle="Moved money, not income, spending, or savings"
+            rows={transferRows}
+            maxValue={maxTransfers}
+            mutedSection
+          />
 
           {/* PHOENIX insight */}
           {summary.insight && (
