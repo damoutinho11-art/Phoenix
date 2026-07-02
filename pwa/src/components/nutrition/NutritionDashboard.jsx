@@ -1,25 +1,37 @@
 import { useState, useEffect } from 'react'
 import { getNutritionStatus, deleteMeal, getMealHistory, postJarvisChat } from '../../api/client'
+import { CockpitShell, DataPanel, EmptyState, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
+import { buildNutritionDashboardModel } from './nutritionDashboardModel'
+
+const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
 const PROTEIN_COL = '#7df0ff'
 const CARB_COL = '#ffd56b'
 const FAT_COL = '#ff9f43'
 
-function clampPct(value, target) {
-  return Math.min(1, Math.max(0, value / Math.max(1, target)))
+function safeRound(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? Math.round(n) : 0
 }
 
-function statusLabel(status) {
-  if (!status) return 'EMPTY'
-  if (status === 'good') return 'LOCKED'
-  if (status === 'warn') return 'PARTIAL'
-  if (status === 'miss') return 'MISSED'
-  return 'EMPTY'
+function statusTone(status) {
+  if (status === 'good') return 'ready'
+  if (status === 'warn') return 'caution'
+  if (status === 'miss') return 'danger'
+  return 'verified'
+}
+
+function ProgressBar({ pct, color = LIME }) {
+  return (
+    <div className="phx-progress-track" aria-hidden="true">
+      <span
+        className="phx-progress-fill"
+        style={{ width: `${Math.min(100, Math.max(0, pct * 100)).toFixed(0)}%`, background: `linear-gradient(90deg, ${color}, ${LIME_BR})` }}
+      />
+    </div>
+  )
 }
 
 function MacroRings({ proteinPct, carbPct, fatPct, label }) {
@@ -28,28 +40,28 @@ function MacroRings({ proteinPct, carbPct, fatPct, label }) {
   const fOff = (170 * (1 - fatPct)).toFixed(0)
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '128px 1fr', gap: 15, alignItems: 'center' }}>
-      <div style={{ position: 'relative', width: 128, height: 128 }}>
-        <svg width="128" height="128" viewBox="0 0 128 128">
-          <circle cx="64" cy="64" r="54" fill="none" stroke="rgba(32,216,236,.10)" strokeWidth="8" />
-          <circle cx="64" cy="64" r="54" fill="none" stroke={PROTEIN_COL} strokeWidth="8" strokeDasharray="339" strokeDashoffset={pOff} strokeLinecap="round" transform="rotate(-90 64 64)" />
-          <circle cx="64" cy="64" r="40" fill="none" stroke={CARB_COL} strokeWidth="7" strokeDasharray="251" strokeDashoffset={cOff} strokeLinecap="round" transform="rotate(-90 64 64)" />
-          <circle cx="64" cy="64" r="27" fill="none" stroke={FAT_COL} strokeWidth="6" strokeDasharray="170" strokeDashoffset={fOff} strokeLinecap="round" transform="rotate(-90 64 64)" />
+    <div className="phx-macro-rings">
+      <div className="phx-ring-stack">
+        <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+          <circle cx="66" cy="66" r="56" fill="none" stroke="rgba(157,255,111,.10)" strokeWidth="8" />
+          <circle cx="66" cy="66" r="56" fill="none" stroke={PROTEIN_COL} strokeWidth="8" strokeDasharray="339" strokeDashoffset={pOff} strokeLinecap="round" transform="rotate(-90 66 66)" />
+          <circle cx="66" cy="66" r="41" fill="none" stroke={CARB_COL} strokeWidth="7" strokeDasharray="251" strokeDashoffset={cOff} strokeLinecap="round" transform="rotate(-90 66 66)" />
+          <circle cx="66" cy="66" r="28" fill="none" stroke={FAT_COL} strokeWidth="6" strokeDasharray="170" strokeDashoffset={fOff} strokeLinecap="round" transform="rotate(-90 66 66)" />
         </svg>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 23, fontWeight: 700, color: LIME_BR, lineHeight: 1 }}>{label}</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: MUTED, marginTop: 3 }}>TODAY</div>
+        <div className="phx-ring-center">
+          <strong>{label}</strong>
+          <span>TODAY</span>
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <div className="phx-legend-stack">
         {[
           { label: 'PROTEIN', color: PROTEIN_COL, pct: Math.round(proteinPct * 100) },
           { label: 'CARBS', color: CARB_COL, pct: Math.round(carbPct * 100) },
           { label: 'FATS', color: FAT_COL, pct: Math.round(fatPct * 100) },
         ].map(({ label, color, pct }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.09em', color: TEXT_DIM }}>
-            <span><i style={{ width: 7, height: 7, marginRight: 6, display: 'inline-block', background: color }} />{label}</span>
-            <b style={{ color: 'rgba(220,248,236,.94)' }}>{pct}%</b>
+          <div key={label} className="phx-legend-row">
+            <span><i style={{ background: color }} />{label}</span>
+            <b>{pct}%</b>
           </div>
         ))}
       </div>
@@ -59,22 +71,320 @@ function MacroRings({ proteinPct, carbPct, fatPct, label }) {
 
 function EmptyMeals({ kcalLeft, proteinLeft, onLogMeal }) {
   return (
-    <button onClick={onLogMeal} style={{ width: '100%', textAlign: 'left', padding: '14px 13px', border: `1px dashed rgba(157,255,111,.26)`, background: 'rgba(157,255,111,.025)', cursor: 'pointer' }}>
-      <div style={{ fontFamily: 'var(--display)', fontSize: 17, fontWeight: 700, letterSpacing: '.06em', color: '#fff' }}>NO MEALS LOGGED TODAY</div>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.11em', color: TEXT_DIM, marginTop: 4 }}>
-        LOG FIRST MEAL · {Math.round(kcalLeft)} KCAL OPEN · {Math.round(proteinLeft)}G PROTEIN OPEN
-      </div>
+    <button onClick={onLogMeal} className="phx-empty-action phx-nutrition-empty-action">
+      <strong>NO MEALS LOGGED TODAY</strong>
+      <span>LOG FIRST MEAL · {safeRound(kcalLeft)} KCAL OPEN · {safeRound(proteinLeft)}G PROTEIN OPEN</span>
     </button>
   )
 }
 
-export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWeight, onQuickAsk, onMealBuilder, onDayPlanner, onMemory, onShopping, onWeeklyPlanner, onAcceptanceGate, onCalendarBridge }) {
+function MealRow({ meal, deleting, onDelete }) {
+  return (
+    <div className="phx-command-row phx-meal-ledger-row">
+      <div>
+        <div className="phx-command-title">{meal.name}</div>
+        <div className="phx-command-sub">{safeRound(meal.protein_g)}G PROTEIN · {safeRound(meal.carbs_g)}G CARBS · {safeRound(meal.fat_g)}G FAT · {meal.servings > 1 ? `×${meal.servings}` : '×1'}</div>
+      </div>
+      <div className="phx-row-actions">
+        <span>{safeRound(meal.calories)} KCAL</span>
+        <button onClick={() => onDelete(meal.id)} disabled={deleting === meal.id} aria-label={`Delete ${meal.name}`}>×</button>
+      </div>
+    </div>
+  )
+}
+
+function CommandButton({ label, action, primary = false }) {
+  return (
+    <button type="button" onClick={action} className={`phx-command-button ${primary ? 'phx-command-button-primary' : ''}`}>
+      {label}
+    </button>
+  )
+}
+
+function MacroMatrix({ macros }) {
+  return (
+    <div className="phx-nutrition-macro-matrix">
+      {macros.map(macro => (
+        <div key={macro.label} className={`phx-nutrition-macro-row phx-macro-state-${macro.state}`}>
+          <div className="phx-nutrition-macro-head">
+            <span><i style={{ background: macro.color }} />{macro.label}</span>
+            <b>{Math.round(macro.pct * 100)}%</b>
+          </div>
+          <ProgressBar pct={macro.pct} color={macro.color} />
+          <div className="phx-nutrition-macro-foot">
+            <span>{macro.logged}{macro.unit} / {macro.target}{macro.unit}</span>
+            <span>{macro.remaining}{macro.unit} left</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ProtocolStack({ items }) {
+  return (
+    <div className="phx-protocol-stack">
+      {items.map((item, index) => (
+        <div key={item.label} className={`phx-protocol-step phx-protocol-${item.state}`}>
+          <span className="phx-protocol-index">{String(index + 1).padStart(2, '0')}</span>
+          <div>
+            <strong>{item.label}</strong>
+            <span>{item.value}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+
+function CompactMealLedger({ meals, kcalLeft, proteinLeft, deleting, onDelete, onLogMeal }) {
+  const previewMeals = meals.slice(0, 3)
+  return (
+    <div className="phx-nutrition-hero-ledger">
+      <div className="phx-nutrition-hero-ledger-head">
+        <span>RECENT MEAL LEDGER</span>
+        <b>{meals.length} LOGGED</b>
+      </div>
+      {previewMeals.length > 0 ? previewMeals.map(meal => (
+        <div key={meal.id} className="phx-nutrition-hero-meal">
+          <div>
+            <strong>{meal.name}</strong>
+            <span>{safeRound(meal.protein_g)}G P · {safeRound(meal.carbs_g)}G C · {safeRound(meal.fat_g)}G F</span>
+          </div>
+          <div className="phx-nutrition-hero-meal-action">
+            <b>{safeRound(meal.calories)} KCAL</b>
+            <button onClick={() => onDelete(meal.id)} disabled={deleting === meal.id} aria-label={`Delete ${meal.name}`}>×</button>
+          </div>
+        </div>
+      )) : (
+        <EmptyMeals kcalLeft={kcalLeft} proteinLeft={proteinLeft} onLogMeal={onLogMeal} />
+      )}
+    </div>
+  )
+}
+
+function SafetyStrip({ memory }) {
+  const favoriteCount = memory?.favorite_count || 0
+  const avoidCount = memory?.avoid_count || 0
+  const pantryCount = memory?.pantry_count || 0
+  return (
+    <div className="phx-nutrition-safety-strip" aria-label="Nutrition safety locks">
+      <span>LOGGED-DATA ONLY</span>
+      <span>USER-APPROVED PLANS</span>
+      <span>NO MEDICAL CLAIMS</span>
+      <span>{favoriteCount} FAV · {avoidCount} AVOID · {pantryCount} PANTRY</span>
+    </div>
+  )
+}
+
+function NutritionFeatureCard({ code, title, meta, children, actionLabel, action, primary = false }) {
+  return (
+    <article className={`phx-nutrition-feature-card ${primary ? 'phx-nutrition-feature-card-primary' : ''}`}>
+      <div className="phx-nutrition-feature-head">
+        <span>{code}</span>
+        <b>{meta}</b>
+      </div>
+      <h2>{title}</h2>
+      <div className="phx-nutrition-feature-body">{children}</div>
+      {action && <button type="button" onClick={action} className="phx-nutrition-feature-action">{actionLabel}</button>}
+    </article>
+  )
+}
+
+function WeeklySignal({ heatData, historyMeta }) {
+  const days = heatData.length ? heatData.slice(-7) : [
+    { label: 'M', state: 'empty' },
+    { label: 'T', state: 'empty' },
+    { label: 'W', state: 'empty' },
+    { label: 'T', state: 'empty' },
+    { label: 'F', state: 'empty' },
+    { label: 'S', state: 'empty' },
+    { label: 'S', state: 'empty' },
+  ]
+
+  return (
+    <div className="phx-nutrition-week-signal">
+      <div className="phx-nutrition-week-score"><strong>{historyMeta}</strong><span>GOOD / LOGGED</span></div>
+      <div className="phx-nutrition-week-dots">
+        {days.map((day, index) => <i key={`${day.label}-${index}`} className={`phx-heat-${day.state}`}>{day.label}</i>)}
+      </div>
+    </div>
+  )
+}
+
+function FoodBrainSignal({ memory }) {
+  const favoriteCount = memory?.favorite_count || 0
+  const avoidCount = memory?.avoid_count || 0
+  const pantryCount = memory?.pantry_count || 0
+  return (
+    <div className="phx-nutrition-brain-signal">
+      <div><strong>{favoriteCount}</strong><span>favorites</span></div>
+      <div><strong>{avoidCount}</strong><span>avoid</span></div>
+      <div><strong>{pantryCount}</strong><span>pantry</span></div>
+    </div>
+  )
+}
+
+
+function DayModeTabs({ mode, onModeChange, defaultLabel }) {
+  const modes = [
+    { key: 'auto', label: defaultLabel || 'AUTO' },
+    { key: 'rest', label: 'REST' },
+    { key: 'performance', label: 'PERFORMANCE' },
+  ]
+  return (
+    <div className="phx-nutrition-mode-tabs" aria-label="Nutrition mode selector">
+      {modes.map(item => (
+        <button
+          key={item.key}
+          type="button"
+          onClick={() => onModeChange(item.key)}
+          className={mode === item.key ? 'active' : ''}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function modeResultText(mode, selectedChoice, defaultDayLine) {
+  if (!selectedChoice) return 'Choose a next meal shell to preview the next action.'
+  if (mode === 'rest') return `${selectedChoice.result} Rest mode keeps the next meal lighter and leaves a wider buffer.`
+  if (mode === 'performance') return `${selectedChoice.result} Performance mode keeps energy steadier for rehearsal, training, or a longer day.`
+  return `${selectedChoice.result} ${defaultDayLine} mode uses current logged data only.`
+}
+
+function FuelTimeline({ timeline, target, selectedChoice }) {
+  const checkpoints = timeline?.checkpoints || []
+  const safeTarget = Math.max(1, Number(target) || 1)
+  const plannedValue = checkpoints.length
+    ? Math.min(safeTarget, checkpoints[checkpoints.length - 1].value + (selectedChoice?.kcal || 0))
+    : Math.min(safeTarget, selectedChoice?.kcal || 0)
+  const points = checkpoints.map((point, index) => {
+    const total = Math.max(1, Math.max(checkpoints.length - 1, 1))
+    const x = 42 + (index / total) * 330
+    const y = 162 - Math.min(1, point.value / safeTarget) * 108
+    return { ...point, x, y }
+  })
+  const plannedPoint = { x: 440, y: 162 - Math.min(1, plannedValue / safeTarget) * 108, value: plannedValue }
+  const polyPoints = [...points, plannedPoint].map(p => `${p.x.toFixed(0)},${p.y.toFixed(0)}`).join(' ')
+
+  return (
+    <div className="phx-nutrition-chart-card">
+      <div className="phx-nutrition-chart-head"><span>KCAL TIMELINE</span><b>TARGET {safeRound(safeTarget)}</b></div>
+      <svg className="phx-nutrition-line-chart" viewBox="0 0 500 210" role="img" aria-label="Daily calorie timeline">
+        <line x1="36" y1="162" x2="468" y2="162" />
+        <line className="target" x1="36" y1="54" x2="468" y2="54" />
+        {polyPoints && <polyline points={polyPoints} />}
+        {points.map((point, index) => (
+          <g key={`${point.label}-${index}`}>
+            <circle cx={point.x} cy={point.y} r="5" />
+            <text x={point.x - 12} y="188">M{index + 1}</text>
+          </g>
+        ))}
+        <circle className="planned" cx={plannedPoint.x} cy={plannedPoint.y} r="5" />
+        <text className="planned-text" x="408" y="188">NEXT</text>
+        <text className="target-text" x="410" y="44">TARGET</text>
+      </svg>
+    </div>
+  )
+}
+
+function MacroProgressBars({ macros }) {
+  return (
+    <div className="phx-nutrition-progress-bars">
+      {macros.map(macro => (
+        <div key={macro.label} className="phx-nutrition-progress-row">
+          <span>{macro.label}</span>
+          <ProgressBar pct={macro.pct} color={macro.color} />
+          <b>{Math.round(macro.pct * 100)}%</b>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MealChoiceDeck({ choices, selectedKey, onSelect }) {
+  return (
+    <div className="phx-nutrition-choice-deck">
+      {choices.map(choice => (
+        <button
+          key={choice.key}
+          type="button"
+          onClick={() => onSelect(choice.key)}
+          className={selectedKey === choice.key ? 'active' : ''}
+        >
+          <span>{choice.meta}</span>
+          <strong>{choice.title}</strong>
+          <small>{choice.copy}</small>
+          <b>{choice.kcal} kcal · {choice.protein}g protein</b>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function FinishedOutputCard({ code, title, meta, children, wide = false }) {
+  return (
+    <article className={`phx-nutrition-output-card ${wide ? 'phx-nutrition-output-card-wide' : ''}`}>
+      <div className="phx-nutrition-feature-head">
+        <span>{code}</span>
+        <b>{meta}</b>
+      </div>
+      <h2>{title}</h2>
+      {children}
+    </article>
+  )
+}
+
+function SubsectionRoute({ code, title, copy, action, primary = false }) {
+  return (
+    <button type="button" onClick={action} className={`phx-nutrition-route-card ${primary ? 'phx-nutrition-route-card-primary' : ''}`}>
+      <span>{code}</span>
+      <strong>{title}</strong>
+      <small>{copy}</small>
+    </button>
+  )
+}
+
+function SafetyLocks({ memory }) {
+  const favoriteCount = memory?.favorite_count || 0
+  const avoidCount = memory?.avoid_count || 0
+  const pantryCount = memory?.pantry_count || 0
+  return (
+    <div className="phx-nutrition-lock-grid">
+      <div><strong>LOCAL FIRST</strong><span>sqlite logs + local food brain</span></div>
+      <div><strong>APPROVAL ONLY</strong><span>no auto food logging</span></div>
+      <div><strong>MEMORY</strong><span>{favoriteCount} favorites · {avoidCount} dislikes · {pantryCount} pantry</span></div>
+      <div><strong>CLAIM SAFE</strong><span>no medical or guarantee language</span></div>
+    </div>
+  )
+}
+
+export default function NutritionDashboard({
+  onBack,
+  onLogMeal,
+  onRecipes,
+  onWeight,
+  onQuickAsk,
+  onMealBuilder,
+  onDayPlanner,
+  onMemory,
+  onShopping,
+  onWeeklyPlanner,
+  onAcceptanceGate,
+  onCalendarBridge,
+}) {
   const [status, setStatus] = useState(null)
   const [historyData, setHistoryData] = useState(null)
   const [trendText, setTrendText] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [dayMode, setDayMode] = useState('auto')
+  const [selectedMealKey, setSelectedMealKey] = useState(null)
 
   async function load() {
     setLoading(true)
@@ -89,7 +399,16 @@ export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWei
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (typeof document !== 'undefined' && !document.getElementById('ph-fonts')) {
+      const link = document.createElement('link')
+      link.id = 'ph-fonts'
+      link.rel = 'stylesheet'
+      link.href = FONTS_URL
+      document.head.appendChild(link)
+    }
+    load()
+  }, [])
 
   useEffect(() => {
     if (!historyData?.logged_days) return
@@ -104,178 +423,129 @@ export default function NutritionDashboard({ onBack, onLogMeal, onRecipes, onWei
     setDeleting(null)
   }
 
-  if (loading) return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: MUTED, fontFamily: 'var(--mono)', fontSize: 12 }}>Loading nutrition…</div>
-  if (error || !status) return (
-    <div style={{ height: '100%', background: '#000', color: 'rgba(220,248,236,.94)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
-      <div>
-        <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: LIME_BR, marginBottom: 8 }}>NUTRITION OFFLINE</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: TEXT_DIM }}>{error || 'No nutrition status returned.'}</div>
-      </div>
-    </div>
+  if (loading) return (
+    <CockpitShell accent={LIME} className="phx-nutrition-cockpit" aria-label="Nutrition Command Center">
+      <EmptyState status="LOADING" title="Nutrition loading" message="Reading persisted nutrition logs only." />
+    </CockpitShell>
   )
 
-  const { target, logged, remaining_calories, remaining_protein_g, remaining_carbs_g, is_training_day, phase, meal_log, recovery_protocol } = status
-  const meals = meal_log || []
-  const kcalLogged = logged?.total_calories || 0
-  const kcalTarget = target?.calories || 0
-  const kcalLeft = remaining_calories || 0
-  const proteinLogged = logged?.total_protein_g || 0
-  const proteinTarget = target?.protein_g || 0
-  const proteinLeft = remaining_protein_g || 0
-  const carbLogged = logged?.total_carbs_g || 0
-  const carbTarget = target?.carbs_g || 0
-  const fatLogged = logged?.total_fat_g || 0
-  const fatTarget = target?.fat_g || 0
-  const calPct = clampPct(kcalLogged, kcalTarget)
-  const proteinPct = clampPct(proteinLogged, proteinTarget)
-  const carbPct = clampPct(carbLogged, carbTarget)
-  const fatPct = clampPct(fatLogged, fatTarget)
-  const overallPct = Math.round((proteinPct + carbPct + fatPct) / 3 * 100)
-  const proteinLine = status.protein_target_met ? 'PROTEIN MET' : `${Math.max(0, Math.round(proteinLeft))}G PROTEIN LEFT`
-  const dayLine = is_training_day ? 'TRAINING DAY' : 'REST DAY'
-  const nextStep = meals.length === 0 ? 'NO MEALS LOGGED' : kcalLeft > 150 ? 'NEXT MEAL OPEN' : 'DAY NEAR CLOSED'
+  if (error || !status) return (
+    <CockpitShell accent={LIME} className="phx-nutrition-cockpit" aria-label="Nutrition Command Center">
+      <EmptyState status="OFFLINE" title="Nutrition unavailable" message={error || 'No nutrition status returned.'} />
+    </CockpitShell>
+  )
 
-  const DAYS_LABELS = ['M','T','W','T','F','S','S']
-  const heatData = (historyData?.history || []).slice(-14).map((d, i) => ({
-    label: DAYS_LABELS[i % 7],
-    state: d.adherence_status === 'good' ? 'good' : d.adherence_status === 'warn' ? 'warn' : d.has_data ? 'miss' : 'empty',
-  }))
-
-  const heatColors = {
-    good: { bg: 'rgba(157,255,111,.18)', border: 'rgba(157,255,111,.28)', color: LIME_BR },
-    warn: { bg: 'rgba(255,213,107,.12)', border: 'rgba(255,213,107,.2)', color: '#ffd56b' },
-    miss: { bg: 'rgba(255,92,122,.10)', border: 'rgba(255,92,122,.18)', color: '#ff5c7a' },
-    empty: { bg: 'rgba(32,216,236,.035)', border: 'rgba(32,216,236,.08)', color: MUTED },
-  }
+  const model = buildNutritionDashboardModel(status, historyData)
+  const selectedChoice = model.mealChoices.find(choice => choice.key === selectedMealKey) || model.mealChoices[0]
+  const selectedChoiceKey = selectedChoice?.key || null
+  const nextResultText = modeResultText(dayMode, selectedChoice, model.dayLine)
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(220,248,236,.94)', fontFamily: "'Saira Condensed',sans-serif" }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          {onBack && <span onClick={onBack} style={{ color: '#20d8ec', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>}
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>NUTRITION</span>
-        </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>
-          {phase?.toUpperCase()} · {dayLine}
-        </span>
-      </div>
+    <CockpitShell accent={LIME} className="phx-nutrition-cockpit" aria-label="Nutrition Command Center">
+      <div className="phx-domain-frame phx-nutrition-frame">
+        <header className="phx-command-hero phx-nutrition-command-hero phx-nutrition-command-hero-v3 phx-nutrition-finance-copy">
+          <div className="phx-command-topbar">
+            <span>PHOENIX · PERSONAL HEURISTIC OPERATING ENGINE</span>
+            <span className="phx-command-online"><i />{model.phaseLabel} · {model.dayLine}</span>
+          </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
-        <div style={{ padding: '20px 20px 18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.045),transparent)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>DAILY ENERGY TARGET</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 62, fontWeight: 700, lineHeight: .9, background: `linear-gradient(155deg,#fff 0%,${LIME_BR} 48%,${LIME} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 22px rgba(157,255,111,.38))' }}>
-              {Math.round(kcalLogged).toLocaleString()}
-            </div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 16, letterSpacing: '.18em', color: LIME, opacity: .42, paddingBottom: 7 }}>/ {kcalTarget.toLocaleString()} KCAL</div>
-          </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: TEXT_DIM, marginTop: 10 }}>
-            {Math.max(0, Math.round(kcalLeft))} KCAL LEFT · {proteinLine} · {nextStep}
-          </div>
-          <div style={{ height: 3, background: 'rgba(157,255,111,.12)', marginTop: 10, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${Math.min(100, calPct * 100).toFixed(0)}%`, background: `linear-gradient(90deg,${LIME},${LIME_BR})`, boxShadow: `0 0 10px ${LIME}` }} />
-          </div>
-        </div>
+          <div className="phx-command-hero-grid phx-nutrition-hero-grid">
+            <div>
+              <div className="phx-command-kicker">PHOENIX</div>
+              <h1 className="phx-command-title-xl finance-command-title phx-nutrition-command-title-finance">
+                <span>NUTRITION</span>
+                <span className="accent">COMMAND CENTER</span>
+              </h1>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: `1px solid ${BORDER}` }}>
-          {[
-            { label: 'PROTEIN', val: `${Math.round(proteinLogged)}g`, sub: `${proteinTarget}g target`, color: PROTEIN_COL },
-            { label: 'CARBS', val: `${Math.round(carbLogged)}g`, sub: `${carbTarget}g target`, color: CARB_COL },
-            { label: 'FATS', val: `${Math.round(fatLogged)}g`, sub: `${fatTarget}g target`, color: FAT_COL },
-          ].map(({ label, val, sub, color }, i) => (
-            <div key={label} style={{ padding: '13px 12px', borderRight: i < 2 ? `1px solid ${BORDER}` : 'none', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED, marginBottom: 5 }}>{label}</div>
-              <div style={{ fontFamily: 'var(--display)', fontSize: 23, fontWeight: 700, lineHeight: 1, color }}>{val}</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.08em', color: TEXT_DIM, marginTop: 4 }}>{sub}</div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>MACRO BALANCE</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{overallPct}%</span>
-          </div>
-          <MacroRings proteinPct={proteinPct} carbPct={carbPct} fatPct={fatPct} label={statusLabel(status.adherence_status)} />
-        </div>
-
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>TODAY'S MEALS</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{meals.length} LOGGED</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {meals.length > 0 ? meals.map(m => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 12px', border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(157,255,111,.018)' }}>
-                <div>
-                  <div style={{ fontFamily: 'var(--display)', fontSize: 15, fontWeight: 600, letterSpacing: '.06em', color: '#fff' }}>{m.name}</div>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.11em', color: TEXT_DIM, marginTop: 2 }}>{Math.round(m.protein_g)}G PROTEIN · {m.servings > 1 ? `×${m.servings}` : '×1'}</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: LIME_BR }}>{Math.round(m.calories)}</span>
-                  <button onClick={() => handleDelete(m.id)} disabled={deleting === m.id} style={{ background: 'none', border: 'none', color: MUTED, fontSize: 16, cursor: 'pointer', padding: '0 4px' }}>×</button>
-                </div>
+              <div className="phx-command-label-line">DAILY ENERGY TARGET</div>
+              <div className="phx-command-value-row">
+                <span className="phx-command-unit">KCAL</span>
+                <strong className="phx-command-value">{model.logged.calories.toLocaleString()}</strong>
+                <span className="phx-command-denominator">/ {model.target.calories.toLocaleString()}</span>
               </div>
-            )) : <EmptyMeals kcalLeft={kcalLeft} proteinLeft={proteinLeft} onLogMeal={onLogMeal} />}
-          </div>
-        </div>
+              <div className="phx-command-brief">
+                <strong>{model.remaining.calories} KCAL LEFT · {model.primarySignal}</strong><br />
+                {nextResultText} No medical claims; plans stay user-approved.
+              </div>
+              <ProgressBar pct={model.pct.calories} />
+              <DayModeTabs mode={dayMode} onModeChange={setDayMode} defaultLabel={model.dayLine} />
 
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>RECOVERY PROTOCOL</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{is_training_day ? 'FUEL' : 'BASE'}</span>
+              <div className="phx-nutrition-primary-actions">
+                <CommandButton label="LOG MEAL" action={onLogMeal} primary />
+                <CommandButton label="BUILD NEXT" action={onMealBuilder} />
+                <CommandButton label="PLAN DAY" action={onDayPlanner} />
+              </div>
+            </div>
+
+            <aside className="phx-core-card phx-nutrition-core-card phx-nutrition-finance-core">
+              <div className="phx-core-code">FC-001</div>
+              <div className="phx-core-title">
+                <strong>FUEL CORE</strong>
+                <span>MACRO BALANCE</span>
+              </div>
+              <MacroRings proteinPct={model.pct.protein} carbPct={model.pct.carbs} fatPct={model.pct.fat} label={model.primarySignal} />
+              <CompactMealLedger
+                meals={model.meals}
+                kcalLeft={model.remaining.calories}
+                proteinLeft={model.remaining.protein}
+                deleting={deleting}
+                onDelete={handleDelete}
+                onLogMeal={onLogMeal}
+              />
+              <SafetyStrip memory={model.memory} />
+              <SourceStamp source="sqlite nutrition logs" freshness={`${model.meals.length} meals today`} />
+              <div className="phx-core-status">
+                {onBack && <button className="phx-command-button phx-command-button-ghost" onClick={onBack}>BACK</button>}
+                <StatusChip tone={statusTone(status.adherence_status)}>{model.primarySignal}</StatusChip>
+              </div>
+            </aside>
           </div>
-          <div style={{ padding: '13px 13px', border: `1px solid rgba(157,255,111,.16)`, background: 'rgba(157,255,111,.025)' }}>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: '.07em' }}>{recovery_protocol?.title}</div>
-            <div style={{ fontSize: '12.5px', lineHeight: 1.6, color: 'rgba(220,248,236,.78)', marginTop: 6 }}>{recovery_protocol?.primary}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 10 }}>
-              {(recovery_protocol?.checks || []).map(check => (
-                <div key={check} style={{ fontFamily: 'var(--mono)', fontSize: 7.5, letterSpacing: '.1em', color: TEXT_DIM }}>◆ {check}</div>
-              ))}
+        </header>
+
+        {trendText && (
+          <div className="phx-nutrition-inline-trend">
+            <strong>LOGGED TREND READ</strong>
+            <span>{trendText}</span>
+          </div>
+        )}
+
+        <DataPanel eyebrow="[ OPENING OUTPUTS ]" title="Finished Nutrition Outputs" meta="TODAY">
+          <div className="phx-panel-body">
+            <div className="phx-nutrition-output-grid">
+              <FinishedOutputCard code="FUEL" title="Daily Fuel Graph" meta={`${model.logged.calories} / ${model.target.calories} KCAL`} wide>
+                <p className="phx-nutrition-output-copy">Shows how today’s meals accumulated and where the selected next meal would land.</p>
+                <FuelTimeline timeline={model.calorieTimeline} target={model.target.calories} selectedChoice={selectedChoice} />
+              </FinishedOutputCard>
+
+              <FinishedOutputCard code="MACRO" title="Macro Progress" meta={`${model.overallPct}% OVERALL`}>
+                <p className="phx-nutrition-output-copy">Phoenix surfaces the result of the macro engine as simple progress bars.</p>
+                <MacroProgressBars macros={model.macroMatrix} />
+              </FinishedOutputCard>
+
+              <FinishedOutputCard code="WEEK" title="Week Rhythm" meta={`${model.visibleDaysMeta} DAYS`}>
+                <p className="phx-nutrition-output-copy">Shows logged-day rhythm. Detailed trend review stays in History.</p>
+                <WeeklySignal heatData={model.heatData} historyMeta={model.historyMeta} />
+              </FinishedOutputCard>
+
+              <FinishedOutputCard code="CHOICE" title="Choose Next Meal" meta="USER CONTROL" wide>
+                <p className="phx-nutrition-output-copy">Choose a meal shell to preview the next action. Nothing is saved until you open Build Next or Log Meal.</p>
+                <MealChoiceDeck choices={model.mealChoices} selectedKey={selectedChoiceKey} onSelect={setSelectedMealKey} />
+              </FinishedOutputCard>
             </div>
           </div>
-        </div>
+        </DataPanel>
 
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {[
-              { label: 'ACCEPTANCE', action: onAcceptanceGate },
-              { label: 'CALENDAR', action: onCalendarBridge },
-              { label: 'WEEKLY PREP', action: onWeeklyPlanner },
-              { label: 'PLAN DAY', action: onDayPlanner },
-              { label: 'BUILD MEAL', action: onMealBuilder },
-              { label: 'MEMORY', action: onMemory },
-              { label: 'SHOPPING', action: onShopping },
-              { label: 'LOG MEAL', action: onLogMeal },
-              { label: 'RECIPES', action: onRecipes },
-              { label: 'TRENDS', action: onWeight },
-              { label: 'ASK PHOENIX', action: () => onQuickAsk?.(`Build my next meal. I have ${Math.round(kcalLeft)} kcal, ${Math.round(proteinLeft)}g protein, and ${Math.round(remaining_carbs_g || 0)}g carbs remaining.`) },
-            ].map(({ label, action }) => (
-              <button key={label} onClick={action} style={{ padding: '12px 10px', border: `1px solid rgba(157,255,111,.22)`, background: 'rgba(157,255,111,.045)', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: LIME, textAlign: 'center', cursor: 'pointer' }}>{label}</button>
-            ))}
+        <DataPanel eyebrow="[ DETAIL ROUTES ]" title="Nutrition Detail Routes" meta="SUBSECTIONS">
+          <div className="phx-panel-body">
+            <div className="phx-nutrition-route-grid phx-nutrition-route-grid-clean">
+              <SubsectionRoute code="MEALS" title="Meals" copy="Full meal ledger, add/edit/delete, recipes, and daily history." action={onLogMeal} primary />
+              <SubsectionRoute code="PLAN" title="Plan" copy="Build next meal and review the user-approved day plan." action={onDayPlanner} />
+              <SubsectionRoute code="TARGETS" title="Targets" copy="Preferences, pantry, saved choices, and manual settings." action={onMemory} />
+              <SubsectionRoute code="HISTORY" title="History" copy="Weekly rhythm, trends, and previous-day review." action={onWeight} />
+            </div>
           </div>
-        </div>
-
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>ADHERENCE HEATMAP</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{historyData?.good_days || 0} / {historyData?.logged_days || 0}</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
-            {heatData.map((d, i) => {
-              const c = heatColors[d.state]
-              return <div key={i} title={d.state} style={{ height: 32, border: `1px solid ${c.border}`, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 7, color: c.color }}>{d.label}</div>
-            })}
-          </div>
-        </div>
-
-        {trendText && <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX ASSESSMENT</div>
-          <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>{trendText}</div>
-        </div>}
-
-        <div style={{ height: 32 }} />
+        </DataPanel>
       </div>
-    </div>
+    </CockpitShell>
   )
 }

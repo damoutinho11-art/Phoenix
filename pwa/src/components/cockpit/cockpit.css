@@ -400,3 +400,1998 @@
     transition: none !important;
   }
 }
+
+/* ── Cross-domain premium cockpit surfaces ───────────────────────────────── */
+.phx-domain-frame {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 0 7rem;
+}
+
+.phx-domain-actions-stack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .55rem;
+}
+
+.phx-hero-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
+  gap: 1.25rem;
+  margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+  padding: clamp(1.2rem, 4vw, 1.85rem);
+  overflow: hidden;
+  border: 1px solid var(--phx-edge);
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 12% 15%, color-mix(in srgb, var(--phx-accent) 18%, transparent), transparent 32rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--phx-accent) 8%, transparent), transparent 48%),
+    linear-gradient(180deg, var(--phx-panel-raised), var(--phx-panel));
+  box-shadow: 0 28px 70px rgba(0, 0, 0, .36), inset 0 1px 0 rgba(255, 255, 255, .026);
+}
+
+.phx-hero-panel::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--phx-accent) 13%, transparent), transparent),
+    repeating-linear-gradient(90deg, transparent 0 3.4rem, color-mix(in srgb, var(--phx-accent) 4%, transparent) 3.45rem 3.5rem);
+  opacity: .32;
+  content: '';
+}
+
+.phx-hero-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.phx-hero-reading {
+  display: flex;
+  align-items: flex-end;
+  gap: .75rem;
+  margin-top: .45rem;
+}
+
+.phx-hero-reading strong {
+  color: #fff;
+  font-family: var(--phx-font-display);
+  font-size: clamp(3.45rem, 11vw, 6.2rem);
+  font-weight: 700;
+  line-height: .82;
+  letter-spacing: .025em;
+  text-shadow: 0 0 2.2rem color-mix(in srgb, var(--phx-accent) 42%, transparent);
+}
+
+.phx-hero-reading span {
+  padding-bottom: .45rem;
+  color: color-mix(in srgb, var(--phx-accent) 70%, white 18%);
+  font-family: var(--phx-font-display);
+  font-size: clamp(1rem, 3vw, 1.4rem);
+  font-weight: 600;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.phx-hero-panel p {
+  margin: .9rem 0 0;
+  color: var(--phx-body);
+  font-family: var(--phx-font-mono);
+  font-size: .72rem;
+  letter-spacing: .13em;
+  line-height: 1.65;
+  text-transform: uppercase;
+}
+
+.phx-hero-aside {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .2rem 0;
+  text-align: right;
+}
+
+.phx-progress-track {
+  height: .34rem;
+  margin-top: 1rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+}
+
+.phx-progress-fill {
+  display: block;
+  height: 100%;
+  box-shadow: 0 0 1.2rem var(--phx-accent);
+}
+
+.phx-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .85rem;
+  margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+}
+
+.phx-metric-tile {
+  min-width: 0;
+  padding: .95rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 16%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 5%, transparent), rgba(0, 0, 0, .14));
+}
+
+.phx-metric-label,
+.phx-metric-detail,
+.phx-command-sub,
+.phx-calendar-row em,
+.phx-calendar-time,
+.phx-calendar-end,
+.phx-row-actions,
+.phx-check-stack,
+.phx-signal-row {
+  font-family: var(--phx-font-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.phx-metric-label {
+  color: var(--phx-muted);
+  font-size: .66rem;
+  letter-spacing: .17em;
+}
+
+.phx-metric-value {
+  margin-top: .36rem;
+  font-family: var(--phx-font-display);
+  font-size: clamp(1.55rem, 5vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.phx-metric-detail {
+  margin-top: .38rem;
+  color: var(--phx-muted);
+  font-size: .62rem;
+}
+
+.phx-panel-grid {
+  display: grid;
+  gap: 1rem;
+  margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+}
+
+.phx-panel-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.phx-domain-frame > .phx-data-panel {
+  margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+}
+
+.phx-panel-body {
+  padding: 1rem;
+}
+
+.phx-row-stack {
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+}
+
+.phx-macro-rings {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.phx-ring-stack {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  filter: drop-shadow(0 0 1.2rem color-mix(in srgb, var(--phx-accent) 18%, transparent));
+}
+
+.phx-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.phx-ring-center strong {
+  color: color-mix(in srgb, var(--phx-accent) 70%, white 24%);
+  font-family: var(--phx-font-display);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.phx-ring-center span {
+  margin-top: .25rem;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: .62rem;
+  letter-spacing: .14em;
+}
+
+.phx-legend-stack {
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+
+.phx-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  color: var(--phx-body);
+  font-family: var(--phx-font-mono);
+  font-size: .68rem;
+  letter-spacing: .1em;
+}
+
+.phx-legend-row i {
+  display: inline-block;
+  width: .48rem;
+  height: .48rem;
+  margin-right: .45rem;
+  box-shadow: 0 0 .85rem currentColor;
+}
+
+.phx-legend-row b {
+  color: var(--phx-text);
+}
+
+.phx-empty-action,
+.phx-command-button,
+.phx-command-row,
+.phx-calendar-row,
+.phx-note-card,
+.phx-signal-row {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 5%, transparent);
+}
+
+.phx-empty-action {
+  width: 100%;
+  padding: 1rem;
+  text-align: left;
+  border-style: dashed;
+}
+
+.phx-empty-action strong,
+.phx-note-card strong,
+.phx-calendar-row strong,
+.phx-command-title {
+  display: block;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-weight: 700;
+  letter-spacing: .055em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.phx-empty-action span {
+  display: block;
+  margin-top: .35rem;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: .62rem;
+  letter-spacing: .11em;
+}
+
+.phx-command-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .82rem .9rem;
+  text-align: left;
+}
+
+.phx-command-title {
+  font-size: 1rem;
+}
+
+.phx-command-sub {
+  margin-top: .28rem;
+  color: var(--phx-muted);
+  font-size: .62rem;
+}
+
+.phx-row-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: .7rem;
+  color: color-mix(in srgb, var(--phx-accent) 72%, white 10%);
+  font-size: .72rem;
+}
+
+.phx-row-actions button {
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  color: var(--phx-muted);
+  font-size: 1.2rem;
+}
+
+.phx-command-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .62rem;
+}
+
+.phx-command-button {
+  min-height: 2.65rem;
+  padding: .65rem .75rem;
+  color: color-mix(in srgb, var(--phx-accent) 70%, white 14%);
+  font-family: var(--phx-font-mono);
+  font-size: .68rem;
+  letter-spacing: .15em;
+  text-align: center;
+  text-transform: uppercase;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.phx-command-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--phx-accent) 36%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 9%, transparent);
+}
+
+.phx-command-button-ghost {
+  min-height: 1.65rem;
+  padding: .2rem .58rem;
+  border-color: color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  background: transparent;
+  color: var(--phx-muted);
+  font-size: .66rem;
+}
+
+.phx-note-card {
+  padding: .95rem 1rem;
+  border-left: 3px solid var(--phx-accent);
+}
+
+.phx-note-card p {
+  margin: .45rem 0 0;
+  color: var(--phx-body);
+  font-size: .86rem;
+  line-height: 1.62;
+}
+
+.phx-note-card-soft {
+  background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+}
+
+.phx-check-stack {
+  display: flex;
+  flex-direction: column;
+  gap: .36rem;
+  margin-top: .75rem;
+  color: var(--phx-muted);
+  font-size: .63rem;
+}
+
+.phx-heatmap-grid,
+.phx-week-rail {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .42rem;
+}
+
+.phx-heatmap-grid > div,
+.phx-week-rail > div {
+  display: grid;
+  min-height: 2.2rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: .66rem;
+}
+
+.phx-heat-good {
+  border-color: rgba(157,255,111,.3) !important;
+  background: rgba(157,255,111,.16) !important;
+  color: #d5ffc7 !important;
+}
+
+.phx-heat-warn {
+  border-color: rgba(255,200,87,.28) !important;
+  background: rgba(255,200,87,.12) !important;
+  color: #ffc857 !important;
+}
+
+.phx-heat-miss {
+  border-color: rgba(255,102,133,.25) !important;
+  background: rgba(255,102,133,.10) !important;
+  color: #ff6685 !important;
+}
+
+.phx-heat-empty {
+  opacity: .72;
+}
+
+.phx-week-rail {
+  padding: .85rem;
+}
+
+.phx-week-rail > div {
+  min-height: 4.2rem;
+  gap: .25rem;
+}
+
+.phx-week-rail span {
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+}
+
+.phx-week-rail strong {
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.phx-week-rail .active {
+  border-color: color-mix(in srgb, var(--phx-accent) 34%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 11%, transparent);
+  box-shadow: inset 0 -2px 0 var(--phx-accent), 0 0 1.4rem color-mix(in srgb, var(--phx-accent) 9%, transparent);
+}
+
+.phx-calendar-row {
+  --event-accent: var(--phx-accent);
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) 4.2rem;
+  gap: .8rem;
+  align-items: start;
+  width: 100%;
+  padding: .86rem .9rem;
+  border-left: 3px solid var(--event-accent);
+  text-align: left;
+}
+
+.phx-calendar-row strong {
+  font-size: 1rem;
+}
+
+.phx-calendar-row em {
+  display: block;
+  margin-top: .28rem;
+  color: var(--phx-muted);
+  font-size: .62rem;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.phx-calendar-time {
+  color: color-mix(in srgb, var(--phx-accent) 78%, white 12%);
+  font-size: .72rem;
+}
+
+.phx-calendar-end {
+  color: var(--phx-muted);
+  font-size: .62rem;
+  text-align: right;
+}
+
+.phx-signal-row {
+  padding: .75rem .85rem;
+  color: var(--phx-body);
+  font-size: .66rem;
+  line-height: 1.5;
+}
+
+.phx-signal-row.caution {
+  border-color: rgba(255,200,87,.28);
+  background: rgba(255,200,87,.06);
+  color: #ffc857;
+}
+
+
+/* ── Finance/Training-grade command hero for cross-domain dashboards ───────── */
+.phx-command-hero {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 1rem;
+  padding: clamp(1.3rem, 4vw, 2.5rem);
+  border: 1px solid var(--phx-edge);
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background:
+    radial-gradient(ellipse at 8% 10%, color-mix(in srgb, var(--phx-accent) 9%, transparent) 0%, transparent 44%),
+    radial-gradient(ellipse at 90% 8%, color-mix(in srgb, var(--phx-accent) 7%, transparent) 0%, transparent 38%),
+    linear-gradient(180deg, #07111a 0%, #061019 100%);
+  box-shadow: 0 28px 82px rgba(0, 0, 0, .42);
+}
+
+.phx-command-hero::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--phx-accent) 7%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: .46;
+  content: '';
+}
+
+.phx-command-hero::after {
+  position: absolute;
+  top: 0;
+  left: -35%;
+  width: 30%;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--phx-accent), transparent);
+  animation: phx-panel-scan 5.2s linear infinite;
+  content: '';
+}
+
+.phx-command-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.phx-command-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: clamp(1.35rem, 4vw, 2rem);
+  padding-bottom: .8rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+  color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+}
+
+.phx-command-online {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  color: var(--phx-positive);
+}
+
+.phx-command-online i {
+  width: .34rem;
+  height: .34rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 .7rem currentColor;
+}
+
+.phx-command-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  align-items: stretch;
+  gap: clamp(1.2rem, 4vw, 2rem);
+}
+
+.phx-command-kicker {
+  color: color-mix(in srgb, var(--phx-accent) 72%, white 8%);
+  font-family: var(--phx-font-mono);
+  font-size: .62rem;
+  letter-spacing: .29em;
+  text-transform: uppercase;
+}
+
+.phx-command-title-xl {
+  margin: .32rem 0 clamp(1.35rem, 4vw, 2rem);
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: clamp(3rem, 11vw, 4.75rem);
+  font-weight: 700;
+  line-height: .92;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.phx-command-title-xl span { display: block; }
+
+.phx-command-title-xl .accent {
+  color: var(--phx-accent);
+  text-shadow: 0 0 2.6rem color-mix(in srgb, var(--phx-accent) 34%, transparent);
+}
+
+.phx-command-label-line {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: .55rem;
+  color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .54rem;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+}
+
+.phx-command-label-line::after {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 22%, transparent), transparent);
+  content: '';
+}
+
+.phx-command-value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .4rem .7rem;
+}
+
+.phx-command-unit,
+.phx-command-denominator {
+  color: color-mix(in srgb, var(--phx-accent) 48%, transparent);
+  font-family: var(--phx-font-body);
+  font-size: clamp(1.1rem, 3vw, 1.65rem);
+  font-weight: 300;
+}
+
+.phx-command-value {
+  color: var(--phx-accent);
+  font-family: var(--phx-font-body);
+  font-size: clamp(3.6rem, 13vw, 6rem);
+  font-weight: 700;
+  line-height: .9;
+  letter-spacing: -.05em;
+  text-shadow: 0 0 2.8rem color-mix(in srgb, var(--phx-accent) 34%, transparent), 0 0 5rem color-mix(in srgb, var(--phx-accent) 14%, transparent);
+}
+
+.phx-command-brief {
+  position: relative;
+  max-width: 48rem;
+  margin: 1.15rem 0 0;
+  padding-left: .9rem;
+  border-left: 2px solid color-mix(in srgb, var(--phx-accent) 42%, transparent);
+  color: var(--phx-body);
+  font-size: .88rem;
+  line-height: 1.65;
+}
+
+.phx-command-brief strong {
+  color: color-mix(in srgb, var(--phx-accent) 78%, white 10%);
+  font-family: var(--phx-font-mono);
+  font-size: .66rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.phx-core-card {
+  position: relative;
+  min-height: 100%;
+  padding: 1.2rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 22%, transparent);
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 58%),
+    rgba(7, 14, 21, .82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03), 0 20px 54px rgba(0, 0, 0, .32);
+}
+
+.phx-core-card::before,
+.phx-core-card::after {
+  position: absolute;
+  width: .7rem;
+  height: .7rem;
+  pointer-events: none;
+  border-color: color-mix(in srgb, var(--phx-accent) 44%, transparent);
+  border-style: solid;
+  content: '';
+}
+
+.phx-core-card::before {
+  top: .55rem;
+  left: .55rem;
+  border-width: 1px 0 0 1px;
+}
+
+.phx-core-card::after {
+  right: .55rem;
+  bottom: .55rem;
+  border-width: 0 1px 1px 0;
+}
+
+.phx-core-code {
+  position: absolute;
+  top: .75rem;
+  right: .85rem;
+  color: color-mix(in srgb, var(--phx-accent) 26%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .48rem;
+  letter-spacing: .18em;
+}
+
+.phx-core-title {
+  margin-bottom: .95rem;
+  text-align: center;
+}
+
+.phx-core-title strong {
+  display: block;
+  color: color-mix(in srgb, var(--phx-accent) 78%, white 10%);
+  font-family: var(--phx-font-mono);
+  font-size: .63rem;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+}
+
+.phx-core-title span {
+  display: block;
+  margin-top: .22rem;
+  color: color-mix(in srgb, var(--phx-accent) 44%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .5rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.phx-core-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .5rem;
+  margin-top: 1rem;
+}
+
+.phx-command-hero .phx-week-rail,
+.phx-command-hero .phx-macro-rings {
+  margin-top: .6rem;
+}
+
+.phx-command-hero .phx-source-stamp {
+  justify-content: center;
+  margin-top: .9rem;
+  text-align: center;
+}
+
+.phx-calendar-command-hero .phx-week-rail {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  padding: 0;
+}
+
+.phx-calendar-command-hero .phx-week-rail > div {
+  min-height: 3.7rem;
+}
+
+
+/* ── Nutrition v3: focused fuel operations surface ─────────────────────────── */
+.phx-nutrition-frame {
+  gap: 1rem;
+}
+
+.phx-nutrition-command-hero-v3 {
+  border-bottom-color: color-mix(in srgb, var(--phx-accent) 26%, transparent);
+}
+
+.phx-nutrition-hero-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, .8fr);
+}
+
+.phx-nutrition-command-hero-v3 .phx-progress-track {
+  max-width: 42rem;
+  margin-top: 1.15rem;
+}
+
+.phx-nutrition-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin-top: 1.35rem;
+}
+
+.phx-command-button-primary {
+  color: #07110c;
+  border-color: color-mix(in srgb, var(--phx-accent) 76%, white 12%);
+  background: linear-gradient(135deg, var(--phx-accent), color-mix(in srgb, var(--phx-accent) 54%, white 22%));
+  box-shadow: 0 0 1.4rem color-mix(in srgb, var(--phx-accent) 24%, transparent);
+}
+
+.phx-nutrition-core-card {
+  display: flex;
+  min-height: 24rem;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.phx-nutrition-ops-grid {
+  align-items: stretch;
+}
+
+.phx-protocol-stack {
+  display: grid;
+  gap: .72rem;
+}
+
+.phx-protocol-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  gap: .8rem;
+  align-items: center;
+  min-height: 4.25rem;
+  padding: .85rem .95rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 16%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 7%, transparent), rgba(255,255,255,.018));
+}
+
+.phx-protocol-step::after {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 32%, transparent), transparent);
+  content: '';
+}
+
+.phx-protocol-index {
+  color: color-mix(in srgb, var(--phx-accent) 72%, white 10%);
+  font-family: var(--phx-font-display);
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: .88;
+}
+
+.phx-protocol-step strong,
+.phx-nutrition-lock-grid strong {
+  display: block;
+  color: var(--phx-text);
+  font-family: var(--phx-font-mono);
+  font-size: .62rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.phx-protocol-step span:last-child,
+.phx-nutrition-lock-grid span {
+  display: block;
+  margin-top: .28rem;
+  color: var(--phx-muted);
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+.phx-protocol-locked {
+  border-color: color-mix(in srgb, var(--phx-positive) 28%, transparent);
+}
+
+.phx-protocol-locked .phx-protocol-index,
+.phx-protocol-locked strong {
+  color: var(--phx-positive);
+}
+
+.phx-protocol-active {
+  border-color: color-mix(in srgb, var(--phx-accent) 30%, transparent);
+}
+
+.phx-protocol-open {
+  border-color: rgba(255, 213, 107, .26);
+}
+
+.phx-protocol-open .phx-protocol-index,
+.phx-protocol-open strong {
+  color: #ffd56b;
+}
+
+.phx-nutrition-macro-matrix {
+  display: grid;
+  gap: .78rem;
+}
+
+.phx-nutrition-macro-row {
+  padding: .9rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  background: rgba(255,255,255,.018);
+}
+
+.phx-nutrition-macro-head,
+.phx-nutrition-macro-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+}
+
+.phx-nutrition-macro-head {
+  margin-bottom: .6rem;
+}
+
+.phx-nutrition-macro-head span {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  color: var(--phx-text);
+  font-family: var(--phx-font-mono);
+  font-size: .64rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-macro-head i {
+  width: .42rem;
+  height: .42rem;
+  border-radius: 999px;
+  box-shadow: 0 0 .7rem currentColor;
+}
+
+.phx-nutrition-macro-head b {
+  color: color-mix(in srgb, var(--phx-accent) 72%, white 12%);
+  font-family: var(--phx-font-display);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.phx-nutrition-macro-foot {
+  margin-top: .48rem;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: .58rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.phx-meal-ledger-row {
+  min-height: 4.25rem;
+}
+
+.phx-nutrition-empty-action {
+  min-height: 6rem;
+}
+
+.phx-nutrition-recovery-card p {
+  max-width: 62ch;
+}
+
+.phx-nutrition-lock-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .75rem;
+}
+
+.phx-nutrition-lock-grid > div {
+  min-height: 5rem;
+  padding: .9rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--phx-accent) 8%, transparent), transparent 60%),
+    rgba(255,255,255,.018);
+}
+
+.phx-nutrition-command-grid {
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+}
+
+.phx-nutrition-heatmap-grid {
+  grid-template-columns: repeat(14, minmax(2.6rem, 1fr));
+}
+
+@media (max-width: 860px) {
+  .phx-nutrition-hero-grid,
+  .phx-nutrition-lock-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-nutrition-core-card {
+    min-height: 0;
+  }
+
+  .phx-nutrition-primary-actions .phx-command-button {
+    flex: 1 1 9rem;
+  }
+
+  .phx-nutrition-heatmap-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .phx-domain-header,
+  .phx-panel-heading,
+  .phx-hero-panel,
+  .phx-macro-rings {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-domain-header {
+    display: grid;
+  }
+
+  .phx-domain-actions,
+  .phx-domain-actions-stack,
+  .phx-hero-aside {
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .phx-hero-panel,
+  .phx-metric-strip,
+  .phx-panel-grid,
+  .phx-domain-frame > .phx-data-panel {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  .phx-panel-grid-2,
+  .phx-metric-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-calendar-row {
+    grid-template-columns: 3.4rem minmax(0, 1fr);
+  }
+
+  .phx-calendar-end {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .phx-command-topbar,
+  .phx-command-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-command-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .phx-command-hero {
+    padding: 1.2rem 1rem 1.35rem;
+  }
+
+  .phx-command-value {
+    font-size: clamp(3rem, 18vw, 4.7rem);
+  }
+
+  .phx-core-card {
+    min-height: 0;
+  }
+ }
+
+/* ── Nutrition v4: copy Finance hero typography/geometry, keep green identity ── */
+.phx-nutrition-finance-copy {
+  margin-bottom: 1rem;
+  padding: 2rem 2.5rem 2.5rem;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--phx-accent) 5%, transparent), transparent 18rem),
+    linear-gradient(180deg, #070e15 0%, #060f17 100%);
+}
+
+.phx-nutrition-finance-copy::before {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--phx-accent) 6%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: .5;
+}
+
+.phx-nutrition-finance-copy .phx-command-topbar {
+  margin-bottom: 2rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 8%, transparent);
+  color: color-mix(in srgb, var(--phx-accent) 40%, transparent);
+  font-size: .5rem;
+  letter-spacing: .3em;
+}
+
+.phx-nutrition-finance-copy .phx-command-hero-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 2rem;
+}
+
+.phx-nutrition-finance-copy .phx-command-kicker {
+  margin-bottom: .65rem;
+  font-size: .62rem;
+  letter-spacing: .3em;
+}
+
+.phx-nutrition-command-title-finance {
+  margin: 0 0 2rem;
+  font-family: var(--phx-font-display);
+  font-size: 3.25rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .04em;
+}
+
+.phx-nutrition-command-title-finance .accent {
+  white-space: nowrap;
+}
+
+.phx-nutrition-finance-copy .phx-command-label-line {
+  margin-bottom: .65rem;
+  font-size: .5rem;
+  letter-spacing: .35em;
+}
+
+.phx-nutrition-finance-copy .phx-command-value-row {
+  gap: .25rem .55rem;
+  margin-bottom: .35rem;
+}
+
+.phx-nutrition-finance-copy .phx-command-unit,
+.phx-nutrition-finance-copy .phx-command-denominator {
+  color: color-mix(in srgb, var(--phx-accent) 53%, transparent);
+  font-family: var(--phx-font-body);
+  font-size: 1.75rem;
+  font-weight: 300;
+  letter-spacing: 0;
+}
+
+.phx-nutrition-finance-copy .phx-command-value {
+  font-family: var(--phx-font-body);
+  font-size: clamp(4.25rem, 8vw, 5.85rem);
+  font-weight: 700;
+  letter-spacing: -.05em;
+}
+
+.phx-nutrition-finance-copy .phx-command-brief {
+  max-width: 48rem;
+  margin-top: 1rem;
+  color: color-mix(in srgb, var(--phx-body) 86%, white 4%);
+  font-family: var(--phx-font-body);
+  font-size: .88rem;
+  line-height: 1.65;
+}
+
+.phx-nutrition-finance-copy .phx-command-brief strong {
+  font-family: var(--phx-font-mono);
+  font-size: .58rem;
+  letter-spacing: .22em;
+}
+
+.phx-nutrition-finance-copy .phx-progress-track {
+  max-width: 41rem;
+  margin-top: 1.05rem;
+}
+
+.phx-nutrition-finance-copy .phx-nutrition-primary-actions {
+  margin-top: 1.25rem;
+}
+
+.phx-nutrition-finance-copy .phx-command-button {
+  min-height: 2.1rem;
+  padding: .55rem .78rem;
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .22em;
+}
+
+.phx-nutrition-finance-core {
+  min-height: 100%;
+  padding: 1.55rem 1.45rem 1.35rem;
+  justify-content: flex-start;
+  border-color: color-mix(in srgb, var(--phx-accent) 24%, transparent);
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 12rem),
+    rgba(7, 14, 21, .88);
+}
+
+.phx-nutrition-finance-core .phx-core-title {
+  margin: 1.9rem 0 1.25rem;
+}
+
+.phx-nutrition-finance-core .phx-core-title strong {
+  font-size: .62rem;
+  letter-spacing: .25em;
+}
+
+.phx-nutrition-finance-core .phx-core-title span {
+  font-size: .5rem;
+  letter-spacing: .2em;
+}
+
+.phx-nutrition-finance-core .phx-macro-rings {
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.phx-nutrition-finance-core .phx-source-stamp {
+  margin-top: 1.1rem;
+  font-size: .5rem;
+}
+
+.phx-nutrition-finance-core .phx-core-status {
+  margin-top: 1.2rem;
+}
+
+@media (max-width: 900px) {
+  .phx-nutrition-finance-copy .phx-command-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .phx-nutrition-command-title-finance .accent {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 680px) {
+  .phx-nutrition-finance-copy {
+    padding: 1.25rem !important;
+  }
+
+  .phx-nutrition-finance-copy .phx-command-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .75rem;
+  }
+
+  .phx-nutrition-command-title-finance {
+    font-size: clamp(2.35rem, 12vw, 3.25rem) !important;
+  }
+
+  .phx-nutrition-finance-copy .phx-command-value {
+    font-size: clamp(3rem, 16vw, 4.25rem) !important;
+  }
+
+  .phx-nutrition-finance-core .phx-macro-rings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Nutrition v5: opening page first, subsections second ── */
+.phx-nutrition-finance-core .phx-macro-rings {
+  margin-bottom: 1rem;
+}
+
+.phx-nutrition-hero-ledger {
+  margin-top: 1.05rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+}
+
+.phx-nutrition-hero-ledger-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .7rem;
+  color: color-mix(in srgb, var(--phx-accent) 72%, white 4%);
+  font-family: var(--phx-font-mono);
+  font-size: .48rem;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-hero-ledger-head b {
+  color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+  font-weight: 500;
+}
+
+.phx-nutrition-hero-meal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .75rem;
+  align-items: center;
+  padding: .65rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 8%, transparent);
+}
+
+.phx-nutrition-hero-meal strong {
+  display: block;
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: .9rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-hero-meal span {
+  display: block;
+  margin-top: .25rem;
+  color: color-mix(in srgb, var(--phx-body) 46%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .48rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-hero-meal-action {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  color: var(--phx-accent);
+  font-family: var(--phx-font-display);
+  font-size: .9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.phx-nutrition-hero-meal-action button {
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--phx-danger, #ff5f73) 38%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--phx-danger, #ff5f73) 8%, transparent);
+  color: color-mix(in srgb, var(--phx-danger, #ff5f73) 82%, white 5%);
+  cursor: pointer;
+}
+
+.phx-nutrition-safety-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .45rem;
+  margin-top: 1rem;
+}
+
+.phx-nutrition-safety-strip span {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  border-radius: .35rem;
+  background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+  color: color-mix(in srgb, var(--phx-accent) 72%, white 4%);
+  font-family: var(--phx-font-mono);
+  font-size: .44rem;
+  letter-spacing: .16em;
+  padding: .52rem .55rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-inline-trend {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  margin: .4rem 0 1rem;
+  padding: .78rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 13%, transparent);
+  border-left-color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+}
+
+.phx-nutrition-inline-trend strong {
+  color: var(--phx-accent);
+  font-family: var(--phx-font-mono);
+  font-size: .5rem;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.phx-nutrition-inline-trend span {
+  color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+  font-size: .86rem;
+  line-height: 1.45;
+}
+
+.phx-nutrition-route-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .9rem;
+}
+
+.phx-nutrition-route-card {
+  min-height: 9rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 13%, transparent);
+  border-radius: .8rem;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 6%, transparent), transparent 9rem),
+    color-mix(in srgb, var(--phx-panel, #07131b) 84%, transparent);
+  color: var(--phx-body);
+  cursor: pointer;
+  padding: 1rem;
+  text-align: left;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.phx-nutrition-route-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--phx-accent) 34%, transparent);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 11%, transparent), transparent 9rem),
+    color-mix(in srgb, var(--phx-panel, #07131b) 88%, transparent);
+}
+
+.phx-nutrition-route-card-primary {
+  border-color: color-mix(in srgb, var(--phx-accent) 36%, transparent);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 14%, transparent), transparent 9rem),
+    color-mix(in srgb, var(--phx-accent) 7%, transparent);
+}
+
+.phx-nutrition-route-card span {
+  display: block;
+  color: var(--phx-accent);
+  font-family: var(--phx-font-mono);
+  font-size: .5rem;
+  letter-spacing: .25em;
+  margin-bottom: .75rem;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-route-card strong {
+  display: block;
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-route-card small {
+  display: block;
+  margin-top: .65rem;
+  color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 980px) {
+  .phx-nutrition-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .phx-nutrition-safety-strip,
+  .phx-nutrition-route-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .phx-nutrition-inline-trend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Nutrition v6: opening page feature modules before detail routes ── */
+.phx-nutrition-feature-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.phx-nutrition-feature-card {
+  position: relative;
+  min-height: 16.5rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  border-radius: .9rem;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 7%, transparent), transparent 10rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--phx-panel, #07131b) 92%, transparent), color-mix(in srgb, #02090f 92%, transparent));
+  padding: 1rem;
+}
+
+.phx-nutrition-feature-card::before,
+.phx-nutrition-feature-card::after {
+  content: "";
+  position: absolute;
+  top: .7rem;
+  width: .75rem;
+  height: .75rem;
+  border-top: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+}
+
+.phx-nutrition-feature-card::before {
+  left: .7rem;
+  border-left: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+}
+
+.phx-nutrition-feature-card::after {
+  right: .7rem;
+  border-right: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+}
+
+.phx-nutrition-feature-card-primary {
+  border-color: color-mix(in srgb, var(--phx-accent) 32%, transparent);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 12%, transparent), transparent 12rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 6%, #07131b 94%), color-mix(in srgb, #02090f 92%, transparent));
+}
+
+.phx-nutrition-feature-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  color: var(--phx-accent);
+  font-family: var(--phx-font-mono);
+  font-size: .5rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-feature-head b {
+  color: color-mix(in srgb, var(--phx-body) 44%, transparent);
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-align: right;
+}
+
+.phx-nutrition-feature-card h2 {
+  margin: .85rem 0 .85rem;
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: .95;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-feature-body {
+  min-height: 9.3rem;
+}
+
+.phx-nutrition-feature-action {
+  width: 100%;
+  min-height: 2.2rem;
+  margin-top: .85rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 30%, transparent);
+  border-radius: .45rem;
+  background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+  color: var(--phx-accent);
+  cursor: pointer;
+  font-family: var(--phx-font-mono);
+  font-size: .5rem;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-feature-card .phx-protocol-stack {
+  gap: .55rem;
+}
+
+.phx-nutrition-feature-card .phx-protocol-step {
+  padding: .62rem .7rem;
+  border-color: color-mix(in srgb, var(--phx-accent) 11%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 3%, transparent);
+}
+
+.phx-nutrition-feature-card .phx-protocol-index {
+  font-size: .52rem;
+}
+
+.phx-nutrition-feature-card .phx-protocol-step strong {
+  font-size: .58rem;
+}
+
+.phx-nutrition-feature-card .phx-protocol-step span:last-child {
+  font-size: .52rem;
+}
+
+.phx-nutrition-feature-card .phx-nutrition-macro-matrix {
+  gap: .65rem;
+}
+
+.phx-nutrition-feature-card .phx-nutrition-macro-row {
+  padding: .7rem;
+  border-radius: .55rem;
+}
+
+.phx-nutrition-feature-card .phx-nutrition-macro-head,
+.phx-nutrition-feature-card .phx-nutrition-macro-foot {
+  font-size: .5rem;
+}
+
+.phx-nutrition-week-signal {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  min-height: 9.3rem;
+}
+
+.phx-nutrition-week-score {
+  width: 7.5rem;
+  height: 7.5rem;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 24%, transparent);
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 70%);
+}
+
+.phx-nutrition-week-score strong {
+  color: var(--phx-accent);
+  font-family: var(--phx-font-display);
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.phx-nutrition-week-score span {
+  margin-top: .35rem;
+  color: color-mix(in srgb, var(--phx-body) 45%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .44rem;
+  letter-spacing: .14em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-week-dots {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .35rem;
+}
+
+.phx-nutrition-week-dots i {
+  min-height: 3.1rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--phx-body) 10%, transparent);
+  border-radius: .45rem;
+  color: color-mix(in srgb, var(--phx-body) 55%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .5rem;
+  font-style: normal;
+}
+
+.phx-nutrition-week-dots .phx-heat-good {
+  border-color: color-mix(in srgb, var(--phx-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 12%, transparent);
+  color: var(--phx-accent);
+}
+
+.phx-nutrition-week-dots .phx-heat-warn {
+  border-color: color-mix(in srgb, var(--phx-warning, #ffd56b) 38%, transparent);
+  background: color-mix(in srgb, var(--phx-warning, #ffd56b) 10%, transparent);
+  color: color-mix(in srgb, var(--phx-warning, #ffd56b) 86%, white 4%);
+}
+
+.phx-nutrition-week-dots .phx-heat-miss {
+  border-color: color-mix(in srgb, var(--phx-danger, #ff5f73) 32%, transparent);
+  background: color-mix(in srgb, var(--phx-danger, #ff5f73) 8%, transparent);
+  color: color-mix(in srgb, var(--phx-danger, #ff5f73) 78%, white 4%);
+}
+
+.phx-nutrition-brain-signal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+  min-height: 9.3rem;
+  align-items: stretch;
+}
+
+.phx-nutrition-brain-signal > div {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  border-radius: .65rem;
+  background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+}
+
+.phx-nutrition-brain-signal strong {
+  color: var(--phx-accent);
+  font-family: var(--phx-font-display);
+  font-size: 2.3rem;
+  line-height: .9;
+}
+
+.phx-nutrition-brain-signal span {
+  margin-top: .45rem;
+  color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .47rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1120px) {
+  .phx-nutrition-feature-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .phx-nutrition-week-signal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .phx-nutrition-week-score {
+    width: 6.2rem;
+    height: 6.2rem;
+  }
+
+  .phx-nutrition-brain-signal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Nutrition v7: finished opening outputs, user choices, hidden Phoenix engines ── */
+.phx-nutrition-mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: 1rem;
+}
+
+.phx-nutrition-mode-tabs button {
+  min-height: 2rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+  color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+  cursor: pointer;
+  font-family: var(--phx-font-mono);
+  font-size: .48rem;
+  letter-spacing: .2em;
+  padding: 0 .85rem;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-mode-tabs button.active,
+.phx-nutrition-mode-tabs button:hover {
+  border-color: color-mix(in srgb, var(--phx-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 10%, transparent);
+  color: var(--phx-accent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--phx-accent) 12%, transparent);
+}
+
+.phx-nutrition-output-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.phx-nutrition-output-card {
+  position: relative;
+  min-height: 18rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  border-radius: .9rem;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 7%, transparent), transparent 10rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--phx-panel, #07131b) 92%, transparent), color-mix(in srgb, #02090f 92%, transparent));
+  padding: 1rem;
+}
+
+.phx-nutrition-output-card-wide {
+  grid-column: span 2;
+}
+
+.phx-nutrition-output-card::before,
+.phx-nutrition-output-card::after {
+  content: "";
+  position: absolute;
+  top: .7rem;
+  width: .75rem;
+  height: .75rem;
+  border-top: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+}
+
+.phx-nutrition-output-card::before {
+  left: .7rem;
+  border-left: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+}
+
+.phx-nutrition-output-card::after {
+  right: .7rem;
+  border-right: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+}
+
+.phx-nutrition-output-card h2 {
+  margin: .85rem 0 .75rem;
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: .95;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-output-copy {
+  margin: 0 0 .9rem;
+  color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+
+.phx-nutrition-chart-card {
+  margin-top: .75rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 12%, transparent);
+  border-radius: .7rem;
+  background: color-mix(in srgb, #02090f 72%, transparent);
+  padding: .85rem;
+}
+
+.phx-nutrition-chart-head {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .65rem;
+  color: var(--phx-accent);
+  font-family: var(--phx-font-mono);
+  font-size: .48rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-chart-head b {
+  color: color-mix(in srgb, var(--phx-body) 48%, transparent);
+  font-weight: 500;
+}
+
+.phx-nutrition-line-chart {
+  width: 100%;
+  min-height: 12rem;
+  display: block;
+}
+
+.phx-nutrition-line-chart line {
+  stroke: color-mix(in srgb, var(--phx-body) 14%, transparent);
+}
+
+.phx-nutrition-line-chart line.target {
+  stroke: color-mix(in srgb, var(--phx-accent) 28%, transparent);
+  stroke-dasharray: 6 6;
+}
+
+.phx-nutrition-line-chart polyline {
+  fill: none;
+  stroke: var(--phx-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--phx-accent) 24%, transparent));
+}
+
+.phx-nutrition-line-chart circle {
+  fill: var(--phx-accent);
+}
+
+.phx-nutrition-line-chart circle.planned {
+  fill: color-mix(in srgb, var(--phx-warning, #ffd56b) 86%, white 4%);
+}
+
+.phx-nutrition-line-chart text {
+  fill: color-mix(in srgb, var(--phx-body) 44%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .62rem;
+  letter-spacing: .08em;
+}
+
+.phx-nutrition-line-chart .planned-text {
+  fill: color-mix(in srgb, var(--phx-warning, #ffd56b) 86%, white 4%);
+}
+
+.phx-nutrition-line-chart .target-text {
+  fill: color-mix(in srgb, var(--phx-accent) 72%, white 5%);
+}
+
+.phx-nutrition-progress-bars {
+  display: grid;
+  gap: .8rem;
+  margin-top: 1rem;
+}
+
+.phx-nutrition-progress-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 3rem;
+  gap: .75rem;
+  align-items: center;
+  color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-progress-row b {
+  color: var(--phx-accent);
+  font-weight: 500;
+  text-align: right;
+}
+
+.phx-nutrition-choice-deck {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .8rem;
+  margin-top: 1rem;
+}
+
+.phx-nutrition-choice-deck button {
+  min-height: 11.5rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 13%, transparent);
+  border-radius: .75rem;
+  background: color-mix(in srgb, #02090f 74%, transparent);
+  color: var(--phx-body);
+  cursor: pointer;
+  padding: .9rem;
+  text-align: left;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.phx-nutrition-choice-deck button.active,
+.phx-nutrition-choice-deck button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--phx-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+}
+
+.phx-nutrition-choice-deck span {
+  display: block;
+  color: var(--phx-accent);
+  font-family: var(--phx-font-mono);
+  font-size: .45rem;
+  letter-spacing: .2em;
+  margin-bottom: .65rem;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-choice-deck strong {
+  display: block;
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: .95;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-choice-deck small {
+  display: block;
+  margin-top: .65rem;
+  color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+  font-size: .76rem;
+  line-height: 1.4;
+}
+
+.phx-nutrition-choice-deck b {
+  display: block;
+  margin-top: .85rem;
+  color: color-mix(in srgb, var(--phx-accent) 86%, white 4%);
+  font-family: var(--phx-font-mono);
+  font-size: .5rem;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.phx-nutrition-route-grid-clean {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1180px) {
+  .phx-nutrition-output-grid,
+  .phx-nutrition-output-card-wide,
+  .phx-nutrition-route-grid-clean {
+    grid-template-columns: minmax(0, 1fr);
+    grid-column: auto;
+  }
+
+  .phx-nutrition-choice-deck {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .phx-nutrition-progress-row {
+    grid-template-columns: 4.4rem minmax(0, 1fr) 2.4rem;
+    gap: .55rem;
+    font-size: .46rem;
+    letter-spacing: .1em;
+  }
+
+  .phx-nutrition-line-chart {
+    min-height: 9rem;
+  }
+}
