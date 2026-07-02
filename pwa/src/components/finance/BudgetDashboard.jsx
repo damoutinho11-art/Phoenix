@@ -77,7 +77,7 @@ function fmtMonth(m) {
   return new Date(+y, +mo - 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' })
 }
 
-export default function BudgetDashboard({ onBack, onUpload }) {
+export default function BudgetDashboard({ onBack, onUpload, onMemory }) {
   const today = new Date().toISOString().slice(0, 7)
   const [month, setMonth] = useState(today)
   const [months, setMonths] = useState([today])
@@ -148,9 +148,17 @@ export default function BudgetDashboard({ onBack, onUpload }) {
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, animation: 'phScan 4s linear infinite' }} />
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span onClick={onBack} style={{ color: GOLD, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span onClick={onBack} style={{ color: GOLD, fontSize: 16, cursor: 'pointer' }}>←</span>
           <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.28em', color: GOLD, textShadow: '0 0 20px rgba(0,187,221,.4)' }}>BUDGET</span>
+          {onMemory && (
+            <button
+              onClick={onMemory}
+              style={{ border: '1px solid rgba(0,187,221,.38)', background: 'rgba(0,187,221,.06)', color: '#7de8ff', fontFamily: MONO, fontSize: 7, fontWeight: 700, letterSpacing: '.16em', padding: '6px 8px', borderRadius: 2, cursor: 'pointer' }}
+            >
+              MEMORY
+            </button>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span onClick={prevMonth} style={{ color: GOLD, fontSize: 18, cursor: 'pointer', padding: '2px 6px', userSelect: 'none' }}>‹</span>
@@ -168,11 +176,21 @@ export default function BudgetDashboard({ onBack, onUpload }) {
           <div style={{ fontFamily: DISPLAY, fontSize: 20, fontWeight: 700, color: GOLD, marginBottom: 24, textShadow: '0 0 20px rgba(0,187,221,.3)' }}>
             No transactions for {fmtMonth(month)}.
           </div>
-          <div
-            onClick={onUpload}
-            style={{ display: 'inline-block', padding: '12px 24px', border: `1px solid ${GOLD}`, background: 'rgba(0,187,221,.08)', color: GOLD, fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.4)' }}
-          >
-            + ADD TRANSACTIONS
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div
+              onClick={onUpload}
+              style={{ display: 'inline-block', padding: '12px 24px', border: `1px solid ${GOLD}`, background: 'rgba(0,187,221,.08)', color: GOLD, fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.4)' }}
+            >
+              + ADD TRANSACTIONS
+            </div>
+            {onMemory && (
+              <div
+                onClick={onMemory}
+                style={{ display: 'inline-block', padding: '12px 24px', border: '1px solid rgba(0,187,221,.35)', background: 'rgba(0,187,221,.04)', color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.25)' }}
+              >
+                MEMORY RULES
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -246,13 +264,21 @@ export default function BudgetDashboard({ onBack, onUpload }) {
           )}
 
           {/* Add transactions */}
-          <div style={{ padding: '16px 18px 32px' }}>
+          <div style={{ padding: '16px 18px 32px', display: 'grid', gridTemplateColumns: onMemory ? '1fr 1fr' : '1fr', gap: 10 }}>
             <div
               onClick={onUpload}
               style={{ width: '100%', padding: '12px 0', border: `1px solid rgba(0,187,221,.5)`, background: 'rgba(0,187,221,.06)', color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textAlign: 'center', textShadow: '0 0 10px rgba(0,187,221,.4)', borderRadius: 2 }}
             >
               + ADD TRANSACTIONS
             </div>
+            {onMemory && (
+              <div
+                onClick={onMemory}
+                style={{ width: '100%', padding: '12px 0', border: '1px solid rgba(0,187,221,.35)', background: 'rgba(0,187,221,.04)', color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textAlign: 'center', textShadow: '0 0 10px rgba(0,187,221,.25)', borderRadius: 2 }}
+              >
+                MEMORY RULES
+              </div>
+            )}
           </div>
         </>
       )}

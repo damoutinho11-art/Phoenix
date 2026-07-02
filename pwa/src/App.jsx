@@ -26,6 +26,7 @@ import Performance from './components/finance/Performance'
 import Research from './components/finance/Research'
 import BudgetDashboard from './components/finance/BudgetDashboard'
 import BudgetUpload from './components/finance/BudgetUpload'
+import BudgetMemory from './components/finance/BudgetMemory'
 import CalendarDashboard from './components/calendar/CalendarDashboard'
 import EventDetail from './components/calendar/EventDetail'
 import WeekView from './components/calendar/WeekView'
@@ -140,9 +141,11 @@ export default function App() {
         case 'research':
           return <Research onBack={() => setFinanceScreen('dashboard')} />
         case 'budget':
-          return <BudgetDashboard onBack={() => setFinanceScreen('dashboard')} onUpload={() => setFinanceScreen('budget-upload')} />
+          return <BudgetDashboard onBack={() => setFinanceScreen('dashboard')} onUpload={() => setFinanceScreen('budget-upload')} onMemory={() => setFinanceScreen('budget-memory')} />
         case 'budget-upload':
           return <BudgetUpload onBack={() => setFinanceScreen('budget')} onSaved={() => setFinanceScreen('budget')} />
+        case 'budget-memory':
+          return <BudgetMemory onBack={() => setFinanceScreen('budget')} />
         default:
           return null
       }

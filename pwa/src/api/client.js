@@ -498,3 +498,15 @@ export async function importCalendarPlaanSnapshot({ snapshot, label = 'manual Pl
 export async function getCalendarFeedStatus() {
   return apiFetch('/calendar/feed/status')
 }
+
+export async function getBudgetMemory() {
+  return apiFetch('/budget/memory')
+}
+
+export async function saveBudgetMemory(profile) {
+  return apiFetch('/budget/memory', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile }),
+  })
+}
