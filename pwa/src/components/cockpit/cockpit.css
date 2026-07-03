@@ -6162,3 +6162,188 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+
+/* CALENDAR_BRIEF_COMMAND_V1 */
+.phx-calendar-brief-command {
+  display: grid;
+  gap: clamp(0.62rem, 0.95vw, 0.86rem);
+}
+
+.phx-calendar-brief-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(159, 125, 255, 0.14);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.06), transparent 58%),
+    rgba(7, 10, 19, 0.58);
+  padding: clamp(0.66rem, 0.95vw, 0.84rem);
+}
+
+.phx-calendar-brief-head div {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.phx-calendar-brief-head small,
+.phx-calendar-brief-metric small,
+.phx-calendar-brief-body small,
+.phx-calendar-brief-contract small {
+  color: rgba(177, 146, 255, 0.78);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.54rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-brief-head strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.05rem, 1.75vw, 1.68rem);
+  letter-spacing: 0.12em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.phx-calendar-brief-head span {
+  color: rgba(218, 229, 238, 0.74);
+  font-size: clamp(0.74rem, 0.9vw, 0.86rem);
+}
+
+.phx-calendar-brief-head em {
+  color: rgba(216, 204, 255, 0.66);
+  border: 1px solid rgba(159, 125, 255, 0.24);
+  background: rgba(159, 125, 255, 0.075);
+  padding: 0.48rem 0.68rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.54rem;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.phx-calendar-brief-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.5rem, 0.78vw, 0.68rem);
+}
+
+.phx-calendar-brief-metric,
+.phx-calendar-brief-body section,
+.phx-calendar-brief-contract > div {
+  border: 1px solid rgba(159, 125, 255, 0.16);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.055), transparent 58%),
+    rgba(7, 10, 19, 0.72);
+}
+
+.phx-calendar-brief-metric {
+  min-height: 5.6rem;
+  display: grid;
+  align-content: start;
+  gap: 0.34rem;
+  padding: clamp(0.66rem, 0.9vw, 0.82rem);
+}
+
+.phx-calendar-brief-metric strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.86rem, 1.12vw, 1.05rem);
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.phx-calendar-brief-metric span {
+  color: rgba(218, 229, 238, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.phx-calendar-brief-body {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr;
+  gap: clamp(0.5rem, 0.78vw, 0.68rem);
+}
+
+.phx-calendar-brief-body section {
+  min-height: 7.1rem;
+  display: grid;
+  align-content: start;
+  gap: 0.42rem;
+  padding: clamp(0.72rem, 0.95vw, 0.86rem);
+}
+
+.phx-calendar-brief-body strong,
+.phx-calendar-brief-contract strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.9rem, 1.15vw, 1.08rem);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-brief-body p,
+.phx-calendar-brief-contract span {
+  color: rgba(218, 229, 238, 0.73);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.phx-calendar-brief-contract {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: clamp(0.5rem, 0.78vw, 0.68rem);
+}
+
+.phx-calendar-brief-contract > div {
+  min-height: 4.8rem;
+  display: grid;
+  align-content: start;
+  gap: 0.36rem;
+  padding: clamp(0.66rem, 0.9vw, 0.82rem);
+}
+
+.phx-calendar-brief-safe-note {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  border: 1px solid rgba(159, 125, 255, 0.13);
+  background: rgba(6, 10, 18, 0.68);
+  padding: 0.58rem 0.78rem;
+  color: rgba(216, 204, 255, 0.7);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+}
+
+.phx-calendar-brief-safe-note span {
+  color: rgba(177, 146, 255, 0.9);
+}
+
+@media (max-width: 1100px) {
+  .phx-calendar-brief-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phx-calendar-brief-body,
+  .phx-calendar-brief-contract {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .phx-calendar-brief-head {
+    display: grid;
+  }
+
+  .phx-calendar-brief-metrics {
+    grid-template-columns: 1fr;
+  }
+}

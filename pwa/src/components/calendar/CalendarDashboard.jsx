@@ -420,6 +420,111 @@ function WeekCommandMap({ weekDays, allEvents, performanceEvents, rehearsalEvent
     </div>
   )
 }
+function BriefMetricCard({ title, value, copy }) {
+  return (
+    <div className="phx-calendar-brief-metric">
+      <small>{title}</small>
+      <strong>{value}</strong>
+      <span>{copy}</span>
+    </div>
+  )
+}
+
+function CalendarBriefCommand({
+  resultCopy,
+  jarvisText,
+  displayEvents,
+  allEvents,
+  nextEvent,
+  visibleLoadHours,
+  source,
+  sourceAsOf,
+  bufferSignals,
+}) {
+  const brief = compactBrief(jarvisText) || resultCopy
+  const offline = brief.toLowerCase().includes('offline')
+  const nextCopy = nextEvent
+    ? `${nextEvent.time_start || '--:--'} - ${nextEvent.title}`
+    : 'No visible item'
+  const sourceCopy = [sourceLabel(source), sourceAsOf].filter(Boolean).join(' - ') || 'Read-only snapshot'
+  const weekCount = allEvents.length
+  const bufferCopy = bufferSignals.length
+    ? `${bufferSignals.length} tight buffer signal${bufferSignals.length === 1 ? '' : 's'}`
+    : 'Buffer pressure clear'
+
+  return (
+    <div className="phx-calendar-brief-command">
+      <div className="phx-calendar-brief-head">
+        <div>
+          <small>READ-ONLY SYNTHESIS</small>
+          <strong>BRIEF COMMAND</strong>
+          <span>Schedule summary, source confidence, and next-step context without certainty claims.</span>
+        </div>
+        <em>{offline ? 'OFFLINE SAFE' : 'READY'}</em>
+      </div>
+
+      <div className="phx-calendar-brief-metrics">
+        <BriefMetricCard
+          title="Brief Status"
+          value={offline ? 'OFFLINE' : 'READY'}
+          copy={offline ? 'Optional brief provider unavailable; fallback summary is active.' : 'Brief text is available from the current read-only state.'}
+        />
+        <BriefMetricCard
+          title="Next Visible"
+          value={nextCopy}
+          copy={nextEvent ? 'Next row comes from the normalized schedule snapshot.' : 'No personal assigned row is visible in this view.'}
+        />
+        <BriefMetricCard
+          title="Today Load"
+          value={`${formatHours(visibleLoadHours)} HOURS`}
+          copy={`${displayEvents.length} visible event${displayEvents.length === 1 ? '' : 's'} in the active day rail.`}
+        />
+        <BriefMetricCard
+          title="Source Confidence"
+          value="READ ONLY"
+          copy={sourceCopy}
+        />
+      </div>
+
+      <div className="phx-calendar-brief-body">
+        <section>
+          <small>OPERATOR SUMMARY</small>
+          <strong>{offline ? 'HONEST FALLBACK' : 'BRIEF READY'}</strong>
+          <p>{brief}</p>
+        </section>
+        <section>
+          <small>WEEKLY CONTEXT</small>
+          <strong>{weekCount ? `${weekCount} VISIBLE ROWS` : 'OPEN WEEK'}</strong>
+          <p>{weekCount ? 'Weekly rhythm can be reviewed in the Week subsection. This brief only summarizes visible read-only state.' : 'No personal assigned rows are visible across the loaded weekly snapshot.'}</p>
+        </section>
+        <section>
+          <small>NEXT MOVE</small>
+          <strong>{nextEvent ? 'REVIEW NEXT ITEM' : 'STAY READY'}</strong>
+          <p>{nextEvent ? `Check ${nextEvent.title} details from the Today rail before acting.` : 'Add or sync assignments in the source system to populate future briefs.'}</p>
+        </section>
+      </div>
+
+      <div className="phx-calendar-brief-contract">
+        <div>
+          <small>SAFETY CONTRACT</small>
+          <strong>NO AI CERTAINTY CLAIMS</strong>
+          <span>No Plaan mutations. No Google writes. No Gmail sends. Brief remains advisory and source-labeled.</span>
+        </div>
+        <div>
+          <small>BUFFER STATE</small>
+          <strong>{bufferCopy}</strong>
+          <span>Phoenix surfaces schedule pressure only; it does not edit external calendars.</span>
+        </div>
+      </div>
+
+      <div className="phx-calendar-brief-safe-note">
+        <span aria-hidden="true">[RO]</span>
+        <strong>Read-only brief. No create/update/delete actions. No Gmail sends.</strong>
+      </div>
+    </div>
+  )
+}
+
 function FeedHealthCard({ title, status, copy, meta, tone = 'neutral' }) {
   return (
     <div className={`phx-calendar-feed-card ${tone}`}>
@@ -584,8 +689,18 @@ function CalendarActiveSubsection({
 
   if (activeMode === 'brief') {
     return (
-      <DataPanel eyebrow="[ BRIEF ]" title="Calendar Brief" meta="READ ONLY">
-        <BriefPreview resultCopy={resultCopy} jarvisText={jarvisText} />
+      <DataPanel eyebrow="[ BRIEF ]" title="Daily Brief" meta="READ ONLY">
+        <CalendarBriefCommand
+          resultCopy={resultCopy}
+          jarvisText={jarvisText}
+          displayEvents={displayEvents}
+          allEvents={allEvents}
+          nextEvent={nextEvent}
+          visibleLoadHours={visibleLoadHours}
+          source={snapshot?.source}
+          sourceAsOf={sourceAsOf}
+          bufferSignals={bufferSignals}
+        />
       </DataPanel>
     )
   }

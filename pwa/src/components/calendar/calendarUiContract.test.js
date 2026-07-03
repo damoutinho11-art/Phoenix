@@ -21,7 +21,16 @@ test('calendar dashboard uses final polished command center implementation', asy
     'BRIEF OFFLINE',
     'Calendar Routes',
     'phx-calendar-section-screen',
-    'Calendar Brief',
+    'CALENDAR BRIEF',
+    'NO AI CERTAINTY CLAIMS',
+    'Source Confidence',
+    'Today Load',
+    'Next Visible',
+    'Brief Status',
+    'BRIEF COMMAND',
+    'Daily Brief',
+    'CalendarBriefCommand',
+    'BriefMetricCard',
     'CALENDAR FEEDS',
     'Connector truth only',
     'No Gmail sends',
@@ -86,6 +95,7 @@ test('calendar radial core and subsection css is present and always-on', async (
     'CALENDAR_SECTION_SCREEN_V1',
     'CALENDAR_FEEDS_COMMAND_V1',
     'CALENDAR_FEEDS_VISUAL_POLISH_V2',
+    'CALENDAR_BRIEF_COMMAND_V1',
     'CALENDAR_SUBSECTION_POLISH_V1',
     'phxCalendarRingRotate',
     'phxCalendarRingBreath',
@@ -173,5 +183,27 @@ test('calendar feeds visual polish removes mojibake and duplicate title pressure
   assert.match(source, /live here - not in the hero/)
   assert.doesNotMatch(source, /\?\?\?/)
   assert.match(css, /CALENDAR_FEEDS_VISUAL_POLISH_V2/)
+})
+
+
+
+test('calendar brief subsection exposes honest read-only synthesis', async () => {
+  const source = await readFile(new URL('./CalendarDashboard.jsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../cockpit/cockpit.css', import.meta.url), 'utf8')
+
+  for (const token of [
+    'function CalendarBriefCommand',
+    'Daily Brief',
+    'BRIEF COMMAND',
+    'Brief Status',
+    'Next Visible',
+    'Today Load',
+    'Source Confidence',
+    'NO AI CERTAINTY CLAIMS',
+    'No Gmail sends',
+  ]) assert.match(source, new RegExp(token))
+
+  assert.doesNotMatch(source, /createEvent|updateEvent|deleteEvent|send_email|gmail\.send|postCalendar/i)
+  assert.match(css, /CALENDAR_BRIEF_COMMAND_V1/)
 })
 
