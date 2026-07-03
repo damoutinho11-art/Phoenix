@@ -209,6 +209,69 @@ function TodaySnapshot({ displayEvents, visibleLoadHours, nextEvent, bufferSigna
   )
 }
 
+function TodayCommandRail({ displayEvents, visibleLoadHours, nextEvent, bufferSignals, source, sourceAsOf, onEvent }) {
+  const hours = ['08', '10', '12', '14', '16', '18', '20', '22']
+  const hasEvents = displayEvents.length > 0
+  const sourceCopy = [sourceLabel(source), sourceAsOf].filter(Boolean).join(' - ') || 'Plaan snapshot visible / no writes'
+
+  return (
+    <div className="phx-calendar-today-rail">
+      <div className="phx-calendar-today-rail-head">
+        <strong>[ TODAY RAIL ]</strong>
+        <span>READ ONLY</span>
+      </div>
+
+      <div className="phx-calendar-timeline">
+        <div className="phx-calendar-timeline-hours" aria-hidden="true">
+          {hours.map(hour => <span key={hour}>{hour}</span>)}
+        </div>
+
+        <div className="phx-calendar-timeline-body">
+          <span className="phx-calendar-lane-mark top">+</span>
+          <span className="phx-calendar-lane-mark bottom">+</span>
+
+          {hasEvents ? (
+            <div className="phx-calendar-timeline-events">
+              {displayEvents.slice(0, 4).map(ev => (
+                <AgendaRow key={`today-rail-${ev.event_id || ev.title}`} event={ev} onEvent={onEvent} />
+              ))}
+            </div>
+          ) : (
+            <div className="phx-calendar-timeline-empty">
+              <strong>OPEN SLATE</strong>
+              <span>No personal rows visible for the selected day.</span>
+              <em>Read-only schedule awaiting verified assignments.</em>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="phx-calendar-today-rail-meta">
+        <div>
+          <small>NEXT VISIBLE</small>
+          <strong>{nextEvent ? `${nextEvent.time_start || '--:--'} ${nextEvent.title}` : 'NONE'}</strong>
+        </div>
+        <div>
+          <small>SOURCE STAMP</small>
+          <strong>{sourceCopy}</strong>
+        </div>
+        <div>
+          <small>VISIBLE LOAD</small>
+          <strong>{formatHours(visibleLoadHours)} HOURS - {displayEvents.length} EVENTS</strong>
+        </div>
+        <div>
+          <small>BUFFER STATE</small>
+          <strong>{bufferSignals.length ? `${bufferSignals.length} TIGHT BUFFER${bufferSignals.length === 1 ? '' : 'S'}` : 'CLEAR'}</strong>
+        </div>
+      </div>
+
+      <div className="phx-calendar-today-safe-note">
+        <span aria-hidden="true">â—‡</span>
+        <strong>No Plaan mutations. No Google writes.</strong>
+      </div>
+    </div>
+  )
+}
 function WeekPreview({ weekDays, allEvents, performanceEvents, rehearsalEvents }) {
   return (
     <div className="phx-calendar-card">
@@ -367,6 +430,17 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
           </DataPanel>
         </section>
 
+        <DataPanel eyebrow="[ TODAY RAIL ]" title="Today Command Rail" meta="READ ONLY">
+          <TodayCommandRail
+            displayEvents={displayEvents}
+            visibleLoadHours={visibleLoadHours}
+            nextEvent={nextEvent}
+            bufferSignals={bufferSignals}
+            source={snapshot?.source}
+            sourceAsOf={sourceAsOf}
+            onEvent={onEvent}
+          />
+        </DataPanel>
         <DataPanel eyebrow="[ DETAIL ROUTES ]" title="Calendar Routes" meta="READ ONLY">
           <div className="phx-panel-body">
             <div className="phx-calendar-route-grid">
@@ -381,6 +455,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
     </CockpitShell>
   )
 }
+
 
 
 

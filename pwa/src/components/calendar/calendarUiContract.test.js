@@ -13,7 +13,9 @@ test('calendar dashboard uses final polished command center implementation', asy
     'CALENDAR',
     'COMMAND CENTER',
     'TODAY LOAD',
-    'CalendarCore',
+    
+    'Today Command Rail',
+    'TODAY RAIL','CalendarCore',
     'Today Snapshot',
     'Week Preview',
     'Next Move',
@@ -29,7 +31,8 @@ test('calendar dashboard uses final polished command center implementation', asy
     'phx-calendar-core-reactor',
     'phx-calendar-core-scan',
     'phx-calendar-core-metrics',
-  ]) assert.match(source, new RegExp(token))
+  
+    'phx-calendar-today-rail',]) assert.match(source, new RegExp(token))
 })
 
 test('calendar cockpit stays read-only and avoids duplicated panels', async () => {
@@ -49,7 +52,8 @@ test('calendar radial core animation css is present and always-on', async () => 
     'CALENDAR_CORE_PARITY_RADIAL_V19',
     
     
-    'CALENDAR_V19_LOWER_PANEL_SPACING_LOCK','CALENDAR_V19_SPACING_BALANCE','phx-calendar-core-reactor',
+    'CALENDAR_V19_LOWER_PANEL_SPACING_LOCK',
+    'CALENDAR_TODAY_COMMAND_RAIL_V1','CALENDAR_V19_SPACING_BALANCE','phx-calendar-core-reactor',
     'phxCalendarRingRotate',
     'phxCalendarRingBreath',
     'phxCalendarScanSweep',
@@ -58,6 +62,7 @@ test('calendar radial core animation css is present and always-on', async () => 
 
   assert.doesNotMatch(css, /pauseBtn|paused/i)
 })
+
 
 
 
