@@ -152,29 +152,33 @@ function WeekStrip({ weekDays, className = '' }) {
 function CalendarCore({ displayEvents, weekDays, monthLabel, dayLabel, dayNum, source, sourceAsOf, bufferSignals, onEvent }) {
   const nextEvent = displayEvents[0] || null
   const active = displayEvents.length > 0
+  const visibleLabel = `${displayEvents.length} EVENT${displayEvents.length === 1 ? '' : 'S'}`
 
   return (
-    <aside className="phx-calendar-core">
+    <aside className="phx-calendar-core phx-calendar-core-v19">
       <div className="phx-calendar-core-head">
         <span>CC-001</span>
         <strong>CALENDAR CORE</strong>
         <em>{monthLabel} - {dayLabel} - {dayNum}</em>
       </div>
 
-      <div className="phx-calendar-core-body">
-        <div className="phx-calendar-core-date">
-          <span>{dayLabel}</span>
-          <strong>{dayNum}</strong>
-          <em>{active ? 'ACTIVE' : 'OPEN'}</em>
+      <div className="phx-calendar-core-reactor-shell" aria-label="Calendar core orbital status">
+        <span className="phx-calendar-core-scan" aria-hidden="true" />
+        <div className="phx-calendar-core-reactor" aria-hidden="true">
+          <span className="phx-calendar-core-ring primary" />
+          <span className="phx-calendar-core-ring secondary" />
+          <span className="phx-calendar-core-ring tertiary" />
+          <div className="phx-calendar-core-reactor-center">
+            <strong>{active ? 'ACTIVE DAY' : 'OPEN SLATE'}</strong>
+            <span>{active ? visibleLabel : 'NO PERSONAL ROWS'}</span>
+          </div>
         </div>
+      </div>
 
-        <div className="phx-calendar-core-state">
-          <strong>{active ? 'ACTIVE DAY' : 'OPEN SLATE'}</strong>
-          <span>{active ? `${displayEvents.length} visible assignment${displayEvents.length === 1 ? '' : 's'}` : 'No personal rows visible'}</span>
-          <div><small>NEXT</small><b>{nextEvent ? `${nextEvent.time_start || '--:--'} ${nextEvent.title}` : 'NOT PUBLISHED'}</b></div>
-          <div><small>BUFFER</small><b>{bufferSignals.length ? `${bufferSignals.length} TIGHT` : 'CLEAR'}</b></div>
-          <div><small>MODE</small><b>READ ONLY</b></div>
-        </div>
+      <div className="phx-calendar-core-metrics">
+        <div><small>NEXT</small><b>{nextEvent ? `${nextEvent.time_start || '--:--'} ${nextEvent.title}` : 'NOT PUBLISHED'}</b></div>
+        <div><small>BUFFER</small><b>{bufferSignals.length ? `${bufferSignals.length} TIGHT` : 'CLEAR'}</b></div>
+        <div><small>MODE</small><b>READ ONLY</b></div>
       </div>
 
       <WeekStrip weekDays={weekDays} className="compact" />
@@ -194,7 +198,6 @@ function CalendarCore({ displayEvents, weekDays, monthLabel, dayLabel, dayNum, s
     </aside>
   )
 }
-
 function TodaySnapshot({ displayEvents, visibleLoadHours, nextEvent, bufferSignals }) {
   return (
     <div className="phx-calendar-card">
@@ -294,7 +297,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
   )
 
   return (
-    <CockpitShell accent={VIOLET} className="phx-calendar-cockpit phx-calendar-v18" aria-label="Calendar Command Center">
+    <CockpitShell accent={VIOLET} className="phx-calendar-cockpit phx-calendar-v18 phx-calendar-v19" aria-label="Calendar Command Center">
       <div className="phx-domain-frame">
         <header className="phx-command-hero phx-calendar-command-hero">
           <div className="phx-command-topbar">
@@ -378,5 +381,6 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
     </CockpitShell>
   )
 }
+
 
 

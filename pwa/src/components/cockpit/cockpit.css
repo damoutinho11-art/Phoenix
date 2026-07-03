@@ -3992,3 +3992,873 @@
 }
 
 
+
+/* CALENDAR_CORE_PARITY_RADIAL_V19 */
+.phx-calendar-v19 .phx-calendar-core {
+  position: relative;
+  overflow: hidden;
+  min-height: 34.5rem;
+  display: grid;
+  grid-template-rows: auto auto auto auto 1fr auto;
+  gap: 1rem;
+  background:
+    radial-gradient(circle at 50% 33%, rgba(159, 125, 255, 0.14), transparent 17rem),
+    linear-gradient(180deg, rgba(8, 10, 24, 0.94), rgba(3, 7, 14, 0.98));
+}
+
+.phx-calendar-v19 .phx-calendar-core::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(159, 125, 255, 0.08), transparent),
+    radial-gradient(circle at 50% 48%, rgba(159, 125, 255, 0.09), transparent 13rem);
+  opacity: 0.82;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-shell {
+  position: relative;
+  min-height: 15.6rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.phx-calendar-v19 .phx-calendar-core-scan {
+  position: absolute;
+  left: -1.5rem;
+  right: -1.5rem;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(159, 125, 255, 0.95), transparent);
+  box-shadow: 0 0 1.1rem rgba(159, 125, 255, 0.75);
+  animation: phxCalendarScanSweep 4.2s ease-in-out infinite;
+  z-index: 3;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor {
+  width: min(15.2rem, 68vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 1.6rem rgba(159, 125, 255, 0.18));
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor::before {
+  content: "";
+  position: absolute;
+  inset: 2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(159, 125, 255, 0.22);
+  box-shadow:
+    inset 0 0 2rem rgba(159, 125, 255, 0.08),
+    0 0 1.8rem rgba(159, 125, 255, 0.07);
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 20deg,
+      transparent 0 11%,
+      rgba(159, 125, 255, 0.98) 11% 20%,
+      transparent 20% 31%,
+      rgba(159, 125, 255, 0.48) 31% 40%,
+      transparent 40% 55%,
+      rgba(159, 125, 255, 0.88) 55% 68%,
+      transparent 68% 81%,
+      rgba(159, 125, 255, 0.62) 81% 88%,
+      transparent 88% 100%);
+  -webkit-mask: radial-gradient(circle, transparent 0 54%, #000 55% 66%, transparent 67%);
+  mask: radial-gradient(circle, transparent 0 54%, #000 55% 66%, transparent 67%);
+  animation:
+    phxCalendarRingRotate 16s linear infinite,
+    phxCalendarRingBreath 4.8s ease-in-out infinite;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.secondary {
+  inset: 1.15rem;
+  opacity: 0.55;
+  -webkit-mask: radial-gradient(circle, transparent 0 58%, #000 59% 62%, transparent 63%);
+  mask: radial-gradient(circle, transparent 0 58%, #000 59% 62%, transparent 63%);
+  animation-duration: 25s, 5.4s;
+  animation-direction: reverse, normal;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.tertiary {
+  inset: 2.35rem;
+  opacity: 0.34;
+  -webkit-mask: radial-gradient(circle, transparent 0 62%, #000 63% 64%, transparent 65%);
+  mask: radial-gradient(circle, transparent 0 62%, #000 63% 64%, transparent 65%);
+  animation-duration: 34s, 6s;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center {
+  width: 7.9rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1.1rem;
+  position: relative;
+  z-index: 2;
+  background: radial-gradient(circle at 50% 48%, rgba(17, 18, 40, 0.98), rgba(5, 8, 17, 0.98));
+  border: 1px solid rgba(159, 125, 255, 0.22);
+  box-shadow: inset 0 0 2rem rgba(0, 0, 0, 0.42);
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.98rem, 1.25vw, 1.35rem);
+  line-height: 0.94;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center span {
+  display: block;
+  color: rgba(216, 204, 255, 0.72);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.48rem;
+  letter-spacing: 0.16em;
+  margin-top: 0.72rem;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics {
+  display: grid;
+  gap: 0.22rem;
+  position: relative;
+  z-index: 2;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics > div {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  border-bottom: 1px solid rgba(159, 125, 255, 0.13);
+  padding: 0.55rem 0;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics small {
+  color: rgba(216, 204, 255, 0.48);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics b {
+  color: var(--text-primary, #eaf3fb);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact > div:hover {
+  transform: translateY(-2px);
+  border-color: rgba(159, 125, 255, 0.56);
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact > div.active {
+  animation: phxCalendarActiveDayPulse 3.2s ease-in-out infinite;
+}
+
+.phx-calendar-v19 .phx-calendar-core-summary {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes phxCalendarRingRotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes phxCalendarRingBreath {
+  50% { opacity: 0.72; filter: brightness(1.28); }
+}
+
+@keyframes phxCalendarScanSweep {
+  0%, 100% { opacity: 0.12; transform: translateY(-52px); }
+  45%, 55% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 0.24; transform: translateY(54px); }
+}
+
+@keyframes phxCalendarActiveDayPulse {
+  50% {
+    box-shadow:
+      0 0 1.6rem rgba(159, 125, 255, 0.34),
+      inset 0 -3px 0 rgba(159, 125, 255, 0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phx-calendar-v19 .phx-calendar-core-scan,
+  .phx-calendar-v19 .phx-calendar-core-ring,
+  .phx-calendar-v19 .phx-calendar-week-strip.compact > div.active {
+    animation: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+    min-height: 14rem;
+  }
+
+  .phx-calendar-v19 .phx-calendar-core-reactor {
+    width: min(13rem, 72vw);
+  }
+
+  .phx-calendar-v19 .phx-calendar-core-reactor-center {
+    width: 6.9rem;
+  }
+
+  .phx-calendar-v19 .phx-calendar-core-metrics > div {
+    grid-template-columns: 6.4rem minmax(0, 1fr);
+  }
+}
+
+
+/* CALENDAR_V19_SPACING_BALANCE */
+.phx-calendar-v19 {
+  --calendar-v19-hero-top: clamp(1.75rem, 2.1vw, 2.6rem);
+  --calendar-v19-hero-side: clamp(2.2rem, 3.15vw, 3.55rem);
+  --calendar-v19-core-size: clamp(11.75rem, 16vw, 13.6rem);
+  --calendar-v19-core-center: clamp(6.1rem, 8vw, 7.15rem);
+}
+
+.phx-calendar-v19 .phx-cockpit-main,
+.phx-calendar-v19 .phx-command-main,
+.phx-calendar-v19 .phx-calendar-command-main {
+  align-items: start;
+}
+
+.phx-calendar-v19 .phx-command-hero,
+.phx-calendar-v19 .phx-calendar-hero,
+.phx-calendar-v19 .phx-command-center {
+  padding-top: var(--calendar-v19-hero-top);
+}
+
+.phx-calendar-v19 .phx-calendar-command-grid,
+.phx-calendar-v19 .phx-command-grid,
+.phx-calendar-v19 .phx-calendar-layout {
+  align-items: start;
+  gap: clamp(2.1rem, 3vw, 3.2rem);
+}
+
+.phx-calendar-v19 .phx-calendar-core {
+  align-self: start;
+  margin-top: clamp(1.3rem, 1.9vw, 2.2rem);
+  min-height: auto;
+  max-height: none;
+  padding: clamp(1.15rem, 1.45vw, 1.45rem);
+  gap: 0.72rem;
+}
+
+.phx-calendar-v19 .phx-calendar-core-head {
+  margin-bottom: 0.1rem;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-shell {
+  min-height: clamp(12.4rem, 17.5vw, 14.9rem);
+  margin: 0.15rem 0 0.1rem;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor {
+  width: var(--calendar-v19-core-size);
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor::before {
+  inset: clamp(1.55rem, 2.2vw, 1.9rem);
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center {
+  width: var(--calendar-v19-core-center);
+  padding: 0.9rem;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+  font-size: clamp(0.9rem, 1.05vw, 1.12rem);
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center span {
+  font-size: 0.43rem;
+  margin-top: 0.58rem;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics > div {
+  grid-template-columns: 6.8rem minmax(0, 1fr);
+  padding: 0.43rem 0;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact {
+  margin-top: 0.45rem;
+  gap: 0.38rem;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+  min-height: clamp(3rem, 4.2vw, 3.65rem);
+}
+
+.phx-calendar-v19 .phx-calendar-core-summary {
+  margin-top: 0.45rem;
+  padding: 0.85rem 0.95rem;
+}
+
+.phx-calendar-v19 .phx-command-result,
+.phx-calendar-v19 .phx-calendar-command-result {
+  margin-bottom: clamp(1.2rem, 2vw, 1.8rem);
+}
+
+.phx-calendar-v19 .phx-calendar-card-grid,
+.phx-calendar-v19 .phx-data-grid,
+.phx-calendar-v19 .phx-calendar-panels {
+  margin-top: clamp(1.1rem, 1.8vw, 1.6rem);
+}
+
+@media (min-width: 1180px) {
+  .phx-calendar-v19 .phx-calendar-core {
+    transform: translateY(-0.6rem);
+  }
+}
+
+@media (min-width: 1440px) {
+  .phx-calendar-v19 .phx-calendar-core {
+    transform: translateY(-1.05rem);
+  }
+}
+
+@media (max-width: 980px) {
+  .phx-calendar-v19 {
+    --calendar-v19-core-size: min(13rem, 70vw);
+    --calendar-v19-core-center: min(6.8rem, 38vw);
+  }
+
+  .phx-calendar-v19 .phx-calendar-core {
+    margin-top: 0.25rem;
+    transform: none;
+  }
+
+  .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+    min-height: 13.8rem;
+  }
+}
+
+/* CALENDAR_V19_NUTRITION_SPACING_PARITY */
+.phx-calendar-v19 {
+  --cal-v19-core-width: clamp(26rem, 31vw, 31rem);
+  --cal-v19-reactor-size: clamp(11.2rem, 14vw, 12.8rem);
+  --cal-v19-reactor-center: clamp(5.8rem, 7vw, 6.6rem);
+  padding-bottom: clamp(6rem, 7vw, 7.5rem) !important;
+}
+
+/* Pull Calendar upward toward Nutrition spacing. */
+.phx-calendar-v19 .phx-command-main,
+.phx-calendar-v19 .phx-cockpit-main,
+.phx-calendar-v19 .phx-calendar-main,
+.phx-calendar-v19 .phx-calendar-command-main,
+.phx-calendar-v19 .phx-command-layout,
+.phx-calendar-v19 .phx-calendar-layout,
+.phx-calendar-v19 .phx-command-grid,
+.phx-calendar-v19 .phx-calendar-command-grid {
+  align-items: start !important;
+  gap: clamp(2rem, 3vw, 3.1rem) !important;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+  min-height: unset !important;
+}
+
+/* Remove cinematic vertical delay from left side. */
+.phx-calendar-v19 .phx-command-hero,
+.phx-calendar-v19 .phx-calendar-hero,
+.phx-calendar-v19 .phx-command-center,
+.phx-calendar-v19 .phx-calendar-command-left,
+.phx-calendar-v19 .phx-calendar-left {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+  align-self: start !important;
+}
+
+/* Make right core behave like Nutrition Fuel Core. */
+.phx-calendar-v19 .phx-calendar-core {
+  width: min(100%, var(--cal-v19-core-width)) !important;
+  justify-self: end !important;
+  align-self: start !important;
+  margin-top: 0 !important;
+  margin-right: clamp(1rem, 2vw, 2.25rem) !important;
+  transform: translateY(-1.15rem) !important;
+  min-height: unset !important;
+  padding: clamp(1rem, 1.3vw, 1.25rem) !important;
+  gap: 0.6rem !important;
+}
+
+/* Smaller, premium reactor. */
+.phx-calendar-v19 .phx-calendar-core-reactor-shell {
+  min-height: clamp(11.2rem, 14.4vw, 13rem) !important;
+  margin: 0 !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor {
+  width: var(--cal-v19-reactor-size) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center {
+  width: var(--cal-v19-reactor-center) !important;
+  padding: 0.8rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+  font-size: clamp(0.82rem, 0.95vw, 1rem) !important;
+  line-height: 0.92 !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center span {
+  font-size: 0.39rem !important;
+  margin-top: 0.48rem !important;
+}
+
+/* Compress core internal rows. */
+.phx-calendar-v19 .phx-calendar-core-head {
+  margin-bottom: 0 !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-head strong {
+  font-size: clamp(0.72rem, 0.82vw, 0.86rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-head em {
+  font-size: 0.5rem !important;
+  margin-top: 0.2rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics > div {
+  grid-template-columns: 5.8rem minmax(0, 1fr) !important;
+  padding: 0.34rem 0 !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics small {
+  font-size: 0.49rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics b {
+  font-size: 0.55rem !important;
+}
+
+/* Compress week rail. */
+.phx-calendar-v19 .phx-calendar-week-strip.compact {
+  margin-top: 0.25rem !important;
+  gap: 0.3rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+  min-height: clamp(2.55rem, 3.2vw, 3.05rem) !important;
+  padding: 0.35rem 0.28rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact span {
+  font-size: 0.43rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact strong {
+  font-size: clamp(0.86rem, 1.05vw, 1.05rem) !important;
+}
+
+/* Keep bottom nav from swallowing the result area. */
+.phx-calendar-v19 .phx-command-result,
+.phx-calendar-v19 .phx-calendar-command-result,
+.phx-calendar-v19 .phx-calendar-card-grid,
+.phx-calendar-v19 .phx-data-grid,
+.phx-calendar-v19 .phx-calendar-panels {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 980px) {
+  .phx-calendar-v19 {
+    --cal-v19-core-width: 100%;
+    --cal-v19-reactor-size: min(12.4rem, 66vw);
+    --cal-v19-reactor-center: min(6.3rem, 36vw);
+    padding-bottom: 6rem !important;
+  }
+
+  .phx-calendar-v19 .phx-calendar-core {
+    justify-self: stretch !important;
+    margin-right: 0 !important;
+    transform: none !important;
+  }
+}
+
+/* CALENDAR_V19_FINAL_COMPACT_PARITY */
+.phx-calendar-v19 {
+  --cal-v19-final-core-width: clamp(25.25rem, 29.5vw, 29.6rem);
+  --cal-v19-final-reactor: clamp(10.35rem, 12.6vw, 11.55rem);
+  --cal-v19-final-center: clamp(5.35rem, 6.25vw, 5.95rem);
+}
+
+/* Keep the Calendar core premium, but prevent the bottom nav from cutting the source/footer. */
+.phx-calendar-v19 .phx-calendar-core {
+  width: min(100%, var(--cal-v19-final-core-width)) !important;
+  padding: clamp(0.82rem, 1.05vw, 1.05rem) clamp(0.9rem, 1.18vw, 1.15rem) !important;
+  gap: 0.42rem !important;
+  transform: translateY(-1.35rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-shell {
+  min-height: clamp(10.25rem, 12.7vw, 11.55rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor {
+  width: var(--cal-v19-final-reactor) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor::before {
+  inset: clamp(1.25rem, 1.5vw, 1.48rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.secondary {
+  inset: 0.9rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.tertiary {
+  inset: 1.85rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center {
+  width: var(--cal-v19-final-center) !important;
+  padding: 0.68rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+  font-size: clamp(0.72rem, 0.82vw, 0.9rem) !important;
+  letter-spacing: 0.09em !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center span {
+  font-size: 0.34rem !important;
+  margin-top: 0.38rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-head strong {
+  font-size: clamp(0.66rem, 0.74vw, 0.78rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-head em {
+  font-size: 0.45rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics > div {
+  grid-template-columns: 5.25rem minmax(0, 1fr) !important;
+  padding: 0.26rem 0 !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics small {
+  font-size: 0.44rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-metrics b {
+  font-size: 0.5rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact {
+  margin-top: 0.12rem !important;
+  gap: 0.24rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+  min-height: clamp(2.2rem, 2.8vw, 2.62rem) !important;
+  padding: 0.25rem 0.22rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact span {
+  font-size: 0.38rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-week-strip.compact strong {
+  font-size: clamp(0.74rem, 0.92vw, 0.9rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-summary {
+  margin-top: 0.16rem !important;
+  padding: 0.55rem 0.68rem !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-summary strong {
+  font-size: clamp(0.58rem, 0.68vw, 0.68rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-summary span {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden !important;
+  font-size: clamp(0.62rem, 0.74vw, 0.72rem) !important;
+  line-height: 1.28 !important;
+}
+
+/* The SourceStamp remains present, but becomes a compact footer instead of falling behind nav. */
+.phx-calendar-v19 .phx-calendar-core > :last-child {
+  max-height: 1.15rem !important;
+  overflow: hidden !important;
+  margin-top: 0.08rem !important;
+  padding-top: 0 !important;
+  font-size: 0.48rem !important;
+  line-height: 1 !important;
+  opacity: 0.72 !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core > :last-child * {
+  font-size: 0.48rem !important;
+  line-height: 1 !important;
+}
+
+/* Lift the bottom content above the fixed nav during desktop review. */
+.phx-calendar-v19 .phx-command-result,
+.phx-calendar-v19 .phx-calendar-command-result {
+  margin-bottom: clamp(2.3rem, 3.3vw, 3.2rem) !important;
+}
+
+@media (max-width: 980px) {
+  .phx-calendar-v19 .phx-calendar-core {
+    transform: none !important;
+  }
+
+  .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+    min-height: 11.4rem !important;
+  }
+
+  .phx-calendar-v19 .phx-calendar-core > :last-child,
+  .phx-calendar-v19 .phx-calendar-core > :last-child * {
+    font-size: 0.5rem !important;
+  }
+}
+
+/* CALENDAR_V19_PREMIUM_GLOW_PASS */
+.phx-calendar-v19 {
+  --calendar-glow-soft: rgba(159, 125, 255, 0.16);
+  --calendar-glow-mid: rgba(159, 125, 255, 0.28);
+  --calendar-glow-hot: rgba(177, 146, 255, 0.62);
+}
+
+/* Soft orbital aura around the Calendar Core, like Finance/Nutrition but violet. */
+.phx-calendar-v19 .phx-calendar-core {
+  box-shadow:
+    0 0 0 1px rgba(159, 125, 255, 0.22),
+    0 0 2.2rem rgba(159, 125, 255, 0.11),
+    0 1.8rem 4.5rem rgba(0, 0, 0, 0.38),
+    inset 0 0 2.4rem rgba(159, 125, 255, 0.055) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core::before {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(177, 146, 255, 0.20), transparent 9.5rem),
+    radial-gradient(circle at 50% 48%, rgba(159, 125, 255, 0.10), transparent 16rem),
+    linear-gradient(90deg, transparent, rgba(159, 125, 255, 0.08), transparent) !important;
+  opacity: 0.96 !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core::after {
+  box-shadow:
+    0 0 0.9rem rgba(159, 125, 255, 0.55),
+    inset 0 0 0.9rem rgba(159, 125, 255, 0.12);
+}
+
+/* Stronger but still premium reactor light. */
+.phx-calendar-v19 .phx-calendar-core-reactor {
+  filter:
+    drop-shadow(0 0 0.8rem rgba(159, 125, 255, 0.34))
+    drop-shadow(0 0 2.2rem rgba(159, 125, 255, 0.18)) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor::before {
+  border-color: rgba(177, 146, 255, 0.34) !important;
+  box-shadow:
+    inset 0 0 1.4rem rgba(159, 125, 255, 0.12),
+    0 0 1.7rem rgba(159, 125, 255, 0.16) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.primary,
+.phx-calendar-v19 .phx-calendar-core-ring {
+  filter:
+    brightness(1.2)
+    drop-shadow(0 0 0.62rem rgba(177, 146, 255, 0.58))
+    drop-shadow(0 0 1.35rem rgba(159, 125, 255, 0.24)) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.secondary {
+  opacity: 0.72 !important;
+  filter: drop-shadow(0 0 0.7rem rgba(159, 125, 255, 0.35)) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.tertiary {
+  opacity: 0.48 !important;
+  filter: drop-shadow(0 0 0.55rem rgba(159, 125, 255, 0.28)) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center {
+  border-color: rgba(177, 146, 255, 0.34) !important;
+  box-shadow:
+    inset 0 0 2rem rgba(0, 0, 0, 0.46),
+    inset 0 0 1.2rem rgba(159, 125, 255, 0.08),
+    0 0 1.5rem rgba(159, 125, 255, 0.16) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+  text-shadow:
+    0 0 0.45rem rgba(255, 255, 255, 0.18),
+    0 0 1.1rem rgba(159, 125, 255, 0.38) !important;
+}
+
+/* Make the scan line visible enough to feel alive. */
+.phx-calendar-v19 .phx-calendar-core-scan {
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(177, 146, 255, 0.22), rgba(177, 146, 255, 0.96), rgba(177, 146, 255, 0.22), transparent) !important;
+  box-shadow:
+    0 0 0.75rem rgba(177, 146, 255, 0.68),
+    0 0 1.55rem rgba(159, 125, 255, 0.34) !important;
+}
+
+/* Active day rail should glow like a selected reactor segment. */
+.phx-calendar-v19 .phx-calendar-week-strip.compact > div.active {
+  border-color: rgba(177, 146, 255, 0.92) !important;
+  background:
+    radial-gradient(circle at 50% 100%, rgba(159, 125, 255, 0.22), transparent 70%),
+    rgba(159, 125, 255, 0.105) !important;
+  box-shadow:
+    0 0 1.25rem rgba(159, 125, 255, 0.30),
+    inset 0 -3px 0 rgba(177, 146, 255, 0.98) !important;
+}
+
+/* Subtle glow on the active tab and command result to tie the page together. */
+.phx-calendar-v19 .phx-command-button.active,
+.phx-calendar-v19 .phx-calendar-mode-grid .active {
+  box-shadow:
+    0 0 1.35rem rgba(159, 125, 255, 0.16),
+    inset 0 -3px 0 rgba(177, 146, 255, 0.95) !important;
+}
+
+.phx-calendar-v19 .phx-command-result,
+.phx-calendar-v19 .phx-calendar-command-result {
+  box-shadow:
+    0 0 1.4rem rgba(159, 125, 255, 0.08),
+    inset 0 0 1.6rem rgba(159, 125, 255, 0.025) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-head strong,
+.phx-calendar-v19 .phx-command-title .accent,
+.phx-calendar-v19 h1 .accent {
+  text-shadow:
+    0 0 0.9rem rgba(159, 125, 255, 0.34),
+    0 0 1.8rem rgba(159, 125, 255, 0.14) !important;
+}
+
+/* CALENDAR_V19_LOWER_PANEL_SPACING_LOCK */
+/* Final lower command-center spacing pass: separates the 3 summary panels from Calendar Routes. */
+.phx-calendar-v19 {
+  --calendar-lower-gap: clamp(1.35rem, 2vw, 1.9rem);
+  --calendar-route-gap: clamp(1.7rem, 2.45vw, 2.35rem);
+  --calendar-bottom-safe: clamp(8rem, 10vw, 10.5rem);
+  padding-bottom: var(--calendar-bottom-safe) !important;
+}
+
+/* Make the lower dashboard read as two clean rows: summaries, then routes. */
+.phx-calendar-v19 .phx-calendar-card-grid,
+.phx-calendar-v19 .phx-calendar-panels,
+.phx-calendar-v19 .phx-data-grid {
+  gap: var(--calendar-lower-gap) !important;
+  row-gap: var(--calendar-route-gap) !important;
+  align-items: stretch !important;
+  margin-top: clamp(1.65rem, 2.25vw, 2.2rem) !important;
+  margin-bottom: var(--calendar-bottom-safe) !important;
+}
+
+/* If routes are the 4th panel in the lower grid, force them into their own row. */
+.phx-calendar-v19 .phx-calendar-card-grid > *:nth-child(4),
+.phx-calendar-v19 .phx-calendar-panels > *:nth-child(4),
+.phx-calendar-v19 .phx-data-grid > *:nth-child(4) {
+  grid-column: 1 / -1 !important;
+  margin-top: clamp(0.45rem, 0.8vw, 0.85rem) !important;
+}
+
+/* Robust route-panel targeting, even if the primitive wrapper changes. */
+.phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card),
+.phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card) {
+  grid-column: 1 / -1 !important;
+  margin-top: clamp(0.45rem, 0.8vw, 0.85rem) !important;
+}
+
+/* Give every lower card breathing room internally, without making the page taller than needed. */
+.phx-calendar-v19 .phx-calendar-card,
+.phx-calendar-v19 .phx-data-panel .phx-calendar-card {
+  min-height: clamp(7.9rem, 10.5vw, 9.6rem) !important;
+  padding: clamp(1rem, 1.35vw, 1.28rem) !important;
+}
+
+/* Calendar Routes should feel like a foundation rail, not like it is colliding with the top cards. */
+.phx-calendar-v19 .phx-calendar-route-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: clamp(0.9rem, 1.35vw, 1.25rem) !important;
+  margin-top: clamp(1rem, 1.35vw, 1.35rem) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-route-card {
+  min-height: clamp(5.2rem, 6.8vw, 6.25rem) !important;
+  padding: clamp(0.95rem, 1.25vw, 1.2rem) !important;
+}
+
+/* Add a small visual separator between the summary row and the routes row. */
+.phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card)::before,
+.phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card)::before {
+  opacity: 0.55 !important;
+}
+
+/* Keep the fixed bottom nav from visually swallowing the lower modules. */
+.phx-calendar-v19 .phx-bottom-nav,
+.phx-calendar-v19 .phx-domain-nav,
+.phx-calendar-v19 nav[aria-label*="navigation" i],
+.phx-calendar-v19 nav[aria-label*="Phoenix" i] {
+  z-index: 30 !important;
+}
+
+/* Desktop: keep the three cards aligned and the routes panel comfortably below. */
+@media (min-width: 1100px) {
+  .phx-calendar-v19 .phx-calendar-card-grid,
+  .phx-calendar-v19 .phx-calendar-panels,
+  .phx-calendar-v19 .phx-data-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Tablet/mobile: stack cleanly, no collision with nav. */
+@media (max-width: 1099px) {
+  .phx-calendar-v19 .phx-calendar-card-grid,
+  .phx-calendar-v19 .phx-calendar-panels,
+  .phx-calendar-v19 .phx-data-grid {
+    grid-template-columns: 1fr !important;
+    margin-bottom: 7.5rem !important;
+  }
+
+  .phx-calendar-v19 .phx-calendar-card-grid > *:nth-child(4),
+  .phx-calendar-v19 .phx-calendar-panels > *:nth-child(4),
+  .phx-calendar-v19 .phx-data-grid > *:nth-child(4),
+  .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card),
+  .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card) {
+    grid-column: auto !important;
+  }
+
+  .phx-calendar-v19 .phx-calendar-route-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
