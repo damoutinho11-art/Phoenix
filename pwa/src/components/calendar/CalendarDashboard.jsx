@@ -420,6 +420,123 @@ function WeekCommandMap({ weekDays, allEvents, performanceEvents, rehearsalEvent
     </div>
   )
 }
+function FeedHealthCard({ title, status, copy, meta, tone = 'neutral' }) {
+  return (
+    <div className={`phx-calendar-feed-card ${tone}`}>
+      <div>
+        <small>{title}</small>
+        <strong>{status}</strong>
+      </div>
+      <p>{copy}</p>
+      <em>{meta}</em>
+    </div>
+  )
+}
+
+function CalendarFeedsCommand({ snapshot, allEvents, sourceAsOf }) {
+  const source = snapshot?.source
+  const sourceName = sourceLabel(source)
+  const sourceStamp = sourceAsOf || sourceDetail(source) || snapshot?.as_of || 'Not published'
+  const hasSnapshot = Boolean(snapshot)
+  const visibleEvents = allEvents.length
+
+  const feedRows = [
+    {
+      title: 'Plaan Snapshot',
+      status: hasSnapshot ? 'VISIBLE' : 'WAITING',
+      copy: hasSnapshot
+        ? 'Normalized schedule snapshot is loaded for read-only display.'
+        : 'Waiting for the normalized schedule snapshot to load.',
+      meta: sourceName,
+      tone: hasSnapshot ? 'ready' : 'waiting',
+    },
+    {
+      title: 'ICS Feed',
+      status: 'READ ONLY',
+      copy: 'Subscription/export state belongs here. This screen does not publish or mutate feed data.',
+      meta: 'Diagnostics only',
+      tone: 'neutral',
+    },
+    {
+      title: 'Google Calendar',
+      status: 'NO WRITES',
+      copy: 'Readiness and source labels can be surfaced here later. Create/update/delete actions stay absent.',
+      meta: 'No Google write client',
+      tone: 'locked',
+    },
+    {
+      title: 'Brief Source',
+      status: 'OPTIONAL',
+      copy: 'Brief generation can use the current read-only schedule state, with honest offline fallback.',
+      meta: 'No send actions',
+      tone: 'neutral',
+    },
+  ]
+
+  return (
+    <div className="phx-calendar-feeds-command">
+      <div className="phx-calendar-feeds-head">
+        <div>
+          <small>CONNECTOR TRUTH</small>
+          <strong>SOURCE READINESS</strong>
+          <span>Plaan, ICS, Google Calendar, and brief-source health live here - not in the hero.</span>
+        </div>
+        <em>READ ONLY</em>
+      </div>
+
+      <div className="phx-calendar-feeds-metrics">
+        <div>
+          <small>SOURCE</small>
+          <strong>{sourceName}</strong>
+        </div>
+        <div>
+          <small>AS OF</small>
+          <strong>{sourceStamp}</strong>
+        </div>
+        <div>
+          <small>VISIBLE ROWS</small>
+          <strong>{visibleEvents} EVENTS</strong>
+        </div>
+        <div>
+          <small>WRITE STATE</small>
+          <strong>LOCKED</strong>
+        </div>
+      </div>
+
+      <div className="phx-calendar-feed-grid">
+        {feedRows.map(row => (
+          <FeedHealthCard
+            key={row.title}
+            title={row.title}
+            status={row.status}
+            copy={row.copy}
+            meta={row.meta}
+            tone={row.tone}
+          />
+        ))}
+      </div>
+
+      <div className="phx-calendar-feeds-diagnostics">
+        <div>
+          <small>DIAGNOSTICS</small>
+          <strong>{hasSnapshot ? 'SNAPSHOT AVAILABLE' : 'SNAPSHOT WAITING'}</strong>
+          <span>{hasSnapshot ? 'Calendar can render from the normalized read-only snapshot.' : 'Calendar remains safe while waiting for source data.'}</span>
+        </div>
+        <div>
+          <small>SAFETY CONTRACT</small>
+          <strong>NO MUTATIONS</strong>
+          <span>No Plaan mutations. No Google writes. No Gmail sends. No OAuth/write controls.</span>
+        </div>
+      </div>
+
+      <div className="phx-calendar-feeds-safe-note">
+        <span aria-hidden="true">[RO]</span>
+        <strong>Connector truth only. This screen reports readiness; it does not execute actions.</strong>
+      </div>
+    </div>
+  )
+}
+
 function CalendarActiveSubsection({
   activeMode,
   weekDays,
@@ -455,12 +572,12 @@ function CalendarActiveSubsection({
 
   if (activeMode === 'feeds') {
     return (
-      <DataPanel eyebrow="[ FEEDS ]" title="Calendar Feeds" meta="READ ONLY">
-        <div className="phx-calendar-subsection-placeholder">
-          <strong>FEEDS READY</strong>
-          <span>Plaan, ICS, Google Calendar, and brief-source readiness belong here. This surface is diagnostic only until an explicit approval gate exists.</span>
-          <em>No Plaan mutations. No Google writes.</em>
-        </div>
+      <DataPanel eyebrow="[ FEEDS ]" title="Feed Readiness" meta="READ ONLY">
+        <CalendarFeedsCommand
+          snapshot={snapshot}
+          allEvents={allEvents}
+          sourceAsOf={sourceAsOf}
+        />
       </DataPanel>
     )
   }
@@ -638,11 +755,11 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
           <DataPanel eyebrow="[ ROUTES ]" title="Section Routes" meta="READ ONLY">
             <div className="phx-panel-body">
               <div className="phx-calendar-route-grid">
-                <RouteCard title="Command" copy="Return to the Calendar Command Center overview." action={() => setCalendarSection('command')} />
-                <RouteCard title="Today" copy="Open the Today Command Rail subsection." action={() => { setActiveMode('today'); setCalendarSection('today') }} />
-                <RouteCard title="Week" copy="Open the Week Command Map subsection." action={() => { setActiveMode('week'); setCalendarSection('week') }} />
-                <RouteCard title="Feeds" copy="Open source and connector readiness." action={() => setCalendarSection('feeds')} />
-                <RouteCard title="Brief" copy="Open the read-only calendar brief." action={() => setCalendarSection('brief')} />
+                <RouteCard title="Command" copy="Back to the command overview." action={() => setCalendarSection('command')} />
+                <RouteCard title="Today" copy="Open day rail." action={() => { setActiveMode('today'); setCalendarSection('today') }} />
+                <RouteCard title="Week" copy="Open rhythm map." action={() => { setActiveMode('week'); setCalendarSection('week') }} />
+                <RouteCard title="Feeds" copy="Open source state." action={() => setCalendarSection('feeds')} />
+                <RouteCard title="Brief" copy="Open brief." action={() => setCalendarSection('brief')} />
               </div>
             </div>
           </DataPanel>

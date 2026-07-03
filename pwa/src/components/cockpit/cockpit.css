@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --phx-font-display: 'Rajdhani', sans-serif;
   --phx-font-body: 'Space Grotesk', sans-serif;
   --phx-font-mono: 'Share Tech Mono', monospace;
@@ -5828,5 +5828,337 @@
 
   .phx-calendar-section-screen .phx-calendar-route-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* CALENDAR_FEEDS_COMMAND_V1 */
+.phx-calendar-feeds-command {
+  display: grid;
+  gap: clamp(0.78rem, 1.1vw, 1.05rem);
+}
+
+.phx-calendar-feeds-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  border: 1px solid rgba(159, 125, 255, 0.14);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.06), transparent 58%),
+    rgba(7, 10, 19, 0.58);
+  padding: clamp(0.82rem, 1.15vw, 1rem);
+}
+
+.phx-calendar-feeds-head div {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.phx-calendar-feeds-head small,
+.phx-calendar-feeds-metrics small,
+.phx-calendar-feed-card small,
+.phx-calendar-feeds-diagnostics small {
+  color: rgba(177, 146, 255, 0.78);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-feeds-head strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.25rem, 2.1vw, 2rem);
+  letter-spacing: 0.12em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.phx-calendar-feeds-head span {
+  color: rgba(218, 229, 238, 0.74);
+  font-size: clamp(0.78rem, 0.95vw, 0.92rem);
+}
+
+.phx-calendar-feeds-head em {
+  color: rgba(216, 204, 255, 0.62);
+  border: 1px solid rgba(159, 125, 255, 0.24);
+  background: rgba(159, 125, 255, 0.075);
+  padding: 0.48rem 0.68rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.54rem;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.phx-calendar-feeds-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.58rem, 0.85vw, 0.8rem);
+}
+
+.phx-calendar-feeds-metrics > div,
+.phx-calendar-feed-card,
+.phx-calendar-feeds-diagnostics > div {
+  border: 1px solid rgba(159, 125, 255, 0.16);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.06), transparent 58%),
+    rgba(7, 10, 19, 0.72);
+}
+
+.phx-calendar-feeds-metrics > div {
+  min-height: 3.65rem;
+  display: grid;
+  align-content: center;
+  gap: 0.22rem;
+  padding: clamp(0.62rem, 0.85vw, 0.8rem);
+}
+
+.phx-calendar-feeds-metrics strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.82rem, 1.05vw, 0.98rem);
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.phx-calendar-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.62rem, 0.95vw, 0.86rem);
+}
+
+.phx-calendar-feed-card {
+  position: relative;
+  min-height: 8.5rem;
+  display: grid;
+  align-content: start;
+  gap: 0.56rem;
+  padding: clamp(0.82rem, 1.08vw, 1rem);
+  overflow: hidden;
+}
+
+.phx-calendar-feed-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: rgba(177, 146, 255, 0.42);
+  box-shadow: 0 0 0.85rem rgba(159, 125, 255, 0.38);
+}
+
+.phx-calendar-feed-card.ready::before {
+  background: rgba(56, 255, 177, 0.72);
+  box-shadow: 0 0 0.85rem rgba(56, 255, 177, 0.34);
+}
+
+.phx-calendar-feed-card.locked::before {
+  background: rgba(255, 213, 107, 0.72);
+  box-shadow: 0 0 0.85rem rgba(255, 213, 107, 0.28);
+}
+
+.phx-calendar-feed-card.waiting::before {
+  background: rgba(173, 181, 200, 0.52);
+  box-shadow: 0 0 0.85rem rgba(173, 181, 200, 0.18);
+}
+
+.phx-calendar-feed-card div {
+  display: grid;
+  gap: 0.24rem;
+}
+
+.phx-calendar-feed-card strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.98rem, 1.35vw, 1.22rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-feed-card p {
+  color: rgba(218, 229, 238, 0.72);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.phx-calendar-feed-card em {
+  align-self: end;
+  color: rgba(216, 204, 255, 0.52);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.54rem;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-feeds-diagnostics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(0.62rem, 0.95vw, 0.86rem);
+}
+
+.phx-calendar-feeds-diagnostics > div {
+  min-height: 5.4rem;
+  display: grid;
+  align-content: start;
+  gap: 0.38rem;
+  padding: clamp(0.82rem, 1.08vw, 1rem);
+}
+
+.phx-calendar-feeds-diagnostics strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-feeds-diagnostics span {
+  color: rgba(218, 229, 238, 0.72);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.phx-calendar-feeds-safe-note {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  border: 1px solid rgba(159, 125, 255, 0.13);
+  background: rgba(6, 10, 18, 0.68);
+  padding: 0.7rem 0.9rem;
+  color: rgba(216, 204, 255, 0.7);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+}
+
+.phx-calendar-feeds-safe-note span {
+  color: rgba(177, 146, 255, 0.9);
+}
+
+@media (max-width: 1100px) {
+  .phx-calendar-feeds-metrics,
+  .phx-calendar-feed-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phx-calendar-feeds-diagnostics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .phx-calendar-feeds-head {
+    display: grid;
+  }
+
+  .phx-calendar-feeds-metrics,
+  .phx-calendar-feed-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* CALENDAR_FEEDS_VISUAL_POLISH_V2 */
+/* Feeds subsection visual lock: remove duplicate title pressure, fix card height, improve bottom-nav clearance. */
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-feeds-command),
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-feeds-command) {
+  margin-top: clamp(0.48rem, 0.85vw, 0.78rem) !important;
+  margin-bottom: clamp(0.62rem, 1vw, 0.9rem) !important;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-feeds-command) .phx-panel-body,
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-feeds-command) .phx-panel-body {
+  padding-block: clamp(0.78rem, 1.1vw, 1rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-command {
+  gap: clamp(0.62rem, 0.9vw, 0.82rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-head {
+  padding: clamp(0.64rem, 0.92vw, 0.82rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-head strong {
+  font-size: clamp(1rem, 1.65vw, 1.55rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-head span {
+  font-size: clamp(0.74rem, 0.9vw, 0.86rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-metrics {
+  gap: clamp(0.48rem, 0.72vw, 0.64rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-metrics > div {
+  min-height: 3.15rem;
+  padding: clamp(0.52rem, 0.72vw, 0.66rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feed-grid {
+  gap: clamp(0.5rem, 0.78vw, 0.68rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feed-card {
+  min-height: 7.2rem;
+  padding: clamp(0.66rem, 0.9vw, 0.82rem);
+  gap: 0.42rem;
+}
+
+.phx-calendar-section-screen .phx-calendar-feed-card strong {
+  font-size: clamp(0.86rem, 1.15vw, 1.08rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feed-card p {
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.phx-calendar-section-screen .phx-calendar-feed-card em {
+  font-size: 0.5rem;
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-diagnostics {
+  gap: clamp(0.5rem, 0.78vw, 0.68rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-diagnostics > div {
+  min-height: 4.55rem;
+  padding: clamp(0.66rem, 0.9vw, 0.82rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-feeds-safe-note {
+  padding: 0.58rem 0.78rem;
+  font-size: 0.58rem;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid) {
+  max-height: none;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid) .phx-panel-body {
+  padding-top: clamp(0.55rem, 0.85vw, 0.75rem);
+  padding-bottom: clamp(1rem, 2.2vw, 1.7rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-route-grid {
+  align-items: stretch;
+}
+
+.phx-calendar-section-screen .phx-calendar-route-card {
+  min-height: 3.55rem;
+}
+
+@media (min-width: 1200px) {
+  .phx-calendar-section-screen .phx-calendar-feeds-metrics,
+  .phx-calendar-section-screen .phx-calendar-feed-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

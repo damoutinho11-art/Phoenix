@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict'
+﻿import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
@@ -22,7 +22,19 @@ test('calendar dashboard uses final polished command center implementation', asy
     'Calendar Routes',
     'phx-calendar-section-screen',
     'Calendar Brief',
-    'Calendar Feeds',
+    'CALENDAR FEEDS',
+    'Connector truth only',
+    'No Gmail sends',
+    'Brief Source',
+    'Google Calendar',
+    'ICS Feed',
+    'Plaan Snapshot',
+    'SOURCE READINESS',
+    'live here - not in the hero',
+    'SOURCE READINESS',
+    'Feed Readiness',
+    'CalendarFeedsCommand',
+    'FeedHealthCard',
     'BACK TO COMMAND CENTER',
     'Section Routes',
     'calendarSection',
@@ -72,6 +84,8 @@ test('calendar radial core and subsection css is present and always-on', async (
     'CALENDAR_SUBSECTION_ROUTER_V2',
     'CALENDAR_SUBSECTION_ROUTER_V3',
     'CALENDAR_SECTION_SCREEN_V1',
+    'CALENDAR_FEEDS_COMMAND_V1',
+    'CALENDAR_FEEDS_VISUAL_POLISH_V2',
     'CALENDAR_SUBSECTION_POLISH_V1',
     'phxCalendarRingRotate',
     'phxCalendarRingBreath',
@@ -128,3 +142,36 @@ test('calendar standalone subsection polish removes duplicate title pressure', a
   assert.doesNotMatch(source, /title="Week Command Map"/)
   assert.match(css, /CALENDAR_SUBSECTION_POLISH_V1/)
 })
+
+
+test('calendar feeds subsection exposes read-only connector truth', async () => {
+  const source = await readFile(new URL('./CalendarDashboard.jsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../cockpit/cockpit.css', import.meta.url), 'utf8')
+
+  for (const token of [
+    'function CalendarFeedsCommand',
+    'Feed Readiness',
+    'SOURCE READINESS',
+    'Plaan Snapshot',
+    'ICS Feed',
+    'Google Calendar',
+    'Brief Source',
+    'No Gmail sends',
+    'Connector truth only',
+  ]) assert.match(source, new RegExp(token))
+
+  assert.doesNotMatch(source, /createEvent|updateEvent|deleteEvent|send_email|gmail\.send|postCalendar/i)
+  assert.match(css, /CALENDAR_FEEDS_COMMAND_V1/)
+})
+
+
+test('calendar feeds visual polish removes mojibake and duplicate title pressure', async () => {
+  const source = await readFile(new URL('./CalendarDashboard.jsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../cockpit/cockpit.css', import.meta.url), 'utf8')
+
+  assert.match(source, /SOURCE READINESS/)
+  assert.match(source, /live here - not in the hero/)
+  assert.doesNotMatch(source, /\?\?\?/)
+  assert.match(css, /CALENDAR_FEEDS_VISUAL_POLISH_V2/)
+})
+
