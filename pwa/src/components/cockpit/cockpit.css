@@ -401,7 +401,7 @@
   }
 }
 
-/* â”€â”€ Cross-domain premium cockpit surfaces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Cross-domain premium cockpit surfaces Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .phx-domain-frame {
   max-width: 1120px;
   margin: 0 auto;
@@ -901,7 +901,7 @@
 }
 
 
-/* â”€â”€ Finance/Training-grade command hero for cross-domain dashboards â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Finance/Training-grade command hero for cross-domain dashboards Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .phx-command-hero {
   position: relative;
   overflow: hidden;
@@ -1170,7 +1170,7 @@
 }
 
 
-/* â”€â”€ Nutrition v3: focused fuel operations surface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v3: focused fuel operations surface Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .phx-nutrition-frame {
   gap: 1rem;
 }
@@ -1465,7 +1465,7 @@
   }
  }
 
-/* â”€â”€ Nutrition v4: copy Finance hero typography/geometry, keep green identity â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v4: copy Finance hero typography/geometry, keep green identity Ã¢â€â‚¬Ã¢â€â‚¬ */
 .phx-nutrition-finance-copy {
   margin-bottom: 1rem;
   padding: 2rem 2.5rem 2.5rem;
@@ -1649,7 +1649,7 @@
   }
 }
 
-/* â”€â”€ Nutrition v5: opening page first, subsections second â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v5: opening page first, subsections second Ã¢â€â‚¬Ã¢â€â‚¬ */
 .phx-nutrition-finance-core .phx-macro-rings {
   margin-bottom: 1rem;
 }
@@ -1857,7 +1857,7 @@
   }
 }
 
-/* â”€â”€ Nutrition v6: opening page feature modules before detail routes â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v6: opening page feature modules before detail routes Ã¢â€â‚¬Ã¢â€â‚¬ */
 .phx-nutrition-feature-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
@@ -2114,7 +2114,7 @@
   }
 }
 
-/* â”€â”€ Nutrition v7: finished opening outputs, user choices, hidden Phoenix engines â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v7: finished opening outputs, user choices, hidden Phoenix engines Ã¢â€â‚¬Ã¢â€â‚¬ */
 .phx-nutrition-mode-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -5068,4 +5068,765 @@
 @media (max-width: 620px) {
   .phx-calendar-today-rail-meta { grid-template-columns: 1fr; }
   .phx-calendar-timeline-hours { font-size: 0.52rem; }
+}
+
+/* CALENDAR_WEEK_COMMAND_MAP_V1 */
+.phx-calendar-v19 .phx-data-panel:has(.phx-calendar-week-command-map),
+.phx-calendar-v19 [class*="panel"]:has(.phx-calendar-week-command-map) {
+  grid-column: 1 / -1 !important;
+  margin-top: clamp(1.35rem, 2vw, 1.95rem) !important;
+  border-color: rgba(159, 125, 255, 0.28) !important;
+  box-shadow:
+    0 0 1.8rem rgba(159, 125, 255, 0.08),
+    inset 0 0 1.8rem rgba(159, 125, 255, 0.025) !important;
+}
+
+.phx-calendar-week-command-map {
+  display: grid;
+  gap: clamp(1rem, 1.4vw, 1.35rem);
+}
+
+.phx-calendar-week-map-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.phx-calendar-week-map-head div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.phx-calendar-week-map-head small,
+.phx-calendar-week-map-metrics small,
+.phx-calendar-week-summary-cards small {
+  color: rgba(177, 146, 255, 0.8);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-week-map-head strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.9rem, 3vw, 3.1rem);
+  letter-spacing: 0.12em;
+  line-height: 0.92;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 0.7rem rgba(255, 255, 255, 0.12),
+    0 0 1.4rem rgba(159, 125, 255, 0.20);
+}
+
+.phx-calendar-week-map-head span {
+  color: rgba(218, 229, 238, 0.78);
+  font-size: clamp(0.82rem, 1vw, 0.98rem);
+}
+
+.phx-calendar-week-map-head em {
+  color: rgba(216, 204, 255, 0.72);
+  border: 1px solid rgba(159, 125, 255, 0.32);
+  background: rgba(159, 125, 255, 0.08);
+  padding: 0.5rem 0.72rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  font-style: normal;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-week-map-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1vw, 1rem);
+}
+
+.phx-calendar-week-map-metrics > div {
+  min-height: 4.2rem;
+  display: grid;
+  align-content: center;
+  gap: 0.25rem;
+  border: 1px solid rgba(159, 125, 255, 0.18);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.07), transparent 60%),
+    rgba(7, 10, 19, 0.78);
+  padding: clamp(0.75rem, 1vw, 0.95rem);
+}
+
+.phx-calendar-week-map-metrics strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.9rem, 1.15vw, 1.08rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phx-calendar-week-day-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: clamp(0.4rem, 0.8vw, 0.7rem);
+}
+
+.phx-calendar-week-day-strip button {
+  min-height: clamp(3.75rem, 5vw, 4.85rem);
+  display: grid;
+  place-items: center;
+  gap: 0.18rem;
+  border: 1px solid rgba(159, 125, 255, 0.16);
+  background: rgba(12, 15, 30, 0.72);
+  color: var(--text-primary, #eaf3fb);
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.phx-calendar-week-day-strip button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(159, 125, 255, 0.55);
+}
+
+.phx-calendar-week-day-strip span {
+  color: rgba(216, 204, 255, 0.66);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+}
+
+.phx-calendar-week-day-strip strong {
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.25rem, 1.9vw, 1.75rem);
+}
+
+.phx-calendar-week-day-strip em {
+  color: rgba(216, 204, 255, 0.48);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.48rem;
+  font-style: normal;
+  letter-spacing: 0.12em;
+}
+
+.phx-calendar-week-day-strip button.active {
+  border-color: rgba(177, 146, 255, 0.95);
+  background:
+    radial-gradient(circle at 50% 100%, rgba(159, 125, 255, 0.22), transparent 70%),
+    rgba(159, 125, 255, 0.105);
+  box-shadow:
+    0 0 1.25rem rgba(159, 125, 255, 0.28),
+    inset 0 -3px 0 rgba(177, 146, 255, 0.98);
+}
+
+.phx-calendar-week-rhythm-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(8rem, 10rem) 1fr;
+  grid-template-rows: auto minmax(11rem, 14rem) auto;
+  border: 1px solid rgba(159, 125, 255, 0.18);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(159, 125, 255, 0.055), transparent 52%),
+    linear-gradient(180deg, rgba(8, 12, 24, 0.72), rgba(5, 8, 15, 0.9));
+  overflow: hidden;
+}
+
+.phx-calendar-week-lanes {
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(5, 1fr);
+  padding: 0.85rem 0.9rem;
+  border-right: 1px solid rgba(159, 125, 255, 0.13);
+}
+
+.phx-calendar-week-lanes span {
+  color: rgba(218, 229, 238, 0.68);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-week-hours {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  padding: 0.8rem 0.9rem 0.5rem;
+  color: rgba(216, 204, 255, 0.64);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+}
+
+.phx-calendar-week-hours span {
+  text-align: center;
+}
+
+.phx-calendar-week-grid-body {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  min-height: 11rem;
+  background:
+    linear-gradient(90deg, rgba(159, 125, 255, 0.13) 1px, transparent 1px),
+    linear-gradient(rgba(159, 125, 255, 0.10) 1px, transparent 1px);
+  background-size: calc(100% / 6) 100%, 100% calc(100% / 5);
+}
+
+.phx-calendar-week-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.phx-calendar-week-empty strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.15rem, 1.75vw, 1.55rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 0.8rem rgba(255, 255, 255, 0.14),
+    0 0 1.3rem rgba(159, 125, 255, 0.26);
+}
+
+.phx-calendar-week-empty span,
+.phx-calendar-week-empty em {
+  color: rgba(218, 229, 238, 0.75);
+  font-size: clamp(0.82rem, 1vw, 0.95rem);
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.phx-calendar-week-empty em {
+  color: rgba(216, 204, 255, 0.7);
+}
+
+.phx-calendar-week-event-stack {
+  position: relative;
+  z-index: 2;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.phx-calendar-week-legend {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(0.8rem, 1.35vw, 1.25rem);
+  padding: 0.75rem 0.9rem 0.85rem;
+  border-top: 1px solid rgba(159, 125, 255, 0.13);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.56rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-week-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  margin-right: 0.42rem;
+  box-shadow: 0 0 0.7rem currentColor;
+  background: currentColor;
+}
+
+.phx-calendar-week-legend .performance { color: rgba(159, 125, 255, 0.96); }
+.phx-calendar-week-legend .rehearsal { color: rgba(91, 152, 255, 0.96); }
+.phx-calendar-week-legend .travel { color: rgba(255, 211, 104, 0.96); }
+.phx-calendar-week-legend .recovery { color: rgba(56, 255, 177, 0.96); }
+.phx-calendar-week-legend .buffer { color: rgba(173, 181, 200, 0.8); }
+
+.phx-calendar-week-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.85rem, 1.2vw, 1rem);
+}
+
+.phx-calendar-week-summary-cards > div {
+  position: relative;
+  min-height: 7.4rem;
+  display: grid;
+  align-content: start;
+  gap: 0.48rem;
+  border: 1px solid rgba(159, 125, 255, 0.18);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.07), transparent 60%),
+    rgba(7, 10, 19, 0.78);
+  padding: clamp(0.9rem, 1.2vw, 1.12rem);
+}
+
+.phx-calendar-week-summary-cards strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1rem, 1.35vw, 1.18rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-week-summary-cards span {
+  color: rgba(218, 229, 238, 0.72);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.phx-calendar-week-summary-cards em {
+  position: absolute;
+  right: 0.85rem;
+  bottom: 0.72rem;
+  color: rgba(216, 204, 255, 0.45);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.48rem;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-week-safe-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  border: 1px solid rgba(159, 125, 255, 0.13);
+  background: rgba(6, 10, 18, 0.68);
+  padding: 0.72rem 0.9rem;
+  color: rgba(216, 204, 255, 0.7);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+}
+
+.phx-calendar-week-safe-note span {
+  color: rgba(177, 146, 255, 0.9);
+  text-shadow: 0 0 0.9rem rgba(159, 125, 255, 0.45);
+}
+
+.phx-calendar-week-safe-note em {
+  margin-left: auto;
+  color: rgba(216, 204, 255, 0.52);
+  font-style: normal;
+}
+
+@media (max-width: 1100px) {
+  .phx-calendar-week-map-metrics,
+  .phx-calendar-week-summary-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .phx-calendar-week-rhythm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-calendar-week-lanes {
+    display: none;
+  }
+
+  .phx-calendar-week-hours,
+  .phx-calendar-week-grid-body {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .phx-calendar-week-map-head,
+  .phx-calendar-week-map-metrics,
+  .phx-calendar-week-summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-calendar-week-map-head {
+    display: grid;
+  }
+
+  .phx-calendar-week-day-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* CALENDAR_SUBSECTION_ROUTER_V2 */
+/* Today and Week are routed subsection views, not permanent command-center panels. */
+.phx-calendar-v19 .phx-data-panel:has(.phx-calendar-today-rail),
+.phx-calendar-v19 .phx-data-panel:has(.phx-calendar-week-command-map),
+.phx-calendar-v19 [class*="panel"]:has(.phx-calendar-today-rail),
+.phx-calendar-v19 [class*="panel"]:has(.phx-calendar-week-command-map) {
+  grid-column: 1 / -1 !important;
+  margin-top: clamp(1.45rem, 2.1vw, 2rem) !important;
+  margin-bottom: clamp(1.15rem, 1.7vw, 1.55rem) !important;
+}
+
+/* Calendar Routes remains below whichever subsection is active. */
+.phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card),
+.phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card) {
+  grid-column: 1 / -1 !important;
+  margin-top: clamp(1.15rem, 1.8vw, 1.65rem) !important;
+}
+
+.phx-calendar-subsection-placeholder {
+  min-height: clamp(12rem, 18vw, 16rem);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.55rem;
+  text-align: center;
+  border: 1px solid rgba(159, 125, 255, 0.18);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(159, 125, 255, 0.08), transparent 54%),
+    rgba(7, 10, 19, 0.74);
+  padding: clamp(1.25rem, 2vw, 1.9rem);
+}
+
+.phx-calendar-subsection-placeholder strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.1rem, 1.7vw, 1.55rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 0.8rem rgba(255, 255, 255, 0.14),
+    0 0 1.3rem rgba(159, 125, 255, 0.25);
+}
+
+.phx-calendar-subsection-placeholder span {
+  max-width: 42rem;
+  color: rgba(218, 229, 238, 0.76);
+  line-height: 1.45;
+}
+
+.phx-calendar-subsection-placeholder em {
+  color: rgba(216, 204, 255, 0.62);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* CALENDAR_SUBSECTION_ROUTER_V3 */
+/* Repair marker: active Calendar subsections are routed, not stacked. */
+.phx-calendar-subsection-placeholder {
+  min-height: clamp(12rem, 18vw, 16rem);
+}
+
+
+/* CALENDAR_SECTION_SCREEN_V1 */
+/* Calendar subsections are standalone screens, not panels embedded in the Command Center. */
+.phx-calendar-section-screen .phx-domain-frame {
+  gap: clamp(1.2rem, 2vw, 1.9rem);
+}
+
+.phx-calendar-section-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(1rem, 1.8vw, 1.6rem);
+  border: 1px solid rgba(159, 125, 255, 0.20);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.11), transparent 48%),
+    linear-gradient(135deg, rgba(10, 14, 28, 0.92), rgba(5, 8, 18, 0.84));
+  padding: clamp(1rem, 1.8vw, 1.45rem);
+  box-shadow:
+    0 0 1.6rem rgba(159, 125, 255, 0.08),
+    inset 0 0 1.4rem rgba(159, 125, 255, 0.025);
+}
+
+.phx-calendar-section-header div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.phx-calendar-section-header small {
+  color: rgba(177, 146, 255, 0.78);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-section-header strong {
+  color: var(--text-primary, #eaf3fb);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.7rem, 3vw, 3.2rem);
+  letter-spacing: 0.12em;
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 0.8rem rgba(255, 255, 255, 0.12),
+    0 0 1.35rem rgba(159, 125, 255, 0.22);
+}
+
+.phx-calendar-section-header span {
+  color: rgba(218, 229, 238, 0.76);
+  font-size: clamp(0.82rem, 1vw, 0.98rem);
+}
+
+.phx-calendar-section-back {
+  border: 1px solid rgba(159, 125, 255, 0.26);
+  background: rgba(159, 125, 255, 0.07);
+  color: rgba(232, 224, 255, 0.92);
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  padding: 0.72rem 0.9rem;
+  text-transform: uppercase;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.phx-calendar-section-back:hover {
+  transform: translateY(-1px);
+  border-color: rgba(177, 146, 255, 0.72);
+  box-shadow: 0 0 1rem rgba(159, 125, 255, 0.16);
+}
+
+@media (max-width: 760px) {
+  .phx-calendar-section-header {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-calendar-section-back {
+    width: 100%;
+  }
+}
+
+
+/* CALENDAR_SUBSECTION_POLISH_V1 */
+/* Reduce standalone subsection title repetition and keep route controls compact. */
+.phx-calendar-section-screen .phx-calendar-section-header {
+  min-height: unset;
+  padding: clamp(0.9rem, 1.45vw, 1.22rem) clamp(1rem, 1.7vw, 1.5rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-section-header strong {
+  font-size: clamp(1.45rem, 2.65vw, 2.85rem);
+  letter-spacing: 0.12em;
+}
+
+.phx-calendar-section-screen .phx-calendar-section-header span {
+  max-width: 64rem;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-today-rail),
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-week-command-map),
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-today-rail),
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-week-command-map) {
+  margin-top: clamp(0.9rem, 1.35vw, 1.25rem) !important;
+}
+
+.phx-calendar-week-map-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(159, 125, 255, 0.14);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.055), transparent 58%),
+    rgba(7, 10, 19, 0.56);
+  padding: clamp(0.72rem, 1vw, 0.95rem);
+}
+
+.phx-calendar-week-map-kicker span {
+  color: rgba(218, 229, 238, 0.76);
+  font-size: clamp(0.82rem, 1vw, 0.96rem);
+}
+
+.phx-calendar-week-map-kicker em {
+  color: rgba(216, 204, 255, 0.62);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.55rem;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid),
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-route-grid) {
+  margin-top: clamp(0.7rem, 1.2vw, 1rem) !important;
+}
+
+.phx-calendar-section-screen .phx-calendar-route-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.55rem, 0.9vw, 0.8rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-route-card {
+  min-height: 4.8rem;
+  padding: clamp(0.72rem, 1vw, 0.9rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-route-card strong {
+  font-size: clamp(0.82rem, 1.05vw, 0.98rem);
+  letter-spacing: 0.1em;
+}
+
+.phx-calendar-section-screen .phx-calendar-route-card span {
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 920px) {
+  .phx-calendar-section-screen .phx-calendar-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phx-calendar-week-map-kicker {
+    display: grid;
+  }
+}
+
+/* CALENDAR_SUBSECTION_SPACING_LOCK_V2 */
+/* Tighten standalone Calendar subsection spacing after visual review. */
+.phx-calendar-section-screen .phx-domain-frame {
+  width: min(100%, 92rem);
+  margin-inline: auto;
+  gap: clamp(0.78rem, 1.15vw, 1.15rem);
+  padding-bottom: clamp(6.25rem, 8.5vh, 7.75rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-section-header {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(0.72rem, 1.15vw, 1.02rem) clamp(0.9rem, 1.45vw, 1.25rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-section-back {
+  padding: 0.58rem 0.78rem;
+  min-height: 2.65rem;
+}
+
+.phx-calendar-section-screen .phx-calendar-section-header small {
+  font-size: 0.52rem;
+}
+
+.phx-calendar-section-screen .phx-calendar-section-header strong {
+  font-size: clamp(1.28rem, 2.35vw, 2.45rem);
+  line-height: 0.92;
+}
+
+.phx-calendar-section-screen .phx-calendar-section-header span {
+  font-size: clamp(0.76rem, 0.95vw, 0.9rem);
+  line-height: 1.25;
+}
+
+.phx-calendar-section-screen .phx-data-panel,
+.phx-calendar-section-screen [class*="panel"] {
+  scroll-margin-bottom: 8rem;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-today-rail),
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-week-command-map),
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-today-rail),
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-week-command-map) {
+  margin-top: clamp(0.48rem, 0.85vw, 0.78rem) !important;
+  margin-bottom: clamp(0.62rem, 1vw, 0.9rem) !important;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-today-rail) .phx-panel-body,
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-week-command-map) .phx-panel-body,
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-today-rail) .phx-panel-body,
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-week-command-map) .phx-panel-body {
+  padding-block: clamp(0.85rem, 1.25vw, 1.15rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-today-rail,
+.phx-calendar-section-screen .phx-calendar-week-command-map {
+  gap: clamp(0.72rem, 1vw, 0.98rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-timeline {
+  margin-top: 0;
+}
+
+.phx-calendar-section-screen .phx-calendar-timeline-body {
+  min-height: clamp(9.6rem, 16vh, 12rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-today-rail-meta {
+  gap: clamp(0.58rem, 0.9vw, 0.8rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-today-rail-meta > div {
+  min-height: clamp(4.35rem, 6.2vh, 5.15rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-week-map-metrics {
+  gap: clamp(0.58rem, 0.85vw, 0.8rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-week-map-metrics > div {
+  min-height: 3.75rem;
+  padding: clamp(0.62rem, 0.85vw, 0.78rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-week-day-strip {
+  gap: clamp(0.38rem, 0.65vw, 0.55rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-week-day-strip button {
+  min-height: clamp(3.18rem, 4.35vw, 4rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-week-rhythm-grid {
+  grid-template-rows: auto minmax(9rem, 12rem) auto;
+}
+
+.phx-calendar-section-screen .phx-calendar-week-grid-body {
+  min-height: clamp(9rem, 16vh, 12rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-week-summary-cards {
+  gap: clamp(0.62rem, 0.9vw, 0.82rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-week-summary-cards > div {
+  min-height: 6.35rem;
+  padding: clamp(0.72rem, 1vw, 0.9rem);
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid),
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-route-grid) {
+  margin-top: clamp(0.45rem, 0.8vw, 0.7rem) !important;
+}
+
+.phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid) .phx-panel-body,
+.phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-route-grid) .phx-panel-body {
+  padding-block: clamp(0.65rem, 1vw, 0.95rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-route-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.42rem, 0.7vw, 0.62rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-route-card {
+  min-height: 4.1rem;
+  padding: clamp(0.58rem, 0.82vw, 0.72rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-route-card strong {
+  font-size: clamp(0.74rem, 0.92vw, 0.86rem);
+}
+
+.phx-calendar-section-screen .phx-calendar-route-card span {
+  font-size: 0.66rem;
+  line-height: 1.25;
+}
+
+@media (max-width: 920px) {
+  .phx-calendar-section-screen .phx-domain-frame {
+    width: min(100%, 94vw);
+  }
+
+  .phx-calendar-section-screen .phx-calendar-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

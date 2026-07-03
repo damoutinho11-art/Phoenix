@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { getCalendarSnapshot, postJarvisChat } from '../../api/client'
 import { CockpitShell, DataPanel, EmptyState, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
 
@@ -122,7 +122,7 @@ function CommandButton({ label, action, active = false }) {
   )
 }
 
-function ViewModeTabs({ activeMode, setActiveMode }) {
+function ViewModeTabs({ activeMode, setActiveMode, onRoute }) {
   return (
     <div className="phx-calendar-mode-grid" aria-label="Calendar view mode">
       {[
@@ -130,7 +130,15 @@ function ViewModeTabs({ activeMode, setActiveMode }) {
         ['week', 'WEEK'],
         ['performances', 'PERFORMANCES'],
       ].map(([mode, label]) => (
-        <CommandButton key={mode} label={label} active={activeMode === mode} action={() => setActiveMode(mode)} />
+        <CommandButton
+          key={mode}
+          label={label}
+          active={activeMode === mode}
+          action={() => {
+            setActiveMode(mode)
+            onRoute && onRoute(mode)
+          }}
+        />
       ))}
     </div>
   )
@@ -266,7 +274,7 @@ function TodayCommandRail({ displayEvents, visibleLoadHours, nextEvent, bufferSi
       </div>
 
       <div className="phx-calendar-today-safe-note">
-        <span aria-hidden="true">â—‡</span>
+        <span aria-hidden="true">[RO]</span>
         <strong>No Plaan mutations. No Google writes.</strong>
       </div>
     </div>
@@ -280,6 +288,215 @@ function WeekPreview({ weekDays, allEvents, performanceEvents, rehearsalEvents }
       <p>Normalized weekly rhythm, visible assignments, and performance/rehearsal balance.</p>
       <em>{performanceEvents.length} performance - {rehearsalEvents.length} rehearsal</em>
     </div>
+  )
+}
+
+function WeekCommandMap({ weekDays, allEvents, performanceEvents, rehearsalEvents, source, sourceAsOf, setActiveMode }) {
+  const weekKeys = new Set(weekDays.map(day => day.key))
+  const weekEvents = allEvents.filter(event => weekKeys.has(event.date))
+  const totalWeekHours = weekEvents.reduce((sum, event) => sum + eventDurationHours(event), 0)
+  const weekBufferSignals = buildBufferSignals(weekEvents)
+  const dayStats = weekDays.map(day => {
+    const dayEvents = weekEvents.filter(event => event.date === day.key)
+    const dayHours = dayEvents.reduce((sum, event) => sum + eventDurationHours(event), 0)
+    const performances = dayEvents.filter(event => ['performance', 'concert', 'show'].includes(event.event_type)).length
+    const rehearsals = dayEvents.filter(event => event.event_type === 'rehearsal').length
+
+    return {
+      ...day,
+      events: dayEvents.length,
+      hours: dayHours,
+      performances,
+      rehearsals,
+    }
+  })
+  const busiestDay = [...dayStats].sort((a, b) => b.hours - a.hours || b.events - a.events)[0]
+  const hasWeekEvents = weekEvents.length > 0
+  const performanceLoad = weekEvents.length ? Math.round((performanceEvents.filter(event => weekKeys.has(event.date)).length / weekEvents.length) * 100) : 0
+  const sourceCopy = [sourceLabel(source), sourceAsOf].filter(Boolean).join(' - ') || 'Read-only weekly snapshot'
+
+  return (
+    <div className="phx-calendar-week-command-map">
+      <div className="phx-calendar-week-map-kicker">
+        <span>Weekly preview of visible plan load and event rhythm.</span>
+        <em>READ ONLY WEEKLY SNAPSHOT</em>
+      </div>
+
+      <div className="phx-calendar-week-map-metrics">
+        <div>
+          <small>TOTAL VISIBLE</small>
+          <strong>{formatHours(totalWeekHours)} HOURS</strong>
+        </div>
+        <div>
+          <small>VISIBLE EVENTS</small>
+          <strong>{weekEvents.length} EVENTS</strong>
+        </div>
+        <div>
+          <small>BUSIEST DAY</small>
+          <strong>{busiestDay && busiestDay.events ? `${busiestDay.dow} - ${formatHours(busiestDay.hours)}H` : 'NONE'}</strong>
+        </div>
+        <div>
+          <small>SOURCE</small>
+          <strong>{sourceCopy}</strong>
+        </div>
+      </div>
+
+      <div className="phx-calendar-week-day-strip">
+        {dayStats.map(day => (
+          <button
+            type="button"
+            key={`week-map-${day.key}`}
+            className={day.active ? 'active' : ''}
+            onClick={() => setActiveMode && setActiveMode('week')}
+          >
+            <span>{day.dow}</span>
+            <strong>{day.num}</strong>
+            <em>{day.events ? `${formatHours(day.hours)}H - ${day.events}` : 'OPEN'}</em>
+          </button>
+        ))}
+      </div>
+
+      <div className="phx-calendar-week-rhythm-grid">
+        <div className="phx-calendar-week-lanes">
+          <span>PERFORMANCE</span>
+          <span>REHEARSAL</span>
+          <span>TRAVEL / ADMIN</span>
+          <span>RECOVERY</span>
+          <span>BUFFER</span>
+        </div>
+        <div className="phx-calendar-week-hours" aria-hidden="true">
+          {['00', '04', '08', '12', '16', '20', '24'].map(hour => <span key={hour}>{hour}</span>)}
+        </div>
+        <div className="phx-calendar-week-grid-body">
+          {hasWeekEvents ? (
+            <div className="phx-calendar-week-event-stack">
+              {weekEvents.slice(0, 5).map(event => (
+                <AgendaRow key={`week-map-event-${event.event_id || event.title}`} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="phx-calendar-week-empty">
+              <strong>OPEN SLATE</strong>
+              <span>No personal rows visible for this week.</span>
+              <em>Read-only calendar preview.</em>
+            </div>
+          )}
+        </div>
+        <div className="phx-calendar-week-legend">
+          <span className="performance">PERFORMANCE</span>
+          <span className="rehearsal">REHEARSAL</span>
+          <span className="travel">TRAVEL / ADMIN</span>
+          <span className="recovery">RECOVERY</span>
+          <span className="buffer">BUFFER</span>
+        </div>
+      </div>
+
+      <div className="phx-calendar-week-summary-cards">
+        <div>
+          <small>WEEK SNAPSHOT</small>
+          <strong>{formatHours(totalWeekHours)} HOURS - {weekEvents.length} EVENTS</strong>
+          <span>{hasWeekEvents ? 'Visible assignments loaded from the read-only snapshot.' : 'No assignments visible. Read-only snapshot.'}</span>
+          <em>READ ONLY</em>
+        </div>
+        <div>
+          <small>PERFORMANCE LOAD</small>
+          <strong>{performanceLoad}%</strong>
+          <span>{performanceEvents.filter(event => weekKeys.has(event.date)).length ? 'Performance items visible this week.' : 'No performance items scheduled.'}</span>
+          <em>READ ONLY</em>
+        </div>
+        <div>
+          <small>NEXT MOVE</small>
+          <strong>{hasWeekEvents ? 'REVIEW WEEK' : 'STAY READY'}</strong>
+          <span>{hasWeekEvents ? 'Open Today for details, buffers, and source labels.' : 'Add or sync assignments in the source system to populate.'}</span>
+          <em>READ ONLY</em>
+        </div>
+      </div>
+
+      <div className="phx-calendar-week-safe-note">
+        <span aria-hidden="true">[RO]</span>
+        <strong>No Plaan mutations. No Google writes.</strong>
+        <em>{weekBufferSignals.length ? `${weekBufferSignals.length} tight buffer signal${weekBufferSignals.length === 1 ? '' : 's'}` : 'Buffer pressure clear.'}</em>
+      </div>
+    </div>
+  )
+}
+function CalendarActiveSubsection({
+  activeMode,
+  weekDays,
+  displayEvents,
+  visibleLoadHours,
+  nextEvent,
+  bufferSignals,
+  allEvents,
+  performanceEvents,
+  rehearsalEvents,
+  snapshot,
+  sourceAsOf,
+  setActiveMode,
+  onEvent,
+  resultCopy,
+  jarvisText,
+}) {
+  if (activeMode === 'week') {
+    return (
+      <DataPanel eyebrow="[ WEEK ]" title="Weekly Rhythm" meta={`${allEvents.length} VISIBLE`}>
+        <WeekCommandMap
+          weekDays={weekDays}
+          allEvents={allEvents}
+          performanceEvents={performanceEvents}
+          rehearsalEvents={rehearsalEvents}
+          source={snapshot?.source}
+          sourceAsOf={sourceAsOf}
+          setActiveMode={setActiveMode}
+        />
+      </DataPanel>
+    )
+  }
+
+  if (activeMode === 'feeds') {
+    return (
+      <DataPanel eyebrow="[ FEEDS ]" title="Calendar Feeds" meta="READ ONLY">
+        <div className="phx-calendar-subsection-placeholder">
+          <strong>FEEDS READY</strong>
+          <span>Plaan, ICS, Google Calendar, and brief-source readiness belong here. This surface is diagnostic only until an explicit approval gate exists.</span>
+          <em>No Plaan mutations. No Google writes.</em>
+        </div>
+      </DataPanel>
+    )
+  }
+
+  if (activeMode === 'brief') {
+    return (
+      <DataPanel eyebrow="[ BRIEF ]" title="Calendar Brief" meta="READ ONLY">
+        <BriefPreview resultCopy={resultCopy} jarvisText={jarvisText} />
+      </DataPanel>
+    )
+  }
+
+  if (activeMode === 'performances') {
+    return (
+      <DataPanel eyebrow="[ PERFORMANCES ]" title="Performance Command Rail" meta="READ ONLY">
+        <div className="phx-calendar-subsection-placeholder">
+          <strong>PERFORMANCE VIEW READY</strong>
+          <span>Performance and rehearsal filtering stays read-only. No assigned performance rows are visible unless Plaan/source data provides them.</span>
+          <em>No Plaan mutations. No Google writes.</em>
+        </div>
+      </DataPanel>
+    )
+  }
+
+  return (
+    <DataPanel eyebrow="[ TODAY ]" title="Operational Rail" meta="READ ONLY">
+      <TodayCommandRail
+        displayEvents={displayEvents}
+        visibleLoadHours={visibleLoadHours}
+        nextEvent={nextEvent}
+        bufferSignals={bufferSignals}
+        source={snapshot?.source}
+        sourceAsOf={sourceAsOf}
+        onEvent={onEvent}
+      />
+    </DataPanel>
   )
 }
 
@@ -309,6 +526,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
   const [events, setEvents] = useState(null)
   const [jarvisText, setJarvisText] = useState('')
   const [activeMode, setActiveMode] = useState('today')
+  const [calendarSection, setCalendarSection] = useState('command')
 
   useEffect(() => {
     getCalendarSnapshot()
@@ -359,6 +577,80 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
     </CockpitShell>
   )
 
+  const sectionLabel = calendarSection === 'today'
+    ? 'TODAY COMMAND RAIL'
+    : calendarSection === 'week'
+      ? 'WEEK COMMAND MAP'
+      : calendarSection === 'feeds'
+        ? 'CALENDAR FEEDS'
+        : calendarSection === 'brief'
+          ? 'CALENDAR BRIEF'
+          : 'PERFORMANCE COMMAND RAIL'
+  const sectionCopy = calendarSection === 'today'
+    ? 'Focused day rail, event details, source labels, and buffer state.'
+    : calendarSection === 'week'
+      ? 'Weekly rhythm map, visible load, and performance/rehearsal balance.'
+      : calendarSection === 'feeds'
+        ? 'Source readiness, connector health, and diagnostics stay read-only.'
+        : calendarSection === 'brief'
+          ? 'Read-only schedule summary with honest offline fallback.'
+          : 'Read-only performance and rehearsal preparation surface.'
+  const routedMode = calendarSection === 'command' ? activeMode : calendarSection
+
+  if (events !== null && calendarSection !== 'command') {
+    return (
+      <CockpitShell accent={VIOLET} className="phx-calendar-cockpit phx-calendar-v18 phx-calendar-v19 phx-calendar-section-screen" aria-label={`Calendar ${sectionLabel}`}>
+        <div className="phx-domain-frame">
+          <header className="phx-calendar-section-header">
+            <button
+              type="button"
+              className="phx-calendar-section-back"
+              onClick={() => setCalendarSection('command')}
+            >
+              BACK TO COMMAND CENTER
+            </button>
+            <div>
+              <small>PHOENIX - CALENDAR SUBSECTION</small>
+              <strong>{sectionLabel}</strong>
+              <span>{sectionCopy}</span>
+            </div>
+            <StatusChip tone="verified">READ ONLY</StatusChip>
+          </header>
+
+          <CalendarActiveSubsection
+            activeMode={routedMode}
+            weekDays={weekDays}
+            displayEvents={displayEvents}
+            visibleLoadHours={visibleLoadHours}
+            nextEvent={nextEvent}
+            bufferSignals={bufferSignals}
+            allEvents={allEvents}
+            performanceEvents={performanceEvents}
+            rehearsalEvents={rehearsalEvents}
+            snapshot={snapshot}
+            sourceAsOf={sourceAsOf}
+            setActiveMode={setActiveMode}
+            onEvent={onEvent}
+            resultCopy={resultCopy}
+            jarvisText={jarvisText}
+          />
+
+          <DataPanel eyebrow="[ ROUTES ]" title="Section Routes" meta="READ ONLY">
+            <div className="phx-panel-body">
+              <div className="phx-calendar-route-grid">
+                <RouteCard title="Command" copy="Return to the Calendar Command Center overview." action={() => setCalendarSection('command')} />
+                <RouteCard title="Today" copy="Open the Today Command Rail subsection." action={() => { setActiveMode('today'); setCalendarSection('today') }} />
+                <RouteCard title="Week" copy="Open the Week Command Map subsection." action={() => { setActiveMode('week'); setCalendarSection('week') }} />
+                <RouteCard title="Feeds" copy="Open source and connector readiness." action={() => setCalendarSection('feeds')} />
+                <RouteCard title="Brief" copy="Open the read-only calendar brief." action={() => setCalendarSection('brief')} />
+              </div>
+            </div>
+          </DataPanel>
+        </div>
+      </CockpitShell>
+    )
+  }
+
   return (
     <CockpitShell accent={VIOLET} className="phx-calendar-cockpit phx-calendar-v18 phx-calendar-v19" aria-label="Calendar Command Center">
       <div className="phx-domain-frame">
@@ -388,7 +680,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
                 <StatusChip tone="verified">READ ONLY</StatusChip>
               </div>
 
-              <ViewModeTabs activeMode={activeMode} setActiveMode={setActiveMode} />
+              <ViewModeTabs activeMode={activeMode} setActiveMode={setActiveMode} onRoute={mode => setCalendarSection(mode)} />
 
               <div className="phx-command-brief phx-calendar-hero-brief">
                 <strong>{activeMode.toUpperCase()} COMMAND RESULT</strong><br />
@@ -429,25 +721,13 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
             </div>
           </DataPanel>
         </section>
-
-        <DataPanel eyebrow="[ TODAY RAIL ]" title="Today Command Rail" meta="READ ONLY">
-          <TodayCommandRail
-            displayEvents={displayEvents}
-            visibleLoadHours={visibleLoadHours}
-            nextEvent={nextEvent}
-            bufferSignals={bufferSignals}
-            source={snapshot?.source}
-            sourceAsOf={sourceAsOf}
-            onEvent={onEvent}
-          />
-        </DataPanel>
         <DataPanel eyebrow="[ DETAIL ROUTES ]" title="Calendar Routes" meta="READ ONLY">
           <div className="phx-panel-body">
             <div className="phx-calendar-route-grid">
-              <RouteCard title="Today" copy="Full day rail, event details, source labels, and buffers." action={() => setActiveMode('today')} />
-              <RouteCard title="Week" copy="Weekly load, performance blocks, and rhythm review." action={() => { setActiveMode('week'); onWeekView && onWeekView() }} />
-              <RouteCard title="Feeds" copy="Plaan, ICS, Google, source health, and diagnostics." action={onFeed} />
-              <RouteCard title="Brief" copy="Read-only day brief and next-event summary." action={() => onQuickAsk && onQuickAsk('Give me a read-only calendar brief for today.')} />
+              <RouteCard title="Today" copy="Full day rail, event details, source labels, and buffers." action={() => { setActiveMode('today'); setCalendarSection('today') }} />
+              <RouteCard title="Week" copy="Weekly load, performance blocks, and rhythm review." action={() => { setActiveMode('week'); setCalendarSection('week') }} />
+              <RouteCard title="Feeds" copy="Plaan, ICS, Google, source health, and diagnostics." action={() => setCalendarSection('feeds')} />
+              <RouteCard title="Brief" copy="Read-only day brief and next-event summary." action={() => setCalendarSection('brief')} />
             </div>
           </div>
         </DataPanel>
@@ -455,6 +735,11 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
     </CockpitShell>
   )
 }
+
+
+
+
+
 
 
 
