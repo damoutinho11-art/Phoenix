@@ -430,6 +430,151 @@ function BriefMetricCard({ title, value, copy }) {
   )
 }
 
+function isPerformanceRow(event) {
+  const haystack = [
+    event?.event_type,
+    event?.title,
+    event?.location,
+    event?.role,
+    event?.category,
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  return /performance|opera|concert|rehearsal|stage|orchestra|dress|premiere|show|ballet|choir|koor|etendus|proov/.test(haystack)
+}
+
+function PerformanceFocusCard({ title, value, copy }) {
+  return (
+    <div className="phx-calendar-performance-card">
+      <small>{title}</small>
+      <strong>{value}</strong>
+      <span>{copy}</span>
+    </div>
+  )
+}
+
+function PerformanceAgendaItem({ event, onEvent }) {
+  const accent = eventAccent(event.event_type)
+  const rowMeta = [
+    event.date,
+    event.time_start,
+    event.time_end,
+    event.location,
+    event.role,
+  ].filter(Boolean).join(' - ')
+
+  return (
+    <button
+      type="button"
+      className="phx-calendar-performance-item"
+      style={{ '--event-accent': accent }}
+      onClick={() => onEvent && onEvent(event)}
+    >
+      <span className="phx-calendar-performance-item-mark" aria-hidden="true" />
+      <span>
+        <strong>{event.title || 'Untitled performance row'}</strong>
+        <em>{rowMeta || 'Read-only calendar row'}</em>
+      </span>
+      <b>{event.event_type?.toUpperCase() || 'ROW'}</b>
+    </button>
+  )
+}
+
+function CalendarPerformancesCommand({ allEvents, displayEvents, source, sourceAsOf, onEvent }) {
+  const performanceRows = allEvents.filter(isPerformanceRow)
+  const visiblePerformanceRows = displayEvents.filter(isPerformanceRow)
+  const nextPerformance = performanceRows[0] || null
+  const rehearsalRows = performanceRows.filter(ev => /rehearsal|proov|dress/i.test([ev.event_type, ev.title].filter(Boolean).join(' ')))
+  const stageRows = performanceRows.filter(ev => /performance|opera|concert|stage|premiere|show|ballet|etendus/i.test([ev.event_type, ev.title].filter(Boolean).join(' ')))
+  const sourceCopy = [sourceLabel(source), sourceAsOf].filter(Boolean).join(' - ') || 'Read-only snapshot'
+  const focusRows = performanceRows.length ? performanceRows.slice(0, 7) : displayEvents.slice(0, 4)
+
+  return (
+    <div className="phx-calendar-performances-command">
+      <div className="phx-calendar-performances-head">
+        <div>
+          <small>STAGE OPERATIONS</small>
+          <strong>PERFORMANCE COMMAND</strong>
+          <span>Opera, rehearsal, concert, and stage-facing rows filtered from the read-only calendar snapshot.</span>
+        </div>
+        <em>READ ONLY</em>
+      </div>
+
+      <div className="phx-calendar-performance-metrics">
+        <PerformanceFocusCard
+          title="Performance Rows"
+          value={`${performanceRows.length} ROWS`}
+          copy="Rows matching opera, rehearsal, concert, or stage keywords."
+        />
+        <PerformanceFocusCard
+          title="Visible Today"
+          value={`${visiblePerformanceRows.length} VISIBLE`}
+          copy="Performance-focused rows currently visible in the active day view."
+        />
+        <PerformanceFocusCard
+          title="Rehearsals"
+          value={`${rehearsalRows.length} ROWS`}
+          copy="Rehearsal/proov/dress rows detected from visible source data."
+        />
+        <PerformanceFocusCard
+          title="Stage Events"
+          value={`${stageRows.length} ROWS`}
+          copy="Performance, opera, concert, premiere, show, or stage rows."
+        />
+      </div>
+
+      <div className="phx-calendar-performance-main">
+        <section className="phx-calendar-performance-agenda">
+          <div className="phx-calendar-performance-section-head">
+            <small>FOCUS QUEUE</small>
+            <strong>{focusRows.length ? 'UPCOMING STAGE ROWS' : 'NO STAGE ROWS'}</strong>
+            <span>{focusRows.length ? 'Tap a row to inspect details in the read-only detail surface.' : 'No opera/rehearsal/performance rows are visible in the loaded snapshot.'}</span>
+          </div>
+
+          <div className="phx-calendar-performance-list">
+            {focusRows.length ? (
+              focusRows.map(ev => (
+                <PerformanceAgendaItem
+                  key={`performance-${ev.event_id || ev.title || ev.date}`}
+                  event={ev}
+                  onEvent={onEvent}
+                />
+              ))
+            ) : (
+              <div className="phx-calendar-performance-empty">
+                <strong>OPEN STAGE SLATE</strong>
+                <span>Calendar remains safe. Source data can be reviewed in Feeds.</span>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <aside className="phx-calendar-performance-side">
+          <div>
+            <small>NEXT STAGE ITEM</small>
+            <strong>{nextPerformance ? `${nextPerformance.time_start || '--:--'} ${nextPerformance.title}` : 'NONE VISIBLE'}</strong>
+            <span>{nextPerformance ? [nextPerformance.date, nextPerformance.location, nextPerformance.role].filter(Boolean).join(' - ') || 'Read-only row' : 'No performance-focused row found in the current snapshot.'}</span>
+          </div>
+          <div>
+            <small>SOURCE</small>
+            <strong>SNAPSHOT LOCKED</strong>
+            <span>{sourceCopy}</span>
+          </div>
+          <div>
+            <small>OPERATIONS MODE</small>
+            <strong>INSPECT ONLY</strong>
+            <span>No edits, sends, syncs, confirmations, or external calendar writes are exposed here.</span>
+          </div>
+        </aside>
+      </div>
+
+      <div className="phx-calendar-performance-contract">
+        <span aria-hidden="true">[RO]</span>
+        <strong>No Plaan mutations. No Google writes. No Gmail sends. Performance command is a filtered read-only view.</strong>
+      </div>
+    </div>
+  )
+}
+
 function CalendarBriefCommand({
   resultCopy,
   jarvisText,
@@ -707,15 +852,18 @@ function CalendarActiveSubsection({
 
   if (activeMode === 'performances') {
     return (
-      <DataPanel eyebrow="[ PERFORMANCES ]" title="Performance Command Rail" meta="READ ONLY">
-        <div className="phx-calendar-subsection-placeholder">
-          <strong>PERFORMANCE VIEW READY</strong>
-          <span>Performance and rehearsal filtering stays read-only. No assigned performance rows are visible unless Plaan/source data provides them.</span>
-          <em>No Plaan mutations. No Google writes.</em>
-        </div>
+      <DataPanel eyebrow="[ PERFORMANCES ]" title="Performance Command" meta="READ ONLY">
+        <CalendarPerformancesCommand
+          allEvents={allEvents}
+          displayEvents={displayEvents}
+          source={snapshot?.source}
+          sourceAsOf={sourceAsOf}
+          onEvent={onEvent}
+        />
       </DataPanel>
     )
   }
+
 
   return (
     <DataPanel eyebrow="[ TODAY ]" title="Operational Rail" meta="READ ONLY">

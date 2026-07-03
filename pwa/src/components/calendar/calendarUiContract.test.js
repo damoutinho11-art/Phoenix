@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict'
+import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
@@ -22,6 +22,17 @@ test('calendar dashboard uses final polished command center implementation', asy
     'Calendar Routes',
     'phx-calendar-section-screen',
     'CALENDAR BRIEF',
+    'Stage Events',
+    'Rehearsals',
+    'Visible Today',
+    'Performance Rows',
+    'STAGE OPERATIONS',
+    'PERFORMANCE COMMAND',
+    'Performance Command',
+    'CalendarPerformancesCommand',
+    'PerformanceAgendaItem',
+    'PerformanceFocusCard',
+    'isPerformanceRow',
     'NO AI CERTAINTY CLAIMS',
     'Source Confidence',
     'Today Load',
@@ -96,6 +107,7 @@ test('calendar radial core and subsection css is present and always-on', async (
     'CALENDAR_FEEDS_COMMAND_V1',
     'CALENDAR_FEEDS_VISUAL_POLISH_V2',
     'CALENDAR_BRIEF_COMMAND_V1',
+    'CALENDAR_PERFORMANCES_COMMAND_V1',
     'CALENDAR_SUBSECTION_POLISH_V1',
     'phxCalendarRingRotate',
     'phxCalendarRingBreath',
@@ -207,3 +219,27 @@ test('calendar brief subsection exposes honest read-only synthesis', async () =>
   assert.match(css, /CALENDAR_BRIEF_COMMAND_V1/)
 })
 
+
+
+test('calendar performances subsection exposes stage operations read-only view', async () => {
+  const source = await readFile(new URL('./CalendarDashboard.jsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../cockpit/cockpit.css', import.meta.url), 'utf8')
+
+  for (const token of [
+    'function CalendarPerformancesCommand',
+    'function isPerformanceRow',
+    'Performance Command',
+    'PERFORMANCE COMMAND',
+    'STAGE OPERATIONS',
+    'Performance Rows',
+    'Visible Today',
+    'Rehearsals',
+    'Stage Events',
+    'No Plaan mutations',
+    'No Google writes',
+    'No Gmail sends',
+  ]) assert.match(source, new RegExp(token))
+
+  assert.doesNotMatch(source, /createEvent|updateEvent|deleteEvent|send_email|gmail\.send|postCalendar/i)
+  assert.match(css, /CALENDAR_PERFORMANCES_COMMAND_V1/)
+})
