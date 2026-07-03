@@ -1,175 +1,382 @@
-import { useState, useEffect } from 'react'
-import { getCalendarSnapshot, getCrossDomainAlerts, postJarvisChat } from '../../api/client'
+﻿import { useState, useEffect } from 'react'
+import { getCalendarSnapshot, postJarvisChat } from '../../api/client'
+import { CockpitShell, DataPanel, EmptyState, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
 
 const VIOLET = '#9f7dff'
-const VIOLET_BR = '#d8ccff'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(181,178,216,.58)'
-const CYAN = '#20d8ec'
 const GOLD = '#ffd56b'
 const POS = '#4dffb4'
+const FOOD = '#9dff6f'
 
 function eventAccent(type) {
   if (type === 'rehearsal') return GOLD
-  if (type === 'training')  return POS
-  if (type === 'food')      return '#9dff6f'
+  if (type === 'training') return POS
+  if (type === 'food') return FOOD
   return VIOLET
 }
 
-function buildWeekDays() {
-  const now = new Date()
-  const dow = now.getDay() // 0=Sun
-  // Start from Monday of current week
+function localDateKey(date) {
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function buildWeekDays(now = new Date()) {
+  const dow = now.getDay()
   const monday = new Date(now)
   monday.setDate(now.getDate() - ((dow + 6) % 7))
-  const DOW_LABELS = ['MON','TUE','WED','THU','FRI','SAT','SUN']
-  const todayNum = now.getDate()
-  return DOW_LABELS.map((label, i) => {
+
+  return ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((label, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    return { dow: label, num: d.getDate(), active: d.getDate() === todayNum && d.getMonth() === now.getMonth() }
+    return {
+      dow: label,
+      num: d.getDate(),
+      key: localDateKey(d),
+      active: localDateKey(d) === localDateKey(now),
+    }
   })
 }
 
+function sourceLabel(source) {
+  if (!source) return 'snapshot source unknown'
+  if (typeof source === 'string') return source
+  return source.active_source || source.source || source.label || 'snapshot source'
+}
+
+function sourceDetail(source) {
+  if (!source || typeof source === 'string') return null
+  return source.imported_at || source.as_of || source.label || null
+}
+
+function timeToMinutes(value) {
+  if (!value || typeof value !== 'string') return null
+  const match = value.match(/(\d{1,2}):(\d{2})/)
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+  return (hours * 60) + minutes
+}
+
+function eventDurationHours(event) {
+  const start = timeToMinutes(event.time_start)
+  const end = timeToMinutes(event.time_end)
+  if (start === null || end === null || end <= start) return 0.5
+  return Math.max(0.25, (end - start) / 60)
+}
+
+function formatHours(value) {
+  const rounded = Math.round(value * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
+function buildBufferSignals(events) {
+  const sorted = [...events]
+    .filter(ev => timeToMinutes(ev.time_start) !== null)
+    .sort((a, b) => timeToMinutes(a.time_start) - timeToMinutes(b.time_start))
+
+  const signals = []
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const currentEnd = timeToMinutes(sorted[i].time_end) ?? timeToMinutes(sorted[i].time_start)
+    const nextStart = timeToMinutes(sorted[i + 1].time_start)
+    if (currentEnd === null || nextStart === null) continue
+    const gap = nextStart - currentEnd
+    if (gap >= 0 && gap < 45) {
+      signals.push({
+        id: `${sorted[i].event_id || sorted[i].title}-${sorted[i + 1].event_id || sorted[i + 1].title}`,
+        text: `${gap}m buffer before ${sorted[i + 1].title}`,
+      })
+    }
+  }
+  return signals
+}
+
+function compactBrief(text) {
+  if (!text) return null
+  if (/unable to reach|api_key|provider/i.test(text)) {
+    return 'Optional brief is offline. Calendar remains usable from the read-only schedule snapshot.'
+  }
+  return text
+}
+
+function AgendaRow({ event, onEvent }) {
+  const accent = eventAccent(event.event_type)
+  return (
+    <button type="button" onClick={() => onEvent && onEvent(event)} className="phx-calendar-row" style={{ '--event-accent': accent }}>
+      <span className="phx-calendar-time">{event.time_start || '--:--'}</span>
+      <span>
+        <strong>{event.title}</strong>
+        <em>{[event.event_type?.toUpperCase(), event.location, event.role].filter(Boolean).join(' - ')}</em>
+      </span>
+      <span className="phx-calendar-end">{event.time_end || event.event_type?.toUpperCase() || ''}</span>
+    </button>
+  )
+}
+
+function CommandButton({ label, action, active = false }) {
+  return (
+    <button type="button" onClick={action} className={`phx-command-button ${active ? 'active' : ''}`}>
+      {label}
+    </button>
+  )
+}
+
+function ViewModeTabs({ activeMode, setActiveMode }) {
+  return (
+    <div className="phx-calendar-mode-grid" aria-label="Calendar view mode">
+      {[
+        ['today', 'TODAY'],
+        ['week', 'WEEK'],
+        ['performances', 'PERFORMANCES'],
+      ].map(([mode, label]) => (
+        <CommandButton key={mode} label={label} active={activeMode === mode} action={() => setActiveMode(mode)} />
+      ))}
+    </div>
+  )
+}
+
+function WeekStrip({ weekDays, className = '' }) {
+  return (
+    <div className={`phx-calendar-week-strip ${className}`}>
+      {weekDays.map(day => (
+        <div key={day.key} className={day.active ? 'active' : ''}>
+          <span>{day.dow}</span>
+          <strong>{day.num}</strong>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CalendarCore({ displayEvents, weekDays, monthLabel, dayLabel, dayNum, source, sourceAsOf, bufferSignals, onEvent }) {
+  const nextEvent = displayEvents[0] || null
+  const active = displayEvents.length > 0
+
+  return (
+    <aside className="phx-calendar-core">
+      <div className="phx-calendar-core-head">
+        <span>CC-001</span>
+        <strong>CALENDAR CORE</strong>
+        <em>{monthLabel} - {dayLabel} - {dayNum}</em>
+      </div>
+
+      <div className="phx-calendar-core-body">
+        <div className="phx-calendar-core-date">
+          <span>{dayLabel}</span>
+          <strong>{dayNum}</strong>
+          <em>{active ? 'ACTIVE' : 'OPEN'}</em>
+        </div>
+
+        <div className="phx-calendar-core-state">
+          <strong>{active ? 'ACTIVE DAY' : 'OPEN SLATE'}</strong>
+          <span>{active ? `${displayEvents.length} visible assignment${displayEvents.length === 1 ? '' : 's'}` : 'No personal rows visible'}</span>
+          <div><small>NEXT</small><b>{nextEvent ? `${nextEvent.time_start || '--:--'} ${nextEvent.title}` : 'NOT PUBLISHED'}</b></div>
+          <div><small>BUFFER</small><b>{bufferSignals.length ? `${bufferSignals.length} TIGHT` : 'CLEAR'}</b></div>
+          <div><small>MODE</small><b>READ ONLY</b></div>
+        </div>
+      </div>
+
+      <WeekStrip weekDays={weekDays} className="compact" />
+
+      <div className="phx-calendar-core-summary">
+        {displayEvents.length === 0 ? (
+          <>
+            <strong>NO PERSONAL ROWS</strong>
+            <span>Plaan returned no personal assigned rows for this view. Source details stay inside Feeds.</span>
+          </>
+        ) : (
+          displayEvents.slice(0, 2).map(ev => <AgendaRow key={`core-${ev.event_id || ev.title}`} event={ev} onEvent={onEvent} />)
+        )}
+      </div>
+
+      <SourceStamp source={source} asOf={sourceAsOf} />
+    </aside>
+  )
+}
+
+function TodaySnapshot({ displayEvents, visibleLoadHours, nextEvent, bufferSignals }) {
+  return (
+    <div className="phx-calendar-card">
+      <strong>{displayEvents.length ? 'ACTIVE DAY' : 'OPEN SLATE'}</strong>
+      <span>{formatHours(visibleLoadHours)}h visible - {displayEvents.length} event{displayEvents.length === 1 ? '' : 's'}</span>
+      <p>{nextEvent ? `Next verified: ${nextEvent.time_start || '--:--'} ${nextEvent.title}` : 'No personal assigned rows are visible for the selected view.'}</p>
+      <em>{bufferSignals.length ? bufferSignals[0].text : 'Buffer state clear.'}</em>
+    </div>
+  )
+}
+
+function WeekPreview({ weekDays, allEvents, performanceEvents, rehearsalEvents }) {
+  return (
+    <div className="phx-calendar-card">
+      <strong>{allEvents.length} VISIBLE BLOCK{allEvents.length === 1 ? '' : 'S'}</strong>
+      <WeekStrip weekDays={weekDays} className="card" />
+      <p>Normalized weekly rhythm, visible assignments, and performance/rehearsal balance.</p>
+      <em>{performanceEvents.length} performance - {rehearsalEvents.length} rehearsal</em>
+    </div>
+  )
+}
+
+function BriefPreview({ resultCopy, jarvisText }) {
+  const brief = compactBrief(jarvisText) || resultCopy
+  return (
+    <div className="phx-calendar-card">
+      <strong>{brief.includes('offline') ? 'BRIEF OFFLINE' : 'BRIEF READY'}</strong>
+      <span>Read-only command brief</span>
+      <p>{brief}</p>
+      <em>No Plaan mutations. No Google writes.</em>
+    </div>
+  )
+}
+
+function RouteCard({ title, copy, action }) {
+  return (
+    <button type="button" className="phx-calendar-route-card" onClick={action}>
+      <strong>{title}</strong>
+      <span>{copy}</span>
+    </button>
+  )
+}
+
 export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuickAsk }) {
+  const [snapshot, setSnapshot] = useState(null)
   const [events, setEvents] = useState(null)
-  const [alerts, setAlerts] = useState(null)
   const [jarvisText, setJarvisText] = useState('')
+  const [activeMode, setActiveMode] = useState('today')
 
   useEffect(() => {
     getCalendarSnapshot()
-      .then(r => setEvents(r.events || []))
+      .then(r => { setSnapshot(r); setEvents(r.events || []) })
       .catch(() => setEvents([]))
-
-    getCrossDomainAlerts()
-      .then(r => setAlerts(r))
-      .catch(() => {})
 
     postJarvisChat({ domain: 'calendar', message: 'What should I know about my schedule this week?' })
       .then(r => setJarvisText(r.response || ''))
-      .catch(() => {})
+      .catch(() => setJarvisText('Optional brief is offline. Calendar remains usable from the read-only schedule snapshot.'))
   }, [])
 
-  // Build current day label dynamically
   const now = new Date()
   const dayNum = now.getDate()
   const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
   const dowNames = ['SUN','MON','TUE','WED','THU','FRI','SAT']
   const dayLabel = dowNames[now.getDay()]
   const monthLabel = monthNames[now.getMonth()]
-  const weekDays = buildWeekDays()
+  const weekDays = buildWeekDays(now)
+  const today = localDateKey(now)
+  const allEvents = events || []
+  const todayEvents = allEvents.filter(e => e.date === today)
+  const rehearsalEvents = allEvents.filter(e => e.event_type === 'rehearsal')
+  const performanceEvents = allEvents.filter(e => ['performance', 'concert', 'show'].includes(e.event_type))
+  const activeEvents = activeMode === 'performances'
+    ? (performanceEvents.length ? performanceEvents : rehearsalEvents)
+    : activeMode === 'week'
+      ? allEvents.slice(0, 8)
+      : todayEvents
+  const displayEvents = activeEvents.length > 0 ? activeEvents.slice(0, 5) : []
+  const visibleLoadHours = displayEvents.reduce((sum, event) => sum + eventDurationHours(event), 0)
+  const nextEvent = displayEvents[0] || null
+  const bufferSignals = buildBufferSignals(displayEvents)
+  const source = sourceLabel(snapshot?.source)
+  const sourceAsOf = snapshot?.as_of || sourceDetail(snapshot?.source)
+  const resultCopy = activeMode === 'performances'
+    ? `${displayEvents.length} performance/rehearsal block${displayEvents.length === 1 ? '' : 's'} visible. Phoenix highlights prep windows and source labels only.`
+    : activeMode === 'week'
+      ? `${displayEvents.length} upcoming block${displayEvents.length === 1 ? '' : 's'} visible. Weekly load is read-only and source-labeled.`
+      : bufferSignals.length
+        ? `Today result: schedule is workable, but ${bufferSignals[0].text.toLowerCase()}. Phoenix surfaces the risk; it does not mutate Plaan or Google Calendar.`
+        : displayEvents.length
+          ? 'Today result: visible schedule rail is clear enough. Phoenix remains read-only.'
+          : 'Today result: open slate. No personal assigned rows are visible for this view; source details stay inside Feeds.'
 
-  // Filter events to show today's events first, then upcoming
-  const today = now.toISOString().slice(0, 10)
-  const todayEvents = (events || []).filter(e => e.date === today)
-  const displayEvents = todayEvents.length > 0 ? todayEvents : (events || []).slice(0, 5)
+  if (events === null) return (
+    <CockpitShell accent={VIOLET} className="phx-calendar-cockpit" aria-label="Calendar Command Center">
+      <EmptyState status="LOADING" title="Calendar loading" message="Reading the normalized read-only schedule snapshot." />
+    </CockpitShell>
+  )
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(226,222,255,.94)', fontFamily: "'Saira Condensed',sans-serif" }}>
-      {/* TOP BAR */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: VIOLET_BR, filter: 'drop-shadow(0 0 8px rgba(159,125,255,.25))' }}>CALENDAR</span>
-        </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: VIOLET, border: `1px solid rgba(159,125,255,.32)`, background: 'rgba(159,125,255,.055)', padding: '2px 8px' }}>TODAY</span>
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
-        {/* HERO */}
-        <div style={{ padding: '20px 20px 18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(159,125,255,.045),transparent)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>TODAY'S COMMAND TIMELINE</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 64, fontWeight: 700, lineHeight: .9, background: `linear-gradient(155deg,#fff 0%,${VIOLET_BR} 50%,${VIOLET} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 22px rgba(159,125,255,.38))' }}>{dayNum}</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 16, letterSpacing: '.18em', color: 'rgba(159,125,255,.36)', paddingBottom: 7 }}>{monthLabel} · {dayLabel}</div>
+    <CockpitShell accent={VIOLET} className="phx-calendar-cockpit phx-calendar-v18" aria-label="Calendar Command Center">
+      <div className="phx-domain-frame">
+        <header className="phx-command-hero phx-calendar-command-hero">
+          <div className="phx-command-topbar">
+            <span>PHOENIX - PERSONAL HEURISTIC OPERATING ENGINE</span>
+            <span className="phx-command-online"><i />READ ONLY - NORMALIZED SNAPSHOT</span>
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: TEXT_DIM, marginTop: 10 }}>
-            {events === null
-              ? 'LOADING…'
-              : `${displayEvents.length} EVENT${displayEvents.length !== 1 ? 'S' : ''} TODAY`}
-          </div>
-        </div>
 
-        {/* DAY STRIP */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderBottom: `1px solid ${BORDER}`, background: 'rgba(159,125,255,.018)' }}>
-          {weekDays.map(d => (
-            <div key={d.dow + d.num} style={{ padding: '10px 4px', textAlign: 'center', borderRight: `1px solid rgba(32,216,236,.08)`, background: d.active ? 'rgba(159,125,255,.08)' : 'transparent', boxShadow: d.active ? 'inset 0 -2px 0 ' + VIOLET : 'none' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: MUTED, letterSpacing: '.12em', marginBottom: 5 }}>{d.dow}</div>
-              <div style={{ fontFamily: 'var(--display)', fontSize: 17, color: d.active ? VIOLET_BR : 'rgba(226,222,255,.72)' }}>{d.num}</div>
+          <div className="phx-command-hero-grid">
+            <div>
+              <div className="phx-command-kicker">PHOENIX</div>
+              <h1 className="phx-command-title-xl">
+                <span>CALENDAR</span>
+                <span className="accent">COMMAND CENTER</span>
+              </h1>
+
+              <div className="phx-command-label-line">TODAY LOAD</div>
+              <div className="phx-command-value-row">
+                <strong className="phx-command-value">{formatHours(visibleLoadHours)}</strong>
+                <span className="phx-command-denominator">HOURS - {displayEvents.length} EVENT{displayEvents.length === 1 ? '' : 'S'}</span>
+              </div>
+
+              <div className="phx-command-chip-row">
+                <StatusChip tone={nextEvent ? 'verified' : 'caution'}>NEXT: {nextEvent?.time_start || 'NONE'}</StatusChip>
+                <StatusChip tone={bufferSignals.length ? 'caution' : 'ready'}>{bufferSignals.length ? `${bufferSignals.length} BUFFER WARNING` : 'BUFFERS CLEAR'}</StatusChip>
+                <StatusChip tone="verified">READ ONLY</StatusChip>
+              </div>
+
+              <ViewModeTabs activeMode={activeMode} setActiveMode={setActiveMode} />
+
+              <div className="phx-command-brief phx-calendar-hero-brief">
+                <strong>{activeMode.toUpperCase()} COMMAND RESULT</strong><br />
+                {resultCopy}
+              </div>
             </div>
-          ))}
-        </div>
 
-        {/* AGENDA */}
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>AGENDA</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: VIOLET }}>
-              {events === null ? '…' : 'ON TRACK'}
-            </span>
+            <CalendarCore
+              displayEvents={displayEvents}
+              weekDays={weekDays}
+              monthLabel={monthLabel}
+              dayLabel={dayLabel}
+              dayNum={dayNum}
+              source={source}
+              sourceAsOf={sourceAsOf}
+              bufferSignals={bufferSignals}
+              onEvent={onEvent}
+            />
           </div>
+        </header>
 
-          {events === null ? (
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: MUTED, padding: '20px 0', textAlign: 'center' }}>Loading…</div>
-          ) : displayEvents.length === 0 ? (
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: MUTED, padding: '20px 0', textAlign: 'center' }}>No events today.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {displayEvents.map(ev => {
-                const accent = eventAccent(ev.event_type)
-                return (
-                  <div
-                    key={ev.event_id}
-                    onClick={() => onEvent && onEvent(ev)}
-                    style={{ display: 'grid', gridTemplateColumns: '54px 1fr 64px', gap: 10, padding: 12, border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(159,125,255,.025)', position: 'relative', cursor: 'pointer', borderLeft: `3px solid ${accent}` }}
-                  >
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: VIOLET_BR, letterSpacing: '.08em' }}>{ev.time_start || '—'}</div>
-                    <div>
-                      <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, letterSpacing: '.06em', color: '#fff', lineHeight: 1.1 }}>{ev.title}</div>
-                      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.09em', color: TEXT_DIM, marginTop: 4, lineHeight: 1.5 }}>
-                        {[ev.event_type?.toUpperCase(), ev.location, ev.role].filter(Boolean).join(' · ')}
-                      </div>
-                    </div>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, textAlign: 'right', color: MUTED, letterSpacing: '.10em' }}>
-                      {ev.time_end || ev.event_type?.toUpperCase() || ''}
-                    </div>
-                  </div>
-                )
-              })}
+        <section className="phx-calendar-command-modules" aria-label="Calendar command center modules">
+          <DataPanel eyebrow="[ TODAY ]" title="Today Snapshot" meta={displayEvents.length ? 'ACTIVE' : 'OPEN SLATE'}>
+            <div className="phx-panel-body">
+              <TodaySnapshot displayEvents={displayEvents} visibleLoadHours={visibleLoadHours} nextEvent={nextEvent} bufferSignals={bufferSignals} />
             </div>
-          )}
-        </div>
+          </DataPanel>
 
-        {/* QUICK ACTIONS */}
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>QUICK ACTIONS</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: VIOLET }}>SCHEDULE</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {[
-              { label: 'ICS FEED', action: onFeed },
-              { label: 'WEEK VIEW', action: onWeekView },
-              { label: 'EVENT DETAIL', action: () => onEvent && onEvent(displayEvents[0] || null) },
-              { label: 'ASK PHOENIX', action: () => onQuickAsk && onQuickAsk('What should I know about my schedule today?') },
-            ].map(btn => (
-              <div
-                key={btn.label}
-                onClick={btn.action || undefined}
-                style={{ padding: '12px 10px', border: `1px solid rgba(159,125,255,.22)`, background: 'rgba(159,125,255,.045)', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: VIOLET, textAlign: 'center', cursor: btn.action ? 'pointer' : 'default' }}
-              >{btn.label}</div>
-            ))}
-          </div>
-        </div>
+          <DataPanel eyebrow="[ WEEK ]" title="Week Preview" meta={`${allEvents.length} VISIBLE`}>
+            <div className="phx-panel-body">
+              <WeekPreview weekDays={weekDays} allEvents={allEvents} performanceEvents={performanceEvents} rehearsalEvents={rehearsalEvents} />
+            </div>
+          </DataPanel>
 
-        {/* PHOENIX NOTE */}
-        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${VIOLET}`, background: 'rgba(159,125,255,.025)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(159,125,255,.52)', marginBottom: 6 }}>PHOENIX NOTE</div>
-          <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(226,222,255,.78)' }}>
-            {jarvisText || <span style={{ color: MUTED }}>Loading schedule analysis…</span>}
+          <DataPanel eyebrow="[ BRIEF ]" title="Next Move" meta="READ ONLY">
+            <div className="phx-panel-body">
+              <BriefPreview resultCopy={resultCopy} jarvisText={jarvisText} />
+            </div>
+          </DataPanel>
+        </section>
+
+        <DataPanel eyebrow="[ DETAIL ROUTES ]" title="Calendar Routes" meta="READ ONLY">
+          <div className="phx-panel-body">
+            <div className="phx-calendar-route-grid">
+              <RouteCard title="Today" copy="Full day rail, event details, source labels, and buffers." action={() => setActiveMode('today')} />
+              <RouteCard title="Week" copy="Weekly load, performance blocks, and rhythm review." action={() => { setActiveMode('week'); onWeekView && onWeekView() }} />
+              <RouteCard title="Feeds" copy="Plaan, ICS, Google, source health, and diagnostics." action={onFeed} />
+              <RouteCard title="Brief" copy="Read-only day brief and next-event summary." action={() => onQuickAsk && onQuickAsk('Give me a read-only calendar brief for today.')} />
+            </div>
           </div>
-        </div>
+        </DataPanel>
       </div>
-    </div>
+    </CockpitShell>
   )
 }
+
+

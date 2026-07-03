@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --phx-font-display: 'Rajdhani', sans-serif;
   --phx-font-body: 'Space Grotesk', sans-serif;
   --phx-font-mono: 'Share Tech Mono', monospace;
@@ -401,7 +401,7 @@
   }
 }
 
-/* ── Cross-domain premium cockpit surfaces ───────────────────────────────── */
+/* â”€â”€ Cross-domain premium cockpit surfaces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .phx-domain-frame {
   max-width: 1120px;
   margin: 0 auto;
@@ -901,7 +901,7 @@
 }
 
 
-/* ── Finance/Training-grade command hero for cross-domain dashboards ───────── */
+/* â”€â”€ Finance/Training-grade command hero for cross-domain dashboards â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .phx-command-hero {
   position: relative;
   overflow: hidden;
@@ -1170,7 +1170,7 @@
 }
 
 
-/* ── Nutrition v3: focused fuel operations surface ─────────────────────────── */
+/* â”€â”€ Nutrition v3: focused fuel operations surface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .phx-nutrition-frame {
   gap: 1rem;
 }
@@ -1465,7 +1465,7 @@
   }
  }
 
-/* ── Nutrition v4: copy Finance hero typography/geometry, keep green identity ── */
+/* â”€â”€ Nutrition v4: copy Finance hero typography/geometry, keep green identity â”€â”€ */
 .phx-nutrition-finance-copy {
   margin-bottom: 1rem;
   padding: 2rem 2.5rem 2.5rem;
@@ -1649,7 +1649,7 @@
   }
 }
 
-/* ── Nutrition v5: opening page first, subsections second ── */
+/* â”€â”€ Nutrition v5: opening page first, subsections second â”€â”€ */
 .phx-nutrition-finance-core .phx-macro-rings {
   margin-bottom: 1rem;
 }
@@ -1857,7 +1857,7 @@
   }
 }
 
-/* ── Nutrition v6: opening page feature modules before detail routes ── */
+/* â”€â”€ Nutrition v6: opening page feature modules before detail routes â”€â”€ */
 .phx-nutrition-feature-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
@@ -2114,7 +2114,7 @@
   }
 }
 
-/* ── Nutrition v7: finished opening outputs, user choices, hidden Phoenix engines ── */
+/* â”€â”€ Nutrition v7: finished opening outputs, user choices, hidden Phoenix engines â”€â”€ */
 .phx-nutrition-mode-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -2395,3 +2395,1600 @@
     min-height: 9rem;
   }
 }
+
+/* CALENDAR_FINISHED_PRODUCT_V1 */
+.phx-calendar-mode-grid {
+  margin: 1rem 0;
+  max-width: 34rem;
+}
+
+.phx-calendar-mode-grid .active {
+  border-color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 10%, transparent);
+  color: var(--phx-body);
+}
+
+.phx-command-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin: .85rem 0;
+}
+
+.phx-calendar-core-rail {
+  margin: 1.25rem 0;
+  max-height: 23rem;
+  overflow: auto;
+}
+
+.phx-calendar-output-grid {
+  align-items: stretch;
+}
+
+.phx-calendar-chart-card {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+  padding: 1rem;
+  min-height: 12rem;
+}
+
+.phx-calendar-chart-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--phx-accent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .2em;
+  margin-bottom: .9rem;
+  text-transform: uppercase;
+}
+
+.phx-calendar-load-stack {
+  display: grid;
+  gap: .7rem;
+}
+
+.phx-calendar-load-row {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: .7rem;
+  color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-load-row i {
+  display: block;
+  height: .55rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+  overflow: hidden;
+}
+
+.phx-calendar-load-row b {
+  display: block;
+  height: 100%;
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 18%, transparent);
+}
+
+.phx-calendar-load-row strong {
+  color: var(--phx-body);
+  font-weight: 500;
+  text-align: right;
+}
+
+.phx-calendar-signal-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .7rem;
+  margin: 1.1rem 0;
+  position: relative;
+}
+
+.phx-calendar-signal-rail::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: .56rem;
+  height: 1px;
+  background: color-mix(in srgb, var(--phx-accent) 20%, transparent);
+}
+
+.phx-calendar-signal-rail div {
+  display: grid;
+  gap: .5rem;
+  justify-items: center;
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .14em;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.phx-calendar-signal-rail i {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: var(--phx-accent);
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 30%, transparent);
+  z-index: 1;
+}
+
+.phx-calendar-signal-rail .warning i {
+  background: #ffd56b;
+  box-shadow: 0 0 1rem rgba(255, 213, 107, .28);
+}
+
+.phx-calendar-mini-copy {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-size: .82rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.phx-calendar-source-health {
+  display: grid;
+  gap: .7rem;
+}
+
+.phx-calendar-source-health div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+  padding-bottom: .65rem;
+}
+
+.phx-calendar-source-health span,
+.phx-calendar-source-health strong,
+.phx-calendar-source-health em {
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-source-health span {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+}
+
+.phx-calendar-source-health strong {
+  color: #ffd56b;
+  font-weight: 500;
+}
+
+.phx-calendar-source-health strong.ready {
+  color: #4dffb4;
+}
+
+.phx-calendar-source-health em {
+  color: color-mix(in srgb, var(--phx-accent) 78%, white 4%);
+  font-style: normal;
+  margin-top: .4rem;
+}
+
+.phx-calendar-route-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .85rem;
+}
+
+.phx-calendar-route-card {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+  color: inherit;
+  cursor: pointer;
+  min-height: 7rem;
+  padding: 1rem;
+  text-align: left;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.phx-calendar-route-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--phx-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+}
+
+.phx-calendar-route-card strong {
+  display: block;
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: .95;
+  text-transform: uppercase;
+}
+
+.phx-calendar-route-card span {
+  display: block;
+  margin-top: .7rem;
+  color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+  font-size: .78rem;
+  line-height: 1.42;
+}
+
+@media (max-width: 1180px) {
+  .phx-calendar-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .phx-calendar-load-row {
+    grid-template-columns: 4.8rem minmax(0, 1fr) 2.8rem;
+    gap: .55rem;
+    font-size: .46rem;
+    letter-spacing: .1em;
+  }
+
+  .phx-calendar-signal-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phx-calendar-route-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* CALENDAR_FOUNDATION_POLISH_V2 */
+.phx-calendar-v2 .phx-command-title-xl .accent {
+  color: var(--phx-accent);
+  text-shadow: 0 0 2.2rem color-mix(in srgb, var(--phx-accent) 24%, transparent);
+}
+
+.phx-calendar-v2 .phx-command-value {
+  color: var(--phx-accent);
+}
+
+.phx-calendar-v2 .phx-command-denominator {
+  color: color-mix(in srgb, var(--phx-accent) 66%, var(--phx-body) 22%);
+}
+
+.phx-calendar-v2 .phx-command-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin: .85rem 0 1rem;
+}
+
+.phx-calendar-v2 .phx-calendar-mode-grid {
+  margin: 1rem 0;
+  max-width: 36rem;
+}
+
+.phx-calendar-v2 .phx-calendar-mode-grid .active {
+  border-color: color-mix(in srgb, var(--phx-accent) 52%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 12%, transparent);
+  color: var(--phx-body);
+  box-shadow: inset 0 -2px 0 var(--phx-accent);
+}
+
+.phx-calendar-v2 .phx-calendar-hero-brief {
+  max-width: 46rem;
+}
+
+.phx-calendar-v2 .phx-calendar-core-card {
+  min-height: 29rem;
+}
+
+.phx-calendar-v2 .phx-calendar-core-summary {
+  display: grid;
+  gap: .85rem;
+  margin: 1.25rem 0;
+  min-height: 11rem;
+  place-content: center;
+  text-align: center;
+}
+
+.phx-calendar-v2 .phx-calendar-core-summary > strong {
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.65rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-core-summary > span {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-size: .9rem;
+  line-height: 1.45;
+  max-width: 23rem;
+}
+
+.phx-panel-grid-3,
+.phx-calendar-output-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.15rem;
+  align-items: stretch;
+}
+
+.phx-calendar-v2 .phx-calendar-output-grid > * {
+  min-width: 0;
+}
+
+.phx-calendar-v2 .phx-calendar-chart-card,
+.phx-calendar-v2 .phx-calendar-empty-product-card {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 45%),
+    color-mix(in srgb, var(--phx-surface) 88%, black 12%);
+  min-height: 11.5rem;
+  padding: 1rem;
+}
+
+.phx-calendar-v2 .phx-calendar-empty-product-card {
+  display: grid;
+  place-content: center;
+  gap: .65rem;
+  text-align: center;
+}
+
+.phx-calendar-v2 .phx-calendar-empty-product-card strong {
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.45rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-empty-product-card span {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-size: .85rem;
+  line-height: 1.45;
+}
+
+.phx-calendar-v2 .phx-calendar-chart-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--phx-accent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .2em;
+  margin-bottom: .9rem;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-load-stack {
+  display: grid;
+  gap: .7rem;
+}
+
+.phx-calendar-v2 .phx-calendar-load-row {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: .7rem;
+  color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-load-row i {
+  display: block;
+  height: .55rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+  overflow: hidden;
+}
+
+.phx-calendar-v2 .phx-calendar-load-row b {
+  display: block;
+  height: 100%;
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 18%, transparent);
+}
+
+.phx-calendar-v2 .phx-calendar-load-row strong {
+  color: var(--phx-body);
+  font-weight: 500;
+  text-align: right;
+}
+
+.phx-calendar-v2 .phx-calendar-signal-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .7rem;
+  margin: 1.1rem 0;
+  position: relative;
+}
+
+.phx-calendar-v2 .phx-calendar-signal-rail::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: .56rem;
+  height: 1px;
+  background: color-mix(in srgb, var(--phx-accent) 20%, transparent);
+}
+
+.phx-calendar-v2 .phx-calendar-signal-rail div {
+  display: grid;
+  gap: .5rem;
+  justify-items: center;
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .14em;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-signal-rail i {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: var(--phx-accent);
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 30%, transparent);
+  z-index: 1;
+}
+
+.phx-calendar-v2 .phx-calendar-signal-rail .warning i {
+  background: #ffd56b;
+  box-shadow: 0 0 1rem rgba(255, 213, 107, .28);
+}
+
+.phx-calendar-v2 .phx-calendar-mini-copy {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-size: .82rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.phx-calendar-v2 .phx-calendar-source-health {
+  display: grid;
+  gap: .7rem;
+}
+
+.phx-calendar-v2 .phx-calendar-source-health div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+  padding-bottom: .65rem;
+}
+
+.phx-calendar-v2 .phx-calendar-source-health span,
+.phx-calendar-v2 .phx-calendar-source-health strong,
+.phx-calendar-v2 .phx-calendar-source-health em {
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-source-health span {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+}
+
+.phx-calendar-v2 .phx-calendar-source-health strong {
+  color: #ffd56b;
+  font-weight: 500;
+}
+
+.phx-calendar-v2 .phx-calendar-source-health strong.ready {
+  color: #4dffb4;
+}
+
+.phx-calendar-v2 .phx-calendar-source-health em {
+  color: color-mix(in srgb, var(--phx-accent) 78%, white 4%);
+  font-style: normal;
+  margin-top: .4rem;
+}
+
+.phx-calendar-v2 .phx-calendar-diagnostic-preview {
+  border: 1px solid rgba(255, 213, 107, .22);
+  background: rgba(255, 213, 107, .055);
+  padding: 1rem;
+}
+
+.phx-calendar-v2 .phx-calendar-diagnostic-preview.ready {
+  border-color: color-mix(in srgb, #4dffb4 24%, transparent);
+  background: color-mix(in srgb, #4dffb4 6%, transparent);
+}
+
+.phx-calendar-v2 .phx-calendar-diagnostic-preview strong {
+  color: #ffd56b;
+  display: block;
+  font-family: var(--phx-font-display);
+  font-size: 1.3rem;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-diagnostic-preview.ready strong {
+  color: #4dffb4;
+}
+
+.phx-calendar-v2 .phx-calendar-diagnostic-preview ul {
+  display: grid;
+  gap: .55rem;
+  margin: .8rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phx-calendar-v2 .phx-calendar-diagnostic-preview li,
+.phx-calendar-v2 .phx-calendar-diagnostic-preview span {
+  color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+  font-size: .82rem;
+  line-height: 1.38;
+}
+
+.phx-calendar-v2 .phx-calendar-route-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .85rem;
+}
+
+.phx-calendar-v2 .phx-calendar-route-card {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+  color: inherit;
+  cursor: pointer;
+  min-height: 7rem;
+  padding: 1rem;
+  text-align: left;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.phx-calendar-v2 .phx-calendar-route-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--phx-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+}
+
+.phx-calendar-v2 .phx-calendar-route-card strong {
+  display: block;
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: .95;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v2 .phx-calendar-route-card span {
+  display: block;
+  margin-top: .7rem;
+  color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+  font-size: .78rem;
+  line-height: 1.42;
+}
+
+@media (max-width: 1180px) {
+  .phx-panel-grid-3,
+  .phx-calendar-output-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-calendar-v2 .phx-calendar-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .phx-calendar-v2 .phx-calendar-load-row {
+    grid-template-columns: 4.8rem minmax(0, 1fr) 2.8rem;
+    gap: .55rem;
+    font-size: .46rem;
+    letter-spacing: .1em;
+  }
+
+  .phx-calendar-v2 .phx-calendar-signal-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phx-calendar-v2 .phx-calendar-route-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* CALENDAR_FONT_CORE_ALIGNMENT_V3 */
+.phx-calendar-v3 {
+  --calendar-accent: var(--phx-accent);
+}
+
+.phx-calendar-v3 .phx-command-title-xl,
+.phx-calendar-v3 .phx-command-title-xl span,
+.phx-calendar-v3 .phx-command-value,
+.phx-calendar-v3 .phx-command-denominator,
+.phx-calendar-v3 .phx-core-title strong,
+.phx-calendar-v3 .phx-calendar-core-orb strong,
+.phx-calendar-v3 .phx-calendar-route-card strong,
+.phx-calendar-v3 .phx-calendar-empty-product-card strong,
+.phx-calendar-v3 .phx-calendar-diagnostic-preview strong,
+.phx-calendar-v3 .phx-calendar-row strong {
+  font-family: var(--phx-font-display);
+  font-weight: 700;
+}
+
+.phx-calendar-v3 .phx-command-kicker,
+.phx-calendar-v3 .phx-command-label-line,
+.phx-calendar-v3 .phx-command-topbar,
+.phx-calendar-v3 .phx-command-online,
+.phx-calendar-v3 .phx-command-button,
+.phx-calendar-v3 .phx-core-code,
+.phx-calendar-v3 .phx-core-title span,
+.phx-calendar-v3 .phx-week-rail,
+.phx-calendar-v3 .phx-calendar-chart-title,
+.phx-calendar-v3 .phx-calendar-load-row,
+.phx-calendar-v3 .phx-calendar-source-health span,
+.phx-calendar-v3 .phx-calendar-source-health strong,
+.phx-calendar-v3 .phx-calendar-source-health em,
+.phx-calendar-v3 .phx-calendar-core-metrics span,
+.phx-calendar-v3 .phx-calendar-core-metrics strong {
+  font-family: var(--phx-font-mono);
+}
+
+.phx-calendar-v3 .phx-command-brief,
+.phx-calendar-v3 .phx-calendar-empty-product-card span,
+.phx-calendar-v3 .phx-calendar-diagnostic-preview li,
+.phx-calendar-v3 .phx-calendar-diagnostic-preview span,
+.phx-calendar-v3 .phx-calendar-route-card span,
+.phx-calendar-v3 .phx-calendar-core-summary > span {
+  font-family: var(--phx-font-body);
+}
+
+.phx-calendar-v3 .phx-command-title-xl {
+  letter-spacing: .052em;
+  line-height: .9;
+}
+
+.phx-calendar-v3 .phx-command-title-xl .accent {
+  color: var(--calendar-accent);
+  text-shadow: 0 0 2.2rem color-mix(in srgb, var(--calendar-accent) 26%, transparent);
+}
+
+.phx-calendar-v3 .phx-command-value {
+  color: var(--calendar-accent);
+  text-shadow: 0 0 2rem color-mix(in srgb, var(--calendar-accent) 22%, transparent);
+}
+
+.phx-calendar-v3 .phx-command-denominator {
+  color: color-mix(in srgb, var(--calendar-accent) 66%, var(--phx-body) 22%);
+  letter-spacing: .04em;
+}
+
+.phx-calendar-v3 .phx-command-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin: .85rem 0 1rem;
+}
+
+.phx-calendar-v3 .phx-calendar-mode-grid {
+  margin: 1rem 0;
+  max-width: 36rem;
+}
+
+.phx-calendar-v3 .phx-calendar-mode-grid .active {
+  border-color: color-mix(in srgb, var(--calendar-accent) 52%, transparent);
+  background: color-mix(in srgb, var(--calendar-accent) 12%, transparent);
+  color: var(--phx-body);
+  box-shadow: inset 0 -2px 0 var(--calendar-accent);
+}
+
+.phx-calendar-v3 .phx-calendar-hero-brief {
+  max-width: 46rem;
+}
+
+.phx-calendar-v3 .phx-calendar-core-card {
+  min-height: 32rem;
+  overflow: hidden;
+}
+
+.phx-calendar-v3 .phx-calendar-core-title {
+  text-align: center;
+}
+
+.phx-calendar-v3 .phx-calendar-core-title strong {
+  color: var(--calendar-accent);
+  letter-spacing: .32em;
+}
+
+.phx-calendar-v3 .phx-calendar-core-orb {
+  display: grid;
+  place-items: center;
+  margin: 1.5rem auto 1.15rem;
+  width: min(15rem, 72%);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 1.1rem solid color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--calendar-accent) 24%, transparent),
+    0 0 3rem color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+  background:
+    radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--calendar-accent) 12%, transparent), transparent 54%),
+    color-mix(in srgb, var(--phx-surface) 84%, black 16%);
+  text-align: center;
+}
+
+.phx-calendar-v3 .phx-calendar-core-orb strong {
+  color: var(--phx-body);
+  display: block;
+  font-size: clamp(1.7rem, 2vw, 2.45rem);
+  letter-spacing: .08em;
+  line-height: .9;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-core-orb span {
+  color: color-mix(in srgb, var(--calendar-accent) 72%, var(--phx-body) 10%);
+  display: block;
+  font-family: var(--phx-font-mono);
+  font-size: .58rem;
+  letter-spacing: .24em;
+  margin-top: .65rem;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-core-metrics {
+  display: grid;
+  gap: .55rem;
+  margin: 0 0 1.15rem;
+}
+
+.phx-calendar-v3 .phx-calendar-core-metrics div {
+  display: grid;
+  grid-template-columns: 7.25rem minmax(0, 1fr);
+  gap: .75rem;
+  align-items: baseline;
+  border-bottom: 1px solid color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+  padding-bottom: .5rem;
+}
+
+.phx-calendar-v3 .phx-calendar-core-metrics span {
+  color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+  font-size: .5rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-core-metrics strong {
+  color: var(--phx-body);
+  font-size: .54rem;
+  font-weight: 500;
+  letter-spacing: .15em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.phx-calendar-v3 .phx-calendar-week-mini {
+  margin-bottom: 1rem;
+}
+
+.phx-calendar-v3 .phx-calendar-core-summary {
+  display: grid;
+  gap: .85rem;
+  margin: 1.15rem 0;
+  min-height: 7.5rem;
+  place-content: center;
+  text-align: center;
+}
+
+.phx-calendar-v3 .phx-calendar-core-summary > strong {
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.45rem;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-core-summary > span {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-size: .84rem;
+  line-height: 1.45;
+  max-width: 24rem;
+}
+
+.phx-panel-grid-3,
+.phx-calendar-output-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.15rem;
+  align-items: stretch;
+}
+
+.phx-calendar-v3 .phx-calendar-output-grid > * {
+  min-width: 0;
+}
+
+.phx-calendar-v3 .phx-calendar-chart-card,
+.phx-calendar-v3 .phx-calendar-empty-product-card {
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--calendar-accent) 10%, transparent), transparent 45%),
+    color-mix(in srgb, var(--phx-surface) 88%, black 12%);
+  min-height: 11.5rem;
+  padding: 1rem;
+}
+
+.phx-calendar-v3 .phx-calendar-empty-product-card {
+  display: grid;
+  place-content: center;
+  gap: .65rem;
+  text-align: center;
+}
+
+.phx-calendar-v3 .phx-calendar-empty-product-card strong {
+  color: var(--phx-body);
+  font-size: 1.45rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-empty-product-card span {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-size: .85rem;
+  line-height: 1.45;
+}
+
+.phx-calendar-v3 .phx-calendar-chart-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--calendar-accent);
+  font-size: .52rem;
+  letter-spacing: .2em;
+  margin-bottom: .9rem;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-load-stack {
+  display: grid;
+  gap: .7rem;
+}
+
+.phx-calendar-v3 .phx-calendar-load-row {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: .7rem;
+  color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+  font-size: .52rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-load-row i {
+  display: block;
+  height: .55rem;
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 14%, transparent);
+  background: color-mix(in srgb, var(--calendar-accent) 8%, transparent);
+  overflow: hidden;
+}
+
+.phx-calendar-v3 .phx-calendar-load-row b {
+  display: block;
+  height: 100%;
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+}
+
+.phx-calendar-v3 .phx-calendar-load-row strong {
+  color: var(--phx-body);
+  font-weight: 500;
+  text-align: right;
+}
+
+.phx-calendar-v3 .phx-calendar-signal-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .7rem;
+  margin: 1.1rem 0;
+  position: relative;
+}
+
+.phx-calendar-v3 .phx-calendar-signal-rail::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: .56rem;
+  height: 1px;
+  background: color-mix(in srgb, var(--calendar-accent) 20%, transparent);
+}
+
+.phx-calendar-v3 .phx-calendar-signal-rail div {
+  display: grid;
+  gap: .5rem;
+  justify-items: center;
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .52rem;
+  letter-spacing: .14em;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-signal-rail i {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: var(--calendar-accent);
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--calendar-accent) 30%, transparent);
+  z-index: 1;
+}
+
+.phx-calendar-v3 .phx-calendar-signal-rail .warning i {
+  background: #ffd56b;
+  box-shadow: 0 0 1rem rgba(255, 213, 107, .28);
+}
+
+.phx-calendar-v3 .phx-calendar-mini-copy {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+  font-size: .82rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.phx-calendar-v3 .phx-calendar-source-health {
+  display: grid;
+  gap: .7rem;
+}
+
+.phx-calendar-v3 .phx-calendar-source-health div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+  padding-bottom: .65rem;
+}
+
+.phx-calendar-v3 .phx-calendar-source-health span,
+.phx-calendar-v3 .phx-calendar-source-health strong,
+.phx-calendar-v3 .phx-calendar-source-health em {
+  font-size: .52rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-source-health span {
+  color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+}
+
+.phx-calendar-v3 .phx-calendar-source-health strong {
+  color: #ffd56b;
+  font-weight: 500;
+}
+
+.phx-calendar-v3 .phx-calendar-source-health strong.ready {
+  color: #4dffb4;
+}
+
+.phx-calendar-v3 .phx-calendar-source-health em {
+  color: color-mix(in srgb, var(--calendar-accent) 78%, white 4%);
+  font-style: normal;
+  margin-top: .4rem;
+}
+
+.phx-calendar-v3 .phx-calendar-diagnostic-preview {
+  border: 1px solid rgba(255, 213, 107, .22);
+  background: rgba(255, 213, 107, .055);
+  padding: 1rem;
+}
+
+.phx-calendar-v3 .phx-calendar-diagnostic-preview.ready {
+  border-color: color-mix(in srgb, #4dffb4 24%, transparent);
+  background: color-mix(in srgb, #4dffb4 6%, transparent);
+}
+
+.phx-calendar-v3 .phx-calendar-diagnostic-preview strong {
+  color: #ffd56b;
+  display: block;
+  font-size: 1.3rem;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-diagnostic-preview.ready strong {
+  color: #4dffb4;
+}
+
+.phx-calendar-v3 .phx-calendar-diagnostic-preview ul {
+  display: grid;
+  gap: .55rem;
+  margin: .8rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phx-calendar-v3 .phx-calendar-diagnostic-preview li,
+.phx-calendar-v3 .phx-calendar-diagnostic-preview span {
+  color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+  font-size: .82rem;
+  line-height: 1.38;
+}
+
+.phx-calendar-v3 .phx-calendar-route-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .85rem;
+}
+
+.phx-calendar-v3 .phx-calendar-route-card {
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+  color: inherit;
+  cursor: pointer;
+  min-height: 7rem;
+  padding: 1rem;
+  text-align: left;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.phx-calendar-v3 .phx-calendar-route-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--calendar-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--calendar-accent) 7%, transparent);
+}
+
+.phx-calendar-v3 .phx-calendar-route-card strong {
+  display: block;
+  color: var(--phx-body);
+  font-size: 1.35rem;
+  letter-spacing: .08em;
+  line-height: .95;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v3 .phx-calendar-route-card span {
+  display: block;
+  margin-top: .7rem;
+  color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+  font-size: .78rem;
+  line-height: 1.42;
+}
+
+@media (max-width: 1180px) {
+  .phx-panel-grid-3,
+  .phx-calendar-output-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-calendar-v3 .phx-calendar-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .phx-calendar-v3 .phx-calendar-core-orb {
+    width: min(13rem, 76%);
+  }
+
+  .phx-calendar-v3 .phx-calendar-core-metrics div {
+    grid-template-columns: 1fr;
+    gap: .35rem;
+  }
+
+  .phx-calendar-v3 .phx-calendar-load-row {
+    grid-template-columns: 4.8rem minmax(0, 1fr) 2.8rem;
+    gap: .55rem;
+    font-size: .46rem;
+    letter-spacing: .1em;
+  }
+
+  .phx-calendar-v3 .phx-calendar-signal-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phx-calendar-v3 .phx-calendar-route-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* CALENDAR_FINAL_SPACING_ANIMATION_V18 */
+.phx-calendar-v18 {
+  --calendar-accent: #9f7dff;
+  --calendar-bright: #d8ccff;
+}
+
+.phx-calendar-v18 .phx-command-hero,
+.phx-calendar-v18 .phx-calendar-command-modules > *,
+.phx-calendar-v18 .phx-domain-frame > .phx-data-panel {
+  animation: phxCalendarRise .48s ease-out both;
+}
+
+.phx-calendar-v18 .phx-calendar-command-modules > *:nth-child(2) { animation-delay: .04s; }
+.phx-calendar-v18 .phx-calendar-command-modules > *:nth-child(3) { animation-delay: .08s; }
+.phx-calendar-v18 .phx-domain-frame > .phx-data-panel { animation-delay: .12s; }
+
+@keyframes phxCalendarRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.phx-calendar-v18 .phx-command-hero {
+  background:
+    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--calendar-accent) 9%, transparent), transparent 32%),
+    linear-gradient(180deg, rgba(6, 10, 22, .88), rgba(2, 9, 15, .98));
+  border-color: color-mix(in srgb, var(--calendar-accent) 19%, transparent);
+  overflow: hidden;
+}
+
+.phx-calendar-v18 .phx-command-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0 38%, color-mix(in srgb, var(--calendar-accent) 7%, transparent) 48%, transparent 58% 100%);
+  transform: translateX(-120%);
+  animation: phxCalendarSweep 7s ease-in-out infinite;
+}
+
+@keyframes phxCalendarSweep {
+  0%, 72% { transform: translateX(-120%); opacity: 0; }
+  78% { opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+.phx-calendar-v18 .phx-command-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(22.5rem, .74fr);
+  gap: clamp(2.25rem, 3.6vw, 3.85rem);
+  align-items: center;
+}
+
+.phx-calendar-v18 .phx-command-title-xl {
+  max-width: 38rem;
+  line-height: .96;
+  letter-spacing: .055em;
+}
+
+.phx-calendar-v18 .phx-command-title-xl span {
+  display: block;
+  font-family: var(--phx-font-display);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.phx-calendar-v18 .phx-command-title-xl span:first-child {
+  color: #eef7ff;
+  font-size: clamp(3rem, 3.85vw, 4.35rem);
+}
+
+.phx-calendar-v18 .phx-command-title-xl .accent {
+  color: var(--calendar-accent);
+  font-size: clamp(2.25rem, 2.9vw, 3.25rem);
+  text-shadow: 0 0 1.35rem color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+}
+
+.phx-calendar-v18 .phx-command-label-line {
+  margin-top: 2.05rem;
+}
+
+.phx-calendar-v18 .phx-command-value {
+  color: var(--calendar-accent);
+  font-size: clamp(3.25rem, 4.2vw, 4.65rem);
+  line-height: .9;
+  text-shadow: 0 0 1.45rem color-mix(in srgb, var(--calendar-accent) 12%, transparent);
+}
+
+.phx-calendar-v18 .phx-command-denominator {
+  color: color-mix(in srgb, var(--calendar-bright) 64%, transparent);
+  font-size: clamp(.96rem, 1.14vw, 1.25rem);
+  letter-spacing: .055em;
+}
+
+.phx-calendar-v18 .phx-command-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .52rem;
+  margin: .72rem 0 .95rem;
+}
+
+.phx-calendar-v18 .phx-command-chip-row .phx-status-chip {
+  font-size: .46rem;
+  letter-spacing: .13em;
+  padding: .4rem .55rem;
+}
+
+.phx-calendar-v18 .phx-calendar-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .68rem;
+  max-width: 29rem;
+  margin: .98rem 0 1.1rem;
+}
+
+.phx-calendar-v18 .phx-calendar-mode-grid .phx-command-button {
+  min-height: 2.48rem;
+  font-size: .48rem;
+  letter-spacing: .16em;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.phx-calendar-v18 .phx-calendar-mode-grid .phx-command-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--calendar-accent) 40%, transparent);
+  box-shadow: 0 .75rem 1.8rem rgba(0,0,0,.16);
+}
+
+.phx-calendar-v18 .phx-calendar-mode-grid .active {
+  border-color: color-mix(in srgb, var(--calendar-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+  box-shadow: inset 0 -2px 0 var(--calendar-accent);
+  color: var(--phx-body);
+}
+
+.phx-calendar-v18 .phx-calendar-hero-brief {
+  max-width: 34rem;
+  padding: .82rem .92rem;
+  font-size: .78rem;
+  line-height: 1.36;
+  border-left-color: var(--calendar-accent);
+  background: rgba(7, 12, 24, .58);
+}
+
+.phx-calendar-v18 .phx-calendar-core {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 21%, transparent);
+  background:
+    radial-gradient(circle at 46% 20%, color-mix(in srgb, var(--calendar-accent) 7%, transparent), transparent 34%),
+    linear-gradient(180deg, rgba(8, 11, 24, .9), rgba(3, 8, 15, .98));
+  padding: 1.08rem;
+  min-height: 20.9rem;
+  display: grid;
+  gap: .78rem;
+  align-content: start;
+  overflow: hidden;
+}
+
+.phx-calendar-v18 .phx-calendar-core::after {
+  content: "";
+  position: absolute;
+  inset: auto 8% 0 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--calendar-accent) 38%, transparent), transparent);
+  animation: phxCalendarCorePulse 3.8s ease-in-out infinite;
+}
+
+@keyframes phxCalendarCorePulse {
+  0%, 100% { opacity: .25; transform: scaleX(.72); }
+  50% { opacity: .8; transform: scaleX(1); }
+}
+
+.phx-calendar-v18 .phx-calendar-core-head {
+  display: grid;
+  gap: .18rem;
+  text-align: center;
+}
+
+.phx-calendar-v18 .phx-calendar-core-head span,
+.phx-calendar-v18 .phx-calendar-core-head em {
+  color: color-mix(in srgb, var(--calendar-bright) 48%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .35rem;
+  font-style: normal;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-core-head strong {
+  color: color-mix(in srgb, var(--calendar-bright) 92%, white 8%);
+  font-family: var(--phx-font-mono);
+  font-size: .54rem;
+  letter-spacing: .25em;
+}
+
+.phx-calendar-v18 .phx-calendar-core-body {
+  display: grid;
+  grid-template-columns: 4.85rem minmax(0, 1fr);
+  gap: .85rem;
+  align-items: center;
+}
+
+.phx-calendar-v18 .phx-calendar-core-date {
+  aspect-ratio: .9;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--calendar-accent) 6%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--calendar-accent) 40%, transparent);
+}
+
+.phx-calendar-v18 .phx-calendar-core-date span,
+.phx-calendar-v18 .phx-calendar-core-date em {
+  color: color-mix(in srgb, var(--calendar-bright) 56%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .34rem;
+  font-style: normal;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-core-date strong {
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: 1.82rem;
+  line-height: .92;
+}
+
+.phx-calendar-v18 .phx-calendar-core-state > strong {
+  color: var(--phx-body);
+  display: block;
+  font-family: var(--phx-font-display);
+  font-size: .96rem;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-core-state > span {
+  color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+  display: block;
+  font-size: .62rem;
+  margin-top: .32rem;
+}
+
+.phx-calendar-v18 .phx-calendar-core-state div {
+  display: grid;
+  grid-template-columns: 3.75rem minmax(0, 1fr);
+  gap: .5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--calendar-accent) 9%, transparent);
+  padding: .32rem 0;
+}
+
+.phx-calendar-v18 .phx-calendar-core-state small,
+.phx-calendar-v18 .phx-calendar-core-state b {
+  font-family: var(--phx-font-mono);
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-core-state small {
+  color: color-mix(in srgb, var(--calendar-bright) 44%, transparent);
+  font-size: .33rem;
+  letter-spacing: .13em;
+}
+
+.phx-calendar-v18 .phx-calendar-core-state b {
+  color: color-mix(in srgb, white 86%, var(--calendar-bright) 14%);
+  font-size: .43rem;
+  font-weight: 500;
+  letter-spacing: .11em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phx-calendar-v18 .phx-calendar-week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .34rem;
+}
+
+.phx-calendar-v18 .phx-calendar-week-strip div {
+  min-height: 2.62rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+  background: color-mix(in srgb, var(--calendar-accent) 4%, transparent);
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.phx-calendar-v18 .phx-calendar-week-strip div:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--calendar-accent) 35%, transparent);
+}
+
+.phx-calendar-v18 .phx-calendar-week-strip span {
+  color: color-mix(in srgb, var(--phx-body) 46%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: .32rem;
+  letter-spacing: .11em;
+}
+
+.phx-calendar-v18 .phx-calendar-week-strip strong {
+  color: var(--phx-body);
+  font-family: var(--phx-font-display);
+  font-size: .96rem;
+}
+
+.phx-calendar-v18 .phx-calendar-week-strip div.active {
+  border-color: var(--calendar-accent);
+  background: color-mix(in srgb, var(--calendar-accent) 12%, transparent);
+  box-shadow: inset 0 -2px 0 var(--calendar-accent), 0 0 1.1rem color-mix(in srgb, var(--calendar-accent) 9%, transparent);
+}
+
+.phx-calendar-v18 .phx-calendar-core-summary {
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+  background: color-mix(in srgb, var(--calendar-accent) 3%, transparent);
+  padding: .6rem .66rem;
+}
+
+.phx-calendar-v18 .phx-calendar-core-summary > strong {
+  color: var(--phx-body);
+  display: block;
+  font-family: var(--phx-font-display);
+  font-size: .76rem;
+  letter-spacing: .075em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-core-summary > span {
+  color: color-mix(in srgb, var(--phx-body) 60%, transparent);
+  display: block;
+  font-size: .58rem;
+  line-height: 1.3;
+  margin-top: .38rem;
+}
+
+.phx-calendar-v18 .phx-source-stamp {
+  transform: scale(.92);
+  transform-origin: center;
+}
+
+.phx-calendar-v18 .phx-calendar-command-modules {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .95rem;
+  margin-top: 1.35rem;
+}
+
+.phx-calendar-v18 .phx-calendar-card,
+.phx-calendar-v18 .phx-calendar-route-card {
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 15%, transparent);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--calendar-accent) 7%, transparent), transparent 42%),
+    linear-gradient(180deg, rgba(8, 12, 25, .82), rgba(3, 8, 15, .94));
+}
+
+.phx-calendar-v18 .phx-calendar-card {
+  min-height: 7.75rem;
+  padding: .78rem;
+}
+
+.phx-calendar-v18 .phx-calendar-card strong {
+  color: var(--phx-body);
+  display: block;
+  font-family: var(--phx-font-display);
+  font-size: .92rem;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-card span,
+.phx-calendar-v18 .phx-calendar-card em {
+  color: color-mix(in srgb, var(--calendar-bright) 62%, transparent);
+  display: block;
+  font-family: var(--phx-font-mono);
+  font-size: .4rem;
+  font-style: normal;
+  letter-spacing: .14em;
+  margin-top: .52rem;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-card p {
+  color: color-mix(in srgb, var(--phx-body) 60%, transparent);
+  font-size: .64rem;
+  line-height: 1.32;
+  margin: .58rem 0 0;
+}
+
+.phx-calendar-v18 .phx-calendar-card .phx-calendar-week-strip {
+  margin-top: .58rem;
+}
+
+.phx-calendar-v18 .phx-calendar-route-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .78rem;
+}
+
+.phx-calendar-v18 .phx-calendar-route-card {
+  color: inherit;
+  cursor: pointer;
+  min-height: 5rem;
+  padding: .76rem;
+  text-align: left;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.phx-calendar-v18 .phx-calendar-route-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--calendar-accent) 34%, transparent);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--calendar-accent) 12%, transparent), transparent 42%),
+    linear-gradient(180deg, rgba(9, 13, 27, .9), rgba(3, 8, 15, .96));
+  box-shadow: 0 .85rem 2rem rgba(0,0,0,.17);
+}
+
+.phx-calendar-v18 .phx-calendar-route-card strong {
+  color: var(--phx-body);
+  display: block;
+  font-family: var(--phx-font-display);
+  font-size: .94rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: .95;
+  text-transform: uppercase;
+}
+
+.phx-calendar-v18 .phx-calendar-route-card span {
+  color: color-mix(in srgb, var(--phx-body) 54%, transparent);
+  display: block;
+  font-size: .62rem;
+  line-height: 1.3;
+  margin-top: .52rem;
+}
+
+@media (max-width: 1180px) {
+  .phx-calendar-v18 .phx-command-hero-grid,
+  .phx-calendar-v18 .phx-calendar-command-modules {
+    grid-template-columns: 1fr;
+  }
+
+  .phx-calendar-v18 .phx-command-title-xl span {
+    white-space: normal;
+  }
+
+  .phx-calendar-v18 .phx-calendar-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .phx-calendar-v18 .phx-command-title-xl span:first-child {
+    font-size: clamp(2.55rem, 10.2vw, 3.25rem);
+  }
+
+  .phx-calendar-v18 .phx-command-title-xl .accent {
+    font-size: clamp(1.9rem, 8vw, 2.55rem);
+  }
+
+  .phx-calendar-v18 .phx-command-value {
+    font-size: clamp(2.9rem, 11.5vw, 3.9rem);
+  }
+
+  .phx-calendar-v18 .phx-calendar-core-body,
+  .phx-calendar-v18 .phx-calendar-mode-grid,
+  .phx-calendar-v18 .phx-calendar-route-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phx-calendar-v18 .phx-command-hero,
+  .phx-calendar-v18 .phx-calendar-command-modules > *,
+  .phx-calendar-v18 .phx-domain-frame > .phx-data-panel,
+  .phx-calendar-v18 .phx-command-hero::after,
+  .phx-calendar-v18 .phx-calendar-core::after {
+    animation: none !important;
+  }
+
+  .phx-calendar-v18 .phx-calendar-mode-grid .phx-command-button,
+  .phx-calendar-v18 .phx-calendar-route-card,
+  .phx-calendar-v18 .phx-calendar-week-strip div {
+    transition: none !important;
+  }
+}
+
+
