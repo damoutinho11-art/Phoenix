@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import Chat from './components/Chat'
-import MissionControl from './components/MissionControl'
 import PhoenixOpeningScreen from './components/PhoenixOpeningScreen'
 import BottomNav from './components/BottomNav'
 import NutritionDashboard from './components/nutrition/NutritionDashboard'
@@ -34,7 +33,7 @@ import CalendarFeedPublisher from './components/calendar/CalendarFeedPublisher'
 import ConnectorsPanel from './components/calendar/ConnectorsPanel'
 
 export default function App() {
-  const [tab, setTab] = useState('splash')
+  const [tab, setTab] = useState('home')
   const [trainingScreen, setTrainingScreen] = useState('dashboard')
   const [nutritionScreen, setNutritionScreen] = useState('dashboard')
   const [financeScreen, setFinanceScreen] = useState('dashboard')
@@ -71,11 +70,6 @@ export default function App() {
       return
     }
 
-    if (domain === 'home' || domain === 'mission' || domain === 'deck') {
-      switchTab('home')
-      return
-    }
-
     setChatPrefill(null)
     setTab('chat')
   }
@@ -86,16 +80,6 @@ export default function App() {
   }
 
   function renderContent() {
-    if (tab === 'home') {
-      return (
-        <MissionControl
-          onOpenDomain={switchTab}
-          onLogMeal={() => { setTab('nutrition'); setNutritionScreen('log') }}
-          onQuickAsk={handleQuickAsk}
-          onVoiceDeck={() => setTab('splash')}
-        />
-      )
-    }
     if (tab === 'chat') return <Chat prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill(null)} />
     if (tab === 'training') {
       switch (trainingScreen) {
@@ -229,7 +213,7 @@ export default function App() {
     }
   }
 
-  if (tab === 'splash') {
+  if (tab === 'home') {
     return (
       <PhoenixOpeningScreen
         onOpenDomain={openPhoenixDomain}
