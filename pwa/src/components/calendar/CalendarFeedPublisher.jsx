@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCalendarFeedStatus } from '../../api/client'
+import { getCalendarFeedStatus, getGoogleCalendarStatus } from '../../api/client'
 
 const VIOLET = '#9f7dff'
 const VIOLET_BR = '#d8ccff'
@@ -27,6 +27,7 @@ function InfoRow({ label, value }) {
 
 export default function CalendarFeedPublisher({ onBack }) {
   const [status, setStatus] = useState(null)
+  const [googleOAuthStatus, setGoogleOAuthStatus] = useState(null)
   const [error, setError] = useState('')
   const [token, setToken] = useState('')
   const [copied, setCopied] = useState(false)
@@ -35,7 +36,18 @@ export default function CalendarFeedPublisher({ onBack }) {
     getCalendarFeedStatus()
       .then(setStatus)
       .catch(() => setError('Phoenix calendar feed status unavailable.'))
+    getGoogleCalendarStatus()
+      .then(setGoogleOAuthStatus)
+      .catch(() => {})
   }, [])
+
+  const googleOAuthLabel = !googleOAuthStatus
+    ? 'CHECKING'
+    : googleOAuthStatus.connected
+      ? 'CONNECTED'
+      : googleOAuthStatus.configured
+        ? 'NOT CONNECTED'
+        : 'NOT CONFIGURED'
 
   const feedUrl = useMemo(() => {
     if (!status) return ''
@@ -71,16 +83,16 @@ export default function CalendarFeedPublisher({ onBack }) {
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96 }}>
         <div style={{ padding: '20px 18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(159,125,255,.05),transparent)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>GOOGLE CALENDAR SUBSCRIPTION</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>ICS SUBSCRIPTION FEED</div>
           <div style={{ fontFamily: 'var(--display)', fontSize: 27, fontWeight: 700, color: '#fff', lineHeight: 1.1 }}>Phoenix publishes your clean opera calendar.</div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: DIM, marginTop: 10 }}>Google Calendar can subscribe to Phoenix. Plaan stays read-only, Phoenix remains the main calendar, and Google becomes only a mirror.</div>
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: DIM, marginTop: 10 }}>Any calendar app (including Google Calendar) can subscribe to this private feed URL. Plaan stays read-only, Phoenix remains the main calendar, and any subscriber becomes only a mirror. For a native OAuth connection instead of a URL subscription, use Connectors.</div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '14px 18px', borderBottom: `1px solid ${BORDER}` }}>
           <InfoRow label="EVENTS" value={status.event_count ?? 0} />
           <InfoRow label="SOURCE" value={(status.calendar_source?.active_source || 'fixture').replaceAll('_', ' ').toUpperCase()} />
           <InfoRow label="TOKEN" value={status.token_configured ? 'CONFIGURED' : 'MISSING'} />
-          <InfoRow label="GOOGLE" value={status.google_calendar_compatible ? 'COMPATIBLE' : 'WAITING'} />
+          <InfoRow label="GOOGLE OAUTH" value={googleOAuthLabel} />
         </div>
 
         <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>

@@ -46,6 +46,36 @@ export async function getCalendarPlaanLivePreview() {
   return apiFetch('/calendar/plaan-live/preview')
 }
 
+export async function getConnectorsStatus() {
+  return apiFetch('/calendar/connectors/status')
+}
+
+export async function getGoogleCalendarStatus() {
+  return apiFetch('/calendar/google/status')
+}
+
+export async function getGoogleCalendarPreview(days = 14) {
+  return apiFetch(`/calendar/google/preview?days=${encodeURIComponent(days)}`)
+}
+
+export async function getGmailStatus() {
+  return apiFetch('/gmail/status')
+}
+
+export async function searchGmail(query, maxResults = 10) {
+  const params = new URLSearchParams({ max_results: String(maxResults) })
+  if (query) params.set('q', query)
+  return apiFetch(`/gmail/search?${params.toString()}`)
+}
+
+export async function getUnifiedCalendar(days = 14) {
+  return apiFetch(`/calendar/unified?days=${encodeURIComponent(days)}`)
+}
+
+export async function disconnectGoogle() {
+  return apiFetch('/auth/google/disconnect', { method: 'POST' })
+}
+
 export async function getFinanceBrief() {
   return apiFetch('/finance/brief')
 }
@@ -492,6 +522,16 @@ export async function importCalendarPlaanSnapshot({ snapshot, label = 'manual Pl
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ snapshot, label, source }),
+  })
+}
+
+export async function importPlaanExcel(file, label = 'manual Plaan Excel import') {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('label', label)
+  return apiFetch('/calendar/plaan-live/import/excel', {
+    method: 'POST',
+    body: formData,
   })
 }
 

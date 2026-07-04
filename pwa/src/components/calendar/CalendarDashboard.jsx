@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getCalendarSnapshot, postJarvisChat } from '../../api/client'
+import { getCalendarSnapshot, getUnifiedCalendar, postJarvisChat } from '../../api/client'
 import { CockpitShell, DataPanel, EmptyState, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
 
 const VIOLET = '#9f7dff'
@@ -901,7 +901,7 @@ function RouteCard({ title, copy, action }) {
   )
 }
 
-export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuickAsk }) {
+export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onConnectors, onQuickAsk }) {
   const [snapshot, setSnapshot] = useState(null)
   const [events, setEvents] = useState(null)
   const [jarvisText, setJarvisText] = useState('')
@@ -909,9 +909,13 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
   const [calendarSection, setCalendarSection] = useState('command')
 
   useEffect(() => {
-    getCalendarSnapshot()
-      .then(r => { setSnapshot(r); setEvents(r.events || []) })
-      .catch(() => setEvents([]))
+    getUnifiedCalendar()
+      .then(r => { setSnapshot({ ...r, source: r.sources?.plaan }); setEvents(r.events || []) })
+      .catch(() => {
+        getCalendarSnapshot()
+          .then(r => { setSnapshot(r); setEvents(r.events || []) })
+          .catch(() => setEvents([]))
+      })
 
     postJarvisChat({ domain: 'calendar', message: 'What should I know about my schedule this week?' })
       .then(r => setJarvisText(r.response || ''))
@@ -1023,6 +1027,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
                 <RouteCard title="Week" copy="Open rhythm map." action={() => { setActiveMode('week'); setCalendarSection('week') }} />
                 <RouteCard title="Feeds" copy="Open source state." action={() => setCalendarSection('feeds')} />
                 <RouteCard title="Brief" copy="Open brief." action={() => setCalendarSection('brief')} />
+                <RouteCard title="Connectors" copy="Google Calendar & Gmail status." action={() => onConnectors && onConnectors()} />
               </div>
             </div>
           </DataPanel>
@@ -1108,6 +1113,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onQuick
               <RouteCard title="Week" copy="Weekly load, performance blocks, and rhythm review." action={() => { setActiveMode('week'); setCalendarSection('week') }} />
               <RouteCard title="Feeds" copy="Plaan, ICS, Google, source health, and diagnostics." action={() => setCalendarSection('feeds')} />
               <RouteCard title="Brief" copy="Read-only day brief and next-event summary." action={() => setCalendarSection('brief')} />
+              <RouteCard title="Connectors" copy="Connect/disconnect Google Calendar & Gmail (read-only)." action={() => onConnectors && onConnectors()} />
             </div>
           </div>
         </DataPanel>

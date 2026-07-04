@@ -13,7 +13,20 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from jarvis.api.routers import barcode, budget, calendar, chat, crossdomain, finance, health, news, nutrition, training
+from jarvis.api.routers import (
+    barcode,
+    budget,
+    calendar,
+    chat,
+    crossdomain,
+    finance,
+    gmail,
+    google_auth,
+    health,
+    news,
+    nutrition,
+    training,
+)
 from jarvis.core import clock
 from jarvis.data import database
 from jarvis.data.database import init_db
@@ -150,6 +163,8 @@ app.include_router(barcode.router, prefix="/barcode", tags=["barcode"])
 app.include_router(chat.router, prefix="/jarvis", tags=["jarvis"])
 app.include_router(news.router, prefix="/news", tags=["news"])
 app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(google_auth.router, prefix="/auth/google", tags=["google-auth"])
+app.include_router(gmail.router, prefix="/gmail", tags=["gmail"])
 
 
 @app.get("/health", tags=["meta"])

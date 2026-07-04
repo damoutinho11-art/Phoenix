@@ -79,6 +79,17 @@ CREATE TABLE IF NOT EXISTS calendar_snapshot_imports (
 CREATE INDEX IF NOT EXISTS idx_calendar_snapshot_imports_imported_at
 ON calendar_snapshot_imports(imported_at);
 
+CREATE TABLE IF NOT EXISTS google_oauth_tokens (
+    id INTEGER PRIMARY KEY,
+    provider TEXT NOT NULL DEFAULT 'google',
+    access_token_encrypted TEXT NOT NULL,
+    refresh_token_encrypted TEXT NOT NULL,
+    token_expiry TEXT NOT NULL,
+    scopes TEXT NOT NULL,
+    connected_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS weight_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     log_date TEXT NOT NULL UNIQUE,
@@ -752,6 +763,80 @@ def delete_calendar_snapshot_import(import_id: int) -> bool:
         cursor = connection.execute(
             "DELETE FROM calendar_snapshot_imports WHERE id = ?",
             (int(import_id),),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+    finally:
+        connection.close()
+
+
+def save_google_oauth_tokens(
+    *,
+    access_token_encrypted: str,
+    refresh_token_encrypted: str,
+    token_expiry: str,
+    scopes: list[str] | str,
+    provider: str = "google",
+) -> dict[str, Any]:
+    """Persist encrypted OAuth tokens. Replaces any existing row for the provider.
+
+    Only encrypted ciphertext ever reaches this function/table — see
+    jarvis/domains/calendar/google_oauth.py for encryption.
+    """
+    scopes_str = " ".join(scopes) if isinstance(scopes, list) else str(scopes)
+    now = _utc_now()
+    connection = get_db()
+    try:
+        existing = connection.execute(
+            "SELECT id, connected_at FROM google_oauth_tokens WHERE provider = ?",
+            (provider,),
+        ).fetchone()
+        connected_at = existing["connected_at"] if existing else now
+        connection.execute(
+            "DELETE FROM google_oauth_tokens WHERE provider = ?",
+            (provider,),
+        )
+        connection.execute(
+            """
+            INSERT INTO google_oauth_tokens (
+                provider, access_token_encrypted, refresh_token_encrypted,
+                token_expiry, scopes, connected_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                provider,
+                access_token_encrypted,
+                refresh_token_encrypted,
+                token_expiry,
+                scopes_str,
+                connected_at,
+                now,
+            ),
+        )
+        connection.commit()
+        return get_google_oauth_tokens(provider=provider) or {}
+    finally:
+        connection.close()
+
+
+def get_google_oauth_tokens(provider: str = "google") -> dict[str, Any] | None:
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT * FROM google_oauth_tokens WHERE provider = ? ORDER BY id DESC LIMIT 1",
+            (provider,),
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        connection.close()
+
+
+def delete_google_oauth_tokens(provider: str = "google") -> bool:
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            "DELETE FROM google_oauth_tokens WHERE provider = ?",
+            (provider,),
         )
         connection.commit()
         return cursor.rowcount > 0

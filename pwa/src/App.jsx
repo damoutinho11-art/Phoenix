@@ -31,6 +31,7 @@ import CalendarDashboard from './components/calendar/CalendarDashboard'
 import EventDetail from './components/calendar/EventDetail'
 import WeekView from './components/calendar/WeekView'
 import CalendarFeedPublisher from './components/calendar/CalendarFeedPublisher'
+import ConnectorsPanel from './components/calendar/ConnectorsPanel'
 
 export default function App() {
   const [tab, setTab] = useState('home')
@@ -103,6 +104,7 @@ export default function App() {
               onEvent={ev => { setCalendarEvent(ev); setCalendarScreen('detail') }}
               onWeekView={() => setCalendarScreen('week')}
               onFeed={() => setCalendarScreen('feed')}
+              onConnectors={() => setCalendarScreen('connectors')}
               onQuickAsk={handleQuickAsk}
             />
           )
@@ -122,6 +124,8 @@ export default function App() {
           )
         case 'feed':
           return <CalendarFeedPublisher onBack={() => setCalendarScreen('dashboard')} />
+        case 'connectors':
+          return <ConnectorsPanel onBack={() => setCalendarScreen('dashboard')} />
         default:
           return null
       }
