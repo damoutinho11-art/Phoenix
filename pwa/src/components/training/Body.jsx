@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getTrainingStatus, logWeight } from '../../api/client'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
 
 const BG         = '#060c12'
@@ -180,11 +179,6 @@ export default function Body({ onBack }) {
   const [modalOpen, setModalOpen]   = useState(false)
 
   useEffect(() => {
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     if (!document.getElementById('ph-keyframes')) {
       const style = document.createElement('style')
       style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
@@ -228,7 +222,7 @@ export default function Body({ onBack }) {
   const weeklies = [...weightHistory].reverse().slice(0, 8)
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
+    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
 
       {/* TOP BAR */}
       <div style={{

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { getBudgetSummary, getBudgetMonths } from '../../api/client'
 import { speak } from '../../services/tts'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
 
 const MONO = "'Share Tech Mono', monospace"
@@ -85,11 +84,6 @@ export default function BudgetDashboard({ onBack, onUpload, onMemory }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     if (!document.getElementById('ph-keyframes')) {
       const style = document.createElement('style')
       style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
@@ -143,7 +137,7 @@ export default function BudgetDashboard({ onBack, onUpload, onMemory }) {
   const savingsGood = summary?.savings_rate >= 25
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 100, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
+    <div className="phx-scope-budget" style={{ height: '100%', overflowY: 'auto', paddingBottom: 100, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
 
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, overflow: 'hidden' }}>

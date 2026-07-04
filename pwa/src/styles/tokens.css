@@ -1,0 +1,381 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHOENIX DESIGN TOKENS — single source of truth
+   ═══════════════════════════════════════════════════════════════════════════
+   Every screen references these; no component defines its own hex colors or
+   font stacks. The values are the cockpit (`phx-`) system already used by the
+   Calendar / Nutrition / Finance command centers — this file makes that system
+   canonical and adds the shared interaction / state patterns.
+
+   Fonts are loaded once in index.html (Rajdhani, Space Grotesk,
+   Share Tech Mono). Components must NOT inject their own <link> tags.
+
+   ── Semantic color meanings ─────────────────────────────────────────────────
+   accent (per domain)  identity of the current domain (see DOMAIN ACCENTS)
+   positive             success · active · connected · logged
+   caution              warning · fixture data · needs attention
+   danger               destructive · error · disconnected
+   text / body / muted  3-step text hierarchy (headline / copy / labels)
+   edge                 default hairline border (accent @ 24%)
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── TYPE FAMILIES ── */
+  --phx-font-display: 'Rajdhani', sans-serif;      /* heroes, titles, big numbers */
+  --phx-font-body: 'Space Grotesk', sans-serif;    /* prose, descriptions */
+  --phx-font-mono: 'Share Tech Mono', monospace;   /* labels, pills, [ BRACKETS ] */
+
+  /* ── SURFACES ── */
+  --phx-bg: #060c12;
+  --phx-panel: #08121a;
+  --phx-panel-raised: #0a1721;
+
+  /* ── TEXT ── */
+  --phx-text: #eef7fa;
+  --phx-body: #b7cad3;
+  --phx-muted: #76909d;
+
+  /* ── SEMANTIC STATUS ── */
+  --phx-positive: #20d989;
+  --phx-caution: #ffc857;
+  --phx-danger: #ff6685;
+
+  /* ── DOMAIN ACCENTS ── */
+  --phx-finance: #20d8ec;    /* cyan   */
+  --phx-nutrition: #9dff6f;  /* lime   */
+  --phx-training: #ff8f2e;   /* orange */
+  --phx-calendar: #9f7dff;   /* violet */
+  --phx-budget: #ffd56b;     /* gold   */
+
+  /* current accent — overridden per screen via .phx-scope-* or inline */
+  --phx-accent: #00bbdd;
+
+  /* ── DERIVED ── */
+  --phx-edge: color-mix(in srgb, var(--phx-accent) 24%, transparent);
+  --phx-focus: 0 0 0 3px color-mix(in srgb, var(--phx-accent) 35%, transparent);
+
+  /* ── TYPE SCALE — the single source of truth for every header tier ──
+     hero         domain hero number (€1,893.33 / 0 HOURS / 58 DAYS)
+     title        page title (FINANCE COMMAND CENTER) · Rajdhani 700 ls .04em
+     subtitle     description under the title · Space Grotesk 400
+     section      section heading (MANUAL ACTIONS) · Rajdhani 700 ls .035em
+     card-header  card title (AUTHORIZATION CORE) · Mono 700 ls .22em upper
+     body         readable copy · Space Grotesk 400
+     label        mono technical labels & pills · Mono 400 ls .28em upper
+     micro        mono fine print                                          */
+  --phx-type-hero: clamp(3.4rem, 12vw, 6rem);
+  --phx-type-title: clamp(38px, 5.5vw, 52px);
+  --phx-type-subtitle: 13px;
+  --phx-type-section: clamp(24px, 3vw, 28px);
+  --phx-type-card-header: 10px;
+  --phx-type-panel: clamp(1.15rem, 3vw, 1.5rem);
+  --phx-type-body: 12.5px;
+  --phx-type-label: 8.5px;
+  --phx-type-micro: .58rem;
+
+  /* Aliases: late cockpit.css layers (CALENDAR_FEEDS/BRIEF/PERFORMANCES)
+     reference --font-display/--font-mono. Without these aliases they fall
+     back to inherit/monospace — the Feeds-subsection font bug. */
+  --font-display: var(--phx-font-display);
+  --font-body: var(--phx-font-body);
+  --font-mono: var(--phx-font-mono);
+
+  /* ── SPACING ── */
+  --phx-page-pad: clamp(1.25rem, 4vw, 2.5rem); /* page gutters */
+  --phx-card-pad: 1rem;                        /* inside cards */
+  --phx-gap-section: 1rem;                     /* between panels */
+  --phx-gap-tight: .6rem;                      /* rows inside a panel */
+}
+
+/* ── DOMAIN SCOPES — put on a screen's root to set its accent ─────────────── */
+.phx-scope-finance   { --phx-accent: var(--phx-finance); }
+.phx-scope-nutrition { --phx-accent: var(--phx-nutrition); }
+.phx-scope-training  { --phx-accent: var(--phx-training); }
+.phx-scope-calendar  { --phx-accent: var(--phx-calendar); }
+.phx-scope-budget    { --phx-accent: var(--phx-budget); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOBAL INTERACTION STATES
+   Inline-styled buttons can't declare :hover — these rules give every real
+   <button> feedback using properties inline styles never set (filter,
+   transform, outline), so they compose with any existing style.
+   ═══════════════════════════════════════════════════════════════════════════ */
+button { transition: filter .16s ease, transform .1s ease; }
+button:not(:disabled):hover { filter: brightness(1.3); }
+button:not(:disabled):active { transform: translateY(1px); filter: brightness(1.5); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible {
+  outline: none;
+  box-shadow: var(--phx-focus);
+}
+
+/* clickable non-button elements (legacy div-buttons) — add className="phx-tap" */
+.phx-tap { cursor: pointer; transition: filter .16s ease, transform .1s ease; }
+.phx-tap:hover { filter: brightness(1.3); }
+.phx-tap:active { transform: translateY(1px); }
+
+/* ── NATIVE CONTROLS — themed, never browser-default ──────────────────────── */
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'],
+progress {
+  accent-color: var(--phx-accent);
+}
+input[type='checkbox'].phx-check-input {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 6%, transparent);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+}
+input[type='checkbox'].phx-check-input::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  transform: scale(0);
+  transition: transform .12s ease-in-out;
+  background: var(--phx-accent);
+  box-shadow: 0 0 6px var(--phx-accent);
+}
+input[type='checkbox'].phx-check-input:checked::before { transform: scale(1); }
+
+input[type='range'].phx-range {
+  appearance: none;
+  width: 100%;
+  height: 22px; /* touch target */
+  background: transparent;
+  cursor: pointer;
+}
+input[type='range'].phx-range::-webkit-slider-runnable-track {
+  height: 3px;
+  background: color-mix(in srgb, var(--phx-accent) 18%, transparent);
+}
+input[type='range'].phx-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  margin-top: -6px;
+  border-radius: 50%;
+  border: 1px solid var(--phx-accent);
+  background: var(--phx-panel-raised);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--phx-accent) 55%, transparent), inset 0 0 4px color-mix(in srgb, var(--phx-accent) 60%, transparent);
+}
+input[type='range'].phx-range::-moz-range-track {
+  height: 3px;
+  background: color-mix(in srgb, var(--phx-accent) 18%, transparent);
+}
+input[type='range'].phx-range::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid var(--phx-accent);
+  background: var(--phx-panel-raised);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--phx-accent) 55%, transparent);
+}
+
+/* text inputs — ≥16px on touch screens so iOS Safari doesn't zoom on focus */
+.phx-input {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 22%, transparent);
+  background: rgba(0, 0, 0, .3);
+  color: var(--phx-text);
+  font-family: var(--phx-font-body);
+  outline: none;
+}
+.phx-input:focus { border-color: color-mix(in srgb, var(--phx-accent) 45%, transparent); }
+input::placeholder,
+textarea::placeholder { color: color-mix(in srgb, var(--phx-muted) 72%, transparent); }
+@media (pointer: coarse) {
+  .phx-input, input.phx-input { font-size: 16px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UNIVERSAL COMPONENT PATTERNS
+   The card / pill / info-row vocabulary from CalendarFeedPublisher &
+   ConnectorsPanel, generalized. Accent follows --phx-accent automatically.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* card container: header (title+pill) / body / optional footer */
+.phx-card {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+  border-radius: 4px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--phx-accent) 4%, transparent), transparent 38%),
+    linear-gradient(180deg, var(--phx-panel-raised), var(--phx-panel));
+  padding: var(--phx-card-pad);
+}
+.phx-card-stripe { border-left: 3px solid var(--phx-accent); }
+
+/* mono pill badge — tones map to the semantic colors */
+.phx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 1.55rem;
+  padding: .2rem .55rem;
+  border: 1px solid color-mix(in srgb, currentColor 34%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: color-mix(in srgb, var(--phx-accent) 80%, white 10%);
+  font-family: var(--phx-font-mono);
+  font-size: var(--phx-type-micro);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.phx-pill-good   { color: var(--phx-positive); }
+.phx-pill-warn   { color: var(--phx-caution); }
+.phx-pill-bad    { color: var(--phx-danger); }
+.phx-pill-neutral{ color: var(--phx-muted); }
+
+/* label-over-value cell */
+.phx-info-row {
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+  background: rgba(0, 0, 0, .2);
+  padding: .7rem .75rem;
+  min-width: 0;
+}
+.phx-info-row > .label {
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: var(--phx-type-micro);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.phx-info-row > .value {
+  margin-top: .3rem;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* mono command button (real <button>) */
+.phx-btn {
+  min-height: 2.6rem;
+  padding: .6rem .9rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+  color: color-mix(in srgb, var(--phx-accent) 75%, white 12%);
+  font-family: var(--phx-font-mono);
+  font-size: var(--phx-type-label);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.phx-btn-good { border-color: color-mix(in srgb, var(--phx-positive) 35%, transparent); background: color-mix(in srgb, var(--phx-positive) 8%, transparent); color: var(--phx-positive); }
+.phx-btn-bad  { border-color: color-mix(in srgb, var(--phx-danger) 35%, transparent);  background: color-mix(in srgb, var(--phx-danger) 8%, transparent);  color: var(--phx-danger); }
+.phx-btn-ghost{ border-color: color-mix(in srgb, var(--phx-accent) 16%, transparent);  background: transparent; color: var(--phx-muted); }
+
+/* file drop target — replaces default <input type=file> chrome.
+   Usage: <label class="phx-file-drop"><input type="file" hidden/>…</label>  */
+.phx-file-drop {
+  display: grid;
+  place-content: center;
+  gap: .3rem;
+  min-height: 4.6rem;
+  padding: .9rem;
+  border: 1px dashed color-mix(in srgb, var(--phx-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+  text-align: center;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease;
+}
+.phx-file-drop:hover {
+  border-color: color-mix(in srgb, var(--phx-accent) 65%, transparent);
+  background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+}
+.phx-file-drop > .drop-label {
+  color: color-mix(in srgb, var(--phx-accent) 78%, white 10%);
+  font-family: var(--phx-font-mono);
+  font-size: var(--phx-type-label);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.phx-file-drop > .drop-hint {
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: var(--phx-type-micro);
+  letter-spacing: .1em;
+}
+.phx-file-drop.has-file {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--phx-positive) 45%, transparent);
+  background: color-mix(in srgb, var(--phx-positive) 6%, transparent);
+}
+.phx-file-drop.has-file > .drop-label { color: var(--phx-positive); }
+
+/* ── STATE PATTERNS — same shape on every screen ──────────────────────────── */
+
+/* loading: <div class="phx-state phx-state-loading"><span class="code">SYNC</span><strong>…</strong><p>…</p></div> */
+.phx-state {
+  display: grid;
+  place-content: center;
+  gap: .45rem;
+  min-height: 9rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+.phx-state > .code {
+  color: color-mix(in srgb, var(--phx-accent) 76%, white 8%);
+  font-family: var(--phx-font-mono);
+  font-size: var(--phx-type-micro);
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+.phx-state > strong {
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.phx-state > p {
+  max-width: 32rem;
+  margin: 0;
+  color: var(--phx-body);
+  font-size: .85rem;
+  line-height: 1.55;
+}
+.phx-state-loading > .code { animation: phx-blink 1.1s steps(2) infinite; }
+.phx-state-error > .code,
+.phx-state-error > strong { color: var(--phx-danger); }
+
+/* inline error banner */
+.phx-error-banner {
+  padding: .75rem .9rem;
+  border: 1px solid color-mix(in srgb, var(--phx-danger) 30%, transparent);
+  border-left: 3px solid var(--phx-danger);
+  background: color-mix(in srgb, var(--phx-danger) 6%, transparent);
+  color: var(--phx-danger);
+  font-family: var(--phx-font-mono);
+  font-size: var(--phx-type-label);
+  letter-spacing: .06em;
+  line-height: 1.55;
+}
+
+/* skeleton shimmer for hero values while data syncs */
+.phx-skeleton {
+  display: inline-block;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--phx-accent) 10%, transparent) 25%,
+    color-mix(in srgb, var(--phx-accent) 22%, transparent) 50%,
+    color-mix(in srgb, var(--phx-accent) 10%, transparent) 75%);
+  background-size: 200% 100%;
+  animation: phx-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes phx-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes phx-blink { 50% { opacity: .35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .phx-skeleton, .phx-state-loading > .code { animation: none; }
+  button, .phx-tap, .phx-file-drop { transition: none; }
+}

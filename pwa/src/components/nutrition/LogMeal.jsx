@@ -202,7 +202,7 @@ export default function LogMeal({ onBack, onSuccess }) {
   const scaledProt = selected ? +(selected.protein_g * servings).toFixed(1) : 0
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: 'rgba(220,248,236,.94)', fontFamily: "'Saira Condensed',sans-serif" }}>
+    <div className="phx-scope-nutrition" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-nutrition) 7%, transparent), transparent 34rem), linear-gradient(180deg, #081208 0%, var(--phx-bg) 42%, #04090e 100%)', color: 'rgba(220,248,236,.94)', fontFamily: 'var(--phx-font-body)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
@@ -250,13 +250,13 @@ export default function LogMeal({ onBack, onSuccess }) {
           </div>
 
           {tab !== 'custom' && (
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${tab}…`} style={{ width: '100%', background: 'rgba(157,255,111,.025)', border: `1px solid ${BORDER}`, padding: '10px 12px', color: 'rgba(220,248,236,.94)', fontSize: 13, fontFamily: "'Saira Condensed',sans-serif", outline: 'none', boxSizing: 'border-box', marginBottom: 10 }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${tab}…`} style={{ width: '100%', background: 'rgba(157,255,111,.025)', border: `1px solid ${BORDER}`, padding: '10px 12px', color: 'rgba(220,248,236,.94)', fontSize: 13, fontFamily: 'var(--phx-font-body)', outline: 'none', boxSizing: 'border-box', marginBottom: 10 }} />
           )}
 
           {tab === 'custom' && (
             <div style={{ padding: '12px 14px', background: 'rgba(157,255,111,.025)', border: `1px solid rgba(157,255,111,.14)`, marginBottom: 12 }}>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED, marginBottom: 9 }}>CUSTOM FOOD · EXACT MACROS</div>
-              <input value={custom.name} onChange={e => setCustom(c => ({ ...c, name: e.target.value }))} placeholder="Meal name" style={{ width: '100%', background: 'rgba(0,0,0,.22)', border: `1px solid ${BORDER}`, padding: '10px 12px', color: '#fff', fontSize: 14, fontFamily: "'Saira Condensed',sans-serif", outline: 'none', boxSizing: 'border-box', marginBottom: 8 }} />
+              <input value={custom.name} onChange={e => setCustom(c => ({ ...c, name: e.target.value }))} placeholder="Meal name" style={{ width: '100%', background: 'rgba(0,0,0,.22)', border: `1px solid ${BORDER}`, padding: '10px 12px', color: '#fff', fontSize: 14, fontFamily: 'var(--phx-font-body)', outline: 'none', boxSizing: 'border-box', marginBottom: 8 }} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
                 {[
                   ['calories', 'KCAL'],

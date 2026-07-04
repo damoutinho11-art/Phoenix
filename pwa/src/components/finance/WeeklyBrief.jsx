@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getFinanceLedger, getFinanceManualBuyChecklist, getFinanceRecommendation, getFinanceTransactionApplyPreview, postBriefAction, postFinanceResearchAutopilotRun, postFinanceTransactionApply, postFinanceTransactionVoid, postManualFinanceTransaction } from '../../api/client'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `
   @keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
   @keyframes phApproveGlow { 0%,100%{box-shadow:0 0 20px rgba(0,187,221,.5),0 0 40px rgba(0,187,221,.2)} 50%{box-shadow:0 0 36px rgba(0,187,221,.9),0 0 70px rgba(0,187,221,.4)} }
@@ -638,11 +637,6 @@ export default function WeeklyBrief({ onBack }) {
   const [autopilotResult, setAutopilotResult] = useState(null)
 
   useEffect(() => {
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     if (!document.getElementById('ph-keyframes')) {
       const style = document.createElement('style')
       style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
@@ -696,7 +690,7 @@ export default function WeeklyBrief({ onBack }) {
   const approvalBtnBase = { fontFamily: MONO, letterSpacing: '.18em', padding: '13px 0', cursor: acting ? 'wait' : 'pointer', background: 'transparent', userSelect: 'none', textAlign: 'center' }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
+    <div className="phx-scope-finance" style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
 
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, overflow: 'hidden' }}>

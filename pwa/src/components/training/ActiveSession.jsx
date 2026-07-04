@@ -3,7 +3,6 @@ import { getTrainingRoutedSession, getTrainingStatus, logSession } from '../../a
 import { canStartHighNeural, readinessLabel } from './trainingViewModel'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
 
 const T = {
@@ -422,7 +421,7 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
     : '—'
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: T.bg, color: T.text }}>
+    <div className="phx-scope-training" style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: T.bg, color: T.text }}>
 
       {/* Hero */}
       <div style={{ padding: '44px 24px 28px', borderBottom: T.borderCyan, textAlign: 'center', background: 'linear-gradient(180deg,rgba(77,255,180,.04),transparent)', position: 'relative' }}>
@@ -524,11 +523,6 @@ export default function ActiveSession({ onBack }) {
 
   // Font + keyframe injection
   useEffect(() => {
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     if (!document.getElementById('ph-keyframes')) {
       const style = document.createElement('style')
       style.id = 'ph-keyframes'; style.textContent = KEYFRAMES

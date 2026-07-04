@@ -18,7 +18,6 @@ import {
   listFailedFinanceSources,
 } from './financeDashboardModel'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 
 const SLEEVE_META = {
   global_core_etf:   { label: 'Global Core',     description: 'Diversified world equity',       color: '#00bbdd' },
@@ -78,10 +77,10 @@ const s = {
   },
   sectionTitle: {
     fontFamily: T.fontDisplay,
-    fontSize: 32,
+    fontSize: 'var(--phx-type-section)',
     fontWeight: 700,
     color: T.white,
-    letterSpacing: '0.03em',
+    letterSpacing: '0.035em',
     lineHeight: 1,
     margin: 0,
   },
@@ -185,7 +184,7 @@ function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTo
 
       <div style={{ position: 'relative' }}>
         <div style={s.sectionTag}>PHOENIX</div>
-        <h1 className="finance-command-title" style={{ fontFamily: T.fontDisplay, fontSize: 52, fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1, margin: '0 0 2rem' }}>
+        <h1 className="finance-command-title" style={{ fontFamily: T.fontDisplay, fontSize: 'var(--phx-type-title)', fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1, margin: '0 0 2rem' }}>
           <span style={{ display: 'block', color: '#dff0f5' }}>FINANCE</span>
           <span style={{ display: 'block', color: T.accent, textShadow: '0 0 30px rgba(0,187,221,0.27)' }}>COMMAND CENTER</span>
         </h1>
@@ -311,7 +310,7 @@ function AuthorizationCore({ checklist, recommendation }) {
       <Corners />
       <span style={{ position: 'absolute', top: 14, right: 16, fontFamily: T.fontMono, fontSize: 7, color: 'rgba(0,187,221,0.2)', letterSpacing: '0.1em' }}>AC-001</span>
 
-      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.25em', color: 'rgba(0,187,221,0.87)', textAlign: 'center', marginBottom: 4 }}>AUTHORIZATION CORE</div>
+      <div style={{ fontFamily: T.fontMono, fontSize: 'var(--phx-type-card-header)', fontWeight: 700, letterSpacing: '0.22em', color: 'rgba(0,187,221,0.87)', textAlign: 'center', marginBottom: 4 }}>AUTHORIZATION CORE</div>
       <div style={{ fontFamily: T.fontMono, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(0,187,221,0.53)', textAlign: 'center', marginBottom: '1.2rem' }}>WEEKLY DEPLOYMENT</div>
 
       <div style={{ position: 'relative', width: 200, height: 200, margin: '0 auto 1rem' }}>
@@ -489,7 +488,7 @@ function InstrumentResolution({ researchWinner, checklistCandidate, researchSymb
   if (!researchWinner || !checklistCandidate) return null
   return (
     <section style={{ padding: '2rem 2rem 0' }}>
-      <div style={s.sectionTag}>[ INSTRUMENT RESOLUTION ]</div>
+      <div style={s.sectionTag}>[ PHASE 1 · VERIFIED ROUTING ]</div>
       <div style={{ ...s.sectionTitle, marginBottom: '1.2rem' }}>INSTRUMENT RESOLUTION</div>
       <div style={{ ...s.card }}>
         <div style={s.cardTopLine} />
@@ -1018,13 +1017,6 @@ export default function FinanceDashboard({ onNav }) {
 
   useEffect(() => {
     // Inject fonts
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'
-      link.rel = 'stylesheet'
-      link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     // Inject keyframes
     if (!document.getElementById('ph-keyframes')) {
       const style = document.createElement('style')

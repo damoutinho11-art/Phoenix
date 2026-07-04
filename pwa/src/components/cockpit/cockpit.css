@@ -1,6622 +1,13381 @@
 :root {
+
   --phx-font-display: 'Rajdhani', sans-serif;
+
   --phx-font-body: 'Space Grotesk', sans-serif;
+
   --phx-font-mono: 'Share Tech Mono', monospace;
+
   --phx-bg: #060c12;
+
   --phx-panel: #08121a;
+
   --phx-panel-raised: #0a1721;
+
   --phx-text: #eef7fa;
+
   --phx-body: #b7cad3;
+
   --phx-muted: #76909d;
+
   --phx-accent: #00bbdd;
+
   --phx-positive: #20d989;
+
   --phx-caution: #ffc857;
+
   --phx-danger: #ff6685;
+
   --phx-edge: color-mix(in srgb, var(--phx-accent) 24%, transparent);
+
   --phx-focus: 0 0 0 3px color-mix(in srgb, var(--phx-accent) 35%, transparent);
+
 }
+
+
 
 .phx-cockpit-shell {
+
   position: relative;
+
   height: 100%;
+
   min-height: 0;
+
   overflow-x: hidden;
+
   overflow-y: auto;
+
   padding-bottom: calc(104px + env(safe-area-inset-bottom));
+
   background:
+
     radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-accent) 8%, transparent), transparent 34rem),
+
     linear-gradient(180deg, #071019 0%, var(--phx-bg) 42%, #04090e 100%);
+
   color: var(--phx-text);
+
   font-family: var(--phx-font-body);
+
   isolation: isolate;
+
 }
+
+
 
 .phx-cockpit-shell button:focus-visible,
+
 .phx-cockpit-shell a:focus-visible,
+
 .phx-cockpit-shell [tabindex]:focus-visible {
+
   outline: none;
+
   box-shadow: var(--phx-focus);
+
 }
+
+
 
 .phx-cockpit-ambient {
+
   position: fixed;
+
   inset: 0;
+
   z-index: -1;
+
   pointer-events: none;
+
   opacity: .28;
+
   background-image:
+
     linear-gradient(color-mix(in srgb, var(--phx-accent) 5%, transparent) 1px, transparent 1px),
+
     linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 4%, transparent) 1px, transparent 1px);
+
   background-size: 40px 40px;
+
   mask-image: linear-gradient(to bottom, black, transparent 75%);
+
 }
+
+
 
 .phx-domain-header,
+
 .phx-panel-heading {
+
   display: flex;
+
   align-items: flex-start;
+
   justify-content: space-between;
+
   gap: 1rem;
+
 }
+
+
 
 .phx-domain-header {
+
   padding: clamp(1.25rem, 4vw, 2.5rem);
+
 }
+
+
 
 .phx-eyebrow,
+
 .phx-panel-meta,
+
 .phx-source-stamp,
+
 .phx-empty-code {
+
   color: color-mix(in srgb, var(--phx-accent) 76%, white 8%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .72rem;
+
   letter-spacing: .18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-domain-title,
+
 .phx-panel-title {
+
   margin: 0;
+
   color: var(--phx-text);
+
   font-family: var(--phx-font-display);
+
   font-weight: 700;
+
   line-height: 1;
+
   letter-spacing: .035em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-domain-title {
+
   margin-top: .35rem;
+
   font-size: clamp(2.25rem, 7vw, 4.6rem);
+
   text-shadow: 0 0 2rem color-mix(in srgb, var(--phx-accent) 22%, transparent);
+
 }
+
+
 
 .phx-domain-subtitle {
+
   max-width: 52rem;
+
   margin: .8rem 0 0;
+
   color: var(--phx-body);
+
   font-size: .95rem;
+
   line-height: 1.65;
+
 }
+
+
 
 .phx-domain-actions {
+
   display: flex;
+
   align-items: center;
+
   gap: .75rem;
+
 }
+
+
 
 .phx-data-panel {
+
   position: relative;
+
   overflow: hidden;
+
   border: 1px solid var(--phx-edge);
+
   border-radius: 4px;
+
   background:
+
     linear-gradient(145deg, color-mix(in srgb, var(--phx-accent) 4%, transparent), transparent 38%),
+
     linear-gradient(180deg, var(--phx-panel-raised), var(--phx-panel));
+
   box-shadow:
+
     0 24px 64px rgba(0, 0, 0, .34),
+
     inset 0 1px 0 rgba(255, 255, 255, .025);
+
 }
+
+
 
 .phx-data-panel::after {
+
   position: absolute;
+
   inset: 0;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 7%, transparent);
+
   pointer-events: none;
+
   content: '';
+
 }
+
+
 
 .phx-panel-heading {
+
   padding: 1rem 1.1rem;
+
   border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
 }
+
+
 
 .phx-panel-title {
+
   margin-top: .3rem;
+
   font-size: clamp(1.25rem, 3vw, 1.7rem);
+
 }
+
+
 
 .phx-panel-meta {
+
   color: var(--phx-muted);
+
   text-align: right;
+
 }
+
+
 
 .phx-panel-scan {
+
   position: absolute;
+
   z-index: 2;
+
   top: 0;
+
   left: -35%;
+
   width: 30%;
+
   height: 1px;
+
   pointer-events: none;
+
   background: linear-gradient(90deg, transparent, var(--phx-accent), transparent);
+
   animation: phx-panel-scan 7s linear infinite;
+
 }
+
+
 
 .phx-status-chip {
+
   display: inline-flex;
+
   align-items: center;
+
   gap: .42rem;
+
   min-height: 1.65rem;
+
   padding: .24rem .58rem;
+
   border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+
   border-radius: 2px;
+
   background: color-mix(in srgb, currentColor 7%, transparent);
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .68rem;
+
   letter-spacing: .1em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-status-dot {
+
   width: .38rem;
+
   height: .38rem;
+
   border-radius: 50%;
+
   background: currentColor;
+
   box-shadow: 0 0 .55rem currentColor;
+
 }
+
+
 
 .phx-status-ready { color: var(--phx-positive); }
+
 .phx-status-caution { color: var(--phx-caution); }
+
 .phx-status-danger { color: var(--phx-danger); }
+
 .phx-status-verified { color: var(--phx-accent); }
 
+
+
 .phx-source-stamp {
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: .35rem .7rem;
+
   color: var(--phx-muted);
+
   font-size: .68rem;
+
   letter-spacing: .12em;
+
 }
+
+
 
 .phx-source-detail { color: color-mix(in srgb, var(--phx-muted) 75%, transparent); }
 
+
+
 .phx-empty-state {
+
   display: grid;
+
   min-height: 10rem;
+
   place-content: center;
+
   padding: 1.5rem;
+
   text-align: center;
+
 }
+
+
 
 .phx-empty-state h3 {
+
   margin: .6rem 0 .35rem;
+
   font-family: var(--phx-font-display);
+
   font-size: 1.35rem;
+
   letter-spacing: .04em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-empty-state p {
+
   max-width: 34rem;
+
   margin: 0;
+
   color: var(--phx-body);
+
   font-size: .88rem;
+
   line-height: 1.55;
+
 }
+
+
 
 .phx-chart-empty {
+
   display: grid;
+
   min-height: 12rem;
+
   place-content: center;
+
   padding: 1.5rem;
+
   text-align: center;
+
 }
+
+
 
 .phx-chart-empty p {
+
   max-width: 32rem;
+
   margin: .65rem auto;
+
   color: var(--phx-body);
+
   font-size: .88rem;
+
   line-height: 1.55;
+
 }
+
+
 
 .phx-chart-source {
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .68rem;
+
   letter-spacing: .12em;
+
 }
+
+
 
 .phx-line-chart {
+
   margin: 0;
+
   padding: 1rem;
+
 }
+
+
 
 .phx-line-chart svg {
+
   display: block;
+
   width: 100%;
+
   height: clamp(11rem, 30vw, 15rem);
+
   overflow: visible;
+
 }
+
+
 
 .phx-chart-grid {
+
   stroke: color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
   stroke-width: 1;
+
   vector-effect: non-scaling-stroke;
+
 }
+
+
 
 .phx-chart-path {
+
   stroke: var(--phx-accent);
+
   stroke-width: 2.5;
+
   stroke-linecap: round;
+
   stroke-linejoin: round;
+
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--phx-accent) 55%, transparent));
+
   vector-effect: non-scaling-stroke;
+
   animation: phx-chart-reveal .8s ease-out both;
+
 }
+
+
 
 .phx-chart-point {
+
   fill: var(--phx-bg);
+
   stroke: var(--phx-accent);
+
   stroke-width: 2;
+
   vector-effect: non-scaling-stroke;
+
 }
+
+
 
 .phx-chart-caption {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   margin-top: .65rem;
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .7rem;
+
   letter-spacing: .08em;
+
 }
+
+
 
 .phx-audit-drawer {
+
   border: 1px solid var(--phx-edge);
+
   border-radius: 4px;
+
   background: var(--phx-panel);
+
 }
 
+
+
 .phx-audit-drawer > summary {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   min-height: 3.25rem;
+
   padding: .8rem 1rem;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-weight: 600;
+
   letter-spacing: .04em;
+
   cursor: pointer;
+
   list-style: none;
+
 }
+
+
 
 .phx-audit-drawer > summary::-webkit-details-marker { display: none; }
 
+
+
 .phx-audit-drawer > summary:focus-visible {
+
   outline: none;
+
   box-shadow: var(--phx-focus);
+
 }
 
+
+
 .phx-audit-chevron {
+
   color: var(--phx-accent);
+
   transition: transform .2s ease;
+
 }
+
+
 
 .phx-audit-drawer[open] .phx-audit-chevron { transform: rotate(180deg); }
 
+
+
 .phx-audit-content {
+
   padding: 1rem;
+
   border-top: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
 }
+
+
 
 @keyframes phx-panel-scan {
+
   from { transform: translateX(0); }
+
   to { transform: translateX(450%); }
+
 }
+
+
 
 @keyframes phx-chart-reveal {
+
   from { opacity: 0; transform: translateY(5px); }
+
   to { opacity: 1; transform: translateY(0); }
+
 }
+
+
 
 @media (max-width: 680px) {
+
   .phx-domain-header,
+
   .phx-panel-heading {
+
     align-items: stretch;
+
     flex-direction: column;
+
   }
+
+
 
   .phx-domain-actions { flex-wrap: wrap; }
+
   .phx-panel-meta { text-align: left; }
 
+
+
   .finance-hero-grid,
+
   .finance-actions-grid,
+
   .finance-portfolio-grid,
+
   .finance-audit-grid {
+
     grid-template-columns: minmax(0, 1fr) !important;
+
   }
+
+
 
   .finance-authorization-wrap {
+
     padding: 0 1rem 1rem !important;
+
   }
+
+
 
   .finance-hero-panel {
+
     padding: 1.25rem !important;
+
   }
+
+
 
   .finance-header-topbar,
+
   .finance-section-heading {
+
     align-items: flex-start !important;
+
     flex-direction: column;
+
     gap: .75rem;
+
   }
+
+
 
   .finance-command-title {
+
     font-size: clamp(2.35rem, 12vw, 3.25rem) !important;
+
   }
+
+
 
   .finance-total-value {
+
     font-size: clamp(3rem, 16vw, 4.25rem) !important;
+
   }
+
+
 
   .finance-resolution-grid {
+
     grid-template-columns: minmax(0, 1fr) !important;
+
   }
+
+
 
   .finance-resolution-grid > :nth-child(2) {
+
     min-height: 4rem;
+
     transform: rotate(90deg);
+
   }
+
+
 
   .finance-nav-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+
   }
+
+
 
   .finance-nav-grid > button:first-child {
+
     grid-column: 1 / -1 !important;
+
   }
+
 }
+
+
 
 @media (prefers-reduced-motion: reduce) {
+
   .phx-motion,
+
   .phx-audit-chevron {
+
     animation: none !important;
+
     transition: none !important;
+
   }
+
 }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Cross-domain premium cockpit surfaces Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+
+/* —â€â‚¬ Cross-domain premium cockpit surfaces —â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬— */
+
 .phx-domain-frame {
+
   max-width: 1120px;
+
   margin: 0 auto;
+
   padding: 0 0 7rem;
+
 }
+
+
 
 .phx-domain-actions-stack {
+
   display: flex;
+
   flex-wrap: wrap;
+
   justify-content: flex-end;
+
   gap: .55rem;
+
 }
+
+
 
 .phx-hero-panel {
+
   position: relative;
+
   display: grid;
+
   grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
+
   gap: 1.25rem;
+
   margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+
   padding: clamp(1.2rem, 4vw, 1.85rem);
+
   overflow: hidden;
+
   border: 1px solid var(--phx-edge);
+
   border-radius: 4px;
+
   background:
+
     radial-gradient(circle at 12% 15%, color-mix(in srgb, var(--phx-accent) 18%, transparent), transparent 32rem),
+
     linear-gradient(145deg, color-mix(in srgb, var(--phx-accent) 8%, transparent), transparent 48%),
+
     linear-gradient(180deg, var(--phx-panel-raised), var(--phx-panel));
+
   box-shadow: 0 28px 70px rgba(0, 0, 0, .36), inset 0 1px 0 rgba(255, 255, 255, .026);
+
 }
+
+
 
 .phx-hero-panel::before {
+
   position: absolute;
+
   inset: 0;
+
   pointer-events: none;
+
   background:
+
     linear-gradient(90deg, transparent, color-mix(in srgb, var(--phx-accent) 13%, transparent), transparent),
+
     repeating-linear-gradient(90deg, transparent 0 3.4rem, color-mix(in srgb, var(--phx-accent) 4%, transparent) 3.45rem 3.5rem);
+
   opacity: .32;
+
   content: '';
+
 }
+
+
 
 .phx-hero-panel > * {
+
   position: relative;
+
   z-index: 1;
+
 }
+
+
 
 .phx-hero-reading {
+
   display: flex;
+
   align-items: flex-end;
+
   gap: .75rem;
+
   margin-top: .45rem;
+
 }
+
+
 
 .phx-hero-reading strong {
+
   color: #fff;
+
   font-family: var(--phx-font-display);
+
   font-size: clamp(3.45rem, 11vw, 6.2rem);
+
   font-weight: 700;
+
   line-height: .82;
+
   letter-spacing: .025em;
+
   text-shadow: 0 0 2.2rem color-mix(in srgb, var(--phx-accent) 42%, transparent);
+
 }
+
+
 
 .phx-hero-reading span {
+
   padding-bottom: .45rem;
+
   color: color-mix(in srgb, var(--phx-accent) 70%, white 18%);
+
   font-family: var(--phx-font-display);
+
   font-size: clamp(1rem, 3vw, 1.4rem);
+
   font-weight: 600;
+
   letter-spacing: .15em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-hero-panel p {
+
   margin: .9rem 0 0;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-mono);
+
   font-size: .72rem;
+
   letter-spacing: .13em;
+
   line-height: 1.65;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-hero-aside {
+
   display: flex;
+
   min-width: 0;
+
   flex-direction: column;
+
   align-items: flex-end;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   padding: .2rem 0;
+
   text-align: right;
+
 }
+
+
 
 .phx-progress-track {
+
   height: .34rem;
+
   margin-top: 1rem;
+
   overflow: hidden;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 12%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+
 }
+
+
 
 .phx-progress-fill {
+
   display: block;
+
   height: 100%;
+
   box-shadow: 0 0 1.2rem var(--phx-accent);
+
 }
+
+
 
 .phx-metric-strip {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: .85rem;
+
   margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+
 }
+
+
 
 .phx-metric-tile {
+
   min-width: 0;
+
   padding: .95rem 1rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 16%, transparent);
+
   background: linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 5%, transparent), rgba(0, 0, 0, .14));
+
 }
+
+
 
 .phx-metric-label,
+
 .phx-metric-detail,
+
 .phx-command-sub,
+
 .phx-calendar-row em,
+
 .phx-calendar-time,
+
 .phx-calendar-end,
+
 .phx-row-actions,
+
 .phx-check-stack,
+
 .phx-signal-row {
+
   font-family: var(--phx-font-mono);
+
   letter-spacing: .1em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-metric-label {
+
   color: var(--phx-muted);
+
   font-size: .66rem;
+
   letter-spacing: .17em;
+
 }
+
+
 
 .phx-metric-value {
+
   margin-top: .36rem;
+
   font-family: var(--phx-font-display);
+
   font-size: clamp(1.55rem, 5vw, 2.25rem);
+
   font-weight: 700;
+
   line-height: 1;
+
 }
+
+
 
 .phx-metric-detail {
+
   margin-top: .38rem;
+
   color: var(--phx-muted);
+
   font-size: .62rem;
+
 }
+
+
 
 .phx-panel-grid {
+
   display: grid;
+
   gap: 1rem;
+
   margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+
 }
+
+
 
 .phx-panel-grid-2 {
+
   grid-template-columns: repeat(2, minmax(0, 1fr));
+
 }
+
+
 
 .phx-domain-frame > .phx-data-panel {
+
   margin: 0 clamp(1.25rem, 4vw, 2.5rem) 1rem;
+
 }
+
+
 
 .phx-panel-body {
+
   padding: 1rem;
+
 }
+
+
 
 .phx-row-stack {
+
   display: flex;
+
   flex-direction: column;
+
   gap: .65rem;
+
 }
+
+
 
 .phx-macro-rings {
+
   display: grid;
+
   grid-template-columns: 132px minmax(0, 1fr);
+
   align-items: center;
+
   gap: 1.1rem;
+
 }
+
+
 
 .phx-ring-stack {
+
   position: relative;
+
   width: 132px;
+
   height: 132px;
+
   filter: drop-shadow(0 0 1.2rem color-mix(in srgb, var(--phx-accent) 18%, transparent));
+
 }
+
+
 
 .phx-ring-center {
+
   position: absolute;
+
   inset: 0;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
+
   justify-content: center;
+
 }
+
+
 
 .phx-ring-center strong {
+
   color: color-mix(in srgb, var(--phx-accent) 70%, white 24%);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.35rem;
+
   line-height: 1;
+
 }
+
+
 
 .phx-ring-center span {
+
   margin-top: .25rem;
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .62rem;
+
   letter-spacing: .14em;
+
 }
+
+
 
 .phx-legend-stack {
+
   display: flex;
+
   flex-direction: column;
+
   gap: .55rem;
+
 }
+
+
 
 .phx-legend-row {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: .8rem;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-mono);
+
   font-size: .68rem;
+
   letter-spacing: .1em;
+
 }
+
+
 
 .phx-legend-row i {
+
   display: inline-block;
+
   width: .48rem;
+
   height: .48rem;
+
   margin-right: .45rem;
+
   box-shadow: 0 0 .85rem currentColor;
+
 }
+
+
 
 .phx-legend-row b {
+
   color: var(--phx-text);
+
 }
+
+
 
 .phx-empty-action,
+
 .phx-command-button,
+
 .phx-command-row,
+
 .phx-calendar-row,
+
 .phx-note-card,
+
 .phx-signal-row {
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 5%, transparent);
+
 }
+
+
 
 .phx-empty-action {
+
   width: 100%;
+
   padding: 1rem;
+
   text-align: left;
+
   border-style: dashed;
+
 }
+
+
 
 .phx-empty-action strong,
+
 .phx-note-card strong,
+
 .phx-calendar-row strong,
+
 .phx-command-title {
+
   display: block;
+
   color: var(--phx-text);
+
   font-family: var(--phx-font-display);
+
   font-weight: 700;
+
   letter-spacing: .055em;
+
   line-height: 1.15;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-empty-action span {
+
   display: block;
+
   margin-top: .35rem;
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .62rem;
+
   letter-spacing: .11em;
+
 }
+
+
 
 .phx-command-row {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   padding: .82rem .9rem;
+
   text-align: left;
+
 }
+
+
 
 .phx-command-title {
+
   font-size: 1rem;
+
 }
+
+
 
 .phx-command-sub {
+
   margin-top: .28rem;
+
   color: var(--phx-muted);
+
   font-size: .62rem;
+
 }
+
+
 
 .phx-row-actions {
+
   display: inline-flex;
+
   flex: none;
+
   align-items: center;
+
   gap: .7rem;
+
   color: color-mix(in srgb, var(--phx-accent) 72%, white 10%);
+
   font-size: .72rem;
+
 }
+
+
 
 .phx-row-actions button {
+
   min-width: 1.75rem;
+
   min-height: 1.75rem;
+
   color: var(--phx-muted);
+
   font-size: 1.2rem;
+
 }
+
+
 
 .phx-command-grid {
+
   display: grid;
+
   grid-template-columns: repeat(2, minmax(0, 1fr));
+
   gap: .62rem;
+
 }
+
+
 
 .phx-command-button {
+
   min-height: 2.65rem;
+
   padding: .65rem .75rem;
+
   color: color-mix(in srgb, var(--phx-accent) 70%, white 14%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .68rem;
+
   letter-spacing: .15em;
+
   text-align: center;
+
   text-transform: uppercase;
+
   transition: transform .18s ease, border-color .18s ease, background .18s ease;
+
 }
+
+
 
 .phx-command-button:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--phx-accent) 36%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 9%, transparent);
+
 }
+
+
 
 .phx-command-button-ghost {
+
   min-height: 1.65rem;
+
   padding: .2rem .58rem;
+
   border-color: color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
   background: transparent;
+
   color: var(--phx-muted);
+
   font-size: .66rem;
+
 }
+
+
 
 .phx-note-card {
+
   padding: .95rem 1rem;
+
   border-left: 3px solid var(--phx-accent);
+
 }
+
+
 
 .phx-note-card p {
+
   margin: .45rem 0 0;
+
   color: var(--phx-body);
+
   font-size: .86rem;
+
   line-height: 1.62;
+
 }
+
+
 
 .phx-note-card-soft {
+
   background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+
 }
+
+
 
 .phx-check-stack {
+
   display: flex;
+
   flex-direction: column;
+
   gap: .36rem;
+
   margin-top: .75rem;
+
   color: var(--phx-muted);
+
   font-size: .63rem;
+
 }
+
+
 
 .phx-heatmap-grid,
+
 .phx-week-rail {
+
   display: grid;
+
   grid-template-columns: repeat(7, minmax(0, 1fr));
+
   gap: .42rem;
+
 }
+
+
 
 .phx-heatmap-grid > div,
+
 .phx-week-rail > div {
+
   display: grid;
+
   min-height: 2.2rem;
+
   place-items: center;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 12%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .66rem;
+
 }
+
+
 
 .phx-heat-good {
+
   border-color: rgba(157,255,111,.3) !important;
+
   background: rgba(157,255,111,.16) !important;
+
   color: #d5ffc7 !important;
+
 }
+
+
 
 .phx-heat-warn {
+
   border-color: rgba(255,200,87,.28) !important;
+
   background: rgba(255,200,87,.12) !important;
+
   color: #ffc857 !important;
+
 }
+
+
 
 .phx-heat-miss {
+
   border-color: rgba(255,102,133,.25) !important;
+
   background: rgba(255,102,133,.10) !important;
+
   color: #ff6685 !important;
+
 }
+
+
 
 .phx-heat-empty {
+
   opacity: .72;
+
 }
+
+
 
 .phx-week-rail {
+
   padding: .85rem;
+
 }
+
+
 
 .phx-week-rail > div {
+
   min-height: 4.2rem;
+
   gap: .25rem;
+
 }
+
+
 
 .phx-week-rail span {
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .62rem;
+
   letter-spacing: .12em;
+
 }
+
+
 
 .phx-week-rail strong {
+
   color: var(--phx-text);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.45rem;
+
   line-height: 1;
+
 }
+
+
 
 .phx-week-rail .active {
+
   border-color: color-mix(in srgb, var(--phx-accent) 34%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 11%, transparent);
+
   box-shadow: inset 0 -2px 0 var(--phx-accent), 0 0 1.4rem color-mix(in srgb, var(--phx-accent) 9%, transparent);
+
 }
+
+
 
 .phx-calendar-row {
+
   --event-accent: var(--phx-accent);
+
   display: grid;
+
   grid-template-columns: 4rem minmax(0, 1fr) 4.2rem;
+
   gap: .8rem;
+
   align-items: start;
+
   width: 100%;
+
   padding: .86rem .9rem;
+
   border-left: 3px solid var(--event-accent);
+
   text-align: left;
+
 }
+
+
 
 .phx-calendar-row strong {
+
   font-size: 1rem;
+
 }
+
+
 
 .phx-calendar-row em {
+
   display: block;
+
   margin-top: .28rem;
+
   color: var(--phx-muted);
+
   font-size: .62rem;
+
   font-style: normal;
+
   line-height: 1.45;
+
 }
+
+
 
 .phx-calendar-time {
+
   color: color-mix(in srgb, var(--phx-accent) 78%, white 12%);
+
   font-size: .72rem;
+
 }
+
+
 
 .phx-calendar-end {
+
   color: var(--phx-muted);
+
   font-size: .62rem;
+
   text-align: right;
+
 }
+
+
 
 .phx-signal-row {
+
   padding: .75rem .85rem;
+
   color: var(--phx-body);
+
   font-size: .66rem;
+
   line-height: 1.5;
+
 }
+
+
 
 .phx-signal-row.caution {
+
   border-color: rgba(255,200,87,.28);
+
   background: rgba(255,200,87,.06);
+
   color: #ffc857;
+
 }
 
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Finance/Training-grade command hero for cross-domain dashboards Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+
+
+/* —â€â‚¬ Finance/Training-grade command hero for cross-domain dashboards —â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬— */
+
 .phx-command-hero {
+
   position: relative;
+
   overflow: hidden;
+
   margin: 0 0 1rem;
+
   padding: clamp(1.3rem, 4vw, 2.5rem);
+
   border: 1px solid var(--phx-edge);
+
   border-top: 0;
+
   border-right: 0;
+
   border-left: 0;
+
   background:
+
     radial-gradient(ellipse at 8% 10%, color-mix(in srgb, var(--phx-accent) 9%, transparent) 0%, transparent 44%),
+
     radial-gradient(ellipse at 90% 8%, color-mix(in srgb, var(--phx-accent) 7%, transparent) 0%, transparent 38%),
+
     linear-gradient(180deg, #07111a 0%, #061019 100%);
+
   box-shadow: 0 28px 82px rgba(0, 0, 0, .42);
+
 }
+
+
 
 .phx-command-hero::before {
+
   position: absolute;
+
   inset: 0;
+
   pointer-events: none;
+
   background-image: radial-gradient(circle, color-mix(in srgb, var(--phx-accent) 7%, transparent) 1px, transparent 1px);
+
   background-size: 28px 28px;
+
   opacity: .46;
+
   content: '';
+
 }
+
+
 
 .phx-command-hero::after {
+
   position: absolute;
+
   top: 0;
+
   left: -35%;
+
   width: 30%;
+
   height: 1px;
+
   pointer-events: none;
+
   background: linear-gradient(90deg, transparent, var(--phx-accent), transparent);
+
   animation: phx-panel-scan 5.2s linear infinite;
+
   content: '';
+
 }
+
+
 
 .phx-command-hero > * {
+
   position: relative;
+
   z-index: 1;
+
 }
+
+
 
 .phx-command-topbar {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   margin-bottom: clamp(1.35rem, 4vw, 2rem);
+
   padding-bottom: .8rem;
+
   border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
   color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .28em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-command-online {
+
   display: inline-flex;
+
   align-items: center;
+
   gap: .55rem;
+
   color: var(--phx-positive);
+
 }
+
+
 
 .phx-command-online i {
+
   width: .34rem;
+
   height: .34rem;
+
   border-radius: 999px;
+
   background: currentColor;
+
   box-shadow: 0 0 .7rem currentColor;
+
 }
+
+
 
 .phx-command-hero-grid {
+
   display: grid;
+
   grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+
   align-items: stretch;
+
   gap: clamp(1.2rem, 4vw, 2rem);
+
 }
+
+
 
 .phx-command-kicker {
+
   color: color-mix(in srgb, var(--phx-accent) 72%, white 8%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .62rem;
+
   letter-spacing: .29em;
+
   text-transform: uppercase;
+
 }
 
+
+
 .phx-command-title-xl {
+
   margin: .32rem 0 clamp(1.35rem, 4vw, 2rem);
+
   color: var(--phx-text);
+
   font-family: var(--phx-font-display);
+
   font-size: clamp(3rem, 11vw, 4.75rem);
+
   font-weight: 700;
+
   line-height: .92;
+
   letter-spacing: .04em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-command-title-xl span { display: block; }
 
+
+
 .phx-command-title-xl .accent {
+
   color: var(--phx-accent);
+
   text-shadow: 0 0 2.6rem color-mix(in srgb, var(--phx-accent) 34%, transparent);
+
 }
+
+
 
 .phx-command-label-line {
+
   display: flex;
+
   align-items: center;
+
   gap: .75rem;
+
   margin-bottom: .55rem;
+
   color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .54rem;
+
   letter-spacing: .28em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-command-label-line::after {
+
   flex: 1;
+
   height: 1px;
+
   background: linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 22%, transparent), transparent);
+
   content: '';
+
 }
+
+
 
 .phx-command-value-row {
+
   display: flex;
+
   flex-wrap: wrap;
+
   align-items: baseline;
+
   gap: .4rem .7rem;
+
 }
+
+
 
 .phx-command-unit,
+
 .phx-command-denominator {
+
   color: color-mix(in srgb, var(--phx-accent) 48%, transparent);
+
   font-family: var(--phx-font-body);
+
   font-size: clamp(1.1rem, 3vw, 1.65rem);
+
   font-weight: 300;
+
 }
+
+
 
 .phx-command-value {
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-body);
+
   font-size: clamp(3.6rem, 13vw, 6rem);
+
   font-weight: 700;
+
   line-height: .9;
+
   letter-spacing: -.05em;
+
   text-shadow: 0 0 2.8rem color-mix(in srgb, var(--phx-accent) 34%, transparent), 0 0 5rem color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
 }
+
+
 
 .phx-command-brief {
+
   position: relative;
+
   max-width: 48rem;
+
   margin: 1.15rem 0 0;
+
   padding-left: .9rem;
+
   border-left: 2px solid color-mix(in srgb, var(--phx-accent) 42%, transparent);
+
   color: var(--phx-body);
+
   font-size: .88rem;
+
   line-height: 1.65;
+
 }
+
+
 
 .phx-command-brief strong {
+
   color: color-mix(in srgb, var(--phx-accent) 78%, white 10%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .66rem;
+
   letter-spacing: .18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-core-card {
+
   position: relative;
+
   min-height: 100%;
+
   padding: 1.2rem;
+
   overflow: hidden;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 22%, transparent);
+
   border-radius: 4px;
+
   background:
+
     radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 58%),
+
     rgba(7, 14, 21, .82);
+
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03), 0 20px 54px rgba(0, 0, 0, .32);
+
 }
+
+
 
 .phx-core-card::before,
+
 .phx-core-card::after {
+
   position: absolute;
+
   width: .7rem;
+
   height: .7rem;
+
   pointer-events: none;
+
   border-color: color-mix(in srgb, var(--phx-accent) 44%, transparent);
+
   border-style: solid;
+
   content: '';
+
 }
+
+
 
 .phx-core-card::before {
+
   top: .55rem;
+
   left: .55rem;
+
   border-width: 1px 0 0 1px;
+
 }
+
+
 
 .phx-core-card::after {
+
   right: .55rem;
+
   bottom: .55rem;
+
   border-width: 0 1px 1px 0;
+
 }
+
+
 
 .phx-core-code {
+
   position: absolute;
+
   top: .75rem;
+
   right: .85rem;
+
   color: color-mix(in srgb, var(--phx-accent) 26%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .48rem;
+
   letter-spacing: .18em;
+
 }
+
+
 
 .phx-core-title {
+
   margin-bottom: .95rem;
+
   text-align: center;
+
 }
+
+
 
 .phx-core-title strong {
+
   display: block;
+
   color: color-mix(in srgb, var(--phx-accent) 78%, white 10%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .63rem;
+
   letter-spacing: .26em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-core-title span {
+
   display: block;
+
   margin-top: .22rem;
+
   color: color-mix(in srgb, var(--phx-accent) 44%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .5rem;
+
   letter-spacing: .18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-core-status {
+
   display: flex;
+
   flex-wrap: wrap;
+
   justify-content: center;
+
   gap: .5rem;
+
   margin-top: 1rem;
+
 }
+
+
 
 .phx-command-hero .phx-week-rail,
+
 .phx-command-hero .phx-macro-rings {
+
   margin-top: .6rem;
+
 }
+
+
 
 .phx-command-hero .phx-source-stamp {
+
   justify-content: center;
+
   margin-top: .9rem;
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-command-hero .phx-week-rail {
+
   grid-template-columns: repeat(7, minmax(0, 1fr));
+
   padding: 0;
+
 }
+
+
 
 .phx-calendar-command-hero .phx-week-rail > div {
+
   min-height: 3.7rem;
+
 }
 
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v3: focused fuel operations surface Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+
+
+/* —â€â‚¬ Nutrition v3: focused fuel operations surface —â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬—â€â‚¬— */
+
 .phx-nutrition-frame {
+
   gap: 1rem;
+
 }
+
+
 
 .phx-nutrition-command-hero-v3 {
+
   border-bottom-color: color-mix(in srgb, var(--phx-accent) 26%, transparent);
+
 }
+
+
 
 .phx-nutrition-hero-grid {
+
   grid-template-columns: minmax(0, 1.2fr) minmax(18rem, .8fr);
+
 }
+
+
 
 .phx-nutrition-command-hero-v3 .phx-progress-track {
+
   max-width: 42rem;
+
   margin-top: 1.15rem;
+
 }
+
+
 
 .phx-nutrition-primary-actions {
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: .75rem;
+
   margin-top: 1.35rem;
+
 }
+
+
 
 .phx-command-button-primary {
+
   color: #07110c;
+
   border-color: color-mix(in srgb, var(--phx-accent) 76%, white 12%);
+
   background: linear-gradient(135deg, var(--phx-accent), color-mix(in srgb, var(--phx-accent) 54%, white 22%));
+
   box-shadow: 0 0 1.4rem color-mix(in srgb, var(--phx-accent) 24%, transparent);
+
 }
+
+
 
 .phx-nutrition-core-card {
+
   display: flex;
+
   min-height: 24rem;
+
   flex-direction: column;
+
   justify-content: center;
+
 }
+
+
 
 .phx-nutrition-ops-grid {
+
   align-items: stretch;
+
 }
+
+
 
 .phx-protocol-stack {
+
   display: grid;
+
   gap: .72rem;
+
 }
+
+
 
 .phx-protocol-step {
+
   position: relative;
+
   display: grid;
+
   grid-template-columns: 2.4rem minmax(0, 1fr);
+
   gap: .8rem;
+
   align-items: center;
+
   min-height: 4.25rem;
+
   padding: .85rem .95rem;
+
   overflow: hidden;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 16%, transparent);
+
   background: linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 7%, transparent), rgba(255,255,255,.018));
+
 }
+
+
 
 .phx-protocol-step::after {
+
   position: absolute;
+
   inset: 0 0 auto;
+
   height: 1px;
+
   background: linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 32%, transparent), transparent);
+
   content: '';
+
 }
+
+
 
 .phx-protocol-index {
+
   color: color-mix(in srgb, var(--phx-accent) 72%, white 10%);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.55rem;
+
   font-weight: 700;
+
   line-height: 1;
+
   opacity: .88;
+
 }
+
+
 
 .phx-protocol-step strong,
+
 .phx-nutrition-lock-grid strong {
+
   display: block;
+
   color: var(--phx-text);
+
   font-family: var(--phx-font-mono);
+
   font-size: .62rem;
+
   letter-spacing: .18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-protocol-step span:last-child,
+
 .phx-nutrition-lock-grid span {
+
   display: block;
+
   margin-top: .28rem;
+
   color: var(--phx-muted);
+
   font-size: .72rem;
+
   line-height: 1.35;
+
 }
+
+
 
 .phx-protocol-locked {
+
   border-color: color-mix(in srgb, var(--phx-positive) 28%, transparent);
+
 }
+
+
 
 .phx-protocol-locked .phx-protocol-index,
+
 .phx-protocol-locked strong {
+
   color: var(--phx-positive);
+
 }
+
+
 
 .phx-protocol-active {
+
   border-color: color-mix(in srgb, var(--phx-accent) 30%, transparent);
+
 }
+
+
 
 .phx-protocol-open {
+
   border-color: rgba(255, 213, 107, .26);
+
 }
+
+
 
 .phx-protocol-open .phx-protocol-index,
+
 .phx-protocol-open strong {
+
   color: #ffd56b;
+
 }
+
+
 
 .phx-nutrition-macro-matrix {
+
   display: grid;
+
   gap: .78rem;
+
 }
+
+
 
 .phx-nutrition-macro-row {
+
   padding: .9rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
   background: rgba(255,255,255,.018);
+
 }
+
+
 
 .phx-nutrition-macro-head,
+
 .phx-nutrition-macro-foot {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: .8rem;
+
 }
+
+
 
 .phx-nutrition-macro-head {
+
   margin-bottom: .6rem;
+
 }
+
+
 
 .phx-nutrition-macro-head span {
+
   display: inline-flex;
+
   align-items: center;
+
   gap: .45rem;
+
   color: var(--phx-text);
+
   font-family: var(--phx-font-mono);
+
   font-size: .64rem;
+
   letter-spacing: .18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-macro-head i {
+
   width: .42rem;
+
   height: .42rem;
+
   border-radius: 999px;
+
   box-shadow: 0 0 .7rem currentColor;
+
 }
+
+
 
 .phx-nutrition-macro-head b {
+
   color: color-mix(in srgb, var(--phx-accent) 72%, white 12%);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.3rem;
+
   line-height: 1;
+
 }
+
+
 
 .phx-nutrition-macro-foot {
+
   margin-top: .48rem;
+
   color: var(--phx-muted);
+
   font-family: var(--phx-font-mono);
+
   font-size: .58rem;
+
   letter-spacing: .12em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-meal-ledger-row {
+
   min-height: 4.25rem;
+
 }
+
+
 
 .phx-nutrition-empty-action {
+
   min-height: 6rem;
+
 }
+
+
 
 .phx-nutrition-recovery-card p {
+
   max-width: 62ch;
+
 }
+
+
 
 .phx-nutrition-lock-grid {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .75rem;
+
 }
+
+
 
 .phx-nutrition-lock-grid > div {
+
   min-height: 5rem;
+
   padding: .9rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
   background:
+
     radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--phx-accent) 8%, transparent), transparent 60%),
+
     rgba(255,255,255,.018);
+
 }
+
+
 
 .phx-nutrition-command-grid {
+
   grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+
 }
+
+
 
 .phx-nutrition-heatmap-grid {
+
   grid-template-columns: repeat(14, minmax(2.6rem, 1fr));
+
 }
+
+
 
 @media (max-width: 860px) {
+
   .phx-nutrition-hero-grid,
+
   .phx-nutrition-lock-grid {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .phx-nutrition-core-card {
+
     min-height: 0;
+
   }
+
+
 
   .phx-nutrition-primary-actions .phx-command-button {
+
     flex: 1 1 9rem;
+
   }
+
+
 
   .phx-nutrition-heatmap-grid {
+
     grid-template-columns: repeat(7, minmax(0, 1fr));
+
   }
+
 }
+
+
 
 @media (max-width: 760px) {
+
   .phx-domain-header,
+
   .phx-panel-heading,
+
   .phx-hero-panel,
+
   .phx-macro-rings {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .phx-domain-header {
+
     display: grid;
+
   }
+
+
 
   .phx-domain-actions,
+
   .phx-domain-actions-stack,
+
   .phx-hero-aside {
+
     align-items: flex-start;
+
     justify-content: flex-start;
+
     text-align: left;
+
   }
+
+
 
   .phx-hero-panel,
+
   .phx-metric-strip,
+
   .phx-panel-grid,
+
   .phx-domain-frame > .phx-data-panel {
+
     margin-left: 1rem;
+
     margin-right: 1rem;
+
   }
+
+
 
   .phx-panel-grid-2,
+
   .phx-metric-strip {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .phx-calendar-row {
+
     grid-template-columns: 3.4rem minmax(0, 1fr);
+
   }
+
+
 
   .phx-calendar-end {
+
     grid-column: 2;
+
     text-align: left;
+
   }
+
+
 
   .phx-command-topbar,
+
   .phx-command-hero-grid {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .phx-command-topbar {
+
     align-items: flex-start;
+
     flex-direction: column;
+
   }
+
+
 
   .phx-command-hero {
+
     padding: 1.2rem 1rem 1.35rem;
+
   }
+
+
 
   .phx-command-value {
+
     font-size: clamp(3rem, 18vw, 4.7rem);
+
   }
+
+
 
   .phx-core-card {
+
     min-height: 0;
+
   }
+
  }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v4: copy Finance hero typography/geometry, keep green identity Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+
+/* —â€â‚¬ Nutrition v4: copy Finance hero typography/geometry, keep green identity —â€â‚¬ */
+
 .phx-nutrition-finance-copy {
+
   margin-bottom: 1rem;
+
   padding: 2rem 2.5rem 2.5rem;
+
   border-top: 0;
+
   border-right: 0;
+
   border-left: 0;
+
   border-radius: 0;
+
   background:
+
     radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--phx-accent) 5%, transparent), transparent 18rem),
+
     linear-gradient(180deg, #070e15 0%, #060f17 100%);
+
 }
+
+
 
 .phx-nutrition-finance-copy::before {
+
   background-image: radial-gradient(circle, color-mix(in srgb, var(--phx-accent) 6%, transparent) 1px, transparent 1px);
+
   background-size: 28px 28px;
+
   opacity: .5;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-topbar {
+
   margin-bottom: 2rem;
+
   padding-bottom: .75rem;
+
   border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 8%, transparent);
+
   color: color-mix(in srgb, var(--phx-accent) 40%, transparent);
+
   font-size: .5rem;
+
   letter-spacing: .3em;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-hero-grid {
+
   grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+
   gap: 2rem;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-kicker {
+
   margin-bottom: .65rem;
+
   font-size: .62rem;
+
   letter-spacing: .3em;
+
 }
+
+
 
 .phx-nutrition-command-title-finance {
+
   margin: 0 0 2rem;
+
   font-family: var(--phx-font-display);
+
   font-size: 3.25rem;
+
   font-weight: 700;
+
   line-height: 1;
+
   letter-spacing: .04em;
+
 }
+
+
 
 .phx-nutrition-command-title-finance .accent {
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-label-line {
+
   margin-bottom: .65rem;
+
   font-size: .5rem;
+
   letter-spacing: .35em;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-value-row {
+
   gap: .25rem .55rem;
+
   margin-bottom: .35rem;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-unit,
+
 .phx-nutrition-finance-copy .phx-command-denominator {
+
   color: color-mix(in srgb, var(--phx-accent) 53%, transparent);
+
   font-family: var(--phx-font-body);
+
   font-size: 1.75rem;
+
   font-weight: 300;
+
   letter-spacing: 0;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-value {
+
   font-family: var(--phx-font-body);
+
   font-size: clamp(4.25rem, 8vw, 5.85rem);
+
   font-weight: 700;
+
   letter-spacing: -.05em;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-brief {
+
   max-width: 48rem;
+
   margin-top: 1rem;
+
   color: color-mix(in srgb, var(--phx-body) 86%, white 4%);
+
   font-family: var(--phx-font-body);
+
   font-size: .88rem;
+
   line-height: 1.65;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-brief strong {
+
   font-family: var(--phx-font-mono);
+
   font-size: .58rem;
+
   letter-spacing: .22em;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-progress-track {
+
   max-width: 41rem;
+
   margin-top: 1.05rem;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-nutrition-primary-actions {
+
   margin-top: 1.25rem;
+
 }
+
+
 
 .phx-nutrition-finance-copy .phx-command-button {
+
   min-height: 2.1rem;
+
   padding: .55rem .78rem;
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .22em;
+
 }
+
+
 
 .phx-nutrition-finance-core {
+
   min-height: 100%;
+
   padding: 1.55rem 1.45rem 1.35rem;
+
   justify-content: flex-start;
+
   border-color: color-mix(in srgb, var(--phx-accent) 24%, transparent);
+
   background:
+
     radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 12rem),
+
     rgba(7, 14, 21, .88);
+
 }
+
+
 
 .phx-nutrition-finance-core .phx-core-title {
+
   margin: 1.9rem 0 1.25rem;
+
 }
+
+
 
 .phx-nutrition-finance-core .phx-core-title strong {
+
   font-size: .62rem;
+
   letter-spacing: .25em;
+
 }
+
+
 
 .phx-nutrition-finance-core .phx-core-title span {
+
   font-size: .5rem;
+
   letter-spacing: .2em;
+
 }
 
+
+
 .phx-nutrition-finance-core .phx-macro-rings {
+
   grid-template-columns: 132px minmax(0, 1fr);
+
   gap: 1rem;
+
   margin-top: 1rem;
+
 }
+
+
 
 .phx-nutrition-finance-core .phx-source-stamp {
+
   margin-top: 1.1rem;
+
   font-size: .5rem;
+
 }
+
+
 
 .phx-nutrition-finance-core .phx-core-status {
+
   margin-top: 1.2rem;
+
 }
+
+
 
 @media (max-width: 900px) {
+
   .phx-nutrition-finance-copy .phx-command-hero-grid {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
+
 
   .phx-nutrition-command-title-finance .accent {
+
     white-space: normal;
+
   }
+
 }
 
+
+
 @media (max-width: 680px) {
+
   .phx-nutrition-finance-copy {
+
     padding: 1.25rem !important;
+
   }
+
+
 
   .phx-nutrition-finance-copy .phx-command-topbar {
+
     align-items: flex-start;
+
     flex-direction: column;
+
     gap: .75rem;
+
   }
+
+
 
   .phx-nutrition-command-title-finance {
+
     font-size: clamp(2.35rem, 12vw, 3.25rem) !important;
+
   }
+
+
 
   .phx-nutrition-finance-copy .phx-command-value {
+
     font-size: clamp(3rem, 16vw, 4.25rem) !important;
+
   }
+
+
 
   .phx-nutrition-finance-core .phx-macro-rings {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v5: opening page first, subsections second Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+
+/* —â€â‚¬ Nutrition v5: opening page first, subsections second —â€â‚¬ */
+
 .phx-nutrition-finance-core .phx-macro-rings {
+
   margin-bottom: 1rem;
+
 }
+
+
 
 .phx-nutrition-hero-ledger {
+
   margin-top: 1.05rem;
+
   padding-top: 1rem;
+
   border-top: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
 }
+
+
 
 .phx-nutrition-hero-ledger-head {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: .75rem;
+
   margin-bottom: .7rem;
+
   color: color-mix(in srgb, var(--phx-accent) 72%, white 4%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .48rem;
+
   letter-spacing: .24em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-hero-ledger-head b {
+
   color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+
   font-weight: 500;
+
 }
+
+
 
 .phx-nutrition-hero-meal {
+
   display: grid;
+
   grid-template-columns: minmax(0, 1fr) auto;
+
   gap: .75rem;
+
   align-items: center;
+
   padding: .65rem 0;
+
   border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 8%, transparent);
+
 }
+
+
 
 .phx-nutrition-hero-meal strong {
+
   display: block;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: .9rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-hero-meal span {
+
   display: block;
+
   margin-top: .25rem;
+
   color: color-mix(in srgb, var(--phx-body) 46%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .48rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-hero-meal-action {
+
   display: flex;
+
   align-items: center;
+
   gap: .4rem;
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-display);
+
   font-size: .9rem;
+
   font-weight: 700;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-nutrition-hero-meal-action button {
+
   width: 1.35rem;
+
   height: 1.35rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-danger, #ff5f73) 38%, transparent);
+
   border-radius: 999px;
+
   background: color-mix(in srgb, var(--phx-danger, #ff5f73) 8%, transparent);
+
   color: color-mix(in srgb, var(--phx-danger, #ff5f73) 82%, white 5%);
+
   cursor: pointer;
+
 }
+
+
 
 .phx-nutrition-safety-strip {
+
   display: grid;
+
   grid-template-columns: repeat(2, minmax(0, 1fr));
+
   gap: .45rem;
+
   margin-top: 1rem;
+
 }
+
+
 
 .phx-nutrition-safety-strip span {
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
   border-radius: .35rem;
+
   background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+
   color: color-mix(in srgb, var(--phx-accent) 72%, white 4%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .44rem;
+
   letter-spacing: .16em;
+
   padding: .52rem .55rem;
+
   text-align: center;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-inline-trend {
+
   display: grid;
+
   grid-template-columns: auto minmax(0, 1fr);
+
   gap: 1rem;
+
   align-items: center;
+
   margin: .4rem 0 1rem;
+
   padding: .78rem 1rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 13%, transparent);
+
   border-left-color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+
 }
+
+
 
 .phx-nutrition-inline-trend strong {
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .5rem;
+
   letter-spacing: .24em;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-nutrition-inline-trend span {
+
   color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+
   font-size: .86rem;
+
   line-height: 1.45;
+
 }
+
+
 
 .phx-nutrition-route-grid {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: .9rem;
+
 }
+
+
 
 .phx-nutrition-route-card {
+
   min-height: 9rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 13%, transparent);
+
   border-radius: .8rem;
+
   background:
+
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 6%, transparent), transparent 9rem),
+
     color-mix(in srgb, var(--phx-panel, #07131b) 84%, transparent);
+
   color: var(--phx-body);
+
   cursor: pointer;
+
   padding: 1rem;
+
   text-align: left;
+
   transition: transform .16s ease, border-color .16s ease, background .16s ease;
+
 }
+
+
 
 .phx-nutrition-route-card:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--phx-accent) 34%, transparent);
+
   background:
+
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 11%, transparent), transparent 9rem),
+
     color-mix(in srgb, var(--phx-panel, #07131b) 88%, transparent);
+
 }
+
+
 
 .phx-nutrition-route-card-primary {
+
   border-color: color-mix(in srgb, var(--phx-accent) 36%, transparent);
+
   background:
+
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 14%, transparent), transparent 9rem),
+
     color-mix(in srgb, var(--phx-accent) 7%, transparent);
+
 }
+
+
 
 .phx-nutrition-route-card span {
+
   display: block;
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .5rem;
+
   letter-spacing: .25em;
+
   margin-bottom: .75rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-route-card strong {
+
   display: block;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.25rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-route-card small {
+
   display: block;
+
   margin-top: .65rem;
+
   color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+
   font-size: .78rem;
+
   line-height: 1.45;
+
 }
+
+
 
 @media (max-width: 980px) {
+
   .phx-nutrition-route-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
 }
 
+
+
 @media (max-width: 680px) {
+
   .phx-nutrition-safety-strip,
+
   .phx-nutrition-route-grid {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
+
 
   .phx-nutrition-inline-trend {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v6: opening page feature modules before detail routes Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+
+/* —â€â‚¬ Nutrition v6: opening page feature modules before detail routes —â€â‚¬ */
+
 .phx-nutrition-feature-grid {
+
   display: grid;
+
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+
   gap: 1rem;
+
 }
+
+
 
 .phx-nutrition-feature-card {
+
   position: relative;
+
   min-height: 16.5rem;
+
   overflow: hidden;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
   border-radius: .9rem;
+
   background:
+
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 7%, transparent), transparent 10rem),
+
     linear-gradient(180deg, color-mix(in srgb, var(--phx-panel, #07131b) 92%, transparent), color-mix(in srgb, #02090f 92%, transparent));
+
   padding: 1rem;
+
 }
+
+
 
 .phx-nutrition-feature-card::before,
+
 .phx-nutrition-feature-card::after {
+
   content: "";
+
   position: absolute;
+
   top: .7rem;
+
   width: .75rem;
+
   height: .75rem;
+
   border-top: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
 }
+
+
 
 .phx-nutrition-feature-card::before {
+
   left: .7rem;
+
   border-left: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
 }
+
+
 
 .phx-nutrition-feature-card::after {
+
   right: .7rem;
+
   border-right: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
 }
+
+
 
 .phx-nutrition-feature-card-primary {
+
   border-color: color-mix(in srgb, var(--phx-accent) 32%, transparent);
+
   background:
+
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 12%, transparent), transparent 12rem),
+
     linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 6%, #07131b 94%), color-mix(in srgb, #02090f 92%, transparent));
+
 }
+
+
 
 .phx-nutrition-feature-head {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: .75rem;
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .5rem;
+
   letter-spacing: .22em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-feature-head b {
+
   color: color-mix(in srgb, var(--phx-body) 44%, transparent);
+
   font-weight: 500;
+
   letter-spacing: .16em;
+
   text-align: right;
+
 }
+
+
 
 .phx-nutrition-feature-card h2 {
+
   margin: .85rem 0 .85rem;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.55rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: .95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-feature-body {
+
   min-height: 9.3rem;
+
 }
+
+
 
 .phx-nutrition-feature-action {
+
   width: 100%;
+
   min-height: 2.2rem;
+
   margin-top: .85rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 30%, transparent);
+
   border-radius: .45rem;
+
   background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+
   color: var(--phx-accent);
+
   cursor: pointer;
+
   font-family: var(--phx-font-mono);
+
   font-size: .5rem;
+
   letter-spacing: .24em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-protocol-stack {
+
   gap: .55rem;
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-protocol-step {
+
   padding: .62rem .7rem;
+
   border-color: color-mix(in srgb, var(--phx-accent) 11%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 3%, transparent);
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-protocol-index {
+
   font-size: .52rem;
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-protocol-step strong {
+
   font-size: .58rem;
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-protocol-step span:last-child {
+
   font-size: .52rem;
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-nutrition-macro-matrix {
+
   gap: .65rem;
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-nutrition-macro-row {
+
   padding: .7rem;
+
   border-radius: .55rem;
+
 }
+
+
 
 .phx-nutrition-feature-card .phx-nutrition-macro-head,
+
 .phx-nutrition-feature-card .phx-nutrition-macro-foot {
+
   font-size: .5rem;
+
 }
+
+
 
 .phx-nutrition-week-signal {
+
   display: grid;
+
   grid-template-columns: auto minmax(0, 1fr);
+
   align-items: center;
+
   gap: 1rem;
+
   min-height: 9.3rem;
+
 }
+
+
 
 .phx-nutrition-week-score {
+
   width: 7.5rem;
+
   height: 7.5rem;
+
   display: grid;
+
   place-items: center;
+
   align-content: center;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 24%, transparent);
+
   border-radius: 999px;
+
   background: radial-gradient(circle, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 70%);
+
 }
+
+
 
 .phx-nutrition-week-score strong {
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.7rem;
+
   line-height: 1;
+
 }
+
+
 
 .phx-nutrition-week-score span {
+
   margin-top: .35rem;
+
   color: color-mix(in srgb, var(--phx-body) 45%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .44rem;
+
   letter-spacing: .14em;
+
   text-align: center;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-week-dots {
+
   display: grid;
+
   grid-template-columns: repeat(7, minmax(0, 1fr));
+
   gap: .35rem;
+
 }
+
+
 
 .phx-nutrition-week-dots i {
+
   min-height: 3.1rem;
+
   display: grid;
+
   place-items: center;
+
   border: 1px solid color-mix(in srgb, var(--phx-body) 10%, transparent);
+
   border-radius: .45rem;
+
   color: color-mix(in srgb, var(--phx-body) 55%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .5rem;
+
   font-style: normal;
+
 }
+
+
 
 .phx-nutrition-week-dots .phx-heat-good {
+
   border-color: color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 12%, transparent);
+
   color: var(--phx-accent);
+
 }
+
+
 
 .phx-nutrition-week-dots .phx-heat-warn {
+
   border-color: color-mix(in srgb, var(--phx-warning, #ffd56b) 38%, transparent);
+
   background: color-mix(in srgb, var(--phx-warning, #ffd56b) 10%, transparent);
+
   color: color-mix(in srgb, var(--phx-warning, #ffd56b) 86%, white 4%);
+
 }
+
+
 
 .phx-nutrition-week-dots .phx-heat-miss {
+
   border-color: color-mix(in srgb, var(--phx-danger, #ff5f73) 32%, transparent);
+
   background: color-mix(in srgb, var(--phx-danger, #ff5f73) 8%, transparent);
+
   color: color-mix(in srgb, var(--phx-danger, #ff5f73) 78%, white 4%);
+
 }
+
+
 
 .phx-nutrition-brain-signal {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: .75rem;
+
   min-height: 9.3rem;
+
   align-items: stretch;
+
 }
+
+
 
 .phx-nutrition-brain-signal > div {
+
   display: grid;
+
   place-items: center;
+
   align-content: center;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
   border-radius: .65rem;
+
   background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+
 }
+
+
 
 .phx-nutrition-brain-signal strong {
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-display);
+
   font-size: 2.3rem;
+
   line-height: .9;
+
 }
+
+
 
 .phx-nutrition-brain-signal span {
+
   margin-top: .45rem;
+
   color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .47rem;
+
   letter-spacing: .18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 @media (max-width: 1120px) {
+
   .phx-nutrition-feature-grid {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
 
+
+
 @media (max-width: 680px) {
+
   .phx-nutrition-week-signal {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
+
 
   .phx-nutrition-week-score {
+
     width: 6.2rem;
+
     height: 6.2rem;
+
   }
+
+
 
   .phx-nutrition-brain-signal {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Nutrition v7: finished opening outputs, user choices, hidden Phoenix engines Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+
+/* —â€â‚¬ Nutrition v7: finished opening outputs, user choices, hidden Phoenix engines —â€â‚¬ */
+
 .phx-nutrition-mode-tabs {
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: .55rem;
+
   margin-top: 1rem;
+
 }
+
+
 
 .phx-nutrition-mode-tabs button {
+
   min-height: 2rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
   border-radius: 999px;
+
   background: color-mix(in srgb, var(--phx-accent) 4%, transparent);
+
   color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+
   cursor: pointer;
+
   font-family: var(--phx-font-mono);
+
   font-size: .48rem;
+
   letter-spacing: .2em;
+
   padding: 0 .85rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-mode-tabs button.active,
+
 .phx-nutrition-mode-tabs button:hover {
+
   border-color: color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
   color: var(--phx-accent);
+
   box-shadow: 0 0 20px color-mix(in srgb, var(--phx-accent) 12%, transparent);
+
 }
+
+
 
 .phx-nutrition-output-grid {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: 1rem;
+
 }
+
+
 
 .phx-nutrition-output-card {
+
   position: relative;
+
   min-height: 18rem;
+
   overflow: hidden;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
   border-radius: .9rem;
+
   background:
+
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--phx-accent) 7%, transparent), transparent 10rem),
+
     linear-gradient(180deg, color-mix(in srgb, var(--phx-panel, #07131b) 92%, transparent), color-mix(in srgb, #02090f 92%, transparent));
+
   padding: 1rem;
+
 }
+
+
 
 .phx-nutrition-output-card-wide {
+
   grid-column: span 2;
+
 }
+
+
 
 .phx-nutrition-output-card::before,
+
 .phx-nutrition-output-card::after {
+
   content: "";
+
   position: absolute;
+
   top: .7rem;
+
   width: .75rem;
+
   height: .75rem;
+
   border-top: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
 }
+
+
 
 .phx-nutrition-output-card::before {
+
   left: .7rem;
+
   border-left: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
 }
+
+
 
 .phx-nutrition-output-card::after {
+
   right: .7rem;
+
   border-right: 1px solid color-mix(in srgb, var(--phx-accent) 38%, transparent);
+
 }
+
+
 
 .phx-nutrition-output-card h2 {
+
   margin: .85rem 0 .75rem;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.55rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: .95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-output-copy {
+
   margin: 0 0 .9rem;
+
   color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+
   font-size: .82rem;
+
   line-height: 1.45;
+
 }
+
+
 
 .phx-nutrition-chart-card {
+
   margin-top: .75rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 12%, transparent);
+
   border-radius: .7rem;
+
   background: color-mix(in srgb, #02090f 72%, transparent);
+
   padding: .85rem;
+
 }
+
+
 
 .phx-nutrition-chart-head {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: .75rem;
+
   margin-bottom: .65rem;
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .48rem;
+
   letter-spacing: .2em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-chart-head b {
+
   color: color-mix(in srgb, var(--phx-body) 48%, transparent);
+
   font-weight: 500;
+
 }
+
+
 
 .phx-nutrition-line-chart {
+
   width: 100%;
+
   min-height: 12rem;
+
   display: block;
+
 }
+
+
 
 .phx-nutrition-line-chart line {
+
   stroke: color-mix(in srgb, var(--phx-body) 14%, transparent);
+
 }
+
+
 
 .phx-nutrition-line-chart line.target {
+
   stroke: color-mix(in srgb, var(--phx-accent) 28%, transparent);
+
   stroke-dasharray: 6 6;
+
 }
+
+
 
 .phx-nutrition-line-chart polyline {
+
   fill: none;
+
   stroke: var(--phx-accent);
+
   stroke-width: 4;
+
   stroke-linecap: round;
+
   stroke-linejoin: round;
+
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--phx-accent) 24%, transparent));
+
 }
+
+
 
 .phx-nutrition-line-chart circle {
+
   fill: var(--phx-accent);
+
 }
+
+
 
 .phx-nutrition-line-chart circle.planned {
+
   fill: color-mix(in srgb, var(--phx-warning, #ffd56b) 86%, white 4%);
+
 }
+
+
 
 .phx-nutrition-line-chart text {
+
   fill: color-mix(in srgb, var(--phx-body) 44%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .62rem;
+
   letter-spacing: .08em;
+
 }
+
+
 
 .phx-nutrition-line-chart .planned-text {
+
   fill: color-mix(in srgb, var(--phx-warning, #ffd56b) 86%, white 4%);
+
 }
+
+
 
 .phx-nutrition-line-chart .target-text {
+
   fill: color-mix(in srgb, var(--phx-accent) 72%, white 5%);
+
 }
+
+
 
 .phx-nutrition-progress-bars {
+
   display: grid;
+
   gap: .8rem;
+
   margin-top: 1rem;
+
 }
+
+
 
 .phx-nutrition-progress-row {
+
   display: grid;
+
   grid-template-columns: 5.5rem minmax(0, 1fr) 3rem;
+
   gap: .75rem;
+
   align-items: center;
+
   color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-progress-row b {
+
   color: var(--phx-accent);
+
   font-weight: 500;
+
   text-align: right;
+
 }
+
+
 
 .phx-nutrition-choice-deck {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: .8rem;
+
   margin-top: 1rem;
+
 }
+
+
 
 .phx-nutrition-choice-deck button {
+
   min-height: 11.5rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 13%, transparent);
+
   border-radius: .75rem;
+
   background: color-mix(in srgb, #02090f 74%, transparent);
+
   color: var(--phx-body);
+
   cursor: pointer;
+
   padding: .9rem;
+
   text-align: left;
+
   transition: transform .16s ease, border-color .16s ease, background .16s ease;
+
 }
+
+
 
 .phx-nutrition-choice-deck button.active,
+
 .phx-nutrition-choice-deck button:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--phx-accent) 42%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+
 }
+
+
 
 .phx-nutrition-choice-deck span {
+
   display: block;
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .45rem;
+
   letter-spacing: .2em;
+
   margin-bottom: .65rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-choice-deck strong {
+
   display: block;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.2rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: .95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-choice-deck small {
+
   display: block;
+
   margin-top: .65rem;
+
   color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+
   font-size: .76rem;
+
   line-height: 1.4;
+
 }
+
+
 
 .phx-nutrition-choice-deck b {
+
   display: block;
+
   margin-top: .85rem;
+
   color: color-mix(in srgb, var(--phx-accent) 86%, white 4%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .5rem;
+
   font-weight: 500;
+
   letter-spacing: .15em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-nutrition-route-grid-clean {
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
 }
 
+
+
 @media (max-width: 1180px) {
+
   .phx-nutrition-output-grid,
+
   .phx-nutrition-output-card-wide,
+
   .phx-nutrition-route-grid-clean {
+
     grid-template-columns: minmax(0, 1fr);
+
     grid-column: auto;
+
   }
+
+
 
   .phx-nutrition-choice-deck {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
 
+
+
 @media (max-width: 680px) {
+
   .phx-nutrition-progress-row {
+
     grid-template-columns: 4.4rem minmax(0, 1fr) 2.4rem;
+
     gap: .55rem;
+
     font-size: .46rem;
+
     letter-spacing: .1em;
+
   }
+
+
 
   .phx-nutrition-line-chart {
+
     min-height: 9rem;
+
   }
+
 }
+
+
 
 /* CALENDAR_FINISHED_PRODUCT_V1 */
+
 .phx-calendar-mode-grid {
+
   margin: 1rem 0;
+
   max-width: 34rem;
+
 }
+
+
 
 .phx-calendar-mode-grid .active {
+
   border-color: color-mix(in srgb, var(--phx-accent) 46%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
   color: var(--phx-body);
+
 }
+
+
 
 .phx-command-chip-row {
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: .65rem;
+
   margin: .85rem 0;
+
 }
+
+
 
 .phx-calendar-core-rail {
+
   margin: 1.25rem 0;
+
   max-height: 23rem;
+
   overflow: auto;
+
 }
+
+
 
 .phx-calendar-output-grid {
+
   align-items: stretch;
+
 }
+
+
 
 .phx-calendar-chart-card {
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
   background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+
   padding: 1rem;
+
   min-height: 12rem;
+
 }
+
+
 
 .phx-calendar-chart-title {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .2em;
+
   margin-bottom: .9rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-load-stack {
+
   display: grid;
+
   gap: .7rem;
+
 }
+
+
 
 .phx-calendar-load-row {
+
   display: grid;
+
   grid-template-columns: 6rem minmax(0, 1fr) 3rem;
+
   align-items: center;
+
   gap: .7rem;
+
   color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-load-row i {
+
   display: block;
+
   height: .55rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-load-row b {
+
   display: block;
+
   height: 100%;
+
   box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
 }
+
+
 
 .phx-calendar-load-row strong {
+
   color: var(--phx-body);
+
   font-weight: 500;
+
   text-align: right;
+
 }
+
+
 
 .phx-calendar-signal-rail {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .7rem;
+
   margin: 1.1rem 0;
+
   position: relative;
+
 }
+
+
 
 .phx-calendar-signal-rail::before {
+
   content: "";
+
   position: absolute;
+
   left: 8%;
+
   right: 8%;
+
   top: .56rem;
+
   height: 1px;
+
   background: color-mix(in srgb, var(--phx-accent) 20%, transparent);
+
 }
+
+
 
 .phx-calendar-signal-rail div {
+
   display: grid;
+
   gap: .5rem;
+
   justify-items: center;
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .14em;
+
   position: relative;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-signal-rail i {
+
   width: 1.15rem;
+
   height: 1.15rem;
+
   border-radius: 999px;
+
   background: var(--phx-accent);
+
   box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 30%, transparent);
+
   z-index: 1;
+
 }
+
+
 
 .phx-calendar-signal-rail .warning i {
+
   background: #ffd56b;
+
   box-shadow: 0 0 1rem rgba(255, 213, 107, .28);
+
 }
+
+
 
 .phx-calendar-mini-copy {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-size: .82rem;
+
   line-height: 1.45;
+
   margin: 0;
+
 }
+
+
 
 .phx-calendar-source-health {
+
   display: grid;
+
   gap: .7rem;
+
 }
+
+
 
 .phx-calendar-source-health div {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
   padding-bottom: .65rem;
+
 }
+
+
 
 .phx-calendar-source-health span,
+
 .phx-calendar-source-health strong,
+
 .phx-calendar-source-health em {
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-source-health span {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
 }
+
+
 
 .phx-calendar-source-health strong {
+
   color: #ffd56b;
+
   font-weight: 500;
+
 }
+
+
 
 .phx-calendar-source-health strong.ready {
+
   color: #4dffb4;
+
 }
+
+
 
 .phx-calendar-source-health em {
+
   color: color-mix(in srgb, var(--phx-accent) 78%, white 4%);
+
   font-style: normal;
+
   margin-top: .4rem;
+
 }
+
+
 
 .phx-calendar-route-grid {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .85rem;
+
 }
+
+
 
 .phx-calendar-route-card {
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
   background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+
   color: inherit;
+
   cursor: pointer;
+
   min-height: 7rem;
+
   padding: 1rem;
+
   text-align: left;
+
   transition: transform .16s ease, border-color .16s ease, background .16s ease;
+
 }
+
+
 
 .phx-calendar-route-card:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--phx-accent) 42%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+
 }
+
+
 
 .phx-calendar-route-card strong {
+
   display: block;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.35rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: .95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-route-card span {
+
   display: block;
+
   margin-top: .7rem;
+
   color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+
   font-size: .78rem;
+
   line-height: 1.42;
+
 }
+
+
 
 @media (max-width: 1180px) {
+
   .phx-calendar-route-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
 }
+
+
 
 @media (max-width: 680px) {
+
   .phx-calendar-load-row {
+
     grid-template-columns: 4.8rem minmax(0, 1fr) 2.8rem;
+
     gap: .55rem;
+
     font-size: .46rem;
+
     letter-spacing: .1em;
+
   }
+
+
 
   .phx-calendar-signal-rail {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
 
+
+
   .phx-calendar-route-grid {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_FOUNDATION_POLISH_V2 */
+
 .phx-calendar-v2 .phx-command-title-xl .accent {
+
   color: var(--phx-accent);
+
   text-shadow: 0 0 2.2rem color-mix(in srgb, var(--phx-accent) 24%, transparent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-command-value {
+
   color: var(--phx-accent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-command-denominator {
+
   color: color-mix(in srgb, var(--phx-accent) 66%, var(--phx-body) 22%);
+
 }
+
+
 
 .phx-calendar-v2 .phx-command-chip-row {
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: .65rem;
+
   margin: .85rem 0 1rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-mode-grid {
+
   margin: 1rem 0;
+
   max-width: 36rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-mode-grid .active {
+
   border-color: color-mix(in srgb, var(--phx-accent) 52%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 12%, transparent);
+
   color: var(--phx-body);
+
   box-shadow: inset 0 -2px 0 var(--phx-accent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-hero-brief {
+
   max-width: 46rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-core-card {
+
   min-height: 29rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-core-summary {
+
   display: grid;
+
   gap: .85rem;
+
   margin: 1.25rem 0;
+
   min-height: 11rem;
+
   place-content: center;
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-core-summary > strong {
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.65rem;
+
   letter-spacing: .08em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-core-summary > span {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-size: .9rem;
+
   line-height: 1.45;
+
   max-width: 23rem;
+
 }
+
+
 
 .phx-panel-grid-3,
+
 .phx-calendar-output-grid {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: 1.15rem;
+
   align-items: stretch;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-output-grid > * {
+
   min-width: 0;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-chart-card,
-.phx-calendar-v2 .phx-calendar-empty-product-card {
-  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
-  background:
-    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 45%),
-    color-mix(in srgb, var(--phx-surface) 88%, black 12%);
-  min-height: 11.5rem;
-  padding: 1rem;
-}
 
 .phx-calendar-v2 .phx-calendar-empty-product-card {
-  display: grid;
-  place-content: center;
-  gap: .65rem;
-  text-align: center;
+
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
+  background:
+
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--phx-accent) 10%, transparent), transparent 45%),
+
+    color-mix(in srgb, var(--phx-surface) 88%, black 12%);
+
+  min-height: 11.5rem;
+
+  padding: 1rem;
+
 }
+
+
+
+.phx-calendar-v2 .phx-calendar-empty-product-card {
+
+  display: grid;
+
+  place-content: center;
+
+  gap: .65rem;
+
+  text-align: center;
+
+}
+
+
 
 .phx-calendar-v2 .phx-calendar-empty-product-card strong {
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.45rem;
+
   letter-spacing: .08em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-empty-product-card span {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-size: .85rem;
+
   line-height: 1.45;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-chart-title {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   color: var(--phx-accent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .2em;
+
   margin-bottom: .9rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-load-stack {
+
   display: grid;
+
   gap: .7rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-load-row {
+
   display: grid;
+
   grid-template-columns: 6rem minmax(0, 1fr) 3rem;
+
   align-items: center;
+
   gap: .7rem;
+
   color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-load-row i {
+
   display: block;
+
   height: .55rem;
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-load-row b {
+
   display: block;
+
   height: 100%;
+
   box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-load-row strong {
+
   color: var(--phx-body);
+
   font-weight: 500;
+
   text-align: right;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-signal-rail {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .7rem;
+
   margin: 1.1rem 0;
+
   position: relative;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-signal-rail::before {
+
   content: "";
+
   position: absolute;
+
   left: 8%;
+
   right: 8%;
+
   top: .56rem;
+
   height: 1px;
+
   background: color-mix(in srgb, var(--phx-accent) 20%, transparent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-signal-rail div {
+
   display: grid;
+
   gap: .5rem;
+
   justify-items: center;
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .14em;
+
   position: relative;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-signal-rail i {
+
   width: 1.15rem;
+
   height: 1.15rem;
+
   border-radius: 999px;
+
   background: var(--phx-accent);
+
   box-shadow: 0 0 1rem color-mix(in srgb, var(--phx-accent) 30%, transparent);
+
   z-index: 1;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-signal-rail .warning i {
+
   background: #ffd56b;
+
   box-shadow: 0 0 1rem rgba(255, 213, 107, .28);
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-mini-copy {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-size: .82rem;
+
   line-height: 1.45;
+
   margin: 0;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-source-health {
+
   display: grid;
+
   gap: .7rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-source-health div {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   border-bottom: 1px solid color-mix(in srgb, var(--phx-accent) 10%, transparent);
+
   padding-bottom: .65rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-source-health span,
+
 .phx-calendar-v2 .phx-calendar-source-health strong,
+
 .phx-calendar-v2 .phx-calendar-source-health em {
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-source-health span {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-source-health strong {
+
   color: #ffd56b;
+
   font-weight: 500;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-source-health strong.ready {
+
   color: #4dffb4;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-source-health em {
+
   color: color-mix(in srgb, var(--phx-accent) 78%, white 4%);
+
   font-style: normal;
+
   margin-top: .4rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-diagnostic-preview {
+
   border: 1px solid rgba(255, 213, 107, .22);
+
   background: rgba(255, 213, 107, .055);
+
   padding: 1rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-diagnostic-preview.ready {
+
   border-color: color-mix(in srgb, #4dffb4 24%, transparent);
+
   background: color-mix(in srgb, #4dffb4 6%, transparent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-diagnostic-preview strong {
+
   color: #ffd56b;
+
   display: block;
+
   font-family: var(--phx-font-display);
+
   font-size: 1.3rem;
+
   letter-spacing: .08em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-diagnostic-preview.ready strong {
+
   color: #4dffb4;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-diagnostic-preview ul {
+
   display: grid;
+
   gap: .55rem;
+
   margin: .8rem 0;
+
   padding: 0;
+
   list-style: none;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-diagnostic-preview li,
+
 .phx-calendar-v2 .phx-calendar-diagnostic-preview span {
+
   color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+
   font-size: .82rem;
+
   line-height: 1.38;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-route-grid {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .85rem;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-route-card {
+
   border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
+
   background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+
   color: inherit;
+
   cursor: pointer;
+
   min-height: 7rem;
+
   padding: 1rem;
+
   text-align: left;
+
   transition: transform .16s ease, border-color .16s ease, background .16s ease;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-route-card:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--phx-accent) 42%, transparent);
+
   background: color-mix(in srgb, var(--phx-accent) 7%, transparent);
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-route-card strong {
+
   display: block;
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.35rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: .95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v2 .phx-calendar-route-card span {
+
   display: block;
+
   margin-top: .7rem;
+
   color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+
   font-size: .78rem;
+
   line-height: 1.42;
+
 }
+
+
 
 @media (max-width: 1180px) {
+
   .phx-panel-grid-3,
+
   .phx-calendar-output-grid {
+
     grid-template-columns: 1fr;
+
   }
 
+
+
   .phx-calendar-v2 .phx-calendar-route-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
 }
+
+
 
 @media (max-width: 680px) {
+
   .phx-calendar-v2 .phx-calendar-load-row {
+
     grid-template-columns: 4.8rem minmax(0, 1fr) 2.8rem;
+
     gap: .55rem;
+
     font-size: .46rem;
+
     letter-spacing: .1em;
+
   }
+
+
 
   .phx-calendar-v2 .phx-calendar-signal-rail {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
 
+
+
   .phx-calendar-v2 .phx-calendar-route-grid {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_FONT_CORE_ALIGNMENT_V3 */
+
 .phx-calendar-v3 {
+
   --calendar-accent: var(--phx-accent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-title-xl,
+
 .phx-calendar-v3 .phx-command-title-xl span,
+
 .phx-calendar-v3 .phx-command-value,
+
 .phx-calendar-v3 .phx-command-denominator,
+
 .phx-calendar-v3 .phx-core-title strong,
+
 .phx-calendar-v3 .phx-calendar-core-orb strong,
+
 .phx-calendar-v3 .phx-calendar-route-card strong,
+
 .phx-calendar-v3 .phx-calendar-empty-product-card strong,
+
 .phx-calendar-v3 .phx-calendar-diagnostic-preview strong,
+
 .phx-calendar-v3 .phx-calendar-row strong {
+
   font-family: var(--phx-font-display);
+
   font-weight: 700;
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-kicker,
+
 .phx-calendar-v3 .phx-command-label-line,
+
 .phx-calendar-v3 .phx-command-topbar,
+
 .phx-calendar-v3 .phx-command-online,
+
 .phx-calendar-v3 .phx-command-button,
+
 .phx-calendar-v3 .phx-core-code,
+
 .phx-calendar-v3 .phx-core-title span,
+
 .phx-calendar-v3 .phx-week-rail,
+
 .phx-calendar-v3 .phx-calendar-chart-title,
+
 .phx-calendar-v3 .phx-calendar-load-row,
+
 .phx-calendar-v3 .phx-calendar-source-health span,
+
 .phx-calendar-v3 .phx-calendar-source-health strong,
+
 .phx-calendar-v3 .phx-calendar-source-health em,
+
 .phx-calendar-v3 .phx-calendar-core-metrics span,
+
 .phx-calendar-v3 .phx-calendar-core-metrics strong {
+
   font-family: var(--phx-font-mono);
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-brief,
+
 .phx-calendar-v3 .phx-calendar-empty-product-card span,
+
 .phx-calendar-v3 .phx-calendar-diagnostic-preview li,
+
 .phx-calendar-v3 .phx-calendar-diagnostic-preview span,
+
 .phx-calendar-v3 .phx-calendar-route-card span,
+
 .phx-calendar-v3 .phx-calendar-core-summary > span {
+
   font-family: var(--phx-font-body);
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-title-xl {
+
   letter-spacing: .052em;
+
   line-height: .9;
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-title-xl .accent {
+
   color: var(--calendar-accent);
+
   text-shadow: 0 0 2.2rem color-mix(in srgb, var(--calendar-accent) 26%, transparent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-value {
+
   color: var(--calendar-accent);
+
   text-shadow: 0 0 2rem color-mix(in srgb, var(--calendar-accent) 22%, transparent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-denominator {
+
   color: color-mix(in srgb, var(--calendar-accent) 66%, var(--phx-body) 22%);
+
   letter-spacing: .04em;
+
 }
+
+
 
 .phx-calendar-v3 .phx-command-chip-row {
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: .65rem;
+
   margin: .85rem 0 1rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-mode-grid {
+
   margin: 1rem 0;
+
   max-width: 36rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-mode-grid .active {
+
   border-color: color-mix(in srgb, var(--calendar-accent) 52%, transparent);
+
   background: color-mix(in srgb, var(--calendar-accent) 12%, transparent);
+
   color: var(--phx-body);
+
   box-shadow: inset 0 -2px 0 var(--calendar-accent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-hero-brief {
+
   max-width: 46rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-card {
+
   min-height: 32rem;
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-title {
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-title strong {
+
   color: var(--calendar-accent);
+
   letter-spacing: .32em;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-orb {
+
   display: grid;
+
   place-items: center;
+
   margin: 1.5rem auto 1.15rem;
+
   width: min(15rem, 72%);
+
   aspect-ratio: 1;
+
   border-radius: 999px;
+
   border: 1.1rem solid color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+
   box-shadow:
+
     inset 0 0 0 1px color-mix(in srgb, var(--calendar-accent) 24%, transparent),
+
     0 0 3rem color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+
   background:
+
     radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--calendar-accent) 12%, transparent), transparent 54%),
+
     color-mix(in srgb, var(--phx-surface) 84%, black 16%);
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-orb strong {
+
   color: var(--phx-body);
+
   display: block;
+
   font-size: clamp(1.7rem, 2vw, 2.45rem);
+
   letter-spacing: .08em;
+
   line-height: .9;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-orb span {
+
   color: color-mix(in srgb, var(--calendar-accent) 72%, var(--phx-body) 10%);
+
   display: block;
+
   font-family: var(--phx-font-mono);
+
   font-size: .58rem;
+
   letter-spacing: .24em;
+
   margin-top: .65rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-metrics {
+
   display: grid;
+
   gap: .55rem;
+
   margin: 0 0 1.15rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-metrics div {
+
   display: grid;
+
   grid-template-columns: 7.25rem minmax(0, 1fr);
+
   gap: .75rem;
+
   align-items: baseline;
+
   border-bottom: 1px solid color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+
   padding-bottom: .5rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-metrics span {
+
   color: color-mix(in srgb, var(--phx-body) 52%, transparent);
+
   font-size: .5rem;
+
   letter-spacing: .18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-metrics strong {
+
   color: var(--phx-body);
+
   font-size: .54rem;
+
   font-weight: 500;
+
   letter-spacing: .15em;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-week-mini {
+
   margin-bottom: 1rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-summary {
+
   display: grid;
+
   gap: .85rem;
+
   margin: 1.15rem 0;
+
   min-height: 7.5rem;
+
   place-content: center;
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-summary > strong {
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.45rem;
+
   letter-spacing: .08em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-core-summary > span {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-size: .84rem;
+
   line-height: 1.45;
+
   max-width: 24rem;
+
 }
+
+
 
 .phx-panel-grid-3,
+
 .phx-calendar-output-grid {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: 1.15rem;
+
   align-items: stretch;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-output-grid > * {
+
   min-width: 0;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-chart-card,
-.phx-calendar-v3 .phx-calendar-empty-product-card {
-  border: 1px solid color-mix(in srgb, var(--calendar-accent) 18%, transparent);
-  background:
-    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--calendar-accent) 10%, transparent), transparent 45%),
-    color-mix(in srgb, var(--phx-surface) 88%, black 12%);
-  min-height: 11.5rem;
-  padding: 1rem;
-}
 
 .phx-calendar-v3 .phx-calendar-empty-product-card {
-  display: grid;
-  place-content: center;
-  gap: .65rem;
-  text-align: center;
+
+  border: 1px solid color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+
+  background:
+
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--calendar-accent) 10%, transparent), transparent 45%),
+
+    color-mix(in srgb, var(--phx-surface) 88%, black 12%);
+
+  min-height: 11.5rem;
+
+  padding: 1rem;
+
 }
+
+
+
+.phx-calendar-v3 .phx-calendar-empty-product-card {
+
+  display: grid;
+
+  place-content: center;
+
+  gap: .65rem;
+
+  text-align: center;
+
+}
+
+
 
 .phx-calendar-v3 .phx-calendar-empty-product-card strong {
+
   color: var(--phx-body);
+
   font-size: 1.45rem;
+
   letter-spacing: .08em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-empty-product-card span {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-size: .85rem;
+
   line-height: 1.45;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-chart-title {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   color: var(--calendar-accent);
+
   font-size: .52rem;
+
   letter-spacing: .2em;
+
   margin-bottom: .9rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-load-stack {
+
   display: grid;
+
   gap: .7rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-load-row {
+
   display: grid;
+
   grid-template-columns: 6rem minmax(0, 1fr) 3rem;
+
   align-items: center;
+
   gap: .7rem;
+
   color: color-mix(in srgb, var(--phx-body) 72%, transparent);
+
   font-size: .52rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-load-row i {
+
   display: block;
+
   height: .55rem;
+
   border: 1px solid color-mix(in srgb, var(--calendar-accent) 14%, transparent);
+
   background: color-mix(in srgb, var(--calendar-accent) 8%, transparent);
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-load-row b {
+
   display: block;
+
   height: 100%;
+
   box-shadow: 0 0 1rem color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-load-row strong {
+
   color: var(--phx-body);
+
   font-weight: 500;
+
   text-align: right;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-signal-rail {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .7rem;
+
   margin: 1.1rem 0;
+
   position: relative;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-signal-rail::before {
+
   content: "";
+
   position: absolute;
+
   left: 8%;
+
   right: 8%;
+
   top: .56rem;
+
   height: 1px;
+
   background: color-mix(in srgb, var(--calendar-accent) 20%, transparent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-signal-rail div {
+
   display: grid;
+
   gap: .5rem;
+
   justify-items: center;
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .52rem;
+
   letter-spacing: .14em;
+
   position: relative;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-signal-rail i {
+
   width: 1.15rem;
+
   height: 1.15rem;
+
   border-radius: 999px;
+
   background: var(--calendar-accent);
+
   box-shadow: 0 0 1rem color-mix(in srgb, var(--calendar-accent) 30%, transparent);
+
   z-index: 1;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-signal-rail .warning i {
+
   background: #ffd56b;
+
   box-shadow: 0 0 1rem rgba(255, 213, 107, .28);
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-mini-copy {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
   font-size: .82rem;
+
   line-height: 1.45;
+
   margin: 0;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-source-health {
+
   display: grid;
+
   gap: .7rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-source-health div {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   border-bottom: 1px solid color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+
   padding-bottom: .65rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-source-health span,
+
 .phx-calendar-v3 .phx-calendar-source-health strong,
+
 .phx-calendar-v3 .phx-calendar-source-health em {
+
   font-size: .52rem;
+
   letter-spacing: .16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-source-health span {
+
   color: color-mix(in srgb, var(--phx-body) 62%, transparent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-source-health strong {
+
   color: #ffd56b;
+
   font-weight: 500;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-source-health strong.ready {
+
   color: #4dffb4;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-source-health em {
+
   color: color-mix(in srgb, var(--calendar-accent) 78%, white 4%);
+
   font-style: normal;
+
   margin-top: .4rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-diagnostic-preview {
+
   border: 1px solid rgba(255, 213, 107, .22);
+
   background: rgba(255, 213, 107, .055);
+
   padding: 1rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-diagnostic-preview.ready {
+
   border-color: color-mix(in srgb, #4dffb4 24%, transparent);
+
   background: color-mix(in srgb, #4dffb4 6%, transparent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-diagnostic-preview strong {
+
   color: #ffd56b;
+
   display: block;
+
   font-size: 1.3rem;
+
   letter-spacing: .08em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-diagnostic-preview.ready strong {
+
   color: #4dffb4;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-diagnostic-preview ul {
+
   display: grid;
+
   gap: .55rem;
+
   margin: .8rem 0;
+
   padding: 0;
+
   list-style: none;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-diagnostic-preview li,
+
 .phx-calendar-v3 .phx-calendar-diagnostic-preview span {
+
   color: color-mix(in srgb, var(--phx-body) 70%, transparent);
+
   font-size: .82rem;
+
   line-height: 1.38;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-route-grid {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .85rem;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-route-card {
+
   border: 1px solid color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+
   background: color-mix(in srgb, var(--phx-surface) 86%, black 14%);
+
   color: inherit;
+
   cursor: pointer;
+
   min-height: 7rem;
+
   padding: 1rem;
+
   text-align: left;
+
   transition: transform .16s ease, border-color .16s ease, background .16s ease;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-route-card:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--calendar-accent) 42%, transparent);
+
   background: color-mix(in srgb, var(--calendar-accent) 7%, transparent);
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-route-card strong {
+
   display: block;
+
   color: var(--phx-body);
+
   font-size: 1.35rem;
+
   letter-spacing: .08em;
+
   line-height: .95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v3 .phx-calendar-route-card span {
+
   display: block;
+
   margin-top: .7rem;
+
   color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+
   font-size: .78rem;
+
   line-height: 1.42;
+
 }
+
+
 
 @media (max-width: 1180px) {
+
   .phx-panel-grid-3,
+
   .phx-calendar-output-grid {
+
     grid-template-columns: 1fr;
+
   }
 
+
+
   .phx-calendar-v3 .phx-calendar-route-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
 }
+
+
 
 @media (max-width: 680px) {
+
   .phx-calendar-v3 .phx-calendar-core-orb {
+
     width: min(13rem, 76%);
+
   }
+
+
 
   .phx-calendar-v3 .phx-calendar-core-metrics div {
+
     grid-template-columns: 1fr;
+
     gap: .35rem;
+
   }
+
+
 
   .phx-calendar-v3 .phx-calendar-load-row {
+
     grid-template-columns: 4.8rem minmax(0, 1fr) 2.8rem;
+
     gap: .55rem;
+
     font-size: .46rem;
+
     letter-spacing: .1em;
+
   }
+
+
 
   .phx-calendar-v3 .phx-calendar-signal-rail {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
+
 
   .phx-calendar-v3 .phx-calendar-route-grid {
+
     grid-template-columns: minmax(0, 1fr);
+
   }
+
 }
+
+
 
 /* CALENDAR_FINAL_SPACING_ANIMATION_V18 */
+
 .phx-calendar-v18 {
+
   --calendar-accent: #9f7dff;
+
   --calendar-bright: #d8ccff;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-hero,
+
 .phx-calendar-v18 .phx-calendar-command-modules > *,
+
 .phx-calendar-v18 .phx-domain-frame > .phx-data-panel {
+
   animation: phxCalendarRise .48s ease-out both;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-command-modules > *:nth-child(2) { animation-delay: .04s; }
+
 .phx-calendar-v18 .phx-calendar-command-modules > *:nth-child(3) { animation-delay: .08s; }
+
 .phx-calendar-v18 .phx-domain-frame > .phx-data-panel { animation-delay: .12s; }
 
+
+
 @keyframes phxCalendarRise {
+
   from {
+
     opacity: 0;
+
     transform: translateY(14px);
+
   }
+
   to {
+
     opacity: 1;
+
     transform: translateY(0);
+
   }
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-hero {
+
   background:
+
     radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--calendar-accent) 9%, transparent), transparent 32%),
+
     linear-gradient(180deg, rgba(6, 10, 22, .88), rgba(2, 9, 15, .98));
+
   border-color: color-mix(in srgb, var(--calendar-accent) 19%, transparent);
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-hero::after {
+
   content: "";
+
   position: absolute;
+
   inset: 0;
+
   pointer-events: none;
+
   background: linear-gradient(115deg, transparent 0 38%, color-mix(in srgb, var(--calendar-accent) 7%, transparent) 48%, transparent 58% 100%);
+
   transform: translateX(-120%);
+
   animation: phxCalendarSweep 7s ease-in-out infinite;
+
 }
+
+
 
 @keyframes phxCalendarSweep {
+
   0%, 72% { transform: translateX(-120%); opacity: 0; }
+
   78% { opacity: 1; }
+
   100% { transform: translateX(120%); opacity: 0; }
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-hero-grid {
+
   display: grid;
+
   grid-template-columns: minmax(0, 1.5fr) minmax(22.5rem, .74fr);
+
   gap: clamp(2.25rem, 3.6vw, 3.85rem);
+
   align-items: center;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-title-xl {
+
   max-width: 38rem;
+
   line-height: .96;
+
   letter-spacing: .055em;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-title-xl span {
+
   display: block;
+
   font-family: var(--phx-font-display);
+
   font-weight: 700;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-title-xl span:first-child {
+
   color: #eef7ff;
+
   font-size: clamp(3rem, 3.85vw, 4.35rem);
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-title-xl .accent {
+
   color: var(--calendar-accent);
+
   font-size: clamp(2.25rem, 2.9vw, 3.25rem);
+
   text-shadow: 0 0 1.35rem color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-label-line {
+
   margin-top: 2.05rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-value {
+
   color: var(--calendar-accent);
+
   font-size: clamp(3.25rem, 4.2vw, 4.65rem);
+
   line-height: .9;
+
   text-shadow: 0 0 1.45rem color-mix(in srgb, var(--calendar-accent) 12%, transparent);
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-denominator {
+
   color: color-mix(in srgb, var(--calendar-bright) 64%, transparent);
+
   font-size: clamp(.96rem, 1.14vw, 1.25rem);
+
   letter-spacing: .055em;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-chip-row {
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: .52rem;
+
   margin: .72rem 0 .95rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-command-chip-row .phx-status-chip {
+
   font-size: .46rem;
+
   letter-spacing: .13em;
+
   padding: .4rem .55rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-mode-grid {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: .68rem;
+
   max-width: 29rem;
+
   margin: .98rem 0 1.1rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-mode-grid .phx-command-button {
+
   min-height: 2.48rem;
+
   font-size: .48rem;
+
   letter-spacing: .16em;
+
   transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-mode-grid .phx-command-button:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--calendar-accent) 40%, transparent);
+
   box-shadow: 0 .75rem 1.8rem rgba(0,0,0,.16);
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-mode-grid .active {
+
   border-color: color-mix(in srgb, var(--calendar-accent) 45%, transparent);
+
   background: color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+
   box-shadow: inset 0 -2px 0 var(--calendar-accent);
+
   color: var(--phx-body);
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-hero-brief {
+
   max-width: 34rem;
+
   padding: .82rem .92rem;
+
   font-size: .78rem;
+
   line-height: 1.36;
+
   border-left-color: var(--calendar-accent);
+
   background: rgba(7, 12, 24, .58);
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core {
+
   position: relative;
+
   border: 1px solid color-mix(in srgb, var(--calendar-accent) 21%, transparent);
+
   background:
+
     radial-gradient(circle at 46% 20%, color-mix(in srgb, var(--calendar-accent) 7%, transparent), transparent 34%),
+
     linear-gradient(180deg, rgba(8, 11, 24, .9), rgba(3, 8, 15, .98));
+
   padding: 1.08rem;
+
   min-height: 20.9rem;
+
   display: grid;
+
   gap: .78rem;
+
   align-content: start;
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core::after {
+
   content: "";
+
   position: absolute;
+
   inset: auto 8% 0 8%;
+
   height: 1px;
+
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--calendar-accent) 38%, transparent), transparent);
+
   animation: phxCalendarCorePulse 3.8s ease-in-out infinite;
+
 }
+
+
 
 @keyframes phxCalendarCorePulse {
+
   0%, 100% { opacity: .25; transform: scaleX(.72); }
+
   50% { opacity: .8; transform: scaleX(1); }
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-head {
+
   display: grid;
+
   gap: .18rem;
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-head span,
+
 .phx-calendar-v18 .phx-calendar-core-head em {
+
   color: color-mix(in srgb, var(--calendar-bright) 48%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .35rem;
+
   font-style: normal;
+
   letter-spacing: .17em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-head strong {
+
   color: color-mix(in srgb, var(--calendar-bright) 92%, white 8%);
+
   font-family: var(--phx-font-mono);
+
   font-size: .54rem;
+
   letter-spacing: .25em;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-body {
+
   display: grid;
+
   grid-template-columns: 4.85rem minmax(0, 1fr);
+
   gap: .85rem;
+
   align-items: center;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-date {
+
   aspect-ratio: .9;
+
   display: grid;
+
   place-items: center;
+
   border: 1px solid color-mix(in srgb, var(--calendar-accent) 22%, transparent);
+
   background: color-mix(in srgb, var(--calendar-accent) 6%, transparent);
+
   box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--calendar-accent) 40%, transparent);
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-date span,
+
 .phx-calendar-v18 .phx-calendar-core-date em {
+
   color: color-mix(in srgb, var(--calendar-bright) 56%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .34rem;
+
   font-style: normal;
+
   letter-spacing: .14em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-date strong {
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: 1.82rem;
+
   line-height: .92;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-state > strong {
+
   color: var(--phx-body);
+
   display: block;
+
   font-family: var(--phx-font-display);
+
   font-size: .96rem;
+
   letter-spacing: .08em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-state > span {
+
   color: color-mix(in srgb, var(--phx-body) 58%, transparent);
+
   display: block;
+
   font-size: .62rem;
+
   margin-top: .32rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-state div {
+
   display: grid;
+
   grid-template-columns: 3.75rem minmax(0, 1fr);
+
   gap: .5rem;
+
   border-bottom: 1px solid color-mix(in srgb, var(--calendar-accent) 9%, transparent);
+
   padding: .32rem 0;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-state small,
+
 .phx-calendar-v18 .phx-calendar-core-state b {
+
   font-family: var(--phx-font-mono);
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-state small {
+
   color: color-mix(in srgb, var(--calendar-bright) 44%, transparent);
+
   font-size: .33rem;
+
   letter-spacing: .13em;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-state b {
+
   color: color-mix(in srgb, white 86%, var(--calendar-bright) 14%);
+
   font-size: .43rem;
+
   font-weight: 500;
+
   letter-spacing: .11em;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-week-strip {
+
   display: grid;
+
   grid-template-columns: repeat(7, minmax(0, 1fr));
+
   gap: .34rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-week-strip div {
+
   min-height: 2.62rem;
+
   display: grid;
+
   place-items: center;
+
   border: 1px solid color-mix(in srgb, var(--calendar-accent) 13%, transparent);
+
   background: color-mix(in srgb, var(--calendar-accent) 4%, transparent);
+
   transition: transform .18s ease, border-color .18s ease, background .18s ease;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-week-strip div:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--calendar-accent) 35%, transparent);
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-week-strip span {
+
   color: color-mix(in srgb, var(--phx-body) 46%, transparent);
+
   font-family: var(--phx-font-mono);
+
   font-size: .32rem;
+
   letter-spacing: .11em;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-week-strip strong {
+
   color: var(--phx-body);
+
   font-family: var(--phx-font-display);
+
   font-size: .96rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-week-strip div.active {
+
   border-color: var(--calendar-accent);
+
   background: color-mix(in srgb, var(--calendar-accent) 12%, transparent);
+
   box-shadow: inset 0 -2px 0 var(--calendar-accent), 0 0 1.1rem color-mix(in srgb, var(--calendar-accent) 9%, transparent);
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-summary {
+
   border: 1px solid color-mix(in srgb, var(--calendar-accent) 10%, transparent);
+
   background: color-mix(in srgb, var(--calendar-accent) 3%, transparent);
+
   padding: .6rem .66rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-summary > strong {
+
   color: var(--phx-body);
+
   display: block;
+
   font-family: var(--phx-font-display);
+
   font-size: .76rem;
+
   letter-spacing: .075em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-core-summary > span {
+
   color: color-mix(in srgb, var(--phx-body) 60%, transparent);
+
   display: block;
+
   font-size: .58rem;
+
   line-height: 1.3;
+
   margin-top: .38rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-source-stamp {
+
   transform: scale(.92);
+
   transform-origin: center;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-command-modules {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: .95rem;
+
   margin-top: 1.35rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-card,
+
 .phx-calendar-v18 .phx-calendar-route-card {
+
   border: 1px solid color-mix(in srgb, var(--calendar-accent) 15%, transparent);
+
   background:
+
     radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--calendar-accent) 7%, transparent), transparent 42%),
+
     linear-gradient(180deg, rgba(8, 12, 25, .82), rgba(3, 8, 15, .94));
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-card {
+
   min-height: 7.75rem;
+
   padding: .78rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-card strong {
+
   color: var(--phx-body);
+
   display: block;
+
   font-family: var(--phx-font-display);
+
   font-size: .92rem;
+
   letter-spacing: .08em;
+
   line-height: 1;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-card span,
+
 .phx-calendar-v18 .phx-calendar-card em {
+
   color: color-mix(in srgb, var(--calendar-bright) 62%, transparent);
+
   display: block;
+
   font-family: var(--phx-font-mono);
+
   font-size: .4rem;
+
   font-style: normal;
+
   letter-spacing: .14em;
+
   margin-top: .52rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-card p {
+
   color: color-mix(in srgb, var(--phx-body) 60%, transparent);
+
   font-size: .64rem;
+
   line-height: 1.32;
+
   margin: .58rem 0 0;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-card .phx-calendar-week-strip {
+
   margin-top: .58rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-route-grid {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: .78rem;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-route-card {
+
   color: inherit;
+
   cursor: pointer;
+
   min-height: 5rem;
+
   padding: .76rem;
+
   text-align: left;
+
   transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-route-card:hover {
+
   transform: translateY(-1px);
+
   border-color: color-mix(in srgb, var(--calendar-accent) 34%, transparent);
+
   background:
+
     radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--calendar-accent) 12%, transparent), transparent 42%),
+
     linear-gradient(180deg, rgba(9, 13, 27, .9), rgba(3, 8, 15, .96));
+
   box-shadow: 0 .85rem 2rem rgba(0,0,0,.17);
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-route-card strong {
+
   color: var(--phx-body);
+
   display: block;
+
   font-family: var(--phx-font-display);
+
   font-size: .94rem;
+
   font-weight: 700;
+
   letter-spacing: .08em;
+
   line-height: .95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v18 .phx-calendar-route-card span {
+
   color: color-mix(in srgb, var(--phx-body) 54%, transparent);
+
   display: block;
+
   font-size: .62rem;
+
   line-height: 1.3;
+
   margin-top: .52rem;
+
 }
+
+
 
 @media (max-width: 1180px) {
+
   .phx-calendar-v18 .phx-command-hero-grid,
+
   .phx-calendar-v18 .phx-calendar-command-modules {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .phx-calendar-v18 .phx-command-title-xl span {
+
     white-space: normal;
+
   }
 
+
+
   .phx-calendar-v18 .phx-calendar-route-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
 }
+
+
 
 @media (max-width: 760px) {
+
   .phx-calendar-v18 .phx-command-title-xl span:first-child {
+
     font-size: clamp(2.55rem, 10.2vw, 3.25rem);
+
   }
+
+
 
   .phx-calendar-v18 .phx-command-title-xl .accent {
+
     font-size: clamp(1.9rem, 8vw, 2.55rem);
+
   }
+
+
 
   .phx-calendar-v18 .phx-command-value {
+
     font-size: clamp(2.9rem, 11.5vw, 3.9rem);
+
   }
+
+
 
   .phx-calendar-v18 .phx-calendar-core-body,
-  .phx-calendar-v18 .phx-calendar-mode-grid,
+
   .phx-calendar-v18 .phx-calendar-route-grid {
+
     grid-template-columns: 1fr;
+
   }
+
+  /* Mode tabs stay on one row on phones — three stacked full-width rows wasted ~180px. */
+  .phx-calendar-v18 .phx-calendar-mode-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .45rem;
+  }
+
 }
+
+
 
 @media (prefers-reduced-motion: reduce) {
+
   .phx-calendar-v18 .phx-command-hero,
+
   .phx-calendar-v18 .phx-calendar-command-modules > *,
+
   .phx-calendar-v18 .phx-domain-frame > .phx-data-panel,
+
   .phx-calendar-v18 .phx-command-hero::after,
+
   .phx-calendar-v18 .phx-calendar-core::after {
+
     animation: none !important;
+
   }
 
+
+
   .phx-calendar-v18 .phx-calendar-mode-grid .phx-command-button,
+
   .phx-calendar-v18 .phx-calendar-route-card,
+
   .phx-calendar-v18 .phx-calendar-week-strip div {
+
     transition: none !important;
+
   }
+
 }
+
+
+
+
 
 
 
 /* CALENDAR_CORE_PARITY_RADIAL_V19 */
+
 .phx-calendar-v19 .phx-calendar-core {
+
   position: relative;
+
   overflow: hidden;
+
   min-height: 34.5rem;
+
   display: grid;
+
   grid-template-rows: auto auto auto auto 1fr auto;
+
   gap: 1rem;
+
   background:
+
     radial-gradient(circle at 50% 33%, rgba(159, 125, 255, 0.14), transparent 17rem),
+
     linear-gradient(180deg, rgba(8, 10, 24, 0.94), rgba(3, 7, 14, 0.98));
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core::before {
+
   content: "";
+
   position: absolute;
+
   inset: 0;
+
   pointer-events: none;
+
   background:
+
     linear-gradient(90deg, transparent, rgba(159, 125, 255, 0.08), transparent),
+
     radial-gradient(circle at 50% 48%, rgba(159, 125, 255, 0.09), transparent 13rem);
+
   opacity: 0.82;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+
   position: relative;
+
   min-height: 15.6rem;
+
   display: grid;
+
   place-items: center;
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-scan {
+
   position: absolute;
+
   left: -1.5rem;
+
   right: -1.5rem;
+
   top: 50%;
+
   height: 1px;
+
   background: linear-gradient(90deg, transparent, rgba(159, 125, 255, 0.95), transparent);
+
   box-shadow: 0 0 1.1rem rgba(159, 125, 255, 0.75);
+
   animation: phxCalendarScanSweep 4.2s ease-in-out infinite;
+
   z-index: 3;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor {
+
   width: min(15.2rem, 68vw);
+
   aspect-ratio: 1;
+
   border-radius: 50%;
+
   position: relative;
+
   display: grid;
+
   place-items: center;
+
   filter: drop-shadow(0 0 1.6rem rgba(159, 125, 255, 0.18));
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor::before {
+
   content: "";
+
   position: absolute;
+
   inset: 2rem;
+
   border-radius: 50%;
+
   border: 1px solid rgba(159, 125, 255, 0.22);
+
   box-shadow:
+
     inset 0 0 2rem rgba(159, 125, 255, 0.08),
+
     0 0 1.8rem rgba(159, 125, 255, 0.07);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring {
+
   position: absolute;
+
   inset: 0;
+
   border-radius: 50%;
+
   background:
+
     conic-gradient(from 20deg,
+
       transparent 0 11%,
+
       rgba(159, 125, 255, 0.98) 11% 20%,
+
       transparent 20% 31%,
+
       rgba(159, 125, 255, 0.48) 31% 40%,
+
       transparent 40% 55%,
+
       rgba(159, 125, 255, 0.88) 55% 68%,
+
       transparent 68% 81%,
+
       rgba(159, 125, 255, 0.62) 81% 88%,
+
       transparent 88% 100%);
+
   -webkit-mask: radial-gradient(circle, transparent 0 54%, #000 55% 66%, transparent 67%);
+
   mask: radial-gradient(circle, transparent 0 54%, #000 55% 66%, transparent 67%);
+
   animation:
+
     phxCalendarRingRotate 16s linear infinite,
+
     phxCalendarRingBreath 4.8s ease-in-out infinite;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring.secondary {
+
   inset: 1.15rem;
+
   opacity: 0.55;
+
   -webkit-mask: radial-gradient(circle, transparent 0 58%, #000 59% 62%, transparent 63%);
+
   mask: radial-gradient(circle, transparent 0 58%, #000 59% 62%, transparent 63%);
+
   animation-duration: 25s, 5.4s;
+
   animation-direction: reverse, normal;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring.tertiary {
+
   inset: 2.35rem;
+
   opacity: 0.34;
+
   -webkit-mask: radial-gradient(circle, transparent 0 62%, #000 63% 64%, transparent 65%);
+
   mask: radial-gradient(circle, transparent 0 62%, #000 63% 64%, transparent 65%);
+
   animation-duration: 34s, 6s;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center {
+
   width: 7.9rem;
+
   aspect-ratio: 1;
+
   border-radius: 50%;
+
   display: grid;
+
   place-items: center;
+
   text-align: center;
+
   padding: 1.1rem;
+
   position: relative;
+
   z-index: 2;
+
   background: radial-gradient(circle at 50% 48%, rgba(17, 18, 40, 0.98), rgba(5, 8, 17, 0.98));
+
   border: 1px solid rgba(159, 125, 255, 0.22);
+
   box-shadow: inset 0 0 2rem rgba(0, 0, 0, 0.42);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.98rem, 1.25vw, 1.35rem);
+
   line-height: 0.94;
+
   letter-spacing: 0.1em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center span {
+
   display: block;
+
   color: rgba(216, 204, 255, 0.72);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.48rem;
+
   letter-spacing: 0.16em;
+
   margin-top: 0.72rem;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics {
+
   display: grid;
+
   gap: 0.22rem;
+
   position: relative;
+
   z-index: 2;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics > div {
+
   display: grid;
+
   grid-template-columns: 7.5rem minmax(0, 1fr);
+
   gap: 0.9rem;
+
   align-items: center;
+
   border-bottom: 1px solid rgba(159, 125, 255, 0.13);
+
   padding: 0.55rem 0;
+
   font-family: var(--font-mono, monospace);
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics small {
+
   color: rgba(216, 204, 255, 0.48);
+
   font-size: 0.58rem;
+
   letter-spacing: 0.15em;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics b {
+
   color: var(--text-primary, #eaf3fb);
+
   font-size: 0.62rem;
+
   letter-spacing: 0.12em;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact > div:hover {
+
   transform: translateY(-2px);
+
   border-color: rgba(159, 125, 255, 0.56);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact > div.active {
+
   animation: phxCalendarActiveDayPulse 3.2s ease-in-out infinite;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-summary {
+
   position: relative;
+
   z-index: 2;
+
 }
+
+
 
 @keyframes phxCalendarRingRotate {
+
   to { transform: rotate(360deg); }
+
 }
+
+
 
 @keyframes phxCalendarRingBreath {
+
   50% { opacity: 0.72; filter: brightness(1.28); }
+
 }
+
+
 
 @keyframes phxCalendarScanSweep {
+
   0%, 100% { opacity: 0.12; transform: translateY(-52px); }
+
   45%, 55% { opacity: 1; transform: translateY(0); }
+
   85% { opacity: 0.24; transform: translateY(54px); }
+
 }
+
+
 
 @keyframes phxCalendarActiveDayPulse {
+
   50% {
+
     box-shadow:
+
       0 0 1.6rem rgba(159, 125, 255, 0.34),
+
       inset 0 -3px 0 rgba(159, 125, 255, 0.98);
+
   }
+
 }
+
+
 
 @media (prefers-reduced-motion: reduce) {
+
   .phx-calendar-v19 .phx-calendar-core-scan,
+
   .phx-calendar-v19 .phx-calendar-core-ring,
+
   .phx-calendar-v19 .phx-calendar-week-strip.compact > div.active {
+
     animation: none;
+
   }
+
 }
+
+
 
 @media (max-width: 860px) {
+
   .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+
     min-height: 14rem;
+
   }
+
+
 
   .phx-calendar-v19 .phx-calendar-core-reactor {
+
     width: min(13rem, 72vw);
+
   }
+
+
 
   .phx-calendar-v19 .phx-calendar-core-reactor-center {
+
     width: 6.9rem;
+
   }
 
+
+
   .phx-calendar-v19 .phx-calendar-core-metrics > div {
+
     grid-template-columns: 6.4rem minmax(0, 1fr);
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_V19_SPACING_BALANCE */
+
 .phx-calendar-v19 {
+
   --calendar-v19-hero-top: clamp(1.75rem, 2.1vw, 2.6rem);
+
   --calendar-v19-hero-side: clamp(2.2rem, 3.15vw, 3.55rem);
+
   --calendar-v19-core-size: clamp(11.75rem, 16vw, 13.6rem);
+
   --calendar-v19-core-center: clamp(6.1rem, 8vw, 7.15rem);
+
 }
+
+
 
 .phx-calendar-v19 .phx-cockpit-main,
+
 .phx-calendar-v19 .phx-command-main,
+
 .phx-calendar-v19 .phx-calendar-command-main {
+
   align-items: start;
+
 }
 
+
+
 .phx-calendar-v19 .phx-command-hero,
+
 .phx-calendar-v19 .phx-calendar-hero,
+
 .phx-calendar-v19 .phx-command-center {
+
   padding-top: var(--calendar-v19-hero-top);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-command-grid,
+
 .phx-calendar-v19 .phx-command-grid,
+
 .phx-calendar-v19 .phx-calendar-layout {
+
   align-items: start;
+
   gap: clamp(2.1rem, 3vw, 3.2rem);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core {
+
   align-self: start;
+
   margin-top: clamp(1.3rem, 1.9vw, 2.2rem);
+
   min-height: auto;
+
   max-height: none;
+
   padding: clamp(1.15rem, 1.45vw, 1.45rem);
+
   gap: 0.72rem;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-head {
+
   margin-bottom: 0.1rem;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+
   min-height: clamp(12.4rem, 17.5vw, 14.9rem);
+
   margin: 0.15rem 0 0.1rem;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor {
+
   width: var(--calendar-v19-core-size);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor::before {
+
   inset: clamp(1.55rem, 2.2vw, 1.9rem);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center {
+
   width: var(--calendar-v19-core-center);
+
   padding: 0.9rem;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+
   font-size: clamp(0.9rem, 1.05vw, 1.12rem);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center span {
+
   font-size: 0.43rem;
+
   margin-top: 0.58rem;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics > div {
+
   grid-template-columns: 6.8rem minmax(0, 1fr);
+
   padding: 0.43rem 0;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact {
+
   margin-top: 0.45rem;
+
   gap: 0.38rem;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+
   min-height: clamp(3rem, 4.2vw, 3.65rem);
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-summary {
+
   margin-top: 0.45rem;
+
   padding: 0.85rem 0.95rem;
+
 }
+
+
 
 .phx-calendar-v19 .phx-command-result,
+
 .phx-calendar-v19 .phx-calendar-command-result {
+
   margin-bottom: clamp(1.2rem, 2vw, 1.8rem);
+
 }
 
+
+
 .phx-calendar-v19 .phx-calendar-card-grid,
+
 .phx-calendar-v19 .phx-data-grid,
+
 .phx-calendar-v19 .phx-calendar-panels {
+
   margin-top: clamp(1.1rem, 1.8vw, 1.6rem);
+
 }
+
+
 
 @media (min-width: 1180px) {
+
   .phx-calendar-v19 .phx-calendar-core {
+
     transform: translateY(-0.6rem);
+
   }
+
 }
+
+
 
 @media (min-width: 1440px) {
+
   .phx-calendar-v19 .phx-calendar-core {
+
     transform: translateY(-1.05rem);
+
   }
+
 }
+
+
 
 @media (max-width: 980px) {
+
   .phx-calendar-v19 {
+
     --calendar-v19-core-size: min(13rem, 70vw);
+
     --calendar-v19-core-center: min(6.8rem, 38vw);
+
   }
+
+
 
   .phx-calendar-v19 .phx-calendar-core {
+
     margin-top: 0.25rem;
+
     transform: none;
+
   }
 
+
+
   .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+
     min-height: 13.8rem;
+
   }
+
 }
+
+
 
 /* CALENDAR_V19_NUTRITION_SPACING_PARITY */
+
 .phx-calendar-v19 {
+
   --cal-v19-core-width: clamp(26rem, 31vw, 31rem);
+
   --cal-v19-reactor-size: clamp(11.2rem, 14vw, 12.8rem);
+
   --cal-v19-reactor-center: clamp(5.8rem, 7vw, 6.6rem);
+
   padding-bottom: clamp(6rem, 7vw, 7.5rem) !important;
+
 }
+
+
 
 /* Pull Calendar upward toward Nutrition spacing. */
+
 .phx-calendar-v19 .phx-command-main,
+
 .phx-calendar-v19 .phx-cockpit-main,
+
 .phx-calendar-v19 .phx-calendar-main,
+
 .phx-calendar-v19 .phx-calendar-command-main,
+
 .phx-calendar-v19 .phx-command-layout,
+
 .phx-calendar-v19 .phx-calendar-layout,
+
 .phx-calendar-v19 .phx-command-grid,
+
 .phx-calendar-v19 .phx-calendar-command-grid {
+
   align-items: start !important;
+
   gap: clamp(2rem, 3vw, 3.1rem) !important;
+
   padding-top: 0 !important;
+
   margin-top: 0 !important;
+
   min-height: unset !important;
+
 }
+
+
 
 /* Remove cinematic vertical delay from left side. */
+
 .phx-calendar-v19 .phx-command-hero,
+
 .phx-calendar-v19 .phx-calendar-hero,
+
 .phx-calendar-v19 .phx-command-center,
+
 .phx-calendar-v19 .phx-calendar-command-left,
+
 .phx-calendar-v19 .phx-calendar-left {
+
   padding-top: 0 !important;
+
   margin-top: 0 !important;
+
   align-self: start !important;
+
 }
+
+
 
 /* Make right core behave like Nutrition Fuel Core. */
+
 .phx-calendar-v19 .phx-calendar-core {
+
   width: min(100%, var(--cal-v19-core-width)) !important;
+
   justify-self: end !important;
+
   align-self: start !important;
+
   margin-top: 0 !important;
+
   margin-right: clamp(1rem, 2vw, 2.25rem) !important;
+
   transform: translateY(-1.15rem) !important;
+
   min-height: unset !important;
+
   padding: clamp(1rem, 1.3vw, 1.25rem) !important;
+
   gap: 0.6rem !important;
+
 }
+
+
 
 /* Smaller, premium reactor. */
+
 .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+
   min-height: clamp(11.2rem, 14.4vw, 13rem) !important;
+
   margin: 0 !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor {
+
   width: var(--cal-v19-reactor-size) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center {
+
   width: var(--cal-v19-reactor-center) !important;
+
   padding: 0.8rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+
   font-size: clamp(0.82rem, 0.95vw, 1rem) !important;
+
   line-height: 0.92 !important;
+
 }
 
+
+
 .phx-calendar-v19 .phx-calendar-core-reactor-center span {
+
   font-size: 0.39rem !important;
+
   margin-top: 0.48rem !important;
+
 }
+
+
 
 /* Compress core internal rows. */
+
 .phx-calendar-v19 .phx-calendar-core-head {
+
   margin-bottom: 0 !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-head strong {
+
   font-size: clamp(0.72rem, 0.82vw, 0.86rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-head em {
+
   font-size: 0.5rem !important;
+
   margin-top: 0.2rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics > div {
+
   grid-template-columns: 5.8rem minmax(0, 1fr) !important;
+
   padding: 0.34rem 0 !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics small {
+
   font-size: 0.49rem !important;
+
 }
 
+
+
 .phx-calendar-v19 .phx-calendar-core-metrics b {
+
   font-size: 0.55rem !important;
+
 }
+
+
 
 /* Compress week rail. */
+
 .phx-calendar-v19 .phx-calendar-week-strip.compact {
+
   margin-top: 0.25rem !important;
+
   gap: 0.3rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+
   min-height: clamp(2.55rem, 3.2vw, 3.05rem) !important;
+
   padding: 0.35rem 0.28rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact span {
+
   font-size: 0.43rem !important;
+
 }
 
+
+
 .phx-calendar-v19 .phx-calendar-week-strip.compact strong {
+
   font-size: clamp(0.86rem, 1.05vw, 1.05rem) !important;
+
 }
+
+
 
 /* Keep bottom nav from swallowing the result area. */
+
 .phx-calendar-v19 .phx-command-result,
+
 .phx-calendar-v19 .phx-calendar-command-result,
+
 .phx-calendar-v19 .phx-calendar-card-grid,
+
 .phx-calendar-v19 .phx-data-grid,
+
 .phx-calendar-v19 .phx-calendar-panels {
+
   position: relative;
+
   z-index: 1;
+
 }
+
+
 
 @media (max-width: 980px) {
+
   .phx-calendar-v19 {
+
     --cal-v19-core-width: 100%;
+
     --cal-v19-reactor-size: min(12.4rem, 66vw);
+
     --cal-v19-reactor-center: min(6.3rem, 36vw);
+
     padding-bottom: 6rem !important;
+
   }
 
+
+
   .phx-calendar-v19 .phx-calendar-core {
+
     justify-self: stretch !important;
+
     margin-right: 0 !important;
+
     transform: none !important;
+
   }
+
 }
+
+
 
 /* CALENDAR_V19_FINAL_COMPACT_PARITY */
+
 .phx-calendar-v19 {
+
   --cal-v19-final-core-width: clamp(25.25rem, 29.5vw, 29.6rem);
+
   --cal-v19-final-reactor: clamp(10.35rem, 12.6vw, 11.55rem);
+
   --cal-v19-final-center: clamp(5.35rem, 6.25vw, 5.95rem);
+
 }
+
+
 
 /* Keep the Calendar core premium, but prevent the bottom nav from cutting the source/footer. */
+
 .phx-calendar-v19 .phx-calendar-core {
+
   width: min(100%, var(--cal-v19-final-core-width)) !important;
+
   padding: clamp(0.82rem, 1.05vw, 1.05rem) clamp(0.9rem, 1.18vw, 1.15rem) !important;
+
   gap: 0.42rem !important;
+
   transform: translateY(-1.35rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+
   min-height: clamp(10.25rem, 12.7vw, 11.55rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor {
+
   width: var(--cal-v19-final-reactor) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor::before {
+
   inset: clamp(1.25rem, 1.5vw, 1.48rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring.secondary {
+
   inset: 0.9rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring.tertiary {
+
   inset: 1.85rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center {
+
   width: var(--cal-v19-final-center) !important;
+
   padding: 0.68rem !important;
+
 }
 
+
+
 .phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+
   font-size: clamp(0.72rem, 0.82vw, 0.9rem) !important;
+
   letter-spacing: 0.09em !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center span {
+
   font-size: 0.34rem !important;
+
   margin-top: 0.38rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-head strong {
+
   font-size: clamp(0.66rem, 0.74vw, 0.78rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-head em {
+
   font-size: 0.45rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics > div {
+
   grid-template-columns: 5.25rem minmax(0, 1fr) !important;
+
   padding: 0.26rem 0 !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics small {
+
   font-size: 0.44rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-metrics b {
+
   font-size: 0.5rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact {
+
   margin-top: 0.12rem !important;
+
   gap: 0.24rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact > div {
+
   min-height: clamp(2.2rem, 2.8vw, 2.62rem) !important;
+
   padding: 0.25rem 0.22rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact span {
+
   font-size: 0.38rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-week-strip.compact strong {
+
   font-size: clamp(0.74rem, 0.92vw, 0.9rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-summary {
+
   margin-top: 0.16rem !important;
+
   padding: 0.55rem 0.68rem !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-summary strong {
+
   font-size: clamp(0.58rem, 0.68vw, 0.68rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-summary span {
+
   display: -webkit-box !important;
+
   -webkit-line-clamp: 2;
+
   -webkit-box-orient: vertical;
+
   overflow: hidden !important;
+
   font-size: clamp(0.62rem, 0.74vw, 0.72rem) !important;
+
   line-height: 1.28 !important;
+
 }
+
+
 
 /* The SourceStamp remains present, but becomes a compact footer instead of falling behind nav. */
+
 .phx-calendar-v19 .phx-calendar-core > :last-child {
+
   max-height: 1.15rem !important;
+
   overflow: hidden !important;
+
   margin-top: 0.08rem !important;
+
   padding-top: 0 !important;
+
   font-size: 0.48rem !important;
+
   line-height: 1 !important;
+
   opacity: 0.72 !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core > :last-child * {
+
   font-size: 0.48rem !important;
+
   line-height: 1 !important;
+
 }
+
+
 
 /* Lift the bottom content above the fixed nav during desktop review. */
+
 .phx-calendar-v19 .phx-command-result,
+
 .phx-calendar-v19 .phx-calendar-command-result {
+
   margin-bottom: clamp(2.3rem, 3.3vw, 3.2rem) !important;
+
 }
+
+
 
 @media (max-width: 980px) {
+
   .phx-calendar-v19 .phx-calendar-core {
+
     transform: none !important;
+
   }
+
+
 
   .phx-calendar-v19 .phx-calendar-core-reactor-shell {
+
     min-height: 11.4rem !important;
+
   }
+
+
 
   .phx-calendar-v19 .phx-calendar-core > :last-child,
+
   .phx-calendar-v19 .phx-calendar-core > :last-child * {
+
     font-size: 0.5rem !important;
+
   }
+
 }
+
+
 
 /* CALENDAR_V19_PREMIUM_GLOW_PASS */
+
 .phx-calendar-v19 {
+
   --calendar-glow-soft: rgba(159, 125, 255, 0.16);
+
   --calendar-glow-mid: rgba(159, 125, 255, 0.28);
+
   --calendar-glow-hot: rgba(177, 146, 255, 0.62);
+
 }
+
+
 
 /* Soft orbital aura around the Calendar Core, like Finance/Nutrition but violet. */
+
 .phx-calendar-v19 .phx-calendar-core {
+
   box-shadow:
+
     0 0 0 1px rgba(159, 125, 255, 0.22),
+
     0 0 2.2rem rgba(159, 125, 255, 0.11),
+
     0 1.8rem 4.5rem rgba(0, 0, 0, 0.38),
+
     inset 0 0 2.4rem rgba(159, 125, 255, 0.055) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core::before {
+
   background:
+
     radial-gradient(circle at 50% 35%, rgba(177, 146, 255, 0.20), transparent 9.5rem),
+
     radial-gradient(circle at 50% 48%, rgba(159, 125, 255, 0.10), transparent 16rem),
+
     linear-gradient(90deg, transparent, rgba(159, 125, 255, 0.08), transparent) !important;
+
   opacity: 0.96 !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core::after {
+
   box-shadow:
+
     0 0 0.9rem rgba(159, 125, 255, 0.55),
+
     inset 0 0 0.9rem rgba(159, 125, 255, 0.12);
+
 }
+
+
 
 /* Stronger but still premium reactor light. */
+
 .phx-calendar-v19 .phx-calendar-core-reactor {
+
   filter:
+
     drop-shadow(0 0 0.8rem rgba(159, 125, 255, 0.34))
+
     drop-shadow(0 0 2.2rem rgba(159, 125, 255, 0.18)) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor::before {
+
   border-color: rgba(177, 146, 255, 0.34) !important;
+
   box-shadow:
+
     inset 0 0 1.4rem rgba(159, 125, 255, 0.12),
+
     0 0 1.7rem rgba(159, 125, 255, 0.16) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring.primary,
+
 .phx-calendar-v19 .phx-calendar-core-ring {
+
   filter:
+
     brightness(1.2)
+
     drop-shadow(0 0 0.62rem rgba(177, 146, 255, 0.58))
+
     drop-shadow(0 0 1.35rem rgba(159, 125, 255, 0.24)) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring.secondary {
+
   opacity: 0.72 !important;
+
   filter: drop-shadow(0 0 0.7rem rgba(159, 125, 255, 0.35)) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-ring.tertiary {
+
   opacity: 0.48 !important;
+
   filter: drop-shadow(0 0 0.55rem rgba(159, 125, 255, 0.28)) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center {
+
   border-color: rgba(177, 146, 255, 0.34) !important;
+
   box-shadow:
+
     inset 0 0 2rem rgba(0, 0, 0, 0.46),
+
     inset 0 0 1.2rem rgba(159, 125, 255, 0.08),
+
     0 0 1.5rem rgba(159, 125, 255, 0.16) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+
   text-shadow:
+
     0 0 0.45rem rgba(255, 255, 255, 0.18),
+
     0 0 1.1rem rgba(159, 125, 255, 0.38) !important;
+
 }
+
+
 
 /* Make the scan line visible enough to feel alive. */
+
 .phx-calendar-v19 .phx-calendar-core-scan {
+
   height: 1px !important;
+
   background: linear-gradient(90deg, transparent, rgba(177, 146, 255, 0.22), rgba(177, 146, 255, 0.96), rgba(177, 146, 255, 0.22), transparent) !important;
+
   box-shadow:
+
     0 0 0.75rem rgba(177, 146, 255, 0.68),
+
     0 0 1.55rem rgba(159, 125, 255, 0.34) !important;
+
 }
+
+
 
 /* Active day rail should glow like a selected reactor segment. */
+
 .phx-calendar-v19 .phx-calendar-week-strip.compact > div.active {
+
   border-color: rgba(177, 146, 255, 0.92) !important;
+
   background:
+
     radial-gradient(circle at 50% 100%, rgba(159, 125, 255, 0.22), transparent 70%),
+
     rgba(159, 125, 255, 0.105) !important;
+
   box-shadow:
+
     0 0 1.25rem rgba(159, 125, 255, 0.30),
+
     inset 0 -3px 0 rgba(177, 146, 255, 0.98) !important;
+
 }
+
+
 
 /* Subtle glow on the active tab and command result to tie the page together. */
+
 .phx-calendar-v19 .phx-command-button.active,
+
 .phx-calendar-v19 .phx-calendar-mode-grid .active {
+
   box-shadow:
+
     0 0 1.35rem rgba(159, 125, 255, 0.16),
+
     inset 0 -3px 0 rgba(177, 146, 255, 0.95) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-command-result,
+
 .phx-calendar-v19 .phx-calendar-command-result {
+
   box-shadow:
+
     0 0 1.4rem rgba(159, 125, 255, 0.08),
+
     inset 0 0 1.6rem rgba(159, 125, 255, 0.025) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-core-head strong,
+
 .phx-calendar-v19 .phx-command-title .accent,
+
 .phx-calendar-v19 h1 .accent {
+
   text-shadow:
+
     0 0 0.9rem rgba(159, 125, 255, 0.34),
+
     0 0 1.8rem rgba(159, 125, 255, 0.14) !important;
+
 }
+
+
 
 /* CALENDAR_V19_LOWER_PANEL_SPACING_LOCK */
+
 /* Final lower command-center spacing pass: separates the 3 summary panels from Calendar Routes. */
+
 .phx-calendar-v19 {
+
   --calendar-lower-gap: clamp(1.35rem, 2vw, 1.9rem);
+
   --calendar-route-gap: clamp(1.7rem, 2.45vw, 2.35rem);
+
   --calendar-bottom-safe: clamp(8rem, 10vw, 10.5rem);
+
   padding-bottom: var(--calendar-bottom-safe) !important;
+
 }
+
+
 
 /* Make the lower dashboard read as two clean rows: summaries, then routes. */
+
 .phx-calendar-v19 .phx-calendar-card-grid,
+
 .phx-calendar-v19 .phx-calendar-panels,
+
 .phx-calendar-v19 .phx-data-grid {
+
   gap: var(--calendar-lower-gap) !important;
+
   row-gap: var(--calendar-route-gap) !important;
+
   align-items: stretch !important;
+
   margin-top: clamp(1.65rem, 2.25vw, 2.2rem) !important;
+
   margin-bottom: var(--calendar-bottom-safe) !important;
+
 }
+
+
 
 /* If routes are the 4th panel in the lower grid, force them into their own row. */
+
 .phx-calendar-v19 .phx-calendar-card-grid > *:nth-child(4),
+
 .phx-calendar-v19 .phx-calendar-panels > *:nth-child(4),
+
 .phx-calendar-v19 .phx-data-grid > *:nth-child(4) {
+
   grid-column: 1 / -1 !important;
+
   margin-top: clamp(0.45rem, 0.8vw, 0.85rem) !important;
+
 }
+
+
 
 /* Robust route-panel targeting, even if the primitive wrapper changes. */
+
 .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card),
+
 .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card) {
+
   grid-column: 1 / -1 !important;
+
   margin-top: clamp(0.45rem, 0.8vw, 0.85rem) !important;
+
 }
+
+
 
 /* Give every lower card breathing room internally, without making the page taller than needed. */
+
 .phx-calendar-v19 .phx-calendar-card,
+
 .phx-calendar-v19 .phx-data-panel .phx-calendar-card {
+
   min-height: clamp(7.9rem, 10.5vw, 9.6rem) !important;
+
   padding: clamp(1rem, 1.35vw, 1.28rem) !important;
+
 }
+
+
 
 /* Calendar Routes should feel like a foundation rail, not like it is colliding with the top cards. */
+
 .phx-calendar-v19 .phx-calendar-route-grid {
+
   display: grid !important;
+
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+
   gap: clamp(0.9rem, 1.35vw, 1.25rem) !important;
+
   margin-top: clamp(1rem, 1.35vw, 1.35rem) !important;
+
 }
+
+
 
 .phx-calendar-v19 .phx-calendar-route-card {
+
   min-height: clamp(5.2rem, 6.8vw, 6.25rem) !important;
+
   padding: clamp(0.95rem, 1.25vw, 1.2rem) !important;
+
 }
+
+
 
 /* Add a small visual separator between the summary row and the routes row. */
+
 .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card)::before,
+
 .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card)::before {
+
   opacity: 0.55 !important;
+
 }
+
+
 
 /* Keep the fixed bottom nav from visually swallowing the lower modules. */
+
 .phx-calendar-v19 .phx-bottom-nav,
+
 .phx-calendar-v19 .phx-domain-nav,
+
 .phx-calendar-v19 nav[aria-label*="navigation" i],
+
 .phx-calendar-v19 nav[aria-label*="Phoenix" i] {
+
   z-index: 30 !important;
+
 }
+
+
 
 /* Desktop: keep the three cards aligned and the routes panel comfortably below. */
+
 @media (min-width: 1100px) {
+
   .phx-calendar-v19 .phx-calendar-card-grid,
+
   .phx-calendar-v19 .phx-calendar-panels,
+
   .phx-calendar-v19 .phx-data-grid {
+
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+
   }
+
 }
+
+
 
 /* Tablet/mobile: stack cleanly, no collision with nav. */
+
 @media (max-width: 1099px) {
+
   .phx-calendar-v19 .phx-calendar-card-grid,
+
   .phx-calendar-v19 .phx-calendar-panels,
+
   .phx-calendar-v19 .phx-data-grid {
+
     grid-template-columns: 1fr !important;
+
     margin-bottom: 7.5rem !important;
+
   }
+
+
 
   .phx-calendar-v19 .phx-calendar-card-grid > *:nth-child(4),
+
   .phx-calendar-v19 .phx-calendar-panels > *:nth-child(4),
+
   .phx-calendar-v19 .phx-data-grid > *:nth-child(4),
+
   .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card),
+
   .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card) {
+
     grid-column: auto !important;
+
   }
+
+
 
   .phx-calendar-v19 .phx-calendar-route-grid {
+
     grid-template-columns: 1fr !important;
+
   }
+
 }
+
+
 
 /* CALENDAR_TODAY_COMMAND_RAIL_V1 */
+
 .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-today-rail),
+
 .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-today-rail) {
+
   grid-column: 1 / -1 !important;
+
   margin-top: clamp(1.25rem, 1.9vw, 1.8rem) !important;
+
   border-color: rgba(159, 125, 255, 0.28) !important;
+
   box-shadow:
+
     0 0 1.7rem rgba(159, 125, 255, 0.08),
+
     inset 0 0 1.7rem rgba(159, 125, 255, 0.025) !important;
+
 }
+
+
 
 .phx-calendar-today-rail {
+
   display: grid;
+
   gap: clamp(0.95rem, 1.35vw, 1.25rem);
+
 }
+
+
 
 .phx-calendar-today-rail-head {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   align-items: center;
+
   font-family: var(--font-mono, monospace);
+
   letter-spacing: 0.18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-today-rail-head strong {
+
   color: rgba(177, 146, 255, 0.95);
+
   font-size: clamp(0.75rem, 0.9vw, 0.9rem);
+
   text-shadow: 0 0 0.85rem rgba(159, 125, 255, 0.28);
+
 }
+
+
 
 .phx-calendar-today-rail-head span {
+
   color: rgba(216, 204, 255, 0.58);
+
   font-size: 0.58rem;
+
 }
+
+
 
 .phx-calendar-timeline {
+
   position: relative;
+
   border: 1px solid rgba(159, 125, 255, 0.18);
+
   background:
+
     radial-gradient(circle at 50% 45%, rgba(159, 125, 255, 0.055), transparent 52%),
+
     linear-gradient(180deg, rgba(8, 12, 24, 0.72), rgba(5, 8, 15, 0.9));
+
   padding: clamp(1rem, 1.35vw, 1.25rem);
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-timeline::before {
+
   content: "";
+
   position: absolute;
+
   inset: 3.1rem 1.2rem 1.15rem 1.2rem;
+
   pointer-events: none;
+
   background:
+
     linear-gradient(90deg, rgba(159, 125, 255, 0.16) 1px, transparent 1px),
+
     linear-gradient(rgba(159, 125, 255, 0.10) 1px, transparent 1px);
+
   background-size: calc(100% / 7) 100%, 100% 2.3rem;
+
   opacity: 0.52;
+
 }
+
+
 
 .phx-calendar-timeline-hours {
+
   display: grid;
+
   grid-template-columns: repeat(8, minmax(0, 1fr));
+
   position: relative;
+
   z-index: 2;
+
   color: rgba(216, 204, 255, 0.67);
+
   font-family: var(--font-mono, monospace);
+
   font-size: clamp(0.62rem, 0.8vw, 0.76rem);
+
   letter-spacing: 0.1em;
+
   padding: 0 0.3rem 0.7rem;
+
 }
+
+
 
 .phx-calendar-timeline-hours span {
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-timeline-body {
+
   position: relative;
+
   min-height: clamp(7.6rem, 10.5vw, 9rem);
+
   border-top: 1px solid rgba(216, 204, 255, 0.13);
+
   border-bottom: 1px solid rgba(216, 204, 255, 0.09);
+
   z-index: 2;
+
 }
+
+
 
 .phx-calendar-lane-mark {
+
   position: absolute;
+
   left: 0.5rem;
+
   color: rgba(216, 204, 255, 0.62);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 1rem;
+
 }
+
+
 
 .phx-calendar-lane-mark.top { top: 2rem; }
+
 .phx-calendar-lane-mark.bottom { bottom: 1.2rem; }
 
+
+
 .phx-calendar-timeline-empty {
+
   position: absolute;
+
   inset: 0;
+
   display: grid;
+
   place-items: center;
+
   align-content: center;
+
   gap: 0.35rem;
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-timeline-empty strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.05rem, 1.5vw, 1.38rem);
+
   letter-spacing: 0.18em;
+
   text-transform: uppercase;
+
   text-shadow:
+
     0 0 0.8rem rgba(255, 255, 255, 0.14),
+
     0 0 1.3rem rgba(159, 125, 255, 0.26);
+
 }
+
+
 
 .phx-calendar-timeline-empty span,
-.phx-calendar-timeline-empty em {
-  max-width: 34rem;
-  color: rgba(218, 229, 238, 0.75);
-  font-size: clamp(0.82rem, 1vw, 0.95rem);
-  font-style: normal;
-  line-height: 1.35;
-}
 
 .phx-calendar-timeline-empty em {
-  color: rgba(216, 204, 255, 0.7);
+
+  max-width: 34rem;
+
+  color: rgba(218, 229, 238, 0.75);
+
+  font-size: clamp(0.82rem, 1vw, 0.95rem);
+
+  font-style: normal;
+
+  line-height: 1.35;
+
 }
+
+
+
+.phx-calendar-timeline-empty em {
+
+  color: rgba(216, 204, 255, 0.7);
+
+}
+
+
 
 .phx-calendar-timeline-events {
+
   position: relative;
+
   z-index: 3;
+
   padding: 0.9rem 0.4rem;
+
   display: grid;
+
   gap: 0.5rem;
+
 }
+
+
 
 .phx-calendar-today-rail-meta {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: clamp(0.75rem, 1.15vw, 1rem);
+
 }
+
+
 
 .phx-calendar-today-rail-meta > div {
+
   border: 1px solid rgba(159, 125, 255, 0.18);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.07), transparent 60%),
+
     rgba(7, 10, 19, 0.78);
+
   padding: clamp(0.8rem, 1.1vw, 1rem);
+
   min-height: 4.8rem;
+
   display: grid;
+
   align-content: center;
+
   gap: 0.28rem;
+
 }
+
+
 
 .phx-calendar-today-rail-meta small {
+
   color: rgba(177, 146, 255, 0.8);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.56rem;
+
   letter-spacing: 0.16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-today-rail-meta strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.86rem, 1.08vw, 1.02rem);
+
   letter-spacing: 0.08em;
+
   text-transform: uppercase;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-today-safe-note {
+
   display: flex;
+
   align-items: center;
+
   gap: 0.65rem;
+
   border: 1px solid rgba(159, 125, 255, 0.13);
+
   background: rgba(6, 10, 18, 0.68);
+
   padding: 0.72rem 0.9rem;
+
   color: rgba(216, 204, 255, 0.7);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.62rem;
+
   letter-spacing: 0.05em;
+
 }
+
+
 
 .phx-calendar-today-safe-note span {
+
   color: rgba(177, 146, 255, 0.9);
+
   text-shadow: 0 0 0.9rem rgba(159, 125, 255, 0.45);
+
 }
+
+
 
 @media (min-width: 1100px) {
+
   .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-today-rail),
+
   .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-today-rail) {
+
     grid-column: 1 / -1 !important;
+
   }
+
 }
+
+
 
 @media (max-width: 900px) {
+
   .phx-calendar-today-rail-meta { grid-template-columns: 1fr 1fr; }
+
 }
+
+
 
 @media (max-width: 620px) {
+
   .phx-calendar-today-rail-meta { grid-template-columns: 1fr; }
+
   .phx-calendar-timeline-hours { font-size: 0.52rem; }
+
 }
+
+
 
 /* CALENDAR_WEEK_COMMAND_MAP_V1 */
+
 .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-week-command-map),
+
 .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-week-command-map) {
+
   grid-column: 1 / -1 !important;
+
   margin-top: clamp(1.35rem, 2vw, 1.95rem) !important;
+
   border-color: rgba(159, 125, 255, 0.28) !important;
+
   box-shadow:
+
     0 0 1.8rem rgba(159, 125, 255, 0.08),
+
     inset 0 0 1.8rem rgba(159, 125, 255, 0.025) !important;
+
 }
+
+
 
 .phx-calendar-week-command-map {
+
   display: grid;
+
   gap: clamp(1rem, 1.4vw, 1.35rem);
+
 }
+
+
 
 .phx-calendar-week-map-head {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   align-items: start;
+
 }
+
+
 
 .phx-calendar-week-map-head div {
+
   display: grid;
+
   gap: 0.35rem;
+
 }
+
+
 
 .phx-calendar-week-map-head small,
+
 .phx-calendar-week-map-metrics small,
+
 .phx-calendar-week-summary-cards small {
+
   color: rgba(177, 146, 255, 0.8);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.58rem;
+
   letter-spacing: 0.18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-week-map-head strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.9rem, 3vw, 3.1rem);
+
   letter-spacing: 0.12em;
+
   line-height: 0.92;
+
   text-transform: uppercase;
+
   text-shadow:
+
     0 0 0.7rem rgba(255, 255, 255, 0.12),
+
     0 0 1.4rem rgba(159, 125, 255, 0.20);
+
 }
+
+
 
 .phx-calendar-week-map-head span {
+
   color: rgba(218, 229, 238, 0.78);
+
   font-size: clamp(0.82rem, 1vw, 0.98rem);
+
 }
+
+
 
 .phx-calendar-week-map-head em {
+
   color: rgba(216, 204, 255, 0.72);
+
   border: 1px solid rgba(159, 125, 255, 0.32);
+
   background: rgba(159, 125, 255, 0.08);
+
   padding: 0.5rem 0.72rem;
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.58rem;
+
   font-style: normal;
+
   letter-spacing: 0.16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-week-map-metrics {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: clamp(0.75rem, 1vw, 1rem);
+
 }
+
+
 
 .phx-calendar-week-map-metrics > div {
+
   min-height: 4.2rem;
+
   display: grid;
+
   align-content: center;
+
   gap: 0.25rem;
+
   border: 1px solid rgba(159, 125, 255, 0.18);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.07), transparent 60%),
+
     rgba(7, 10, 19, 0.78);
+
   padding: clamp(0.75rem, 1vw, 0.95rem);
+
 }
+
+
 
 .phx-calendar-week-map-metrics strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.9rem, 1.15vw, 1.08rem);
+
   letter-spacing: 0.08em;
+
   text-transform: uppercase;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-week-day-strip {
+
   display: grid;
+
   grid-template-columns: repeat(7, minmax(0, 1fr));
+
   gap: clamp(0.4rem, 0.8vw, 0.7rem);
+
 }
+
+
 
 .phx-calendar-week-day-strip button {
+
   min-height: clamp(3.75rem, 5vw, 4.85rem);
+
   display: grid;
+
   place-items: center;
+
   gap: 0.18rem;
+
   border: 1px solid rgba(159, 125, 255, 0.16);
+
   background: rgba(12, 15, 30, 0.72);
+
   color: var(--text-primary, #eaf3fb);
+
   cursor: pointer;
+
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+
 }
+
+
 
 .phx-calendar-week-day-strip button:hover {
+
   transform: translateY(-2px);
+
   border-color: rgba(159, 125, 255, 0.55);
+
 }
+
+
 
 .phx-calendar-week-day-strip span {
+
   color: rgba(216, 204, 255, 0.66);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.58rem;
+
   letter-spacing: 0.16em;
+
 }
+
+
 
 .phx-calendar-week-day-strip strong {
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.25rem, 1.9vw, 1.75rem);
+
 }
+
+
 
 .phx-calendar-week-day-strip em {
+
   color: rgba(216, 204, 255, 0.48);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.48rem;
+
   font-style: normal;
+
   letter-spacing: 0.12em;
+
 }
+
+
 
 .phx-calendar-week-day-strip button.active {
+
   border-color: rgba(177, 146, 255, 0.95);
+
   background:
+
     radial-gradient(circle at 50% 100%, rgba(159, 125, 255, 0.22), transparent 70%),
+
     rgba(159, 125, 255, 0.105);
+
   box-shadow:
+
     0 0 1.25rem rgba(159, 125, 255, 0.28),
+
     inset 0 -3px 0 rgba(177, 146, 255, 0.98);
+
 }
+
+
 
 .phx-calendar-week-rhythm-grid {
+
   position: relative;
+
   display: grid;
+
   grid-template-columns: minmax(8rem, 10rem) 1fr;
+
   grid-template-rows: auto minmax(11rem, 14rem) auto;
+
   border: 1px solid rgba(159, 125, 255, 0.18);
+
   background:
+
     radial-gradient(circle at 50% 45%, rgba(159, 125, 255, 0.055), transparent 52%),
+
     linear-gradient(180deg, rgba(8, 12, 24, 0.72), rgba(5, 8, 15, 0.9));
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-week-lanes {
+
   grid-row: 2;
+
   display: grid;
+
   grid-template-rows: repeat(5, 1fr);
+
   padding: 0.85rem 0.9rem;
+
   border-right: 1px solid rgba(159, 125, 255, 0.13);
+
 }
+
+
 
 .phx-calendar-week-lanes span {
+
   color: rgba(218, 229, 238, 0.68);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.62rem;
+
   letter-spacing: 0.08em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-week-hours {
+
   grid-column: 2;
+
   display: grid;
+
   grid-template-columns: repeat(7, minmax(0, 1fr));
+
   padding: 0.8rem 0.9rem 0.5rem;
+
   color: rgba(216, 204, 255, 0.64);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.62rem;
+
   letter-spacing: 0.1em;
+
 }
+
+
 
 .phx-calendar-week-hours span {
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-week-grid-body {
+
   grid-column: 2;
+
   grid-row: 2;
+
   position: relative;
+
   min-height: 11rem;
+
   background:
+
     linear-gradient(90deg, rgba(159, 125, 255, 0.13) 1px, transparent 1px),
+
     linear-gradient(rgba(159, 125, 255, 0.10) 1px, transparent 1px);
+
   background-size: calc(100% / 6) 100%, 100% calc(100% / 5);
+
 }
+
+
 
 .phx-calendar-week-empty {
+
   position: absolute;
+
   inset: 0;
+
   display: grid;
+
   place-items: center;
+
   align-content: center;
+
   gap: 0.35rem;
+
   text-align: center;
+
 }
+
+
 
 .phx-calendar-week-empty strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.15rem, 1.75vw, 1.55rem);
+
   letter-spacing: 0.18em;
+
   text-transform: uppercase;
+
   text-shadow:
+
     0 0 0.8rem rgba(255, 255, 255, 0.14),
+
     0 0 1.3rem rgba(159, 125, 255, 0.26);
+
 }
+
+
 
 .phx-calendar-week-empty span,
-.phx-calendar-week-empty em {
-  color: rgba(218, 229, 238, 0.75);
-  font-size: clamp(0.82rem, 1vw, 0.95rem);
-  font-style: normal;
-  line-height: 1.35;
-}
 
 .phx-calendar-week-empty em {
-  color: rgba(216, 204, 255, 0.7);
+
+  color: rgba(218, 229, 238, 0.75);
+
+  font-size: clamp(0.82rem, 1vw, 0.95rem);
+
+  font-style: normal;
+
+  line-height: 1.35;
+
 }
+
+
+
+.phx-calendar-week-empty em {
+
+  color: rgba(216, 204, 255, 0.7);
+
+}
+
+
 
 .phx-calendar-week-event-stack {
+
   position: relative;
+
   z-index: 2;
+
   padding: 0.85rem;
+
   display: grid;
+
   gap: 0.5rem;
+
 }
+
+
 
 .phx-calendar-week-legend {
+
   grid-column: 1 / -1;
+
   display: flex;
+
   flex-wrap: wrap;
+
   justify-content: center;
+
   gap: clamp(0.8rem, 1.35vw, 1.25rem);
+
   padding: 0.75rem 0.9rem 0.85rem;
+
   border-top: 1px solid rgba(159, 125, 255, 0.13);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.56rem;
+
   letter-spacing: 0.14em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-week-legend span::before {
+
   content: "";
+
   display: inline-block;
+
   width: 0.46rem;
+
   height: 0.46rem;
+
   border-radius: 999px;
+
   margin-right: 0.42rem;
+
   box-shadow: 0 0 0.7rem currentColor;
+
   background: currentColor;
+
 }
+
+
 
 .phx-calendar-week-legend .performance { color: rgba(159, 125, 255, 0.96); }
+
 .phx-calendar-week-legend .rehearsal { color: rgba(91, 152, 255, 0.96); }
+
 .phx-calendar-week-legend .travel { color: rgba(255, 211, 104, 0.96); }
+
 .phx-calendar-week-legend .recovery { color: rgba(56, 255, 177, 0.96); }
+
 .phx-calendar-week-legend .buffer { color: rgba(173, 181, 200, 0.8); }
 
+
+
 .phx-calendar-week-summary-cards {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: clamp(0.85rem, 1.2vw, 1rem);
+
 }
+
+
 
 .phx-calendar-week-summary-cards > div {
+
   position: relative;
+
   min-height: 7.4rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.48rem;
+
   border: 1px solid rgba(159, 125, 255, 0.18);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.07), transparent 60%),
+
     rgba(7, 10, 19, 0.78);
+
   padding: clamp(0.9rem, 1.2vw, 1.12rem);
+
 }
+
+
 
 .phx-calendar-week-summary-cards strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1rem, 1.35vw, 1.18rem);
+
   letter-spacing: 0.08em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-week-summary-cards span {
+
   color: rgba(218, 229, 238, 0.72);
+
   font-size: 0.82rem;
+
   line-height: 1.35;
+
 }
+
+
 
 .phx-calendar-week-summary-cards em {
+
   position: absolute;
+
   right: 0.85rem;
+
   bottom: 0.72rem;
+
   color: rgba(216, 204, 255, 0.45);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.48rem;
+
   font-style: normal;
+
   letter-spacing: 0.14em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-week-safe-note {
+
   display: flex;
+
   align-items: center;
+
   flex-wrap: wrap;
+
   gap: 0.65rem;
+
   border: 1px solid rgba(159, 125, 255, 0.13);
+
   background: rgba(6, 10, 18, 0.68);
+
   padding: 0.72rem 0.9rem;
+
   color: rgba(216, 204, 255, 0.7);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.62rem;
+
   letter-spacing: 0.05em;
+
 }
+
+
 
 .phx-calendar-week-safe-note span {
+
   color: rgba(177, 146, 255, 0.9);
+
   text-shadow: 0 0 0.9rem rgba(159, 125, 255, 0.45);
+
 }
+
+
 
 .phx-calendar-week-safe-note em {
+
   margin-left: auto;
+
   color: rgba(216, 204, 255, 0.52);
+
   font-style: normal;
+
 }
+
+
 
 @media (max-width: 1100px) {
+
   .phx-calendar-week-map-metrics,
+
   .phx-calendar-week-summary-cards {
+
     grid-template-columns: 1fr 1fr;
+
   }
+
+
 
   .phx-calendar-week-rhythm-grid {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .phx-calendar-week-lanes {
+
     display: none;
+
   }
+
+
 
   .phx-calendar-week-hours,
+
   .phx-calendar-week-grid-body {
+
     grid-column: 1;
+
   }
+
 }
+
+
 
 @media (max-width: 720px) {
+
   .phx-calendar-week-map-head,
+
   .phx-calendar-week-map-metrics,
+
   .phx-calendar-week-summary-cards {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .phx-calendar-week-map-head {
+
     display: grid;
+
   }
+
+
 
   .phx-calendar-week-day-strip {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
 }
+
+
 
 /* CALENDAR_SUBSECTION_ROUTER_V2 */
+
 /* Today and Week are routed subsection views, not permanent command-center panels. */
+
 .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-today-rail),
+
 .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-week-command-map),
+
 .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-today-rail),
+
 .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-week-command-map) {
+
   grid-column: 1 / -1 !important;
+
   margin-top: clamp(1.45rem, 2.1vw, 2rem) !important;
+
   margin-bottom: clamp(1.15rem, 1.7vw, 1.55rem) !important;
+
 }
+
+
 
 /* Calendar Routes remains below whichever subsection is active. */
+
 .phx-calendar-v19 .phx-data-panel:has(.phx-calendar-route-card),
+
 .phx-calendar-v19 [class*="panel"]:has(.phx-calendar-route-card) {
+
   grid-column: 1 / -1 !important;
+
   margin-top: clamp(1.15rem, 1.8vw, 1.65rem) !important;
+
 }
 
+
+
 .phx-calendar-subsection-placeholder {
+
   min-height: clamp(12rem, 18vw, 16rem);
+
   display: grid;
+
   place-items: center;
+
   align-content: center;
+
   gap: 0.55rem;
+
   text-align: center;
+
   border: 1px solid rgba(159, 125, 255, 0.18);
+
   background:
+
     radial-gradient(circle at 50% 42%, rgba(159, 125, 255, 0.08), transparent 54%),
+
     rgba(7, 10, 19, 0.74);
+
   padding: clamp(1.25rem, 2vw, 1.9rem);
+
 }
+
+
 
 .phx-calendar-subsection-placeholder strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.1rem, 1.7vw, 1.55rem);
+
   letter-spacing: 0.16em;
+
   text-transform: uppercase;
+
   text-shadow:
+
     0 0 0.8rem rgba(255, 255, 255, 0.14),
+
     0 0 1.3rem rgba(159, 125, 255, 0.25);
+
 }
+
+
 
 .phx-calendar-subsection-placeholder span {
+
   max-width: 42rem;
+
   color: rgba(218, 229, 238, 0.76);
+
   line-height: 1.45;
+
 }
+
+
 
 .phx-calendar-subsection-placeholder em {
+
   color: rgba(216, 204, 255, 0.62);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.62rem;
+
   font-style: normal;
+
   letter-spacing: 0.08em;
+
   text-transform: uppercase;
+
 }
 
+
+
 /* CALENDAR_SUBSECTION_ROUTER_V3 */
+
 /* Repair marker: active Calendar subsections are routed, not stacked. */
+
 .phx-calendar-subsection-placeholder {
+
   min-height: clamp(12rem, 18vw, 16rem);
+
 }
+
+
+
 
 
 /* CALENDAR_SECTION_SCREEN_V1 */
+
 /* Calendar subsections are standalone screens, not panels embedded in the Command Center. */
+
 .phx-calendar-section-screen .phx-domain-frame {
+
   gap: clamp(1.2rem, 2vw, 1.9rem);
+
 }
+
+
 
 .phx-calendar-section-header {
+
   display: grid;
+
   grid-template-columns: auto 1fr auto;
+
   align-items: center;
+
   gap: clamp(1rem, 1.8vw, 1.6rem);
+
   border: 1px solid rgba(159, 125, 255, 0.20);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.11), transparent 48%),
+
     linear-gradient(135deg, rgba(10, 14, 28, 0.92), rgba(5, 8, 18, 0.84));
+
   padding: clamp(1rem, 1.8vw, 1.45rem);
+
   box-shadow:
+
     0 0 1.6rem rgba(159, 125, 255, 0.08),
+
     inset 0 0 1.4rem rgba(159, 125, 255, 0.025);
+
 }
+
+
 
 .phx-calendar-section-header div {
+
   display: grid;
+
   gap: 0.35rem;
+
 }
+
+
 
 .phx-calendar-section-header small {
+
   color: rgba(177, 146, 255, 0.78);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.58rem;
+
   letter-spacing: 0.18em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-section-header strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.7rem, 3vw, 3.2rem);
+
   letter-spacing: 0.12em;
+
   line-height: 0.95;
+
   text-transform: uppercase;
+
   text-shadow:
+
     0 0 0.8rem rgba(255, 255, 255, 0.12),
+
     0 0 1.35rem rgba(159, 125, 255, 0.22);
+
 }
+
+
 
 .phx-calendar-section-header span {
+
   color: rgba(218, 229, 238, 0.76);
+
   font-size: clamp(0.82rem, 1vw, 0.98rem);
+
 }
+
+
 
 .phx-calendar-section-back {
+
   border: 1px solid rgba(159, 125, 255, 0.26);
+
   background: rgba(159, 125, 255, 0.07);
+
   color: rgba(232, 224, 255, 0.92);
+
   cursor: pointer;
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.58rem;
+
   letter-spacing: 0.14em;
+
   padding: 0.72rem 0.9rem;
+
   text-transform: uppercase;
+
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+
 }
+
+
 
 .phx-calendar-section-back:hover {
+
   transform: translateY(-1px);
+
   border-color: rgba(177, 146, 255, 0.72);
+
   box-shadow: 0 0 1rem rgba(159, 125, 255, 0.16);
+
 }
+
+
 
 @media (max-width: 760px) {
+
   .phx-calendar-section-header {
+
     grid-template-columns: 1fr;
+
   }
 
+
+
   .phx-calendar-section-back {
+
     width: 100%;
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_SUBSECTION_POLISH_V1 */
+
 /* Reduce standalone subsection title repetition and keep route controls compact. */
+
 .phx-calendar-section-screen .phx-calendar-section-header {
+
   min-height: unset;
+
   padding: clamp(0.9rem, 1.45vw, 1.22rem) clamp(1rem, 1.7vw, 1.5rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-section-header strong {
+
   font-size: clamp(1.45rem, 2.65vw, 2.85rem);
+
   letter-spacing: 0.12em;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-section-header span {
+
   max-width: 64rem;
+
 }
 
+
+
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-today-rail),
+
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-week-command-map),
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-today-rail),
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-week-command-map) {
+
   margin-top: clamp(0.9rem, 1.35vw, 1.25rem) !important;
+
 }
+
+
 
 .phx-calendar-week-map-kicker {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   border: 1px solid rgba(159, 125, 255, 0.14);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.055), transparent 58%),
+
     rgba(7, 10, 19, 0.56);
+
   padding: clamp(0.72rem, 1vw, 0.95rem);
+
 }
+
+
 
 .phx-calendar-week-map-kicker span {
+
   color: rgba(218, 229, 238, 0.76);
+
   font-size: clamp(0.82rem, 1vw, 0.96rem);
+
 }
+
+
 
 .phx-calendar-week-map-kicker em {
+
   color: rgba(216, 204, 255, 0.62);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.55rem;
+
   font-style: normal;
+
   letter-spacing: 0.14em;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid),
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-route-grid) {
+
   margin-top: clamp(0.7rem, 1.2vw, 1rem) !important;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-grid {
+
   grid-template-columns: repeat(5, minmax(0, 1fr));
+
   gap: clamp(0.55rem, 0.9vw, 0.8rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-card {
+
   min-height: 4.8rem;
+
   padding: clamp(0.72rem, 1vw, 0.9rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-card strong {
+
   font-size: clamp(0.82rem, 1.05vw, 0.98rem);
+
   letter-spacing: 0.1em;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-card span {
+
   font-size: 0.72rem;
+
   line-height: 1.3;
+
 }
 
+
+
 @media (max-width: 920px) {
+
   .phx-calendar-section-screen .phx-calendar-route-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
+
 
   .phx-calendar-week-map-kicker {
+
     display: grid;
+
   }
+
 }
+
+
 
 /* CALENDAR_SUBSECTION_SPACING_LOCK_V2 */
+
 /* Tighten standalone Calendar subsection spacing after visual review. */
+
 .phx-calendar-section-screen .phx-domain-frame {
+
   width: min(100%, 92rem);
+
   margin-inline: auto;
+
   gap: clamp(0.78rem, 1.15vw, 1.15rem);
+
   padding-bottom: clamp(6.25rem, 8.5vh, 7.75rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-section-header {
+
   grid-template-columns: auto minmax(0, 1fr) auto;
+
   min-height: 0;
+
   margin: 0;
+
   padding: clamp(0.72rem, 1.15vw, 1.02rem) clamp(0.9rem, 1.45vw, 1.25rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-section-back {
+
   padding: 0.58rem 0.78rem;
+
   min-height: 2.65rem;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-section-header small {
+
   font-size: 0.52rem;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-section-header strong {
+
   font-size: clamp(1.28rem, 2.35vw, 2.45rem);
+
   line-height: 0.92;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-section-header span {
+
   font-size: clamp(0.76rem, 0.95vw, 0.9rem);
+
   line-height: 1.25;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel,
+
 .phx-calendar-section-screen [class*="panel"] {
+
   scroll-margin-bottom: 8rem;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-today-rail),
+
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-week-command-map),
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-today-rail),
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-week-command-map) {
+
   margin-top: clamp(0.48rem, 0.85vw, 0.78rem) !important;
+
   margin-bottom: clamp(0.62rem, 1vw, 0.9rem) !important;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-today-rail) .phx-panel-body,
+
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-week-command-map) .phx-panel-body,
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-today-rail) .phx-panel-body,
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-week-command-map) .phx-panel-body {
+
   padding-block: clamp(0.85rem, 1.25vw, 1.15rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-today-rail,
+
 .phx-calendar-section-screen .phx-calendar-week-command-map {
+
   gap: clamp(0.72rem, 1vw, 0.98rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-timeline {
+
   margin-top: 0;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-timeline-body {
+
   min-height: clamp(9.6rem, 16vh, 12rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-today-rail-meta {
+
   gap: clamp(0.58rem, 0.9vw, 0.8rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-today-rail-meta > div {
+
   min-height: clamp(4.35rem, 6.2vh, 5.15rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-map-metrics {
+
   gap: clamp(0.58rem, 0.85vw, 0.8rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-map-metrics > div {
+
   min-height: 3.75rem;
+
   padding: clamp(0.62rem, 0.85vw, 0.78rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-day-strip {
+
   gap: clamp(0.38rem, 0.65vw, 0.55rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-day-strip button {
+
   min-height: clamp(3.18rem, 4.35vw, 4rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-rhythm-grid {
+
   grid-template-rows: auto minmax(9rem, 12rem) auto;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-grid-body {
+
   min-height: clamp(9rem, 16vh, 12rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-summary-cards {
+
   gap: clamp(0.62rem, 0.9vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-week-summary-cards > div {
+
   min-height: 6.35rem;
+
   padding: clamp(0.72rem, 1vw, 0.9rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid),
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-route-grid) {
+
   margin-top: clamp(0.45rem, 0.8vw, 0.7rem) !important;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid) .phx-panel-body,
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-route-grid) .phx-panel-body {
+
   padding-block: clamp(0.65rem, 1vw, 0.95rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-grid {
+
   grid-template-columns: repeat(5, minmax(0, 1fr));
+
   gap: clamp(0.42rem, 0.7vw, 0.62rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-card {
+
   min-height: 4.1rem;
+
   padding: clamp(0.58rem, 0.82vw, 0.72rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-card strong {
+
   font-size: clamp(0.74rem, 0.92vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-card span {
+
   font-size: 0.66rem;
+
   line-height: 1.25;
+
 }
+
+
 
 @media (max-width: 920px) {
+
   .phx-calendar-section-screen .phx-domain-frame {
+
     width: min(100%, 94vw);
+
   }
 
+
+
   .phx-calendar-section-screen .phx-calendar-route-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_FEEDS_COMMAND_V1 */
+
 .phx-calendar-feeds-command {
+
   display: grid;
+
   gap: clamp(0.78rem, 1.1vw, 1.05rem);
+
 }
+
+
 
 .phx-calendar-feeds-head {
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   align-items: start;
+
   border: 1px solid rgba(159, 125, 255, 0.14);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.06), transparent 58%),
+
     rgba(7, 10, 19, 0.58);
+
   padding: clamp(0.82rem, 1.15vw, 1rem);
+
 }
+
+
 
 .phx-calendar-feeds-head div {
+
   display: grid;
+
   gap: 0.32rem;
+
 }
+
+
 
 .phx-calendar-feeds-head small,
+
 .phx-calendar-feeds-metrics small,
+
 .phx-calendar-feed-card small,
+
 .phx-calendar-feeds-diagnostics small {
+
   color: rgba(177, 146, 255, 0.78);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.55rem;
+
   letter-spacing: 0.16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-feeds-head strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.25rem, 2.1vw, 2rem);
+
   letter-spacing: 0.12em;
+
   line-height: 0.95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-feeds-head span {
+
   color: rgba(218, 229, 238, 0.74);
+
   font-size: clamp(0.78rem, 0.95vw, 0.92rem);
+
 }
+
+
 
 .phx-calendar-feeds-head em {
+
   color: rgba(216, 204, 255, 0.62);
+
   border: 1px solid rgba(159, 125, 255, 0.24);
+
   background: rgba(159, 125, 255, 0.075);
+
   padding: 0.48rem 0.68rem;
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.54rem;
+
   font-style: normal;
+
   letter-spacing: 0.14em;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-feeds-metrics {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: clamp(0.58rem, 0.85vw, 0.8rem);
+
 }
+
+
 
 .phx-calendar-feeds-metrics > div,
+
 .phx-calendar-feed-card,
+
 .phx-calendar-feeds-diagnostics > div {
+
   border: 1px solid rgba(159, 125, 255, 0.16);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.06), transparent 58%),
+
     rgba(7, 10, 19, 0.72);
+
 }
+
+
 
 .phx-calendar-feeds-metrics > div {
+
   min-height: 3.65rem;
+
   display: grid;
+
   align-content: center;
+
   gap: 0.22rem;
+
   padding: clamp(0.62rem, 0.85vw, 0.8rem);
+
 }
+
+
 
 .phx-calendar-feeds-metrics strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.82rem, 1.05vw, 0.98rem);
+
   letter-spacing: 0.08em;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-feed-grid {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: clamp(0.62rem, 0.95vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-feed-card {
+
   position: relative;
+
   min-height: 8.5rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.56rem;
+
   padding: clamp(0.82rem, 1.08vw, 1rem);
+
   overflow: hidden;
+
 }
+
+
 
 .phx-calendar-feed-card::before {
+
   content: "";
+
   position: absolute;
+
   inset: 0 auto 0 0;
+
   width: 3px;
+
   background: rgba(177, 146, 255, 0.42);
+
   box-shadow: 0 0 0.85rem rgba(159, 125, 255, 0.38);
+
 }
+
+
 
 .phx-calendar-feed-card.ready::before {
+
   background: rgba(56, 255, 177, 0.72);
+
   box-shadow: 0 0 0.85rem rgba(56, 255, 177, 0.34);
+
 }
+
+
 
 .phx-calendar-feed-card.locked::before {
+
   background: rgba(255, 213, 107, 0.72);
+
   box-shadow: 0 0 0.85rem rgba(255, 213, 107, 0.28);
+
 }
+
+
 
 .phx-calendar-feed-card.waiting::before {
+
   background: rgba(173, 181, 200, 0.52);
+
   box-shadow: 0 0 0.85rem rgba(173, 181, 200, 0.18);
+
 }
+
+
 
 .phx-calendar-feed-card div {
+
   display: grid;
+
   gap: 0.24rem;
+
 }
+
+
 
 .phx-calendar-feed-card strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.98rem, 1.35vw, 1.22rem);
+
   letter-spacing: 0.1em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-feed-card p {
+
   color: rgba(218, 229, 238, 0.72);
+
   font-size: 0.78rem;
+
   line-height: 1.35;
+
   margin: 0;
+
 }
+
+
 
 .phx-calendar-feed-card em {
+
   align-self: end;
+
   color: rgba(216, 204, 255, 0.52);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.54rem;
+
   font-style: normal;
+
   letter-spacing: 0.1em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-feeds-diagnostics {
+
   display: grid;
+
   grid-template-columns: 1fr 1fr;
+
   gap: clamp(0.62rem, 0.95vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-feeds-diagnostics > div {
+
   min-height: 5.4rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.38rem;
+
   padding: clamp(0.82rem, 1.08vw, 1rem);
+
 }
+
+
 
 .phx-calendar-feeds-diagnostics strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   letter-spacing: 0.09em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-feeds-diagnostics span {
+
   color: rgba(218, 229, 238, 0.72);
+
   font-size: 0.8rem;
+
   line-height: 1.35;
+
 }
+
+
 
 .phx-calendar-feeds-safe-note {
+
   display: flex;
+
   align-items: center;
+
   gap: 0.62rem;
+
   border: 1px solid rgba(159, 125, 255, 0.13);
+
   background: rgba(6, 10, 18, 0.68);
+
   padding: 0.7rem 0.9rem;
+
   color: rgba(216, 204, 255, 0.7);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.62rem;
+
   letter-spacing: 0.05em;
+
 }
+
+
 
 .phx-calendar-feeds-safe-note span {
+
   color: rgba(177, 146, 255, 0.9);
+
 }
+
+
 
 @media (max-width: 1100px) {
+
   .phx-calendar-feeds-metrics,
+
   .phx-calendar-feed-grid {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
+
 
   .phx-calendar-feeds-diagnostics {
+
     grid-template-columns: 1fr;
+
   }
+
 }
+
+
 
 @media (max-width: 720px) {
+
   .phx-calendar-feeds-head {
+
     display: grid;
+
   }
 
+
+
   .phx-calendar-feeds-metrics,
+
   .phx-calendar-feed-grid {
+
     grid-template-columns: 1fr;
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_FEEDS_VISUAL_POLISH_V2 */
+
 /* Feeds subsection visual lock: remove duplicate title pressure, fix card height, improve bottom-nav clearance. */
+
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-feeds-command),
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-feeds-command) {
+
   margin-top: clamp(0.48rem, 0.85vw, 0.78rem) !important;
+
   margin-bottom: clamp(0.62rem, 1vw, 0.9rem) !important;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-feeds-command) .phx-panel-body,
+
 .phx-calendar-section-screen [class*="panel"]:has(.phx-calendar-feeds-command) .phx-panel-body {
+
   padding-block: clamp(0.78rem, 1.1vw, 1rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-command {
+
   gap: clamp(0.62rem, 0.9vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-head {
+
   padding: clamp(0.64rem, 0.92vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-head strong {
+
   font-size: clamp(1rem, 1.65vw, 1.55rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-head span {
+
   font-size: clamp(0.74rem, 0.9vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-metrics {
+
   gap: clamp(0.48rem, 0.72vw, 0.64rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-metrics > div {
+
   min-height: 3.15rem;
+
   padding: clamp(0.52rem, 0.72vw, 0.66rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feed-grid {
+
   gap: clamp(0.5rem, 0.78vw, 0.68rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feed-card {
+
   min-height: 7.2rem;
+
   padding: clamp(0.66rem, 0.9vw, 0.82rem);
+
   gap: 0.42rem;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feed-card strong {
+
   font-size: clamp(0.86rem, 1.15vw, 1.08rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feed-card p {
+
   font-size: 0.72rem;
+
   line-height: 1.3;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feed-card em {
+
   font-size: 0.5rem;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-diagnostics {
+
   gap: clamp(0.5rem, 0.78vw, 0.68rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-diagnostics > div {
+
   min-height: 4.55rem;
+
   padding: clamp(0.66rem, 0.9vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-feeds-safe-note {
+
   padding: 0.58rem 0.78rem;
+
   font-size: 0.58rem;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid) {
+
   max-height: none;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-data-panel:has(.phx-calendar-route-grid) .phx-panel-body {
+
   padding-top: clamp(0.55rem, 0.85vw, 0.75rem);
+
   padding-bottom: clamp(1rem, 2.2vw, 1.7rem);
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-grid {
+
   align-items: stretch;
+
 }
+
+
 
 .phx-calendar-section-screen .phx-calendar-route-card {
+
   min-height: 3.55rem;
+
 }
 
+
+
 @media (min-width: 1200px) {
+
   .phx-calendar-section-screen .phx-calendar-feeds-metrics,
+
   .phx-calendar-section-screen .phx-calendar-feed-grid {
+
     grid-template-columns: repeat(4, minmax(0, 1fr));
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_BRIEF_COMMAND_V1 */
+
 .phx-calendar-brief-command {
+
   display: grid;
+
   gap: clamp(0.62rem, 0.95vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-brief-head {
+
   display: flex;
+
   align-items: start;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   border: 1px solid rgba(159, 125, 255, 0.14);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.06), transparent 58%),
+
     rgba(7, 10, 19, 0.58);
+
   padding: clamp(0.66rem, 0.95vw, 0.84rem);
+
 }
+
+
 
 .phx-calendar-brief-head div {
+
   display: grid;
+
   gap: 0.28rem;
+
 }
+
+
 
 .phx-calendar-brief-head small,
+
 .phx-calendar-brief-metric small,
+
 .phx-calendar-brief-body small,
+
 .phx-calendar-brief-contract small {
+
   color: rgba(177, 146, 255, 0.78);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.54rem;
+
   letter-spacing: 0.16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-brief-head strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.05rem, 1.75vw, 1.68rem);
+
   letter-spacing: 0.12em;
+
   line-height: 0.95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-brief-head span {
+
   color: rgba(218, 229, 238, 0.74);
+
   font-size: clamp(0.74rem, 0.9vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-brief-head em {
+
   color: rgba(216, 204, 255, 0.66);
+
   border: 1px solid rgba(159, 125, 255, 0.24);
+
   background: rgba(159, 125, 255, 0.075);
+
   padding: 0.48rem 0.68rem;
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.54rem;
+
   font-style: normal;
+
   letter-spacing: 0.14em;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-brief-metrics {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: clamp(0.5rem, 0.78vw, 0.68rem);
+
 }
+
+
 
 .phx-calendar-brief-metric,
+
 .phx-calendar-brief-body section,
+
 .phx-calendar-brief-contract > div {
+
   border: 1px solid rgba(159, 125, 255, 0.16);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(159, 125, 255, 0.055), transparent 58%),
+
     rgba(7, 10, 19, 0.72);
+
 }
+
+
 
 .phx-calendar-brief-metric {
+
   min-height: 5.6rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.34rem;
+
   padding: clamp(0.66rem, 0.9vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-brief-metric strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.86rem, 1.12vw, 1.05rem);
+
   letter-spacing: 0.08em;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-brief-metric span {
+
   color: rgba(218, 229, 238, 0.72);
+
   font-size: 0.72rem;
+
   line-height: 1.3;
+
 }
+
+
 
 .phx-calendar-brief-body {
+
   display: grid;
+
   grid-template-columns: 1.25fr 1fr 1fr;
+
   gap: clamp(0.5rem, 0.78vw, 0.68rem);
+
 }
+
+
 
 .phx-calendar-brief-body section {
+
   min-height: 7.1rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.42rem;
+
   padding: clamp(0.72rem, 0.95vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-brief-body strong,
+
 .phx-calendar-brief-contract strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.9rem, 1.15vw, 1.08rem);
+
   letter-spacing: 0.09em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-brief-body p,
+
 .phx-calendar-brief-contract span {
+
   color: rgba(218, 229, 238, 0.73);
+
   font-size: 0.76rem;
+
   line-height: 1.35;
+
   margin: 0;
+
 }
+
+
 
 .phx-calendar-brief-contract {
+
   display: grid;
+
   grid-template-columns: 1.2fr 1fr;
+
   gap: clamp(0.5rem, 0.78vw, 0.68rem);
+
 }
+
+
 
 .phx-calendar-brief-contract > div {
+
   min-height: 4.8rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.36rem;
+
   padding: clamp(0.66rem, 0.9vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-brief-safe-note {
+
   display: flex;
+
   align-items: center;
+
   gap: 0.62rem;
+
   border: 1px solid rgba(159, 125, 255, 0.13);
+
   background: rgba(6, 10, 18, 0.68);
+
   padding: 0.58rem 0.78rem;
+
   color: rgba(216, 204, 255, 0.7);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.58rem;
+
   letter-spacing: 0.05em;
+
 }
+
+
 
 .phx-calendar-brief-safe-note span {
+
   color: rgba(177, 146, 255, 0.9);
+
 }
+
+
 
 @media (max-width: 1100px) {
+
   .phx-calendar-brief-metrics {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
+
+
 
   .phx-calendar-brief-body,
+
   .phx-calendar-brief-contract {
+
     grid-template-columns: 1fr;
+
   }
+
 }
+
+
 
 @media (max-width: 720px) {
+
   .phx-calendar-brief-head {
+
     display: grid;
+
   }
 
+
+
   .phx-calendar-brief-metrics {
+
     grid-template-columns: 1fr;
+
   }
+
 }
+
+
+
 
 
 /* CALENDAR_PERFORMANCES_COMMAND_V1 */
+
 .phx-calendar-performances-command {
+
   display: grid;
+
   gap: clamp(0.62rem, 0.95vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-performances-head {
+
   display: flex;
+
   align-items: start;
+
   justify-content: space-between;
+
   gap: 1rem;
+
   border: 1px solid rgba(255, 213, 107, 0.16);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(255, 213, 107, 0.07), transparent 58%),
+
     rgba(7, 10, 19, 0.6);
+
   padding: clamp(0.66rem, 0.95vw, 0.84rem);
+
 }
+
+
 
 .phx-calendar-performances-head div {
+
   display: grid;
+
   gap: 0.28rem;
+
 }
+
+
 
 .phx-calendar-performances-head small,
+
 .phx-calendar-performance-card small,
+
 .phx-calendar-performance-section-head small,
+
 .phx-calendar-performance-side small {
+
   color: rgba(255, 213, 107, 0.78);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.54rem;
+
   letter-spacing: 0.16em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-performances-head strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(1.05rem, 1.75vw, 1.68rem);
+
   letter-spacing: 0.12em;
+
   line-height: 0.95;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-performances-head span {
+
   color: rgba(218, 229, 238, 0.74);
+
   font-size: clamp(0.74rem, 0.9vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-performances-head em {
+
   color: rgba(255, 238, 190, 0.7);
+
   border: 1px solid rgba(255, 213, 107, 0.24);
+
   background: rgba(255, 213, 107, 0.075);
+
   padding: 0.48rem 0.68rem;
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.54rem;
+
   font-style: normal;
+
   letter-spacing: 0.14em;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-performance-metrics {
+
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: clamp(0.5rem, 0.78vw, 0.68rem);
+
 }
+
+
 
 .phx-calendar-performance-card,
+
 .phx-calendar-performance-agenda,
+
 .phx-calendar-performance-side > div {
+
   border: 1px solid rgba(255, 213, 107, 0.14);
+
   background:
+
     radial-gradient(circle at 0% 0%, rgba(255, 213, 107, 0.055), transparent 58%),
+
     rgba(7, 10, 19, 0.72);
+
 }
+
+
 
 .phx-calendar-performance-card {
+
   min-height: 5.25rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.34rem;
+
   padding: clamp(0.66rem, 0.9vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-performance-card strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.86rem, 1.12vw, 1.05rem);
+
   letter-spacing: 0.08em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-performance-card span,
+
 .phx-calendar-performance-section-head span,
+
 .phx-calendar-performance-side span {
+
   color: rgba(218, 229, 238, 0.72);
+
   font-size: 0.72rem;
+
   line-height: 1.3;
+
 }
+
+
 
 .phx-calendar-performance-main {
+
   display: grid;
+
   grid-template-columns: minmax(0, 1.55fr) minmax(17rem, 0.7fr);
+
   gap: clamp(0.58rem, 0.85vw, 0.75rem);
+
 }
+
+
 
 .phx-calendar-performance-agenda {
+
   display: grid;
+
   gap: 0.58rem;
+
   padding: clamp(0.72rem, 0.95vw, 0.86rem);
+
 }
+
+
 
 .phx-calendar-performance-section-head {
+
   display: grid;
+
   gap: 0.3rem;
+
 }
+
+
 
 .phx-calendar-performance-section-head strong,
+
 .phx-calendar-performance-side strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   font-size: clamp(0.9rem, 1.15vw, 1.08rem);
+
   letter-spacing: 0.09em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-performance-list {
+
   display: grid;
+
   gap: 0.42rem;
+
 }
+
+
 
 .phx-calendar-performance-item {
+
   width: 100%;
+
   min-height: 3.25rem;
+
   display: grid;
+
   grid-template-columns: auto minmax(0, 1fr) auto;
+
   align-items: center;
+
   gap: 0.62rem;
+
   border: 1px solid rgba(255, 255, 255, 0.075);
+
   background: rgba(255, 255, 255, 0.035);
+
   color: inherit;
+
   padding: 0.58rem 0.7rem;
+
   text-align: left;
+
 }
+
+
 
 .phx-calendar-performance-item:hover {
+
   border-color: rgba(255, 213, 107, 0.28);
+
   background: rgba(255, 213, 107, 0.06);
+
 }
+
+
 
 .phx-calendar-performance-item-mark {
+
   width: 0.52rem;
+
   height: 2.1rem;
+
   border-radius: 999px;
+
   background: var(--event-accent, rgba(255, 213, 107, 0.78));
+
   box-shadow: 0 0 0.85rem var(--event-accent, rgba(255, 213, 107, 0.32));
+
 }
+
+
 
 .phx-calendar-performance-item span:nth-child(2) {
+
   min-width: 0;
+
   display: grid;
+
   gap: 0.16rem;
+
 }
+
+
 
 .phx-calendar-performance-item strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-size: 0.82rem;
+
   letter-spacing: 0.04em;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-performance-item em {
+
   color: rgba(218, 229, 238, 0.55);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.56rem;
+
   font-style: normal;
+
   letter-spacing: 0.08em;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   text-transform: uppercase;
+
   white-space: nowrap;
+
 }
+
+
 
 .phx-calendar-performance-item b {
+
   color: rgba(255, 238, 190, 0.72);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.54rem;
+
   font-weight: 600;
+
   letter-spacing: 0.12em;
+
   text-transform: uppercase;
+
 }
+
+
 
 .phx-calendar-performance-empty {
+
   min-height: 5.5rem;
+
   display: grid;
+
   align-content: center;
+
   gap: 0.28rem;
+
   border: 1px dashed rgba(255, 213, 107, 0.2);
+
   padding: 0.78rem;
+
 }
+
+
 
 .phx-calendar-performance-empty strong {
+
   color: var(--text-primary, #eaf3fb);
+
   font-family: var(--font-display, inherit);
+
   letter-spacing: 0.1em;
+
 }
+
+
 
 .phx-calendar-performance-empty span {
+
   color: rgba(218, 229, 238, 0.66);
+
   font-size: 0.74rem;
+
 }
+
+
 
 .phx-calendar-performance-side {
+
   display: grid;
+
   gap: 0.5rem;
+
 }
+
+
 
 .phx-calendar-performance-side > div {
+
   min-height: 5.25rem;
+
   display: grid;
+
   align-content: start;
+
   gap: 0.34rem;
+
   padding: clamp(0.66rem, 0.9vw, 0.82rem);
+
 }
+
+
 
 .phx-calendar-performance-contract {
+
   display: flex;
+
   align-items: center;
+
   gap: 0.62rem;
+
   border: 1px solid rgba(255, 213, 107, 0.13);
+
   background: rgba(6, 10, 18, 0.68);
+
   padding: 0.58rem 0.78rem;
+
   color: rgba(255, 238, 190, 0.72);
+
   font-family: var(--font-mono, monospace);
+
   font-size: 0.58rem;
+
   letter-spacing: 0.05em;
+
 }
+
+
 
 .phx-calendar-performance-contract span {
+
   color: rgba(255, 213, 107, 0.92);
+
 }
+
+
 
 @media (max-width: 1100px) {
+
   .phx-calendar-performance-metrics {
+
     grid-template-columns: repeat(2, minmax(0, 1fr));
+
   }
 
+
+
   .phx-calendar-performance-main {
+
     grid-template-columns: 1fr;
+
+  }
+
+}
+
+
+
+@media (max-width: 720px) {
+
+  .phx-calendar-performances-head {
+
+    display: grid;
+
+  }
+
+
+
+  .phx-calendar-performance-metrics {
+
+    grid-template-columns: 1fr;
+
+  }
+
+
+
+  .phx-calendar-performance-item {
+
+    grid-template-columns: auto minmax(0, 1fr);
+
+  }
+
+
+
+  .phx-calendar-performance-item b {
+
+    display: none;
+
+  }
+
+}
+
+
+/* TYPOGRAPHY_ALIGNMENT_V1 */
+/* Uniform header tiers across all domains — values come from styles/tokens.css.
+   Typography only: no color, layout, or spacing changes. */
+
+/* Page titles: both title lines render at the same tier (Calendar previously
+   drew line 1 at 49px and the accent line at 37px with doubled tracking). */
+.phx-command-title-xl,
+.phx-calendar-v18 .phx-command-title-xl span:first-child,
+.phx-calendar-v18 .phx-command-title-xl .accent {
+  font-family: var(--phx-font-display);
+  font-size: var(--phx-type-title);
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.phx-nutrition-command-title-finance {
+  font-size: var(--phx-type-title);
+  letter-spacing: .04em;
+}
+
+/* Section headings (DataPanel titles, MANUAL ACTIONS, CALENDAR ROUTES…). */
+.phx-panel-title {
+  font-family: var(--phx-font-display);
+  font-size: var(--phx-type-section);
+  letter-spacing: .035em;
+}
+
+/* Domain subtitles under page titles. */
+.phx-domain-subtitle {
+  font-family: var(--phx-font-body);
+  font-size: var(--phx-type-subtitle);
+}
+
+/* CALENDAR_CORE_PRECISION_V20 */
+/* Reactor redesign: fine instrument bezel instead of fat conic segments.
+   Primary = tick bezel, secondary = luminous sweep, tertiary = hairline orbit. */
+.phx-calendar-v19 .phx-calendar-core-ring,
+.phx-calendar-v19 .phx-calendar-core-ring.primary {
+  background:
+    repeating-conic-gradient(
+      rgba(216, 204, 255, 0.9) 0deg 0.9deg,
+      transparent 0.9deg 6deg) !important;
+  -webkit-mask: radial-gradient(circle, transparent 0 60%, #000 61% 66%, transparent 67%) !important;
+  mask: radial-gradient(circle, transparent 0 60%, #000 61% 66%, transparent 67%) !important;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 0.45rem rgba(159, 125, 255, 0.55)) !important;
+  animation: phxCalendarRingRotate 48s linear infinite !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.secondary {
+  inset: 0.85rem !important;
+  background:
+    conic-gradient(from 0deg,
+      transparent 0 8%,
+      rgba(177, 146, 255, 0.95) 20%,
+      rgba(159, 125, 255, 0.25) 34%,
+      transparent 46% 100%) !important;
+  -webkit-mask: radial-gradient(circle, transparent 0 62%, #000 63% 65.5%, transparent 66.5%) !important;
+  mask: radial-gradient(circle, transparent 0 62%, #000 63% 65.5%, transparent 66.5%) !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 0.7rem rgba(177, 146, 255, 0.6)) !important;
+  animation: phxCalendarRingRotate 7s linear infinite !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-ring.tertiary {
+  inset: 1.9rem !important;
+  background: conic-gradient(rgba(159, 125, 255, 0.34) 0 100%) !important;
+  -webkit-mask: radial-gradient(circle, transparent 0 64%, #000 65% 65.6%, transparent 66.4%) !important;
+  mask: radial-gradient(circle, transparent 0 64%, #000 65% 65.6%, transparent 66.4%) !important;
+  opacity: 0.9 !important;
+  filter: none !important;
+  animation: none !important;
+}
+
+/* calmer center disc + cleaner readout */
+.phx-calendar-v19 .phx-calendar-core-reactor-center {
+  border: 1px solid rgba(177, 146, 255, 0.3) !important;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(159, 125, 255, 0.14), transparent 62%),
+    radial-gradient(circle, #0b0916 0%, #070510 72%) !important;
+  box-shadow:
+    inset 0 0 1.6rem rgba(0, 0, 0, 0.55),
+    inset 0 0 0.9rem rgba(159, 125, 255, 0.1),
+    0 0 1.6rem rgba(159, 125, 255, 0.12) !important;
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center strong {
+  font-family: var(--phx-font-display) !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.14em !important;
+  text-shadow: 0 0 1.1rem rgba(177, 146, 255, 0.5);
+}
+
+.phx-calendar-v19 .phx-calendar-core-reactor-center span {
+  font-size: 0.52rem !important;
+  letter-spacing: 0.2em !important;
+  opacity: 0.75;
+}
+
+/* metrics: info-row treatment instead of bare text rows */
+.phx-calendar-v19 .phx-calendar-core-metrics > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.42rem 0.55rem !important;
+  border: 1px solid rgba(159, 125, 255, 0.12) !important;
+  border-left: 2px solid rgba(159, 125, 255, 0.45) !important;
+  background: rgba(159, 125, 255, 0.045) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phx-calendar-v19 .phx-calendar-core-ring,
+  .phx-calendar-v19 .phx-calendar-core-ring.secondary {
+    animation: none !important;
   }
 }
 
-@media (max-width: 720px) {
-  .phx-calendar-performances-head {
-    display: grid;
-  }
+/* TRAINING_CORE_V1 — hero grid so the mission clock gets a reactor core beside it */
+.phx-training-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  gap: 1.4rem;
+  align-items: stretch;
+}
 
-  .phx-calendar-performance-metrics {
+@media (max-width: 760px) {
+  .phx-training-hero-grid {
     grid-template-columns: 1fr;
-  }
-
-  .phx-calendar-performance-item {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .phx-calendar-performance-item b {
-    display: none;
   }
 }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getBudgetMemory, saveBudgetMemory } from '../../api/client'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const MONO = "'Share Tech Mono', monospace"
 const DISPLAY = "'Rajdhani', sans-serif"
 const BODY = "'Space Grotesk', sans-serif"
@@ -87,11 +86,6 @@ export default function BudgetMemory({ onBack }) {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
   }, [])
 
   useEffect(() => {
@@ -151,7 +145,7 @@ export default function BudgetMemory({ onBack }) {
   }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 100, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
+    <div className="phx-scope-budget" style={{ height: '100%', overflowY: 'auto', paddingBottom: 100, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: GOLD, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>

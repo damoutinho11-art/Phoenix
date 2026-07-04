@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getFinanceHoldings, getFinancePnl } from '../../api/client'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
 
 const border = '1px solid rgba(0,187,221,.18)'
@@ -79,7 +78,7 @@ function Drawer({ holding, kind, pnl, onClose, onQuickAsk }) {
         ['KEY', holding.key],
         ['TYPE', assetType(holding)],
         ['AMOUNT', formatEur(holding.amount)],
-        ['ROUTE', holding.route || '—'],
+        ['ROUTE', humanize(holding.route)],
         ['CURRENT WEIGHT', formatWeight(holding.current_weight)],
         ['TARGET WEIGHT', formatWeight(holding.target_weight)],
         ['BAND STATUS', humanize(holding.band_status), bandColor(holding.band_status)],
@@ -144,7 +143,7 @@ function ActiveRow({ holding, onClick }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '7px 12px', marginTop: 10 }}>
         <Field label="CURRENT / TARGET" value={`${formatWeight(holding.current_weight)} / ${formatWeight(holding.target_weight)}`} />
         <Field label="BAND STATUS" value={humanize(holding.band_status)} color={bandColor(holding.band_status)} />
-        <Field label="ROUTE" value={holding.route || '—'} />
+        <Field label="ROUTE" value={humanize(holding.route)} />
         <Field label="ASSET TYPE" value={type} />
       </div>
     </div>
@@ -176,11 +175,6 @@ export default function Holdings({ onBack, onQuickAsk }) {
   const [selected, setSelected] = useState(null)
 
   useEffect(() => {
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     if (!document.getElementById('ph-keyframes')) {
       const style = document.createElement('style')
       style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
@@ -208,7 +202,7 @@ export default function Holdings({ onBack, onQuickAsk }) {
   const positionCount = activeHoldings.length + legacyHoldings.length
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 100, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
+    <div className="phx-scope-finance" style={{ height: '100%', overflowY: 'auto', paddingBottom: 100, background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
 
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, overflow: 'hidden' }}>

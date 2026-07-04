@@ -23,7 +23,7 @@ const fieldStyle = {
   border,
   borderRadius: 0,
   color: 'rgba(199,236,244,.92)',
-  fontFamily: "'Saira Condensed',sans-serif",
+  fontFamily: 'var(--phx-font-body)',
   fontSize: 13,
   padding: '9px 10px',
   outline: 'none',
@@ -296,7 +296,7 @@ export default function Research({ onBack }) {
     && safety?.portfolio_state_updated === false
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: '#000', color: 'rgba(199,236,244,.92)', fontFamily: "'Saira Condensed',sans-serif" }}>
+    <div className="phx-scope-finance" style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: 'var(--phx-bg)', color: 'rgba(199,236,244,.92)', fontFamily: 'var(--phx-font-body)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: '#20d8ec', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>

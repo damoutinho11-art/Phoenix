@@ -34,16 +34,16 @@
 }
 
 .chat-screen-title {
-  font-family: var(--display);
-  font-size: 14px;
+  font-family: var(--phx-font-display);
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: .18em;
   color: var(--cyan-br);
 }
 
 .chat-screen-context {
-  font-family: var(--mono);
-  font-size: 7px;
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
   letter-spacing: .13em;
   color: rgba(125,188,200,.62);
   text-transform: uppercase;
@@ -54,8 +54,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--mono);
-  font-size: 7px;
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
   letter-spacing: .13em;
   color: rgba(125,188,200,.62);
   text-transform: uppercase;
@@ -99,7 +99,7 @@
   color: rgba(220,244,250,.96);
   font-size: 13px;
   line-height: 1.45;
-  font-family: var(--body);
+  font-family: var(--phx-font-body);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -111,8 +111,8 @@
 
 .chat-label {
   display: block;
-  font-family: var(--mono);
-  font-size: 7px;
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
   letter-spacing: .18em;
   color: rgba(125,240,255,.74);
   margin-bottom: 4px;
@@ -122,7 +122,7 @@
 /* Loading dots */
 .chat-bubble-loading {
   color: rgba(125,188,200,.58);
-  font-family: var(--mono);
+  font-family: var(--phx-font-mono);
 }
 
 /* ── Input row ── */
@@ -143,9 +143,9 @@
   color: rgba(236,254,255,.98);
   padding: 9px 10px;
   outline: none;
-  font-family: var(--mono);
-  font-size: 8px;
-  letter-spacing: .07em;
+  font-family: var(--phx-font-mono);
+  font-size: 13px;
+  letter-spacing: .05em;
 }
 
 .chat-input::placeholder {
@@ -161,8 +161,8 @@
   border: 1px solid rgba(125,240,255,.38);
   background: rgba(32,216,236,.10);
   color: rgba(125,240,255,.96);
-  font-family: var(--mono);
-  font-size: 8px;
+  font-family: var(--phx-font-mono);
+  font-size: 10px;
   letter-spacing: .14em;
   padding: 0 10px;
   text-transform: uppercase;
@@ -205,5 +205,9 @@
 @media (max-width: 390px) {
   .chat-screen-title { font-size: 13px; }
   .chat-bubble { font-size: 12.5px; }
-  .chat-input { font-size: 7.5px; }
+}
+
+/* iOS Safari zooms on inputs under 16px — keep the field at 16px on touch screens */
+@media (pointer: coarse) {
+  .chat-input { font-size: 16px; }
 }

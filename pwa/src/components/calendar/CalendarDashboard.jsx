@@ -49,6 +49,18 @@ function sourceDetail(source) {
   return source.imported_at || source.as_of || source.label || null
 }
 
+// Render ISO timestamps as "JUL 4 · 03:59" instead of the raw 2026-07-04T03:59:54.460572 string.
+function formatStamp(value) {
+  if (!value || typeof value !== 'string') return value
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime()) || !/\d{4}-\d{2}-\d{2}/.test(value)) return value
+  const month = parsed.toLocaleString('en-US', { month: 'short' }).toUpperCase()
+  const time = /T\d{2}:\d{2}/.test(value)
+    ? ` · ${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`
+    : ''
+  return `${month} ${parsed.getDate()}${time}`
+}
+
 function timeToMinutes(value) {
   if (!value || typeof value !== 'string') return null
   const match = value.match(/(\d{1,2}):(\d{2})/)
@@ -901,7 +913,7 @@ function RouteCard({ title, copy, action }) {
   )
 }
 
-export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onConnectors, onQuickAsk }) {
+export default function CalendarDashboard({ onEvent, onFeed, onConnectors, onQuickAsk }) {
   const [snapshot, setSnapshot] = useState(null)
   const [events, setEvents] = useState(null)
   const [jarvisText, setJarvisText] = useState('')
@@ -944,7 +956,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onConne
   const nextEvent = displayEvents[0] || null
   const bufferSignals = buildBufferSignals(displayEvents)
   const source = sourceLabel(snapshot?.source)
-  const sourceAsOf = snapshot?.as_of || sourceDetail(snapshot?.source)
+  const sourceAsOf = formatStamp(snapshot?.as_of || sourceDetail(snapshot?.source))
   const resultCopy = activeMode === 'performances'
     ? `${displayEvents.length} performance/rehearsal block${displayEvents.length === 1 ? '' : 's'} visible. Phoenix highlights prep windows and source labels only.`
     : activeMode === 'week'
@@ -1028,6 +1040,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onConne
                 <RouteCard title="Feeds" copy="Open source state." action={() => setCalendarSection('feeds')} />
                 <RouteCard title="Brief" copy="Open brief." action={() => setCalendarSection('brief')} />
                 <RouteCard title="Connectors" copy="Google Calendar & Gmail status." action={() => onConnectors && onConnectors()} />
+                <RouteCard title="Calendar Feed" copy="ICS subscription URL for Google Calendar." action={() => onFeed && onFeed()} />
               </div>
             </div>
           </DataPanel>
@@ -1114,6 +1127,7 @@ export default function CalendarDashboard({ onEvent, onWeekView, onFeed, onConne
               <RouteCard title="Feeds" copy="Plaan, ICS, Google, source health, and diagnostics." action={() => setCalendarSection('feeds')} />
               <RouteCard title="Brief" copy="Read-only day brief and next-event summary." action={() => setCalendarSection('brief')} />
               <RouteCard title="Connectors" copy="Connect/disconnect Google Calendar & Gmail (read-only)." action={() => onConnectors && onConnectors()} />
+              <RouteCard title="Calendar Feed" copy="ICS subscription URL for Google Calendar mirroring." action={() => onFeed && onFeed()} />
             </div>
           </div>
         </DataPanel>

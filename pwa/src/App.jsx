@@ -29,7 +29,6 @@ import BudgetUpload from './components/finance/BudgetUpload'
 import BudgetMemory from './components/finance/BudgetMemory'
 import CalendarDashboard from './components/calendar/CalendarDashboard'
 import EventDetail from './components/calendar/EventDetail'
-import WeekView from './components/calendar/WeekView'
 import CalendarFeedPublisher from './components/calendar/CalendarFeedPublisher'
 import ConnectorsPanel from './components/calendar/ConnectorsPanel'
 
@@ -102,7 +101,6 @@ export default function App() {
           return (
             <CalendarDashboard
               onEvent={ev => { setCalendarEvent(ev); setCalendarScreen('detail') }}
-              onWeekView={() => setCalendarScreen('week')}
               onFeed={() => setCalendarScreen('feed')}
               onConnectors={() => setCalendarScreen('connectors')}
               onQuickAsk={handleQuickAsk}
@@ -113,13 +111,6 @@ export default function App() {
             <EventDetail
               event={calendarEvent}
               onBack={() => setCalendarScreen('dashboard')}
-            />
-          )
-        case 'week':
-          return (
-            <WeekView
-              onBack={() => setCalendarScreen('dashboard')}
-              onEvent={ev => { setCalendarEvent(ev); setCalendarScreen('detail') }}
             />
           )
         case 'feed':
@@ -232,16 +223,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg)' }}>
-      <div className="topbar">
-        <div className="brand">
-          <div className="brand-mark" />
-          <div>
-            <div className="brand-title">PHOENIX</div>
-            <div className="brand-sub">PERSONAL HEURISTIC OPERATING ENGINE</div>
-          </div>
-        </div>
-        <div className="hud-chip">● ONLINE</div>
-      </div>
+      {/* Screens own their headers — the old duplicate brand topbar is gone. */}
       <div key={tab} className="screen-enter" style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {renderContent()}
       </div>

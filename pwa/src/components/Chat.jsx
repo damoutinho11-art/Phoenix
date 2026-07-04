@@ -61,7 +61,7 @@ export default function Chat({ prefill, onPrefillConsumed }) {
       <div className="chat-screen-head">
         <div>
           <div className="chat-screen-title">PHOENIX</div>
-          <div className="chat-screen-context">jarvis · {statusLabel}</div>
+          <div className="chat-screen-context">operator link · {statusLabel}</div>
         </div>
         <div className="chat-status-indicator">
           <span className={`chat-status-dot ${statusClass}`} />

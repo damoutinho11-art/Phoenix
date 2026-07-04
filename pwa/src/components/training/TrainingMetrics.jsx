@@ -12,7 +12,6 @@ import {
 } from '../../api/client'
 import { canStartHighNeural, readinessLabel, readinessTone, routeFallback } from './trainingViewModel'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `
   @keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
   @keyframes phGlow { 0%,100%{box-shadow:0 0 14px rgba(255,143,46,.3)} 50%{box-shadow:0 0 28px rgba(255,143,46,.6)} }
@@ -157,7 +156,7 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
           <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT, marginBottom: 6 }}>LOG SLEEP</div>
           <div style={{ display: 'flex', gap: 5 }}>
             {[{ ev: 'bedtime', label: 'BED' }, { ev: 'wakeup', label: 'WAKE' }].map(({ ev, label }) => (
-              <div key={ev} onClick={!logging ? () => onLogSleep(ev) : undefined}
+              <div key={ev} className="phx-tap" onClick={!logging ? () => onLogSleep(ev) : undefined}
                 style={btnStyle(ev)}>
                 {logging === ev ? '…' : loggedKey === ev ? '✓' : label}
               </div>
@@ -168,7 +167,7 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
           <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT, marginBottom: 6 }}>LOG SORENESS</div>
           <div style={{ display: 'flex', gap: 5 }}>
             {[{ label: 'LOW', score: 1 }, { label: 'MED', score: 3 }, { label: 'HIGH', score: 5 }].map(({ label, score }) => (
-              <div key={label} onClick={!logging ? () => onLogSoreness(score) : undefined}
+              <div key={label} className="phx-tap" onClick={!logging ? () => onLogSoreness(score) : undefined}
                 style={btnStyle(`sor-${score}`)}>
                 {logging === `sor-${score}` ? '…' : loggedKey === `sor-${score}` ? '✓' : label}
               </div>
@@ -180,11 +179,62 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
   )
 }
 
+function TrainingCore({ overall, sessionType, mesoWeek, onTrack, readinessStatus }) {
+  const circ = 2 * Math.PI * 44
+  const pct = overall ?? 0
+  const ringColor = scoreColor(overall)
+  const readiness = readinessLabel(readinessStatus)
+  const readinessColor = readinessTone(readinessStatus) === 'ready' ? GREEN : readinessTone(readinessStatus) === 'caution' ? YELLOW : RED
+  const rows = [
+    ['TODAY', sessionType, ORANGE],
+    ['READINESS', readiness, readinessColor],
+    ['MISSION', onTrack ? 'ON TRACK' : 'REVIEW', onTrack ? GREEN : YELLOW],
+    ['WEEK', `${mesoWeek} OF 10`, TEXT],
+  ]
+  return (
+    <CornerCard style={{ background: 'radial-gradient(circle at 50% 12%, rgba(255,143,46,.1), transparent 60%), rgba(7,14,21,.85)' }}>
+      <div style={{ padding: '14px 16px 15px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ alignSelf: 'flex-end', fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: 'rgba(255,143,46,.3)' }}>TC-001</div>
+        <div style={{ textAlign: 'center', marginBottom: 10 }}>
+          <div style={{ fontFamily: MONO, fontSize: 'var(--phx-type-card-header)', fontWeight: 700, letterSpacing: '.26em', color: 'rgba(255,143,46,.87)' }}>TRAINING CORE</div>
+          <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.2em', color: 'rgba(255,143,46,.4)', marginTop: 3 }}>RECOVERY BALANCE</div>
+        </div>
+        <div style={{ position: 'relative', width: 118, height: 118, marginBottom: 12, filter: 'drop-shadow(0 0 18px rgba(255,143,46,.2))' }}>
+          <svg width="118" height="118" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,143,46,.14)" strokeWidth=".8" strokeDasharray="1 3.2" />
+            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,143,46,.1)" strokeWidth="4.5" />
+            <circle cx="50" cy="50" r="44" fill="none" stroke={ringColor} strokeWidth="4.5"
+              strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)}
+              transform="rotate(-90 50 50)"
+              style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)', filter: `drop-shadow(0 0 6px ${ringColor}88)` }} />
+            <circle cx="50" cy="50" r="36" fill="rgba(4,8,12,.85)" stroke="rgba(255,143,46,.22)" strokeWidth=".8" />
+          </svg>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontFamily: DISPLAY, fontSize: 26, fontWeight: 700, color: overall != null ? ringColor : ORANGE_MUT, lineHeight: 1 }}>
+              {overall != null ? `${overall}%` : '—'}
+            </div>
+            <div style={{ fontFamily: MONO, fontSize: 6.5, letterSpacing: '.24em', color: 'rgba(255,143,46,.45)', marginTop: 3 }}>READY</div>
+          </div>
+        </div>
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {rows.map(([label, value, color]) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, padding: '5px 8px', border: '1px solid rgba(255,143,46,.1)', borderLeft: '2px solid rgba(255,143,46,.4)', background: 'rgba(255,143,46,.035)' }}>
+              <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.2em', color: 'rgba(255,143,46,.42)' }}>{label}</span>
+              <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: '.08em', color, textAlign: 'right' }}>{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </CornerCard>
+  )
+}
+
 function DomainButton({ label, onClick }) {
   return (
     <div
+      className="phx-tap"
       onClick={onClick}
-      style={{ position: 'relative', overflow: 'hidden', border: ORANGE_BDR_STR, padding: '11px 0', textAlign: 'center', background: 'rgba(255,143,46,.03)', cursor: 'pointer', flex: 1 }}
+      style={{ position: 'relative', overflow: 'hidden', border: ORANGE_BDR_STR, padding: '13px 0', textAlign: 'center', background: 'rgba(255,143,46,.03)', flex: 1 }}
     >
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,rgba(255,143,46,.38),transparent)` }} />
       <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: 'rgba(255,143,46,.72)' }}>{label}</div>
@@ -213,7 +263,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
               <Label>READINESS SCAN</Label>
-              <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 700, color: TEXT }}>Readiness Scan</div>
+              <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', color: TEXT }}>Readiness Scan</div>
               <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.68)', marginTop: 4 }}>
                 Quick readiness scan — this helps Phoenix tune today’s warm-up and substitutions.
               </div>
@@ -229,6 +279,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
                   <span>{label}</span><span style={{ color: scores[key] >= 5 ? RED : scores[key] >= 3 ? YELLOW : GREEN }}>{scores[key]}</span>
                 </div>
                 <input type="range" min="0" max="10" value={scores[key]}
+                  className="phx-range"
                   aria-label={`${label} discomfort`}
                   onChange={e => setScores({ ...scores, [key]: Number(e.target.value) })}
                   style={{ width: '100%', accentColor: ORANGE }} />
@@ -236,13 +287,14 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
             ))}
           </div>
           <input value={note} onChange={e => setNote(e.target.value)} placeholder="What feels off? (optional)" maxLength={500}
+            className="phx-input"
             style={{ width: '100%', boxSizing: 'border-box', marginTop: 12, padding: '10px 11px', background: 'rgba(0,0,0,.25)', border: ORANGE_BDR, color: TEXT, fontFamily: BODY, fontSize: 12 }} />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 8 }}>
             {[
               ['sharp_pain', 'Sharp pain'], ['limping', 'Limping'], ['next_day_worsening', 'Next-day worsening'],
             ].map(([key, label]) => (
-              <label key={key} style={{ fontFamily: MONO, fontSize: 8, color: TEXT_DIM, display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="checkbox" checked={flags[key]} onChange={e => setFlags({ ...flags, [key]: e.target.checked })} /> {label}
+              <label key={key} className="phx-tap" style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.08em', color: flags[key] ? ORANGE : TEXT_DIM, display: 'flex', gap: 7, alignItems: 'center', textTransform: 'uppercase', padding: '6px 0', transition: 'color .15s' }}>
+                <input type="checkbox" className="phx-check-input" checked={flags[key]} onChange={e => setFlags({ ...flags, [key]: e.target.checked })} /> {label}
               </label>
             ))}
           </div>
@@ -260,7 +312,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
       <CornerCard>
         <div style={{ padding: '15px 16px' }}>
           <Label cyan>TODAY’S ROUTE</Label>
-          <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 700, color: CYAN_BR }}>Today’s Route</div>
+          <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', color: CYAN_BR }}>Today’s Route</div>
           <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT, marginTop: 5 }}>
             {current.readiness_status === 'unchecked'
               ? 'Complete the scan before jumps, sprints, or heavy lower-body work. A conservative warm-up is available now.'
@@ -280,7 +332,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
 
       <div style={{ marginTop: 12 }}>
         <Label>JOINT CAPACITY BLOCK</Label>
-        <div style={{ fontFamily: DISPLAY, fontSize: 22, color: TEXT, fontWeight: 700, marginBottom: 9 }}>Joint Capacity Block</div>
+        <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', color: TEXT, marginBottom: 9 }}>Joint Capacity Block</div>
         {current.capacity_blocks.length === 0 && <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM }}>Submit the readiness scan to load today’s real capacity route.</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
           {current.capacity_blocks.map(block => (
@@ -320,11 +372,6 @@ export default function TrainingMetrics({ onBack, onNav }) {
   const [readinessNote, setReadinessNote] = useState('')
 
   useEffect(() => {
-    if (!document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     if (!document.getElementById('ph-keyframes')) {
       const style = document.createElement('style')
       style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
@@ -435,30 +482,27 @@ export default function TrainingMetrics({ onBack, onNav }) {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
+    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
 
-      {/* TOP BAR */}
+      {/* TOP BAR — same command-topbar line as the other command centers */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '13px 18px 11px', borderBottom: ORANGE_BDR,
-        position: 'sticky', top: 0, background: `${CARD}f8`,
-        backdropFilter: 'blur(14px)', zIndex: 5, flexShrink: 0, overflow: 'hidden',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        padding: '13px 18px 11px', borderBottom: '1px solid rgba(255,143,46,.1)',
+        flexShrink: 0,
       }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${ORANGE},transparent)`, animation: 'phScan 3.5s linear infinite' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span onClick={onBack} style={{ color: ORANGE, fontSize: 16, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.3em', color: ORANGE, textShadow: `0 0 18px rgba(255,143,46,.4)` }}>TRAINING</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: 'rgba(255,143,46,.55)', border: ORANGE_BDR, padding: '3px 9px', background: 'rgba(255,143,46,.04)' }}>
-            {phaseFull}
-          </div>
-          <div
+        <span style={{ fontFamily: MONO, fontSize: 8.3, letterSpacing: '.28em', color: 'rgba(255,143,46,.46)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, textTransform: 'uppercase' }}>PHOENIX · PERSONAL HEURISTIC OPERATING ENGINE</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <span style={{ fontFamily: MONO, fontSize: 8.3, letterSpacing: '.28em', color: 'rgba(255,143,46,.46)', textTransform: 'uppercase' }}>{phaseFull}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: MONO, fontSize: 8.3, letterSpacing: '.28em', color: GREEN }}>
+            <i style={{ width: 5, height: 5, borderRadius: 99, background: 'currentColor', boxShadow: '0 0 8px currentColor' }} />ONLINE
+          </span>
+          <span
+            className="phx-tap"
             onClick={brief ? () => setBrief(null) : loadBrief}
-            style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: 'rgba(255,143,46,.72)', border: ORANGE_BDR_STR, padding: '3px 9px', background: 'rgba(255,143,46,.04)', cursor: 'pointer' }}
+            style={{ fontFamily: MONO, fontSize: 8.3, letterSpacing: '.22em', color: 'rgba(255,143,46,.8)', border: ORANGE_BDR_STR, padding: '4px 10px', background: 'rgba(255,143,46,.04)' }}
           >
             {briefLoading ? '…' : brief ? 'CLOSE' : 'BRIEF'}
-          </div>
+          </span>
         </div>
       </div>
 
@@ -480,31 +524,51 @@ export default function TrainingMetrics({ onBack, onNav }) {
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
 
-        {/* DUNK HERO */}
-        <div style={{ padding: '20px 18px 16px', borderBottom: ORANGE_BDR, background: 'linear-gradient(155deg,rgba(255,143,46,.05),transparent 65%)', position: 'relative', overflow: 'hidden' }}>
+        {/* DUNK HERO — command-center treatment */}
+        <div style={{ padding: '22px 18px 18px', borderBottom: ORANGE_BDR, background: 'radial-gradient(ellipse at 8% 10%, rgba(255,143,46,.09) 0%, transparent 44%), linear-gradient(180deg,#0a0f14 0%, transparent 65%)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'radial-gradient(circle, rgba(255,143,46,.07) 1px, transparent 1px)', backgroundSize: '28px 28px', opacity: .46 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,rgba(255,143,46,.5),transparent)` }} />
-          <div style={{ position: 'absolute', top: 10, right: 14, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: 'rgba(255,143,46,.2)' }}>MISSION CLOCK</div>
-          <Label>DAYS TO DUNK ATTEMPT</Label>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
-            <div style={{ fontFamily: DISPLAY, fontSize: 78, fontWeight: 700, lineHeight: .88, color: ORANGE, filter: 'drop-shadow(0 0 20px rgba(255,143,46,.4))' }}>
-              {daysToAttempt}
+          <div style={{ position: 'absolute', top: 12, right: 14, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: 'rgba(255,143,46,.28)' }}>MISSION CLOCK</div>
+          <div className="phx-training-hero-grid" style={{ position: 'relative' }}>
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.29em', color: 'rgba(255,143,46,.6)', textTransform: 'uppercase' }}>PHOENIX</div>
+            <h1 style={{ margin: '4px 0 18px', fontFamily: DISPLAY, fontSize: 'var(--phx-type-title)', fontWeight: 700, lineHeight: .92, letterSpacing: '.04em', textTransform: 'uppercase', color: TEXT }}>
+              TRAINING<br />
+              <span style={{ color: ORANGE, textShadow: '0 0 42px rgba(255,143,46,.34)' }}>COMMAND CENTER</span>
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 9 }}>
+              <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.28em', color: 'rgba(255,143,46,.46)' }}>DAYS TO DUNK ATTEMPT</span>
+              <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(255,143,46,.22), transparent)' }} />
             </div>
-            <div style={{ paddingBottom: 10 }}>
-              <div style={{ fontFamily: DISPLAY, fontSize: 13, fontWeight: 400, letterSpacing: '.26em', color: ORANGE_MUT }}>DAYS</div>
-              <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: ORANGE, border: ORANGE_BDR, padding: '3px 8px', marginTop: 5, background: 'rgba(255,143,46,.04)' }}>
-                {targetDateStr.slice(0, 7).replace('-', '/').toUpperCase()}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 12 }}>
+              <div style={{ fontFamily: BODY, fontSize: 'clamp(58px, 13vw, 84px)', fontWeight: 700, lineHeight: .88, letterSpacing: '-.04em', color: ORANGE, textShadow: '0 0 44px rgba(255,143,46,.34), 0 0 80px rgba(255,143,46,.14)' }}>
+                {daysToAttempt}
+              </div>
+              <div style={{ paddingBottom: 8 }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 13, fontWeight: 400, letterSpacing: '.26em', color: ORANGE_MUT }}>DAYS</div>
+                <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: ORANGE, border: ORANGE_BDR, padding: '3px 8px', marginTop: 5, background: 'rgba(255,143,46,.04)' }}>
+                  {targetDateStr.slice(0, 7).replace('-', '/').toUpperCase()}
+                </div>
               </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: onTrack ? GREEN : YELLOW, animation: 'phPulse 2s ease-in-out infinite' }} />
-              <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: onTrack ? GREEN : YELLOW }}>
-                {onTrack ? 'ON TRACK' : 'REVIEW NEEDED'}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 5, height: 5, borderRadius: '50%', background: onTrack ? GREEN : YELLOW, animation: 'phPulse 2s ease-in-out infinite' }} />
+                <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: onTrack ? GREEN : YELLOW }}>
+                  {onTrack ? 'ON TRACK' : 'REVIEW NEEDED'}
+                </span>
+              </div>
+              <span style={{ fontFamily: MONO, fontSize: 7, color: TEXT_DIM }}>·</span>
+              <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM }}>WEEK {mesoWeek} OF 10</span>
             </div>
-            <span style={{ fontFamily: MONO, fontSize: 7, color: TEXT_DIM }}>·</span>
-            <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM }}>WEEK {mesoWeek} OF 10</span>
+          </div>
+          <TrainingCore
+            overall={recovery?.overall ?? null}
+            sessionType={sessionType}
+            mesoWeek={mesoWeek}
+            onTrack={onTrack}
+            readinessStatus={routeFallback(route).readiness_status}
+          />
           </div>
           {/* Mesocycle progress bar */}
           <div style={{ marginTop: 14 }}>
@@ -565,8 +629,9 @@ export default function TrainingMetrics({ onBack, onNav }) {
               )}
             </div>
             <div
+              className={sessionStartAllowed ? 'phx-tap' : undefined}
               onClick={() => sessionStartAllowed && nav('active-session')}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', background: sessionStartAllowed ? 'rgba(255,143,46,.07)' : 'rgba(255,213,107,.04)', borderTop: ORANGE_BDR, fontFamily: MONO, fontSize: 8, letterSpacing: '.2em', color: sessionStartAllowed ? ORANGE : YELLOW, cursor: sessionStartAllowed ? 'pointer' : 'default', animation: sessionStartAllowed ? 'phGlow 2.5s ease-in-out infinite' : 'none' }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 0', background: sessionStartAllowed ? 'rgba(255,143,46,.07)' : 'rgba(255,213,107,.04)', borderTop: ORANGE_BDR, fontFamily: MONO, fontSize: 8, letterSpacing: '.2em', color: sessionStartAllowed ? ORANGE : YELLOW, cursor: sessionStartAllowed ? 'pointer' : 'default', animation: sessionStartAllowed ? 'phGlow 2.5s ease-in-out infinite' : 'none' }}
             >
               {sessionStartAllowed ? '▶ START SESSION' : 'COMPLETE READINESS SCAN'}
             </div>

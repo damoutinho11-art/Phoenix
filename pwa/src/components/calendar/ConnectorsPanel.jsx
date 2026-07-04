@@ -7,28 +7,22 @@ import {
 } from '../../api/client'
 import PlaanExcelImport from './PlaanExcelImport'
 
-const VIOLET = '#9f7dff'
 const VIOLET_BR = '#d8ccff'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT = 'rgba(226,222,255,.92)'
-const DIM = 'rgba(181,178,216,.58)'
-const CYAN = '#20d8ec'
-const LIME = '#9dff6f'
-const RED = '#ff5c7a'
+const TEXT = 'var(--phx-text)'
+const DIM = 'var(--phx-body)'
 
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 function Pill({ children, tone = 'violet' }) {
-  const color = tone === 'good' ? LIME : tone === 'warn' ? '#ffd56b' : tone === 'bad' ? RED : VIOLET
-  return <span style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color, border: `1px solid ${color}55`, padding: '3px 7px', background: `${color}12` }}>{children}</span>
+  const toneClass = tone === 'good' ? ' phx-pill-good' : tone === 'warn' ? ' phx-pill-warn' : tone === 'bad' ? ' phx-pill-bad' : ''
+  return <span className={`phx-pill${toneClass}`}>{children}</span>
 }
 
 function InfoRow({ label, value }) {
   return (
-    <div style={{ border: `1px solid ${BORDER}`, background: 'rgba(0,0,0,.2)', padding: 11 }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED }}>{label}</div>
-      <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: TEXT, marginTop: 4 }}>{value}</div>
+    <div className="phx-info-row">
+      <div className="label">{label}</div>
+      <div className="value">{value}</div>
     </div>
   )
 }
@@ -47,27 +41,19 @@ function statusLabel(status) {
 
 function ConnectorCard({ title, status, detail, canConnect, connected, onConnect, onDisconnect }) {
   return (
-    <div style={{ border: `1px solid ${BORDER}`, background: 'rgba(0,0,0,.22)', padding: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontFamily: 'var(--display)', fontSize: 14, fontWeight: 700, color: TEXT }}>{title}</div>
+    <div className={`phx-card${connected ? ' phx-card-stripe' : ''}`}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+        <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 700, letterSpacing: '.03em', color: TEXT, textTransform: 'uppercase' }}>{title}</div>
         <Pill tone={statusTone(status)}>{statusLabel(status)}</Pill>
       </div>
-      {detail && <div style={{ fontSize: 11.5, color: DIM, lineHeight: 1.45, marginBottom: canConnect ? 10 : 0 }}>{detail}</div>}
+      {detail && <div style={{ fontFamily: 'var(--phx-font-body)', fontSize: 12.5, color: DIM, lineHeight: 1.5, marginBottom: canConnect ? 12 : 0 }}>{detail}</div>}
       {canConnect && !connected && (
-        <button
-          type="button"
-          onClick={onConnect}
-          style={{ width: '100%', padding: '9px', border: `1px solid rgba(157,255,111,.35)`, background: 'rgba(157,255,111,.08)', color: LIME, fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}
-        >
+        <button type="button" onClick={onConnect} className="phx-btn phx-btn-good" style={{ width: '100%' }}>
           CONNECT
         </button>
       )}
       {canConnect && connected && (
-        <button
-          type="button"
-          onClick={onDisconnect}
-          style={{ width: '100%', padding: '9px', border: `1px solid rgba(255,92,122,.35)`, background: 'rgba(255,92,122,.08)', color: RED, fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}
-        >
+        <button type="button" onClick={onDisconnect} className="phx-btn phx-btn-bad" style={{ width: '100%' }}>
           DISCONNECT
         </button>
       )}
@@ -112,33 +98,49 @@ export default function ConnectorsPanel({ onBack }) {
   }
 
   if (error) {
-    return <div style={{ height: '100%', background: '#000', color: RED, padding: 24 }}>{error}</div>
+    return (
+      <div className="phx-scope-calendar" style={{ height: '100%', background: 'var(--phx-bg)', display: 'grid', placeItems: 'center' }}>
+        <div className="phx-state phx-state-error">
+          <span className="code">CX-ERR</span>
+          <strong>Connectors unavailable</strong>
+          <p>{error}</p>
+        </div>
+      </div>
+    )
   }
   if (!connectors) {
-    return <div style={{ height: '100%', background: '#000', color: MUTED, padding: 24, fontFamily: 'var(--mono)' }}>Loading Phoenix connectors…</div>
+    return (
+      <div className="phx-scope-calendar" style={{ height: '100%', background: 'var(--phx-bg)', display: 'grid', placeItems: 'center' }}>
+        <div className="phx-state phx-state-loading">
+          <span className="code">SYNC</span>
+          <strong>Connectors</strong>
+          <p>Reading source health…</p>
+        </div>
+      </div>
+    )
   }
 
   const googleConnected = Boolean(googleStatus?.connected)
   const gmailConnected = Boolean(gmailStatus?.connected)
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', color: TEXT, fontFamily: "'Saira Condensed',sans-serif" }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, background: 'rgba(0,0,0,.96)', flexShrink: 0 }}>
-        <div onClick={onBack} style={{ cursor: 'pointer' }}>
+    <div className="phx-scope-calendar" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-calendar) 8%, transparent), transparent 34rem), linear-gradient(180deg, #071019 0%, var(--phx-bg) 42%, #04090e 100%)', color: TEXT, fontFamily: 'var(--phx-font-body)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '13px 18px 11px', borderBottom: '1px solid var(--phx-edge)', background: 'rgba(6,12,18,.92)', backdropFilter: 'blur(14px)', flexShrink: 0 }}>
+        <div className="phx-tap" onClick={onBack} style={{ display: 'flex', alignItems: 'center', padding: '4px 0' }}>
           <span style={{ color: VIOLET_BR, marginRight: 10 }}>←</span>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.24em', color: VIOLET_BR }}>PHOENIX CONNECTORS</span>
+          <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, letterSpacing: '.22em', color: VIOLET_BR, textTransform: 'uppercase' }}>PHOENIX CONNECTORS</span>
         </div>
         <Pill tone={connectors.writes_enabled ? 'bad' : 'good'}>{connectors.writes_enabled ? 'WRITES ENABLED' : 'READ ONLY'}</Pill>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96 }}>
-        <div style={{ padding: '20px 18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(159,125,255,.05),transparent)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 8 }}>SOURCE HEALTH</div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 27, fontWeight: 700, color: '#fff', lineHeight: 1.1 }}>Every source stays read-only.</div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: DIM, marginTop: 10 }}>Plaan, the ICS feed, Google Calendar, and Gmail are all read-only from Phoenix's side. Nothing here can send, write, or delete on your behalf.</div>
+        <div style={{ padding: '20px 18px', borderBottom: '1px solid var(--phx-edge)', background: 'linear-gradient(180deg,rgba(159,125,255,.06),transparent)' }}>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.22em', color: 'color-mix(in srgb, var(--phx-calendar) 76%, white 8%)', marginBottom: 8, textTransform: 'uppercase' }}>[ SOURCE HEALTH ]</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 28, fontWeight: 700, color: TEXT, lineHeight: 1.05, textTransform: 'uppercase', letterSpacing: '.02em' }}>Every source stays read-only.</div>
+          <div style={{ fontFamily: 'var(--phx-font-body)', fontSize: 13, lineHeight: 1.55, color: DIM, marginTop: 10, maxWidth: '52rem' }}>Plaan, the ICS feed, Google Calendar, and Gmail are all read-only from Phoenix's side. Nothing here can send, write, or delete on your behalf.</div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '14px 18px', borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '14px 18px', borderBottom: '1px solid var(--phx-edge)' }}>
           <InfoRow label="PLAAN" value={statusLabel(connectors.connectors.plaan.status)} />
           <InfoRow label="ICS FEED" value={statusLabel(connectors.connectors.ics_feed.status)} />
           <InfoRow label="GOOGLE CALENDAR" value={statusLabel(connectors.connectors.google_calendar.status)} />
@@ -180,7 +182,7 @@ export default function ConnectorsPanel({ onBack }) {
         </div>
 
         {disconnecting && (
-          <div style={{ padding: '0 18px', color: CYAN, fontFamily: 'var(--mono)', fontSize: 9 }}>Disconnecting…</div>
+          <div style={{ padding: '0 18px', color: 'var(--phx-caution)', fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase' }}>Disconnecting…</div>
         )}
 
         <div style={{ padding: '16px 18px' }}>

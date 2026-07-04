@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { parseBudgetPdf, parseBudgetTransactions, saveBudgetTransactions } from '../../api/client'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
 
 const MONO = "'Share Tech Mono', monospace"
@@ -71,12 +70,6 @@ export default function BudgetUpload({ onBack, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [pickerIdx, setPickerIdx] = useState(null)
 
-  // inject fonts once
-  if (typeof document !== 'undefined' && !document.getElementById('ph-fonts')) {
-    const link = document.createElement('link')
-    link.id = 'ph-fonts'; link.rel = 'stylesheet'; link.href = FONTS_URL
-    document.head.appendChild(link)
-  }
   if (typeof document !== 'undefined' && !document.getElementById('ph-keyframes')) {
     const style = document.createElement('style')
     style.id = 'ph-keyframes'; style.textContent = KEYFRAMES
@@ -118,7 +111,7 @@ export default function BudgetUpload({ onBack, onSaved }) {
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
+    <div className="phx-scope-budget" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: 'rgba(199,236,244,.92)', fontFamily: BODY }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: `${CARD}f5`, backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0, overflow: 'hidden' }}>

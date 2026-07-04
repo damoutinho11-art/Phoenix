@@ -3,7 +3,6 @@ import { getNutritionStatus, deleteMeal, getMealHistory, postJarvisChat } from '
 import { CockpitShell, DataPanel, EmptyState, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
 import { buildNutritionDashboardModel } from './nutritionDashboardModel'
 
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
@@ -400,13 +399,6 @@ export default function NutritionDashboard({
   }
 
   useEffect(() => {
-    if (typeof document !== 'undefined' && !document.getElementById('ph-fonts')) {
-      const link = document.createElement('link')
-      link.id = 'ph-fonts'
-      link.rel = 'stylesheet'
-      link.href = FONTS_URL
-      document.head.appendChild(link)
-    }
     load()
   }, [])
 
