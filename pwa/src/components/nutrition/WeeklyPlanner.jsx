@@ -98,8 +98,8 @@ function MacroGrid({ total, prefix = '' }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginTop: 10 }}>
       {cells.map(([label, val]) => (
         <div key={label} style={{ border: `1px solid ${BORDER}`, background: 'rgba(157,255,111,.025)', padding: '8px 9px' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: MUTED }}>{prefix}{label}</div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#fff', marginTop: 3 }}>{val}</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em', color: MUTED }}>{prefix}{label}</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 700, color: '#fff', marginTop: 3 }}>{val}</div>
         </div>
       ))}
     </div>
@@ -111,7 +111,7 @@ function miniButtonStyle(color = LIME) {
     border: `1px solid ${color}`,
     background: 'rgba(0,0,0,.22)',
     color,
-    fontFamily: 'var(--mono)',
+    fontFamily: 'var(--phx-font-mono)',
     fontSize: 7,
     letterSpacing: '.12em',
     padding: '5px 8px',
@@ -133,10 +133,10 @@ function MealEditor({ meal, onMeal }) {
     <div style={{ borderTop: `1px solid rgba(32,216,236,.10)`, marginTop: 10, paddingTop: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: CYAN }}>{String(meal.slot || '').replace('_', ' ').toUpperCase()}</div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: '.05em', marginTop: 2 }}>{meal.title}</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em', color: CYAN }}>{String(meal.slot || '').replace('_', ' ').toUpperCase()}</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: '.05em', marginTop: 2 }}>{meal.title}</div>
         </div>
-        <div style={{ textAlign: 'right', fontFamily: 'var(--mono)', color: TEXT_DIM, fontSize: 8 }}>
+        <div style={{ textAlign: 'right', fontFamily: 'var(--phx-font-mono)', color: TEXT_DIM, fontSize: 8 }}>
           <div style={{ color: LIME_BR, fontSize: 12 }}>{fmt(total.calories)} kcal</div>
           <div>{fmt(total.protein_g, 'g')} P · {money(total.price_eur)}</div>
         </div>
@@ -144,15 +144,15 @@ function MealEditor({ meal, onMeal }) {
       {(meal.items || []).map((item, index) => (
         <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '9px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
           <div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 14, fontWeight: 600, color: '#fff' }}>{item.name}</div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(item.servings)}× · {item.unit || 'serving'}</div>
+            <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 14, fontWeight: 600, color: '#fff' }}>{item.name}</div>
+            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(item.servings)}× · {item.unit || 'serving'}</div>
             <div style={{ display: 'flex', gap: 6, marginTop: 7 }}>
               <button onClick={() => updateItem(index, current => scaleItem(current, safeNumber(current.servings, 1) - 0.25))} style={miniButtonStyle()}>−</button>
               <button onClick={() => updateItem(index, current => scaleItem(current, safeNumber(current.servings, 1) + 0.25))} style={miniButtonStyle()}>+</button>
               <button onClick={() => onMeal({ ...meal, items: (meal.items || []).filter((_, i) => i !== index) })} style={miniButtonStyle('rgba(255,92,122,.55)')}>REMOVE</button>
             </div>
           </div>
-          <div style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 8, color: TEXT_DIM }}>
+          <div style={{ textAlign: 'right', fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: TEXT_DIM }}>
             <div>{fmt(item.calories)} kcal</div>
             <div>{fmt(item.protein_g, 'g')} P</div>
             <div>{fmt(item.carbs_g, 'g')} C · {fmt(item.fat_g, 'g')} F</div>
@@ -169,10 +169,10 @@ function DayCard({ day, onDay }) {
     <div style={{ border: `1px solid rgba(157,255,111,.18)`, background: 'linear-gradient(180deg,rgba(157,255,111,.04),rgba(0,0,0,.1))', padding: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', color: day.is_training_day ? LIME : CYAN }}>{day.label}</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', color: day.is_training_day ? LIME : CYAN }}>{day.label}</div>
           <div style={{ fontSize: 12, lineHeight: 1.5, color: TEXT_DIM, marginTop: 4 }}>{day.date} · {day.meals?.length || 0} meals · {day.is_training_day ? 'higher-carb recovery day' : 'controlled rest-day baseline'}</div>
         </div>
-        <div style={{ textAlign: 'right', fontFamily: 'var(--display)', color: LIME_BR, fontSize: 17, whiteSpace: 'nowrap' }}>{money(total.price_eur)}</div>
+        <div style={{ textAlign: 'right', fontFamily: 'var(--phx-font-display)', color: LIME_BR, fontSize: 17, whiteSpace: 'nowrap' }}>{money(total.price_eur)}</div>
       </div>
       <MacroGrid total={total} />
       {(day.meals || []).map((meal, index) => (
@@ -194,7 +194,7 @@ function Section({ title, children, subtitle }) {
   return (
     <div style={{ margin: '14px 18px 0', border: `1px solid rgba(32,216,236,.14)`, background: 'rgba(0,0,0,.16)' }}>
       <div style={{ padding: '12px 13px', borderBottom: `1px solid rgba(32,216,236,.10)` }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 7.5, letterSpacing: '.18em', color: LIME }}>{title}</div>
+        <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7.5, letterSpacing: '.18em', color: LIME }}>{title}</div>
         {subtitle && <div style={{ fontSize: 12, lineHeight: 1.45, color: TEXT_DIM, marginTop: 4 }}>{subtitle}</div>}
       </div>
       <div style={{ padding: '0 13px 12px' }}>{children}</div>
@@ -270,18 +270,18 @@ export default function WeeklyPlanner({ onBack, onSuccess }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>WEEKLY PREP</span>
+          <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>WEEKLY PREP</span>
         </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>3–7 DAYS · APPROVAL FIRST</span>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>3–7 DAYS · APPROVAL FIRST</span>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 130 }}>
         <div style={{ padding: '18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.045),transparent)' }}>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff' }}>MEAL PREP SYSTEM</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 7 }}>Phoenix plans 3–7 days, rotates foods, separates pantry items, and builds the weekly Lidl basket. Nothing is logged or bought without approval.</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff' }}>MEAL PREP SYSTEM</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 7 }}>Phoenix plans 3–7 days, rotates foods, separates pantry items, and builds the weekly Lidl basket. Nothing is logged or bought without approval.</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 12 }}>
             {[3, 5, 7].map(count => (
-              <button key={count} onClick={() => handleDayCount(count)} style={{ padding: '10px 0', border: `1px solid ${dayCount === count ? 'rgba(157,255,111,.45)' : BORDER}`, background: dayCount === count ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: dayCount === count ? LIME : MUTED, fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>{count} DAYS</button>
+              <button key={count} onClick={() => handleDayCount(count)} style={{ padding: '10px 0', border: `1px solid ${dayCount === count ? 'rgba(157,255,111,.45)' : BORDER}`, background: dayCount === count ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: dayCount === count ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>{count} DAYS</button>
             ))}
           </div>
           {data?.summary && <div style={{ marginTop: 11, fontSize: 13, lineHeight: 1.6, color: 'rgba(220,248,236,.78)' }}>{data.summary}</div>}
@@ -289,17 +289,17 @@ export default function WeeklyPlanner({ onBack, onSuccess }) {
           <MacroGrid total={avg} prefix="AVG " />
         </div>
 
-        {error && <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(255,92,122,.25)`, color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 10 }}>{error}</div>}
+        {error && <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(255,92,122,.25)`, color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 10 }}>{error}</div>}
 
         <Section title="BATCH PREP" subtitle="Cook/stock these groups first. Pantry items are handled in the shopping list logic.">
           {(data?.batch_prep || []).length ? data.batch_prep.map(block => (
             <div key={block.category} style={{ padding: '10px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: LIME }}>{String(block.category).toUpperCase()} · {String(block.action).toUpperCase()}</div>
-                <div style={{ fontFamily: 'var(--display)', color: LIME_BR }}>{money(block.estimated_cost_eur)}</div>
+                <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME }}>{String(block.category).toUpperCase()} · {String(block.action).toUpperCase()}</div>
+                <div style={{ fontFamily: 'var(--phx-font-display)', color: LIME_BR }}>{money(block.estimated_cost_eur)}</div>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
-                {(block.items || []).map(item => <span key={`${block.category}-${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(32,216,236,.12)`, padding: '4px 7px' }}>{item.name} · {fmt(item.servings)}×</span>)}
+                {(block.items || []).map(item => <span key={`${block.category}-${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(32,216,236,.12)`, padding: '4px 7px' }}>{item.name} · {fmt(item.servings)}×</span>)}
               </div>
             </div>
           )) : <div style={{ padding: '12px 0', color: TEXT_DIM, fontSize: 13 }}>No batch-prep blocks returned.</div>}
@@ -314,8 +314,8 @@ export default function WeeklyPlanner({ onBack, onSuccess }) {
               ['FULL €', money(data?.shopping_list?.estimated_full_cost_eur || 0)],
             ].map(([label, value]) => (
               <div key={label} style={{ border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.025)', padding: '8px 9px' }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.14em', color: MUTED }}>{label}</div>
-                <div style={{ fontFamily: 'var(--display)', fontSize: 15, fontWeight: 700, color: LIME_BR, marginTop: 3 }}>{value}</div>
+                <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em', color: MUTED }}>{label}</div>
+                <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, color: LIME_BR, marginTop: 3 }}>{value}</div>
               </div>
             ))}
           </div>
@@ -335,14 +335,14 @@ export default function WeeklyPlanner({ onBack, onSuccess }) {
           <button
             onClick={handleLogWeek}
             disabled={logging || activeDays.length === 0 || total.calories <= 0}
-            style={{ width: '100%', padding: '15px 0', border: 'none', background: logging ? 'rgba(157,255,111,.3)' : LIME, color: '#001204', fontFamily: 'var(--display)', fontSize: 15, fontWeight: 700, letterSpacing: '.22em', textAlign: 'center', boxShadow: `0 0 18px rgba(157,255,111,.28)`, cursor: logging ? 'not-allowed' : 'pointer' }}
+            style={{ width: '100%', padding: '15px 0', border: 'none', background: logging ? 'rgba(157,255,111,.3)' : LIME, color: '#001204', fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, letterSpacing: '.22em', textAlign: 'center', boxShadow: `0 0 18px rgba(157,255,111,.28)`, cursor: logging ? 'not-allowed' : 'pointer' }}
           >
             {logging ? 'LOGGING WEEK…' : `LOG WEEK · ${activeDays.length} DAYS`}
           </button>
         </div>}
 
         <div style={{ margin: '0 18px 16px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, background: 'rgba(32,216,236,.025)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>Weekly prep is local-first and approval-first. Phoenix can plan the week, but you edit days/meals and approve before anything is logged. Grocery output is a checklist only.</div>
         </div>
       </div>

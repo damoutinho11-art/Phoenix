@@ -24,6 +24,15 @@ function formatTimestamp(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString()
 }
 
+function Field({ label, value, color = ACCENT }) {
+  return (
+    <div style={{ background: 'rgba(0,187,221,.04)', border, padding: '10px 12px', minWidth: 0 }}>
+      <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: muted, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: BODY, fontSize: 15, fontWeight: 600, color, textShadow: '0 0 12px rgba(0,187,221,.25)', overflowWrap: 'anywhere' }}>{value ?? '—'}</div>
+    </div>
+  )
+}
+
 export default function Performance({ onBack }) {
   const [snapshots, setSnapshots] = useState(null)
   const [loadError, setLoadError] = useState(false)
@@ -111,9 +120,26 @@ export default function Performance({ onBack }) {
             {snapshots.length} REAL SNAPSHOT{snapshots.length === 1 ? '' : 'S'} · NEWEST FIRST
           </div>
           {snapshots.map((snapshot, index) => (
-            <div key={snapshot.id ?? index} style={{ padding: '12px 14px', border, background: 'rgba(0,187,221,.02)', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,.4), rgba(0,187,221,.1), transparent)' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+            <div
+              key={snapshot.id ?? index}
+              className="phx-enter"
+              style={{
+                padding: '14px 16px',
+                border: '1px solid rgba(0,187,221,.24)',
+                background:
+                  'linear-gradient(180deg, rgba(255,255,255,.03), transparent 55%),' +
+                  'linear-gradient(180deg, rgba(0,187,221,.05), rgba(0,187,221,.02))',
+                borderRadius: 3,
+                position: 'relative',
+                overflow: 'hidden',
+                animationDelay: `${index * 40}ms`,
+              }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, rgba(0,187,221,.5), rgba(0,187,221,.12), transparent)' }} />
+              <div style={{ position: 'absolute', top: -1, left: -1, width: 8, height: 8, borderTop: '1px solid rgba(0,187,221,.5)', borderLeft: '1px solid rgba(0,187,221,.5)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderBottom: '1px solid rgba(0,187,221,.5)', borderRight: '1px solid rgba(0,187,221,.5)', pointerEvents: 'none' }} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div style={{ fontFamily: MONO, fontSize: 8, color: ACCENT, letterSpacing: '.08em' }}>
                   {formatTimestamp(snapshot.created_at)}
                 </div>
@@ -126,24 +152,32 @@ export default function Performance({ onBack }) {
                     } finally { setDeleting(null) }
                   }}
                   disabled={deleting === snapshot.id}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,92,122,.4)', fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', cursor: 'pointer', padding: '2px 4px' }}
+                  aria-label="Delete snapshot"
+                  style={{
+                    display: 'grid',
+                    placeContent: 'center',
+                    width: 22,
+                    height: 22,
+                    background: 'rgba(255,92,122,.06)',
+                    border: '1px solid rgba(255,92,122,.3)',
+                    borderRadius: 2,
+                    color: 'rgba(255,92,122,.8)',
+                    fontFamily: MONO,
+                    fontSize: 9,
+                    cursor: 'pointer',
+                  }}
                 >
                   {deleting === snapshot.id ? '…' : '✕'}
                 </button>
               </div>
-              {[
-                ['TOTAL VALUE', snapshot.total_value_eur],
-                ['INVESTED VALUE', snapshot.invested_value_eur],
-                ['CASH', snapshot.cash_eur],
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 8 }}>
-                  <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', color: muted }}>{label}</span>
-                  <span style={{ fontFamily: BODY, fontSize: 15, fontWeight: 600, color: value == null ? muted : ACCENT, textAlign: 'right', textShadow: value != null ? '0 0 12px rgba(0,187,221,.3)' : 'none' }}>
-                    {formatEur(value)}
-                  </span>
-                </div>
-              ))}
-              <div style={{ fontFamily: MONO, fontSize: 7, color: 'rgba(0,187,221,.3)', letterSpacing: '.1em', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(0,187,221,.08)' }}>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
+                <Field label="TOTAL VALUE" value={formatEur(snapshot.total_value_eur)} color={snapshot.total_value_eur == null ? muted : ACCENT} />
+                <Field label="INVESTED VALUE" value={formatEur(snapshot.invested_value_eur)} color={snapshot.invested_value_eur == null ? muted : ACCENT} />
+                <Field label="CASH" value={formatEur(snapshot.cash_eur)} color={snapshot.cash_eur == null ? muted : ACCENT} />
+              </div>
+
+              <div style={{ fontFamily: MONO, fontSize: 7, color: 'rgba(0,187,221,.35)', letterSpacing: '.1em', marginTop: 12, paddingTop: 9, borderTop: '1px solid rgba(0,187,221,.1)' }}>
                 {snapshot.trigger === 'ledger_apply' ? 'EXPLICIT LEDGER APPLY' : String(snapshot.trigger || 'RECORDED SNAPSHOT').toUpperCase()}
                 {snapshot.transaction_id != null ? ` · TRANSACTION ${snapshot.transaction_id}` : ''}
               </div>

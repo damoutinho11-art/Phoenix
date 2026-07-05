@@ -15,7 +15,7 @@ function average(values) {
 
 function WeightTrendChart({ weights, baselineWeightKg }) {
   if (!weights || weights.length < 2) {
-    return <div style={{ height: 132, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontFamily: 'var(--mono)', fontSize: 12, border: `1px solid rgba(32,216,236,.08)`, background: 'linear-gradient(rgba(32,216,236,.05) 1px,transparent 1px)', backgroundSize: '100% 25%' }}>Log at least 2 entries to see trend</div>
+    return <div style={{ height: 132, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 12, border: `1px solid rgba(32,216,236,.08)`, background: 'linear-gradient(rgba(32,216,236,.05) 1px,transparent 1px)', backgroundSize: '100% 25%' }}>Log at least 2 entries to see trend</div>
   }
 
   const W = 390, H = 132
@@ -109,63 +109,63 @@ export default function WeightHistory({ onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>NUTRITION TRENDS</span>
+          <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>NUTRITION TRENDS</span>
         </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>REAL DATA</span>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>REAL DATA</span>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ padding: '16px 18px', borderRight: `1px solid ${BORDER}` }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: MUTED, marginBottom: 5 }}>WEIGHT NOW</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 34, fontWeight: 700, lineHeight: 1, background: `linear-gradient(135deg,#fff,${LIME})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{latest ? Number(latest.weight_kg).toFixed(1) : '—'}</div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: TEXT_DIM, letterSpacing: '.1em', marginTop: 5, lineHeight: 1.55 }}>
+            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.18em', color: MUTED, marginBottom: 5 }}>WEIGHT NOW</div>
+            <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 34, fontWeight: 700, lineHeight: 1, background: `linear-gradient(135deg,#fff,${LIME})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{latest ? Number(latest.weight_kg).toFixed(1) : '—'}</div>
+            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: TEXT_DIM, letterSpacing: '.1em', marginTop: 5, lineHeight: 1.55 }}>
               {delta === null ? 'Log weight to build trend' : `${Math.abs(delta)}kg ${delta < 0 ? 'down' : 'up'} in range`} {baselineDelta !== null ? `· ${baselineDelta > 0 ? '+' : ''}${baselineDelta}kg vs baseline` : ''}
             </div>
           </div>
           <div style={{ padding: '16px 18px' }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.18em', color: MUTED, marginBottom: 5 }}>AVG PROTEIN</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 34, fontWeight: 700, lineHeight: 1, color: '#fff' }}>{avgProtein === null ? '—' : `${avgProtein}g`}</div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: TEXT_DIM, letterSpacing: '.1em', marginTop: 5, lineHeight: 1.55 }}>{adherencePct === null ? 'No meal history yet' : `${adherencePct}% strict adherence`}</div>
+            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.18em', color: MUTED, marginBottom: 5 }}>AVG PROTEIN</div>
+            <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 34, fontWeight: 700, lineHeight: 1, color: '#fff' }}>{avgProtein === null ? '—' : `${avgProtein}g`}</div>
+            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: TEXT_DIM, letterSpacing: '.1em', marginTop: 5, lineHeight: 1.55 }}>{adherencePct === null ? 'No meal history yet' : `${adherencePct}% strict adherence`}</div>
           </div>
         </div>
 
         <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>WEIGHT TREND</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{trendRate === null ? 'NEEDS DATA' : `${trendRate > 0 ? '+' : ''}${trendRate}kg / 7D AVG`}</span>
+            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>WEIGHT TREND</span>
+            <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 600, color: LIME }}>{trendRate === null ? 'NEEDS DATA' : `${trendRate > 0 ? '+' : ''}${trendRate}kg / 7D AVG`}</span>
           </div>
-          {loading ? <div style={{ height: 132, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontFamily: 'var(--mono)', fontSize: 12 }}>Loading…</div> : <WeightTrendChart weights={history} baselineWeightKg={baselineWeightKg} />}
+          {loading ? <div style={{ height: 132, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 12 }}>Loading…</div> : <WeightTrendChart weights={history} baselineWeightKg={baselineWeightKg} />}
         </div>
 
         <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>NUTRITION ADHERENCE</span>
-            <span style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 600, color: LIME }}>{mealHistory?.good_days || 0} / {mealHistory?.logged_days || 0}</span>
+            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>NUTRITION ADHERENCE</span>
+            <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 600, color: LIME }}>{mealHistory?.good_days || 0} / {mealHistory?.logged_days || 0}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
             {heatData.map((d, i) => {
               const c = HEAT_COLORS[d.state]
-              return <div key={i} title={d.state} style={{ height: 32, border: `1px solid ${c.border}`, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 7, color: c.color }}>{d.label}</div>
+              return <div key={i} title={d.state} style={{ height: 32, border: `1px solid ${c.border}`, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: c.color }}>{d.label}</div>
             })}
           </div>
-          {!heatData.length && <div style={{ padding: '18px 0 4px', color: TEXT_DIM, fontFamily: 'var(--mono)', fontSize: 10, textAlign: 'center' }}>Log meals to generate adherence cells.</div>}
+          {!heatData.length && <div style={{ padding: '18px 0 4px', color: TEXT_DIM, fontFamily: 'var(--phx-font-mono)', fontSize: 10, textAlign: 'center' }}>Log meals to generate adherence cells.</div>}
         </div>
 
         <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>LOG WEIGHT</span>
-            <button onClick={() => setShowInput(!showInput)} style={{ border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.045)', color: LIME, fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', padding: '6px 10px', cursor: 'pointer' }}>{showInput ? 'CLOSE' : 'ADD'}</button>
+            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>LOG WEIGHT</span>
+            <button onClick={() => setShowInput(!showInput)} style={{ border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.045)', color: LIME, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', padding: '6px 10px', cursor: 'pointer' }}>{showInput ? 'CLOSE' : 'ADD'}</button>
           </div>
           {showInput && <div style={{ display: 'flex', gap: 8 }}>
-            <input value={input} onChange={e => setInput(e.target.value)} placeholder="73.4" inputMode="decimal" style={{ flex: 1, background: 'rgba(157,255,111,.025)', border: `1px solid ${BORDER}`, color: '#fff', padding: '12px', fontFamily: 'var(--display)', fontSize: 18, outline: 'none' }} />
-            <button onClick={handleLog} disabled={logging} style={{ padding: '0 16px', border: 'none', background: LIME, color: '#001204', fontFamily: 'var(--display)', fontWeight: 700, letterSpacing: '.16em', cursor: 'pointer' }}>{logging ? '...' : 'SAVE'}</button>
+            <input value={input} onChange={e => setInput(e.target.value)} placeholder="73.4" inputMode="decimal" style={{ flex: 1, background: 'rgba(157,255,111,.025)', border: `1px solid ${BORDER}`, color: '#fff', padding: '12px', fontFamily: 'var(--phx-font-display)', fontSize: 18, outline: 'none' }} />
+            <button onClick={handleLog} disabled={logging} style={{ padding: '0 16px', border: 'none', background: LIME, color: '#001204', fontFamily: 'var(--phx-font-display)', fontWeight: 700, letterSpacing: '.16em', cursor: 'pointer' }}>{logging ? '...' : 'SAVE'}</button>
           </div>}
-          {error && <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: '#ff5c7a', marginTop: 8 }}>{error}</div>}
+          {error && <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, color: '#ff5c7a', marginTop: 8 }}>{error}</div>}
         </div>
 
         <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX TREND LOGIC</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX TREND LOGIC</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Weight trend now uses only logged values. Nutrition adherence comes from the strict meal-history contract: calories must be close to target and protein must be close to target; under-eating no longer counts as success.
           </div>

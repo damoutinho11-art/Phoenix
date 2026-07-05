@@ -70,7 +70,7 @@ const qualityStatusMeta = {
 }
 
 function FieldLabel({ children }) {
-  return <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.17em', color: muted, marginBottom: 5 }}>{children}</div>
+  return <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.17em', color: muted, marginBottom: 5 }}>{children}</div>
 }
 
 function formatDate(value) {
@@ -300,60 +300,60 @@ export default function Research({ onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: border, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: '#20d8ec', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: '#7df0ff' }}>RESEARCH</span>
+          <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: '#7df0ff' }}>RESEARCH</span>
         </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: safetyConfirmed ? '#4dffb4' : muted, letterSpacing: '.12em' }}>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: safetyConfirmed ? '#4dffb4' : muted, letterSpacing: '.12em' }}>
           {safetyConfirmed ? 'SAFETY CONFIRMED' : 'RESEARCH ONLY'}
         </span>
       </div>
 
-      <div style={{ margin: '14px 16px 0', padding: '9px 11px', border: '1px solid rgba(77,255,180,.22)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: '#4dffb4', lineHeight: 1.6 }}>
+      <div style={{ margin: '14px 16px 0', padding: '9px 11px', border: '1px solid rgba(77,255,180,.22)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: '#4dffb4', lineHeight: 1.6 }}>
         RESEARCH ONLY · NO TRADES EXECUTED · NO PORTFOLIO UPDATE
       </div>
 
-      <div style={{ margin: '10px 16px 0', padding: '9px 11px', border: '1px solid rgba(125,240,255,.15)', background: 'rgba(125,240,255,.012)', fontFamily: 'var(--mono)', fontSize: 7, color: '#7df0ff', letterSpacing: '.12em', lineHeight: 1.6 }}>
+      <div style={{ margin: '10px 16px 0', padding: '9px 11px', border: '1px solid rgba(125,240,255,.15)', background: 'rgba(125,240,255,.012)', fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: '#7df0ff', letterSpacing: '.12em', lineHeight: 1.6 }}>
         PHOENIX synthesizes research from evidence. This does not approve a trade.
       </div>
 
       <div style={{ margin: '10px 16px 0', padding: '9px 11px', border: '1px solid rgba(77,255,180,.2)', background: 'rgba(77,255,180,.015)' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4', letterSpacing: '.12em', marginBottom: 7 }}>PHOENIX runs research autonomously. This does not approve or execute a trade.</div>
+        <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: '#4dffb4', letterSpacing: '.12em', marginBottom: 7 }}>PHOENIX runs research autonomously. This does not approve or execute a trade.</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handleGlobalAutopilot}
             disabled={globalAutopilotRunning}
-            style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.06)', color: '#4dffb4', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', cursor: globalAutopilotRunning ? 'wait' : 'pointer' }}
+            style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'rgba(77,255,180,.06)', color: '#4dffb4', fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', cursor: globalAutopilotRunning ? 'wait' : 'pointer' }}
           >
             {globalAutopilotRunning ? 'RUNNING AUTOPILOT…' : 'RUN FINANCE AUTOPILOT'}
           </button>
           {globalAutopilotResult && !globalAutopilotResult.error && (
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4' }}>{globalAutopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY · NO TRADES</span>
+            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: '#4dffb4' }}>{globalAutopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY · NO TRADES</span>
           )}
           {globalAutopilotResult?.error && (
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#ff5c7a' }}>AUTOPILOT ERROR — CHECK LOGS</span>
+            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: '#ff5c7a' }}>AUTOPILOT ERROR — CHECK LOGS</span>
           )}
         </div>
       </div>
 
       <div style={{ margin: '10px 16px 0', padding: '9px 11px', border, background: 'rgba(32,216,236,.015)' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, letterSpacing: '.12em', marginBottom: 7 }}>PHOENIX validates research quality. This does not approve a trade.</div>
+        <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted, letterSpacing: '.12em', marginBottom: 7 }}>PHOENIX validates research quality. This does not approve a trade.</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
             type="button"
             onClick={handleQualityGateAll}
             disabled={qualityAllRunning}
-            style={{ padding: '7px 12px', border, background: 'rgba(32,216,236,.07)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', cursor: qualityAllRunning ? 'wait' : 'pointer' }}
+            style={{ padding: '7px 12px', border, background: 'rgba(32,216,236,.07)', color: '#7df0ff', fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', cursor: qualityAllRunning ? 'wait' : 'pointer' }}
           >
             {qualityAllRunning ? 'EVALUATING…' : 'RUN ALL QUALITY GATES'}
           </button>
           {qualityAllResult !== null && (
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4' }}>{qualityAllResult} MEMO(S) EVALUATED</span>
+            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: '#4dffb4' }}>{qualityAllResult} MEMO(S) EVALUATED</span>
           )}
         </div>
       </div>
 
       <form onSubmit={handleDraftSubmit} style={{ padding: '16px', borderBottom: border }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: muted, marginBottom: 8 }}>DRAFT MEMO FROM PORTFOLIO CONTEXT</div>
+        <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.2em', color: muted, marginBottom: 8 }}>DRAFT MEMO FROM PORTFOLIO CONTEXT</div>
         <div style={{ marginBottom: 10, fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.6)' }}>
           Generates a draft memo from local PHOENIX data only. No external sources. Draft only — requires human review.
         </div>
@@ -367,19 +367,19 @@ export default function Research({ onBack }) {
             <input value={draftForm.sleeve} onChange={(e) => setDraftForm(f => ({ ...f, sleeve: e.target.value }))} placeholder="optional" style={fieldStyle} />
           </label>
         </div>
-        {draftError && <div style={{ marginTop: 8, color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8 }}>{draftError}</div>}
+        {draftError && <div style={{ marginTop: 8, color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 8 }}>{draftError}</div>}
         {draftResult && (
-          <div style={{ marginTop: 8, padding: '8px 10px', border: '1px solid rgba(77,255,180,.25)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--mono)', fontSize: 7, color: '#4dffb4', lineHeight: 1.6 }}>
+          <div style={{ marginTop: 8, padding: '8px 10px', border: '1px solid rgba(77,255,180,.25)', background: 'rgba(77,255,180,.025)', fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: '#4dffb4', lineHeight: 1.6 }}>
             DRAFT MEMO #{draftResult.memo_id} CREATED · DRAFT ONLY — REQUIRES HUMAN REVIEW
           </div>
         )}
-        <button type="submit" disabled={drafting} style={{ width: '100%', marginTop: 10, padding: '10px 0', border, background: 'rgba(32,216,236,.06)', color: '#7df0ff', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', cursor: drafting ? 'wait' : 'pointer' }}>
+        <button type="submit" disabled={drafting} style={{ width: '100%', marginTop: 10, padding: '10px 0', border, background: 'rgba(32,216,236,.06)', color: '#7df0ff', fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: drafting ? 'wait' : 'pointer' }}>
           {drafting ? 'DRAFTING…' : 'DRAFT MEMO'}
         </button>
       </form>
 
       <form onSubmit={handleSubmit} style={{ padding: '16px', borderBottom: border }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: muted, marginBottom: 12 }}>CREATE RESEARCH MEMO</div>
+        <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.2em', color: muted, marginBottom: 12 }}>CREATE RESEARCH MEMO</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <label>
             <FieldLabel>ASSET</FieldLabel>
@@ -427,8 +427,8 @@ export default function Research({ onBack }) {
           <textarea name="notes" value={form.notes} onChange={updateField} rows={2} style={{ ...fieldStyle, resize: 'vertical' }} />
         </label>
 
-        {submitError && <div style={{ marginTop: 10, color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8 }}>{submitError}</div>}
-        {createdMessage && <div style={{ marginTop: 10, color: '#4dffb4', fontFamily: 'var(--mono)', fontSize: 8 }}>{createdMessage}</div>}
+        {submitError && <div style={{ marginTop: 10, color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 8 }}>{submitError}</div>}
+        {createdMessage && <div style={{ marginTop: 10, color: '#4dffb4', fontFamily: 'var(--phx-font-mono)', fontSize: 8 }}>{createdMessage}</div>}
         <button type="submit" disabled={submitting} className="action" style={{ width: '100%', marginTop: 12, padding: '12px 0', fontSize: 10, letterSpacing: '.16em' }}>
           {submitting ? 'SAVING…' : 'SAVE RESEARCH MEMO'}
         </button>
@@ -436,12 +436,12 @@ export default function Research({ onBack }) {
 
       <div style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 }}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: muted }}>MEMOS</span>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted }}>{memos === null ? '…' : memos.length}</span>
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.2em', color: muted }}>MEMOS</span>
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: muted }}>{memos === null ? '…' : memos.length}</span>
         </div>
 
-        {loadError && <div style={{ padding: 12, border: '1px solid rgba(255,92,122,.3)', color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8 }}>UNABLE TO LOAD RESEARCH MEMOS</div>}
-        {memos === null && !loadError && <div style={{ padding: 24, textAlign: 'center', color: muted, fontFamily: 'var(--mono)', fontSize: 8 }}>LOADING RESEARCH MEMOS…</div>}
+        {loadError && <div style={{ padding: 12, border: '1px solid rgba(255,92,122,.3)', color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 8 }}>UNABLE TO LOAD RESEARCH MEMOS</div>}
+        {memos === null && !loadError && <div style={{ padding: 24, textAlign: 'center', color: muted, fontFamily: 'var(--phx-font-mono)', fontSize: 8 }}>LOADING RESEARCH MEMOS…</div>}
         {memos?.length === 0 && !loadError && (
           <div style={{ padding: '30px 16px', border, background: 'rgba(32,216,236,.02)', textAlign: 'center', fontSize: 13, lineHeight: 1.7, color: 'rgba(199,236,244,.65)' }}>
             No research memos yet. Research memos are analysis only and do not create trades.
@@ -453,30 +453,30 @@ export default function Research({ onBack }) {
             <article key={memo.id} style={{ padding: '12px 13px', border, borderLeft: `3px solid ${verdictColor[memo.verdict] || '#20d8ec'}`, background: 'rgba(32,216,236,.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>{memo.title}</div>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 4 }}>{[memo.asset, memo.sleeve].filter(Boolean).join(' · ').toUpperCase() || 'UNSCOPED'}</div>
+                  <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>{memo.title}</div>
+                  <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted, marginTop: 4 }}>{[memo.asset, memo.sleeve].filter(Boolean).join(' · ').toUpperCase() || 'UNSCOPED'}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <div>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: verdictColor[memo.verdict] || '#7df0ff' }}>{memo.verdict}</div>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{String(memo.status).toUpperCase()}</div>
+                    <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: verdictColor[memo.verdict] || '#7df0ff' }}>{memo.verdict}</div>
+                    <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted, marginTop: 3 }}>{String(memo.status).toUpperCase()}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleDeleteMemo(memo.id)}
                     disabled={deletingMemo === memo.id}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,92,122,.35)', fontFamily: 'var(--mono)', fontSize: 9, cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,92,122,.35)', fontFamily: 'var(--phx-font-mono)', fontSize: 9, cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}
                   >{deletingMemo === memo.id ? '…' : '✕'}</button>
                 </div>
               </div>
               <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.65, color: 'rgba(199,236,244,.78)', whiteSpace: 'pre-wrap' }}>{memo.thesis}</div>
               {Array.isArray(memo.risks) && memo.risks.length > 0 && (
                 <div style={{ marginTop: 9 }}>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, letterSpacing: '.14em', marginBottom: 4 }}>RISKS</div>
+                  <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted, letterSpacing: '.14em', marginBottom: 4 }}>RISKS</div>
                   {memo.risks.map((risk, index) => <div key={index} style={{ fontSize: 11, color: 'rgba(255,213,107,.72)', lineHeight: 1.5 }}>· {risk}</div>)}
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 10, fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 10, fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted }}>
                 <span>CONFIDENCE {memo.data_confidence}</span>
                 <span>{formatDate(memo.created_at)}</span>
               </div>
@@ -487,12 +487,12 @@ export default function Research({ onBack }) {
                 return (
                   <div style={{ marginTop: 10, paddingTop: 9, borderTop: '1px solid rgba(32,216,236,.1)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: meta.color }}>{meta.label}</span>
-                      <button type="button" onClick={() => toggleMemoEvidence(memo.id)} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: '#20d8ec' }}>
+                      <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: meta.color }}>{meta.label}</span>
+                      <button type="button" onClick={() => toggleMemoEvidence(memo.id)} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: '#20d8ec' }}>
                         {selectedMemoId === memo.id ? 'HIDE EVIDENCE' : 'VIEW EVIDENCE'}
                       </button>
                     </div>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted, marginTop: 4, letterSpacing: '.1em' }}>RESEARCH TRUST ONLY · NOT A TRADE SIGNAL</div>
+                    <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 6, color: muted, marginTop: 4, letterSpacing: '.1em' }}>RESEARCH TRUST ONLY · NOT A TRADE SIGNAL</div>
                     {(() => {
                       const qStatus = memo.research_quality_status || 'UNREVIEWED'
                       const qMeta = qualityStatusMeta[qStatus] || qualityStatusMeta.UNREVIEWED
@@ -500,16 +500,16 @@ export default function Research({ onBack }) {
                       return (
                         <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                           <div>
-                            <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: qMeta.color, letterSpacing: '.1em' }}>{qMeta.label}</span>
+                            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: qMeta.color, letterSpacing: '.1em' }}>{qMeta.label}</span>
                             {memo.research_quality_reason && qStatus !== 'UNREVIEWED' && (
-                              <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted, marginTop: 2, lineHeight: 1.5 }}>{memo.research_quality_reason}</div>
+                              <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 6, color: muted, marginTop: 2, lineHeight: 1.5 }}>{memo.research_quality_reason}</div>
                             )}
                           </div>
                           <button
                             type="button"
                             onClick={() => handleQualityGate(memo.id)}
                             disabled={isRunning}
-                            style={{ background: 'none', border, padding: '4px 8px', cursor: isRunning ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#20d8ec', flexShrink: 0 }}
+                            style={{ background: 'none', border, padding: '4px 8px', cursor: isRunning ? 'wait' : 'pointer', fontFamily: 'var(--phx-font-mono)', fontSize: 6, letterSpacing: '.1em', color: '#20d8ec', flexShrink: 0 }}
                           >
                             {isRunning ? 'EVALUATING…' : 'RUN QUALITY GATE'}
                           </button>
@@ -523,7 +523,7 @@ export default function Research({ onBack }) {
                         <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                           <div>
                             {evResult && (
-                              <span style={{ fontFamily: 'var(--mono)', fontSize: 6, color: '#4dffb4', letterSpacing: '.1em' }}>
+                              <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 6, color: '#4dffb4', letterSpacing: '.1em' }}>
                                 {evResult.generated_count} GENERATED · {evResult.skipped_count} SKIPPED · EVIDENCE FROM EXISTING PHOENIX DATA ONLY
                               </span>
                             )}
@@ -532,7 +532,7 @@ export default function Research({ onBack }) {
                             type="button"
                             onClick={() => handleGenerateEvidence(memo.id)}
                             disabled={isGenerating}
-                            style={{ background: 'none', border, padding: '4px 8px', cursor: isGenerating ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
+                            style={{ background: 'none', border, padding: '4px 8px', cursor: isGenerating ? 'wait' : 'pointer', fontFamily: 'var(--phx-font-mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
                           >
                             {isGenerating ? 'GENERATING…' : 'GENERATE EVIDENCE'}
                           </button>
@@ -546,7 +546,7 @@ export default function Research({ onBack }) {
                         <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                           <div>
                             {synResult && (
-                              <span style={{ fontFamily: 'var(--mono)', fontSize: 6, color: '#7df0ff', letterSpacing: '.1em' }}>
+                              <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 6, color: '#7df0ff', letterSpacing: '.1em' }}>
                                 {synResult.verdict} · {synResult.data_confidence} · RULE {synResult.rule_applied} · SYNTHESIS ONLY
                               </span>
                             )}
@@ -555,7 +555,7 @@ export default function Research({ onBack }) {
                             type="button"
                             onClick={() => handleSynthesizeMemo(memo.id)}
                             disabled={isSynthesizing}
-                            style={{ background: 'none', border, padding: '4px 8px', cursor: isSynthesizing ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
+                            style={{ background: 'none', border, padding: '4px 8px', cursor: isSynthesizing ? 'wait' : 'pointer', fontFamily: 'var(--phx-font-mono)', fontSize: 6, letterSpacing: '.1em', color: '#7df0ff', flexShrink: 0 }}
                           >
                             {isSynthesizing ? 'SYNTHESIZING…' : 'SYNTHESIZE MEMO'}
                           </button>
@@ -569,7 +569,7 @@ export default function Research({ onBack }) {
                         <div style={{ marginTop: 8, paddingTop: 7, borderTop: '1px solid rgba(77,255,180,.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                           <div>
                             {apResult && (
-                              <span style={{ fontFamily: 'var(--mono)', fontSize: 6, color: '#4dffb4', letterSpacing: '.1em' }}>
+                              <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 6, color: '#4dffb4', letterSpacing: '.1em' }}>
                                 {apResult.final_memo?.verdict} · {apResult.final_memo?.research_quality_status} · AUTOPILOT · NO TRADES
                               </span>
                             )}
@@ -578,7 +578,7 @@ export default function Research({ onBack }) {
                             type="button"
                             onClick={() => handleMemoAutopilot(memo.id)}
                             disabled={isRunning}
-                            style={{ background: 'none', border: '1px solid rgba(77,255,180,.3)', padding: '4px 8px', cursor: isRunning ? 'wait' : 'pointer', fontFamily: 'var(--mono)', fontSize: 6, letterSpacing: '.1em', color: '#4dffb4', flexShrink: 0 }}
+                            style={{ background: 'none', border: '1px solid rgba(77,255,180,.3)', padding: '4px 8px', cursor: isRunning ? 'wait' : 'pointer', fontFamily: 'var(--phx-font-mono)', fontSize: 6, letterSpacing: '.1em', color: '#4dffb4', flexShrink: 0 }}
                           >
                             {isRunning ? 'RUNNING AUTOPILOT…' : 'RUN RESEARCH AUTOPILOT'}
                           </button>
@@ -587,10 +587,10 @@ export default function Research({ onBack }) {
                     })()}
 
                     {selectedMemoId === memo.id && !selectedMemoDetail && !detailError && (
-                      <div style={{ marginTop: 9, fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>LOADING LINKED EVIDENCE…</div>
+                      <div style={{ marginTop: 9, fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted }}>LOADING LINKED EVIDENCE…</div>
                     )}
                     {selectedMemoId === memo.id && detailError && (
-                      <div style={{ marginTop: 9, fontFamily: 'var(--mono)', fontSize: 7, color: '#ff5c7a' }}>UNABLE TO LOAD LINKED EVIDENCE</div>
+                      <div style={{ marginTop: 9, fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: '#ff5c7a' }}>UNABLE TO LOAD LINKED EVIDENCE</div>
                     )}
                     {selectedMemoId === memo.id && selectedMemoDetail && (
                       <div style={{ marginTop: 10 }}>
@@ -602,8 +602,8 @@ export default function Research({ onBack }) {
                             ['OPEN', selectedMemoDetail.evidence_summary?.unverified_count],
                           ].map(([label, value]) => (
                             <div key={label} style={{ padding: '6px 3px', border: '1px solid rgba(32,216,236,.1)', textAlign: 'center' }}>
-                              <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted }}>{label}</div>
-                              <div style={{ fontFamily: 'var(--display)', fontSize: 13, color: '#7df0ff', marginTop: 2 }}>{value ?? 0}</div>
+                              <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 6, color: muted }}>{label}</div>
+                              <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, color: '#7df0ff', marginTop: 2 }}>{value ?? 0}</div>
                             </div>
                           ))}
                         </div>
@@ -613,10 +613,10 @@ export default function Research({ onBack }) {
                         {selectedMemoDetail.validation_records?.map(record => (
                           <div key={record.id} style={{ padding: '7px 0', borderTop: '1px solid rgba(32,216,236,.08)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                              <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: '#fff' }}>{record.field_name}</span>
-                              <span style={{ fontFamily: 'var(--mono)', fontSize: 7, color: validationStatusColor[record.status] || '#7df0ff' }}>{record.status}</span>
+                              <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: '#fff' }}>{record.field_name}</span>
+                              <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: validationStatusColor[record.status] || '#7df0ff' }}>{record.status}</span>
                             </div>
-                            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{record.check_type} · {String(record.confidence).toUpperCase()} CONFIDENCE</div>
+                            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted, marginTop: 3 }}>{record.check_type} · {String(record.confidence).toUpperCase()} CONFIDENCE</div>
                           </div>
                         ))}
                       </div>
@@ -629,12 +629,12 @@ export default function Research({ onBack }) {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '22px 0 11px', paddingTop: 16, borderTop: border }}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.2em', color: muted }}>VALIDATION RECORDS</span>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: muted }}>{validationRecords === null ? '…' : validationRecords.length}</span>
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.2em', color: muted }}>VALIDATION RECORDS</span>
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: muted }}>{validationRecords === null ? '…' : validationRecords.length}</span>
         </div>
 
         {validationRecords === null && !loadError && (
-          <div style={{ padding: 20, textAlign: 'center', color: muted, fontFamily: 'var(--mono)', fontSize: 8 }}>LOADING VALIDATION RECORDS…</div>
+          <div style={{ padding: 20, textAlign: 'center', color: muted, fontFamily: 'var(--phx-font-mono)', fontSize: 8 }}>LOADING VALIDATION RECORDS…</div>
         )}
         {validationRecords?.length === 0 && !loadError && (
           <div style={{ padding: '20px 14px', border, background: 'rgba(32,216,236,.02)', textAlign: 'center', fontSize: 12, lineHeight: 1.6, color: 'rgba(199,236,244,.55)' }}>
@@ -646,12 +646,12 @@ export default function Research({ onBack }) {
             <article key={record.id} style={{ padding: '10px 12px', border, borderLeft: `3px solid ${validationStatusColor[record.status] || '#20d8ec'}`, background: 'rgba(32,216,236,.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div>
-                  <div style={{ fontFamily: 'var(--display)', fontSize: 14, fontWeight: 700, color: '#fff' }}>{record.field_name}</div>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{record.check_type} · {String(record.asset || 'UNSCOPED').toUpperCase()}</div>
+                  <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 14, fontWeight: 700, color: '#fff' }}>{record.field_name}</div>
+                  <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted, marginTop: 3 }}>{record.check_type} · {String(record.asset || 'UNSCOPED').toUpperCase()}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: validationStatusColor[record.status] || '#7df0ff' }}>{record.status}</div>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 7, color: muted, marginTop: 3 }}>{String(record.confidence).toUpperCase()} CONFIDENCE</div>
+                  <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: validationStatusColor[record.status] || '#7df0ff' }}>{record.status}</div>
+                  <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted, marginTop: 3 }}>{String(record.confidence).toUpperCase()} CONFIDENCE</div>
                 </div>
               </div>
               {(record.primary_value != null || record.secondary_value != null || record.consensus_value != null) && (
@@ -662,13 +662,13 @@ export default function Research({ onBack }) {
                     ['CONSENSUS', record.consensus_value],
                   ].map(([label, value]) => (
                     <div key={label} style={{ padding: '7px 6px', border: '1px solid rgba(32,216,236,.1)', minWidth: 0 }}>
-                      <div style={{ fontFamily: 'var(--mono)', fontSize: 6, color: muted, letterSpacing: '.1em' }}>{label}</div>
-                      <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: value == null ? muted : '#7df0ff', marginTop: 3, overflowWrap: 'anywhere' }}>{value ?? '—'}</div>
+                      <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 6, color: muted, letterSpacing: '.1em' }}>{label}</div>
+                      <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: value == null ? muted : '#7df0ff', marginTop: 3, overflowWrap: 'anywhere' }}>{value ?? '—'}</div>
                     </div>
                   ))}
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 8, fontFamily: 'var(--mono)', fontSize: 7, color: muted }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 8, fontFamily: 'var(--phx-font-mono)', fontSize: 7, color: muted }}>
                 <span>{record.deviation_pct == null ? 'DEVIATION NOT RECORDED' : `DEVIATION ${record.deviation_pct}%`}</span>
                 <span>{formatDate(record.created_at)}</span>
               </div>

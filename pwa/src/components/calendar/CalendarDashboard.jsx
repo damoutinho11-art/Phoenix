@@ -1052,7 +1052,7 @@ export default function CalendarDashboard({ onEvent, onFeed, onConnectors, onQui
   return (
     <CockpitShell accent={VIOLET} className="phx-calendar-cockpit phx-calendar-v18 phx-calendar-v19" aria-label="Calendar Command Center">
       <div className="phx-domain-frame">
-        <header className="phx-command-hero phx-calendar-command-hero">
+        <header className="phx-command-hero phx-calendar-command-hero phx-enter">
           <div className="phx-command-topbar">
             <span>PHOENIX - PERSONAL HEURISTIC OPERATING ENGINE</span>
             <span className="phx-command-online"><i />READ ONLY - NORMALIZED SNAPSHOT</span>

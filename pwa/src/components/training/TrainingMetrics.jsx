@@ -143,8 +143,13 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
                   <span style={{ fontFamily: MONO, fontSize: 8, color, letterSpacing: '.04em' }}>{val}</span>
                 </div>
               </div>
-              <div style={{ height: 3, background: 'rgba(32,216,236,.1)', borderRadius: 2 }}>
-                <div style={{ height: '100%', borderRadius: 2, background: color, width: `${pct}%`, transition: 'width 1.1s ease', boxShadow: `0 0 5px ${color}66` }} />
+              <div style={{ height: 5, background: 'rgba(32,216,236,.14)', border: '1px solid rgba(32,216,236,.16)', borderRadius: 2, overflow: 'hidden' }}>
+                {pct > 0
+                  ? <div style={{ height: '100%', borderRadius: 1, background: color, width: `${pct}%`, minWidth: 4, transition: 'width 1.1s ease', boxShadow: `0 0 6px ${color}88` }} />
+                  : <div style={{
+                      height: '100%', width: '100%', borderRadius: 1,
+                      backgroundImage: 'repeating-linear-gradient(90deg, rgba(32,216,236,.22) 0 6px, transparent 6px 12px)',
+                    }} />}
               </div>
             </div>
           ))}
@@ -525,7 +530,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
 
         {/* DUNK HERO — command-center treatment */}
-        <div style={{ padding: '22px 18px 18px', borderBottom: ORANGE_BDR, background: 'radial-gradient(ellipse at 8% 10%, rgba(255,143,46,.09) 0%, transparent 44%), linear-gradient(180deg,#0a0f14 0%, transparent 65%)', position: 'relative', overflow: 'hidden' }}>
+        <div className="phx-enter" style={{ padding: '22px 18px 18px', borderBottom: ORANGE_BDR, background: 'radial-gradient(ellipse at 8% 10%, rgba(255,143,46,.09) 0%, transparent 44%), linear-gradient(180deg,#0a0f14 0%, transparent 65%)', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'radial-gradient(circle, rgba(255,143,46,.07) 1px, transparent 1px)', backgroundSize: '28px 28px', opacity: .46 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,rgba(255,143,46,.5),transparent)` }} />
           <div style={{ position: 'absolute', top: 12, right: 14, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: 'rgba(255,143,46,.28)' }}>MISSION CLOCK</div>

@@ -81,8 +81,8 @@ function MacroStrip({ total }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginTop: 10 }}>
       {cells.map(([label, val]) => (
         <div key={label} style={{ border: `1px solid ${BORDER}`, background: 'rgba(157,255,111,.025)', padding: '9px 10px' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED }}>{label}</div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#fff', marginTop: 3 }}>{val}</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED }}>{label}</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 18, fontWeight: 700, color: '#fff', marginTop: 3 }}>{val}</div>
         </div>
       ))}
     </div>
@@ -100,7 +100,7 @@ function SlotPicker({ slot, onSlot }) {
             border: `1px solid ${slot === value ? 'rgba(157,255,111,.55)' : 'rgba(32,216,236,.18)'}`,
             background: slot === value ? 'rgba(157,255,111,.10)' : 'rgba(0,0,0,.18)',
             color: slot === value ? LIME : MUTED,
-            fontFamily: 'var(--mono)',
+            fontFamily: 'var(--phx-font-mono)',
             fontSize: 7,
             letterSpacing: '.14em',
             padding: '5px 8px',
@@ -122,15 +122,15 @@ function EditableItems({ items, onItems }) {
       {items.map((item, index) => (
         <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '10px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
           <div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 15, fontWeight: 600, color: '#fff' }}>{item.name}</div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(item.servings)}× · {item.unit}</div>
+            <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 600, color: '#fff' }}>{item.name}</div>
+            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(item.servings)}× · {item.unit}</div>
             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
               <button onClick={() => updateItem(index, current => scaleItem(current, safeNumber(current.servings, 1) - 0.25))} style={miniButtonStyle()}>−</button>
               <button onClick={() => updateItem(index, current => scaleItem(current, safeNumber(current.servings, 1) + 0.25))} style={miniButtonStyle()}>+</button>
               <button onClick={() => onItems(items.filter((_, i) => i !== index))} style={miniButtonStyle('rgba(255,92,122,.55)')}>REMOVE</button>
             </div>
           </div>
-          <div style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 8, color: TEXT_DIM }}>
+          <div style={{ textAlign: 'right', fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: TEXT_DIM }}>
             <div>{fmt(item.calories)} kcal</div>
             <div>{fmt(item.protein_g, 'g')} P</div>
             <div>{fmt(item.carbs_g, 'g')} C · {fmt(item.fat_g, 'g')} F</div>
@@ -146,7 +146,7 @@ function miniButtonStyle(color = LIME) {
     border: `1px solid ${color}`,
     background: 'rgba(0,0,0,.22)',
     color,
-    fontFamily: 'var(--mono)',
+    fontFamily: 'var(--phx-font-mono)',
     fontSize: 7,
     letterSpacing: '.12em',
     padding: '5px 8px',
@@ -184,19 +184,19 @@ function SuggestionCard({ suggestion, onLog, logging, onSaveTemplate }) {
     <div style={{ border: `1px solid rgba(157,255,111,.18)`, background: 'linear-gradient(180deg,rgba(157,255,111,.045),rgba(0,0,0,.1))', padding: 14 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '.06em' }}>{suggestion.title}</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '.06em' }}>{suggestion.title}</div>
           <div style={{ fontSize: 13, lineHeight: 1.55, color: 'rgba(220,248,236,.78)', marginTop: 5 }}>{suggestion.reason}</div>
         </div>
         {total.price_eur > 0 && (
-          <div style={{ fontFamily: 'var(--display)', fontSize: 17, color: LIME_BR, whiteSpace: 'nowrap' }}>€{Number(total.price_eur).toFixed(2)}</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 17, color: LIME_BR, whiteSpace: 'nowrap' }}>€{Number(total.price_eur).toFixed(2)}</div>
         )}
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
         {(suggestion.tags || []).map(tag => (
-          <span key={tag} style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: LIME, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.045)', padding: '3px 7px' }}>{tag}</span>
+          <span key={tag} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: LIME, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.045)', padding: '3px 7px' }}>{tag}</span>
         ))}
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(32,216,236,.24)`, background: 'rgba(32,216,236,.045)', padding: '3px 7px' }}>EDITABLE</span>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(32,216,236,.24)`, background: 'rgba(32,216,236,.045)', padding: '3px 7px' }}>EDITABLE</span>
       </div>
 
       <SlotPicker slot={slot} onSlot={setSlot} />
@@ -204,14 +204,14 @@ function SuggestionCard({ suggestion, onLog, logging, onSaveTemplate }) {
       <EditableItems items={items} onItems={setItems} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-        <button onClick={resetItems} style={{ padding: '11px 0', border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.035)', color: MUTED, fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>RESET</button>
-        <button onClick={saveTemplate} disabled={saved || items.length === 0} style={{ padding: '11px 0', border: `1px solid rgba(157,255,111,.24)`, background: saved ? 'rgba(157,255,111,.13)' : 'rgba(157,255,111,.045)', color: LIME, fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>{saved ? 'TEMPLATE SAVED' : 'SAVE TEMPLATE'}</button>
+        <button onClick={resetItems} style={{ padding: '11px 0', border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.035)', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>RESET</button>
+        <button onClick={saveTemplate} disabled={saved || items.length === 0} style={{ padding: '11px 0', border: `1px solid rgba(157,255,111,.24)`, background: saved ? 'rgba(157,255,111,.13)' : 'rgba(157,255,111,.045)', color: LIME, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>{saved ? 'TEMPLATE SAVED' : 'SAVE TEMPLATE'}</button>
       </div>
 
       <button
         onClick={() => onLog({ suggestion_id: suggestion.id, title: suggestion.title, meal_slot: slot, items })}
         disabled={!canLog || logging === suggestion.id}
-        style={{ width: '100%', marginTop: 10, padding: '14px 0', border: 'none', background: (!canLog || logging === suggestion.id) ? 'rgba(157,255,111,.3)' : LIME, color: '#001204', fontFamily: 'var(--display)', fontSize: 15, fontWeight: 700, letterSpacing: '.22em', textAlign: 'center', boxShadow: `0 0 18px rgba(157,255,111,.28)`, cursor: canLog ? 'pointer' : 'not-allowed' }}
+        style={{ width: '100%', marginTop: 10, padding: '14px 0', border: 'none', background: (!canLog || logging === suggestion.id) ? 'rgba(157,255,111,.3)' : LIME, color: '#001204', fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, letterSpacing: '.22em', textAlign: 'center', boxShadow: `0 0 18px rgba(157,255,111,.28)`, cursor: canLog ? 'pointer' : 'not-allowed' }}
       >
         {logging === suggestion.id ? 'LOGGING…' : 'LOG THIS MEAL'}
       </button>
@@ -225,15 +225,15 @@ function TemplateCard({ template, onLog, onDelete, logging }) {
     <div style={{ border: `1px solid rgba(32,216,236,.14)`, background: 'rgba(32,216,236,.025)', padding: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
         <div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: '#fff' }}>{template.title}</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 3 }}>{(template.meal_slot || 'next_meal').replace('_', ' ').toUpperCase()} · {template.items?.length || 0} ITEMS</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 18, fontWeight: 700, color: '#fff' }}>{template.title}</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 3 }}>{(template.meal_slot || 'next_meal').replace('_', ' ').toUpperCase()} · {template.items?.length || 0} ITEMS</div>
         </div>
-        {total.price_eur > 0 && <div style={{ fontFamily: 'var(--display)', color: LIME_BR }}>€{Number(total.price_eur).toFixed(2)}</div>}
+        {total.price_eur > 0 && <div style={{ fontFamily: 'var(--phx-font-display)', color: LIME_BR }}>€{Number(total.price_eur).toFixed(2)}</div>}
       </div>
       <MacroStrip total={total} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginTop: 10 }}>
-        <button onClick={() => onLog(template)} disabled={logging === template.id} style={{ padding: '11px 0', border: 'none', background: LIME, color: '#001204', fontFamily: 'var(--display)', fontSize: 12, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer' }}>{logging === template.id ? 'LOGGING…' : 'LOG TEMPLATE'}</button>
-        <button onClick={() => onDelete(template.id)} style={{ padding: '0 12px', border: `1px solid rgba(255,92,122,.45)`, background: 'rgba(255,92,122,.035)', color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', cursor: 'pointer' }}>DELETE</button>
+        <button onClick={() => onLog(template)} disabled={logging === template.id} style={{ padding: '11px 0', border: 'none', background: LIME, color: '#001204', fontFamily: 'var(--phx-font-display)', fontSize: 12, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer' }}>{logging === template.id ? 'LOGGING…' : 'LOG TEMPLATE'}</button>
+        <button onClick={() => onDelete(template.id)} style={{ padding: '0 12px', border: `1px solid rgba(255,92,122,.45)`, background: 'rgba(255,92,122,.035)', color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.12em', cursor: 'pointer' }}>DELETE</button>
       </div>
     </div>
   )
@@ -328,15 +328,15 @@ export default function MealBuilder({ onBack, onSuccess }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: 'var(--display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>MEAL BUILDER</span>
+          <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>MEAL BUILDER</span>
         </div>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>EDITABLE · APPROVAL FIRST</span>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>EDITABLE · APPROVAL FIRST</span>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 120 }}>
         <div style={{ padding: '18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.045),transparent)' }}>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff' }}>AUTONOMOUS MEAL BUILDER</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 7 }}>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff' }}>AUTONOMOUS MEAL BUILDER</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 7 }}>
             Phoenix proposes. You can edit ingredients, choose the meal slot, save templates, then approve the log.
           </div>
           {data && <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
@@ -346,27 +346,27 @@ export default function MealBuilder({ onBack, onSuccess }) {
               ['CARBS LEFT', fmt(data.remaining_carbs_g, 'g')],
             ].map(([label, val]) => (
               <div key={label} style={{ border: `1px solid ${BORDER}`, padding: '9px 10px', background: 'rgba(157,255,111,.025)' }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED }}>{label}</div>
-                <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: LIME_BR }}>{val}</div>
+                <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED }}>{label}</div>
+                <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 18, fontWeight: 700, color: LIME_BR }}>{val}</div>
               </div>
             ))}
           </div>}
           {data?.summary && <div style={{ marginTop: 11, fontSize: 13, lineHeight: 1.6, color: 'rgba(220,248,236,.78)' }}>{data.summary}</div>}
         </div>
 
-        {error && <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(255,92,122,.25)`, color: '#ff5c7a', fontFamily: 'var(--mono)', fontSize: 10 }}>{error}</div>}
+        {error && <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(255,92,122,.25)`, color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 10 }}>{error}</div>}
 
         <div style={{ padding: '16px 18px 8px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {suggestions.length === 0 ? (
             <div style={{ padding: 18, border: `1px solid ${BORDER}`, background: 'rgba(157,255,111,.025)' }}>
-              <div style={{ fontFamily: 'var(--display)', fontSize: 22, color: '#fff', fontWeight: 700 }}>NO FULL MEAL PROPOSED</div>
+              <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 22, color: '#fff', fontWeight: 700 }}>NO FULL MEAL PROPOSED</div>
               <div style={{ fontSize: 13, lineHeight: 1.6, color: 'rgba(220,248,236,.76)', marginTop: 6 }}>{data?.summary || 'The day is near closed or there is not enough macro room for a safe proposal.'}</div>
             </div>
           ) : suggestions.map(s => <SuggestionCard key={s.id} suggestion={s} onLog={handleLog} logging={logging} onSaveTemplate={saveTemplate} />)}
         </div>
 
         {templates.length > 0 && <div style={{ padding: '8px 18px 16px' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>SAVED MEAL TEMPLATES</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>SAVED MEAL TEMPLATES</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
             {templates.map(template => (
               <TemplateCard key={template.id} template={template} onLog={handleLogTemplate} onDelete={deleteTemplate} logging={logging} />
@@ -375,11 +375,11 @@ export default function MealBuilder({ onBack, onSuccess }) {
         </div>}
 
         {data?.day_plan?.length > 0 && <div style={{ padding: '0 18px 16px' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>FULL DAY LOGIC</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>FULL DAY LOGIC</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
             {data.day_plan.map(step => (
               <div key={step.slot} style={{ border: `1px solid rgba(32,216,236,.14)`, background: 'rgba(157,255,111,.018)', padding: 11 }}>
-                <div style={{ fontFamily: 'var(--display)', fontSize: 15, fontWeight: 700, color: '#fff' }}>{step.title}</div>
+                <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, color: '#fff' }}>{step.title}</div>
                 <div style={{ fontSize: 12, lineHeight: 1.55, color: TEXT_DIM, marginTop: 5 }}>{step.guidance}</div>
               </div>
             ))}
@@ -387,7 +387,7 @@ export default function MealBuilder({ onBack, onSuccess }) {
         </div>}
 
         <div style={{ margin: '0 18px 16px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Autonomous means Phoenix proposes and prepares the meal. You edit and approve before anything is logged. Templates stay local in this browser.
           </div>

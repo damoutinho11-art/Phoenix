@@ -40,7 +40,7 @@
   --phx-danger: #ff6685;
 
   /* ── DOMAIN ACCENTS ── */
-  --phx-finance: #20d8ec;    /* cyan   */
+  --phx-finance: #00bbdd;    /* cyan — matches Finance's own hardcoded ACCENT const */
   --phx-nutrition: #9dff6f;  /* lime   */
   --phx-training: #ff8f2e;   /* orange */
   --phx-calendar: #9f7dff;   /* violet */
@@ -99,9 +99,22 @@
    <button> feedback using properties inline styles never set (filter,
    transform, outline), so they compose with any existing style.
    ═══════════════════════════════════════════════════════════════════════════ */
-button { transition: filter .16s ease, transform .1s ease; }
-button:not(:disabled):hover { filter: brightness(1.3); }
-button:not(:disabled):active { transform: translateY(1px); filter: brightness(1.5); }
+button {
+  transition: filter .14s cubic-bezier(.2,.8,.4,1),
+              transform .1s cubic-bezier(.2,.8,.4,1),
+              box-shadow .18s cubic-bezier(.2,.8,.4,1);
+}
+button:not(:disabled):hover {
+  filter: brightness(1.3);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--phx-accent) 30%, transparent),
+              0 0 1.1rem color-mix(in srgb, var(--phx-accent) 30%, transparent);
+}
+button:not(:disabled):active {
+  transform: translateY(1px) scale(.985);
+  filter: brightness(1.5);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--phx-accent) 45%, transparent),
+              0 0 .6rem color-mix(in srgb, var(--phx-accent) 45%, transparent);
+}
 button:disabled { opacity: .45; cursor: not-allowed; }
 button:focus-visible,
 a:focus-visible,
@@ -112,9 +125,21 @@ input:focus-visible {
 }
 
 /* clickable non-button elements (legacy div-buttons) — add className="phx-tap" */
-.phx-tap { cursor: pointer; transition: filter .16s ease, transform .1s ease; }
-.phx-tap:hover { filter: brightness(1.3); }
-.phx-tap:active { transform: translateY(1px); }
+.phx-tap {
+  cursor: pointer;
+  transition: filter .14s cubic-bezier(.2,.8,.4,1),
+              transform .1s cubic-bezier(.2,.8,.4,1),
+              box-shadow .18s cubic-bezier(.2,.8,.4,1);
+}
+.phx-tap:hover {
+  filter: brightness(1.3);
+  box-shadow: 0 0 1.1rem color-mix(in srgb, var(--phx-accent) 24%, transparent);
+}
+.phx-tap:active { transform: translateY(1px) scale(.985); }
+
+@media (prefers-reduced-motion: reduce) {
+  button, .phx-tap { transition: none !important; }
+}
 
 /* ── NATIVE CONTROLS — themed, never browser-default ──────────────────────── */
 input[type='checkbox'],
@@ -255,22 +280,53 @@ textarea::placeholder { color: color-mix(in srgb, var(--phx-muted) 72%, transpar
   overflow-wrap: anywhere;
 }
 
-/* mono command button (real <button>) */
+/* mono command button (real <button>) — HUD panel treatment: layered
+   gradient + top highlight + corner brackets, matching .phx-core-card's
+   corner-tick language instead of a flat tinted rectangle. */
 .phx-btn {
-  min-height: 2.6rem;
-  padding: .6rem .9rem;
-  border: 1px solid color-mix(in srgb, var(--phx-accent) 32%, transparent);
-  background: color-mix(in srgb, var(--phx-accent) 8%, transparent);
-  color: color-mix(in srgb, var(--phx-accent) 75%, white 12%);
+  position: relative;
+  min-height: 2.75rem;
+  padding: .65rem 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 34%, transparent);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 6%, transparent), transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 12%, transparent), color-mix(in srgb, var(--phx-accent) 5%, transparent));
+  color: color-mix(in srgb, var(--phx-accent) 80%, white 14%);
   font-family: var(--phx-font-mono);
   font-size: var(--phx-type-label);
-  letter-spacing: .16em;
+  font-weight: 700;
+  letter-spacing: .18em;
   text-transform: uppercase;
   cursor: pointer;
 }
-.phx-btn-good { border-color: color-mix(in srgb, var(--phx-positive) 35%, transparent); background: color-mix(in srgb, var(--phx-positive) 8%, transparent); color: var(--phx-positive); }
-.phx-btn-bad  { border-color: color-mix(in srgb, var(--phx-danger) 35%, transparent);  background: color-mix(in srgb, var(--phx-danger) 8%, transparent);  color: var(--phx-danger); }
-.phx-btn-ghost{ border-color: color-mix(in srgb, var(--phx-accent) 16%, transparent);  background: transparent; color: var(--phx-muted); }
+.phx-btn::before,
+.phx-btn::after {
+  position: absolute;
+  width: .5rem;
+  height: .5rem;
+  pointer-events: none;
+  border-color: color-mix(in srgb, var(--phx-accent) 55%, transparent);
+  border-style: solid;
+  content: '';
+}
+.phx-btn::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+.phx-btn::after { right: -1px; bottom: -1px; border-width: 0 1px 1px 0; }
+.phx-btn-good { border-color: color-mix(in srgb, var(--phx-positive) 38%, transparent); background: linear-gradient(180deg, color-mix(in srgb, white 6%, transparent), transparent 55%), linear-gradient(180deg, color-mix(in srgb, var(--phx-positive) 14%, transparent), color-mix(in srgb, var(--phx-positive) 5%, transparent)); color: var(--phx-positive); }
+.phx-btn-good::before, .phx-btn-good::after { border-color: color-mix(in srgb, var(--phx-positive) 55%, transparent); }
+.phx-btn-bad  { border-color: color-mix(in srgb, var(--phx-danger) 38%, transparent);  background: linear-gradient(180deg, color-mix(in srgb, white 6%, transparent), transparent 55%), linear-gradient(180deg, color-mix(in srgb, var(--phx-danger) 14%, transparent), color-mix(in srgb, var(--phx-danger) 5%, transparent));  color: var(--phx-danger); }
+.phx-btn-bad::before, .phx-btn-bad::after { border-color: color-mix(in srgb, var(--phx-danger) 55%, transparent); }
+.phx-btn-ghost{ border-color: color-mix(in srgb, var(--phx-accent) 18%, transparent);  background: transparent; color: var(--phx-muted); }
+.phx-btn-ghost::before, .phx-btn-ghost::after { border-color: color-mix(in srgb, var(--phx-accent) 22%, transparent); }
+.phx-btn-primary {
+  color: #07110c;
+  border-color: color-mix(in srgb, var(--phx-accent) 78%, white 12%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 22%, transparent), transparent 55%),
+    linear-gradient(135deg, var(--phx-accent), color-mix(in srgb, var(--phx-accent) 54%, white 22%));
+  box-shadow: 0 0 1.4rem color-mix(in srgb, var(--phx-accent) 26%, transparent);
+}
+.phx-btn-primary::before, .phx-btn-primary::after { border-color: color-mix(in srgb, black 30%, transparent); }
 
 /* file drop target — replaces default <input type=file> chrome.
    Usage: <label class="phx-file-drop"><input type="file" hidden/>…</label>  */
@@ -375,7 +431,17 @@ textarea::placeholder { color: color-mix(in srgb, var(--phx-muted) 72%, transpar
 @keyframes phx-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @keyframes phx-blink { 50% { opacity: .35; } }
 
+/* opt-in entrance animation for panels/cards/rows as they mount —
+   add className="phx-enter" (optionally with a small inline
+   animation-delay for staggering a list). Mirrors the reactor's own
+   power-up language: blur-in + soft rise, not a generic fade. */
+.phx-enter { animation: phx-enter .42s cubic-bezier(.2,.8,.4,1) both; }
+@keyframes phx-enter {
+  from { opacity: 0; transform: translateY(10px) scale(.985); filter: blur(3px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .phx-skeleton, .phx-state-loading > .code { animation: none; }
-  button, .phx-tap, .phx-file-drop { transition: none; }
+  button, .phx-tap, .phx-file-drop, .phx-enter { transition: none; animation: none; }
 }

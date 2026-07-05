@@ -5619,14 +5619,32 @@ body{
   min-width:0;
   min-height:52px;
   padding:11px 16px;
-  border:1px solid rgba(125,240,255,.22);
+  border:1px solid rgba(125,240,255,.24);
   border-radius:3px;
-  background:rgba(2,15,20,.58);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%),
+    radial-gradient(circle at 8% 0%, rgba(32,216,236,.10), transparent 60%),
+    rgba(2,15,20,.62);
+  backdrop-filter:blur(6px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 14px 28px rgba(0,0,0,.28);
   color:#dffbff;
   font-family:var(--mono);
   text-align:left;
   cursor:pointer;
-  transition:border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease;
+  transition:border-color .16s cubic-bezier(.2,.8,.4,1), background .16s cubic-bezier(.2,.8,.4,1), transform .16s cubic-bezier(.2,.8,.4,1), box-shadow .2s cubic-bezier(.2,.8,.4,1);
+}
+
+.home-action::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.85;
+  background:
+    linear-gradient(to right, rgba(125,240,255,.55) 0 7px, transparent 0) top left / 7px 1px no-repeat,
+    linear-gradient(to bottom, rgba(125,240,255,.55) 0 7px, transparent 0) top left / 1px 7px no-repeat,
+    linear-gradient(to left, rgba(125,240,255,.55) 0 7px, transparent 0) bottom right / 7px 1px no-repeat,
+    linear-gradient(to top, rgba(125,240,255,.55) 0 7px, transparent 0) bottom right / 1px 7px no-repeat;
 }
 
 .home-action::after{
@@ -5637,6 +5655,12 @@ body{
   color:rgba(125,240,255,.72);
   font-size:16px;
   transform:translateY(-50%);
+  transition:transform .18s cubic-bezier(.2,.8,.4,1), color .18s ease;
+}
+
+.home-action:hover::after{
+  transform:translate(3px, -50%);
+  color:rgba(180,252,255,.95);
 }
 
 .home-action-kicker{
@@ -5663,15 +5687,22 @@ body{
 
 .home-action-brief{
   border-color:rgba(125,240,255,.4);
-  background:linear-gradient(135deg, rgba(32,216,236,.12), rgba(2,15,20,.62));
-  box-shadow:inset 0 0 22px rgba(32,216,236,.05), 0 0 24px rgba(32,216,236,.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%),
+    linear-gradient(135deg, rgba(32,216,236,.12), rgba(2,15,20,.62));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), inset 0 0 22px rgba(32,216,236,.05), 0 0 24px rgba(32,216,236,.08);
 }
 
 .home-action:hover{
-  border-color:rgba(143,252,255,.64);
-  background-color:rgba(7,35,42,.82);
-  box-shadow:0 0 26px rgba(32,216,236,.14);
-  transform:translateY(-1px);
+  border-color:rgba(143,252,255,.7);
+  background-color:rgba(7,35,42,.86);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(125,240,255,.18), 0 0 34px rgba(32,216,236,.2), 0 18px 32px rgba(0,0,0,.32);
+  transform:translateY(-2px);
+}
+
+.home-action:active{
+  transform:translateY(-1px) scale(.99);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(125,240,255,.28), 0 0 20px rgba(32,216,236,.26);
 }
 
 .home-action:focus-visible{

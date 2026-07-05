@@ -215,8 +215,13 @@ export default function SessionHistory({ onBack }) {
           </div>
 
           {sessions.length === 0 && (
-            <div style={{ padding: '0 18px 28px', fontFamily: MONO, fontSize: 8, color: ORANGE_MUT, letterSpacing: '.12em' }}>
-              NO SESSIONS LOGGED YET
+            <div style={{ margin: '0 18px 28px', padding: '20px 18px', border: '1px dashed rgba(255,143,46,.28)', background: 'rgba(255,143,46,.03)', textAlign: 'center' }}>
+              <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.18em', color: ORANGE_MUT, marginBottom: 8 }}>
+                NO SESSIONS LOGGED YET
+              </div>
+              <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM, lineHeight: 1.6, maxWidth: 320, margin: '0 auto' }}>
+                Log your first session to start tracking top lifts, weekly volume, and recovery trends here.
+              </div>
             </div>
           )}
 

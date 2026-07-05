@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from jarvis.api.routers import (
+    admin,
     barcode,
     budget,
     calendar,
@@ -165,6 +166,7 @@ app.include_router(news.router, prefix="/news", tags=["news"])
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(google_auth.router, prefix="/auth/google", tags=["google-auth"])
 app.include_router(gmail.router, prefix="/gmail", tags=["gmail"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 
 @app.get("/health", tags=["meta"])
