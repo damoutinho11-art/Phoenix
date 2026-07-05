@@ -129,7 +129,7 @@ function ScanLine() {
 function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTotals, driftCount }) {
   const weekLabel = checklist?.week_label || recommendation?.week_label || '—'
   return (
-    <header className="finance-hero-panel" style={{
+    <header className="finance-hero-panel finance-hero-content" style={{
       ...s.card,
       padding: '2rem 2.5rem 2.5rem',
       marginBottom: 0,

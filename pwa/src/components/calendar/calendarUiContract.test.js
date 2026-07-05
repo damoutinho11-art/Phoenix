@@ -2,6 +2,19 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
+test('calendar command hero restores its top-safe inset after parity overrides', async () => {
+  const css = await readFile(new URL('../cockpit/cockpit.css', import.meta.url), 'utf8')
+  const parityIndex = css.indexOf('CALENDAR_V19_NUTRITION_SPACING_PARITY')
+  const topSafeIndex = css.indexOf('CALENDAR_TOP_SAFE_V21')
+
+  assert.ok(parityIndex >= 0)
+  assert.ok(topSafeIndex > parityIndex)
+  assert.match(
+    css.slice(topSafeIndex),
+    /\.phx-calendar-v19 \.phx-command-hero\s*\{\s*padding-top:\s*clamp\(1\.25rem, 1\.8vw, 1\.75rem\)\s*!important;/,
+  )
+})
+
 test('calendar dashboard uses final polished command center implementation', async () => {
   const source = await readFile(new URL('./CalendarDashboard.jsx', import.meta.url), 'utf8')
 

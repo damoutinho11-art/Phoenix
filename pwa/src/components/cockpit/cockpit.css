@@ -13379,3 +13379,62 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* FINANCE_HERO_UNIFIED_SHELL
+   One command surface owns both the portfolio summary and Authorization Core. */
+.finance-hero-grid {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  padding: 0 clamp(1rem, 2vw, 2rem) 0 0;
+  border-bottom: 1px solid rgba(0, 187, 221, 0.17);
+  background:
+    radial-gradient(ellipse at 8% 12%, rgba(0, 187, 221, 0.07), transparent 42%),
+    radial-gradient(ellipse at 88% 24%, rgba(0, 187, 221, 0.055), transparent 34%),
+    linear-gradient(180deg, #07111a 0%, #061019 100%);
+  box-shadow: 0 28px 82px rgba(0, 0, 0, 0.38);
+}
+
+.finance-hero-grid::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(0, 187, 221, 0.065) 1px, transparent 1px);
+  background-size: 28px 28px;
+  content: '';
+}
+
+.finance-hero-content {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.finance-hero-content .finance-header-topbar {
+  background-image: none !important;
+}
+
+.finance-authorization-wrap {
+  min-width: 0;
+  padding: 2rem 0 !important;
+}
+
+@media (max-width: 680px) {
+  .finance-hero-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0;
+    padding: 0 1rem 1rem;
+  }
+
+  .finance-authorization-wrap {
+    padding: 0 !important;
+  }
+}
+
+/* CALENDAR_TOP_SAFE_V21
+   This final scoped rule intentionally wins over the v19 parity reset. */
+.phx-calendar-v19 .phx-command-hero {
+  padding-top: clamp(1.25rem, 1.8vw, 1.75rem) !important;
+}
