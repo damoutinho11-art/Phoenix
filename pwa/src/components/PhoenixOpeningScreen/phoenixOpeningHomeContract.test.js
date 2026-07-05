@@ -34,3 +34,16 @@ test('premium pass protects focus, reduced motion, and 390px layout', () => {
   assert.match(opening, /max-width:100%/)
   assert.match(opening, /\.side\[data-open-domain\]\{\s*display:block !important;\s*visibility:visible !important;\s*animation:none !important;/)
 })
+
+test('v2.76 micro-polish strengthens readability, reactor scale, and chat console', () => {
+  assert.match(opening, /PHOENIX v2\.76: READABILITY, REACTOR \+ CHAT MICRO-POLISH/)
+  assert.match(opening, /\.orbit\{[\s\S]*?width:min\(47vw, 58vh, 620px\) !important;/)
+  assert.match(opening, /\.resp\{[\s\S]*?color:#eefcff !important;[\s\S]*?font-weight:700 !important;/)
+  assert.match(opening, /\.side\[data-open-domain\]\{[\s\S]*?color:rgba\(210,246,250,\.9\) !important;[\s\S]*?font-size:8\.5px !important;[\s\S]*?font-weight:700 !important;[\s\S]*?opacity:\.92 !important;/)
+  assert.match(opening, /\.home-action-label\{[\s\S]*?text-shadow:[\s\S]*?rgba\(32,216,236,\.62\)/)
+  assert.match(opening, /\.chat-dock\.open\{[\s\S]*?bottom:clamp\(18px, 4vh, 36px\) !important;/)
+  assert.match(opening, /\.chat-title\{[\s\S]*?font-size:14px !important;[\s\S]*?font-weight:800 !important;/)
+  assert.match(opening, /\.chat-bubble\{[\s\S]*?line-height:1\.55 !important;/)
+  assert.match(opening, /\.chat-input:focus\{[\s\S]*?border-color:rgba\(143,252,255,\.78\) !important;/)
+  assert.match(opening, /\.chat-send\{[\s\S]*?min-height:48px !important;/)
+})
