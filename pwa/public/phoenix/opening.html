@@ -6088,6 +6088,68 @@ body{
   .chat-dock.open{ max-height:min(34vh, 238px) !important; }
 }
 
+/* PHOENIX v2.77: MODULE RAIL + REACTOR BALANCE */
+@media (min-width:721px){
+  .orbit{
+    width:min(49vw, 56vh, 650px) !important;
+    height:min(49vw, 56vh, 650px) !important;
+    margin:-28px 0 -46px !important;
+  }
+
+  .name{
+    font-size:clamp(34px, 3.5vw, 52px) !important;
+    letter-spacing:.20em !important;
+  }
+}
+
+@media (min-width:721px) and (max-height:860px){
+  .orbit{
+    width:min(49vw, 56vh, 540px) !important;
+    height:min(49vw, 56vh, 540px) !important;
+    margin:-28px 0 -46px !important;
+  }
+
+  .name{ font-size:34px !important; }
+}
+
+@media (max-width:720px){
+  .screen{ padding-top:92px !important; }
+
+  .side[data-open-domain]{
+    position:fixed !important;
+    top:46px !important;
+    bottom:auto !important;
+    width:25% !important;
+    height:34px !important;
+    min-height:34px !important;
+    padding:0 3px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    transform:none !important;
+    opacity:.9 !important;
+    background:linear-gradient(180deg, rgba(10,35,43,.66), rgba(4,16,22,.38)) !important;
+    border-top:1px solid rgba(92,231,240,.18) !important;
+    border-bottom:1px solid rgba(92,231,240,.22) !important;
+    font-size:7px !important;
+    line-height:1 !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+  }
+
+  .side[data-open-domain] br,
+  .side[data-open-domain] span{ display:none !important; }
+  .side[data-open-domain="finance"]{ left:0 !important; right:auto !important; }
+  .side[data-open-domain="training"]{ left:25% !important; right:auto !important; }
+  .side[data-open-domain="nutrition"]{ left:50% !important; right:auto !important; }
+  .side[data-open-domain="calendar"]{ left:75% !important; right:auto !important; }
+
+  .orbit{
+    width:min(90vw, 350px) !important;
+    height:min(90vw, 350px) !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -6146,16 +6208,16 @@ body{
 <div class="r"><span id="coreClock">CORE</span> · <span class="v">ONLINE</span></div>
 </div>
 <div aria-label="Open Finance" class="side l up" data-open-domain="finance" role="button" tabindex="0">
-  FINANCE<br/><span class="v">OPEN MODULE</span>
+  FINANCE<br/><span class="v">ENTER FINANCE</span>
 </div>
 <div aria-label="Open Training" class="side l dn" data-open-domain="training" role="button" tabindex="0">
-  TRAINING<br/><span class="g">OPEN MODULE</span>
+  TRAINING<br/><span class="g">OPEN TRAINING</span>
 </div>
 <div aria-label="Open Nutrition" class="side r up" data-open-domain="nutrition" role="button" tabindex="0">
-  NUTRITION<br/><span class="v">OPEN MODULE</span>
+  NUTRITION<br/><span class="v">PLAN NUTRITION</span>
 </div>
 <div aria-label="Open Calendar" class="side r dn" data-open-domain="calendar" role="button" tabindex="0">
-  CALENDAR<br/><span class="v">OPEN MODULE</span>
+  CALENDAR<br/><span class="v">VIEW CALENDAR</span>
 </div>
 <div class="screen">
 <div aria-label="Hold the reactor to speak with PHOENIX" class="orbit" id="reactorButton" role="button" tabindex="0" title="hold the core to speak">

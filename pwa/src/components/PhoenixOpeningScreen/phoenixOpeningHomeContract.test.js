@@ -47,3 +47,15 @@ test('v2.76 micro-polish strengthens readability, reactor scale, and chat consol
   assert.match(opening, /\.chat-input:focus\{[\s\S]*?border-color:rgba\(143,252,255,\.78\) !important;/)
   assert.match(opening, /\.chat-send\{[\s\S]*?min-height:48px !important;/)
 })
+
+test('v2.77 balances the mobile rail and desktop reactor composition', () => {
+  assert.match(opening, /PHOENIX v2\.77: MODULE RAIL \+ REACTOR BALANCE/)
+  for (const label of ['ENTER FINANCE', 'OPEN TRAINING', 'PLAN NUTRITION', 'VIEW CALENDAR']) {
+    assert.match(opening, new RegExp(label))
+  }
+  assert.match(opening, /@media \(min-width:721px\)[\s\S]*?\.orbit\{[\s\S]*?width:min\(49vw, 56vh, 650px\) !important;/)
+  assert.match(opening, /@media \(min-width:721px\)[\s\S]*?\.name\{[\s\S]*?font-size:clamp\(34px, 3\.5vw, 52px\) !important;/)
+  assert.match(opening, /@media \(max-width:720px\)[\s\S]*?\.side\[data-open-domain\]\{[\s\S]*?top:46px !important;[\s\S]*?height:34px !important;/)
+  assert.match(opening, /\.side\[data-open-domain="finance"\]\{ left:0 !important;/)
+  assert.match(opening, /\.side\[data-open-domain="calendar"\]\{ left:75% !important;/)
+})
