@@ -436,7 +436,7 @@ export default function NutritionDashboard({
     <CockpitShell accent={LIME} className="phx-nutrition-cockpit" aria-label="Nutrition Command Center">
       <div className="phx-domain-frame phx-nutrition-frame">
         <header className="phx-command-hero phx-nutrition-command-hero phx-nutrition-command-hero-v3 phx-nutrition-finance-copy phx-enter">
-          <div className="phx-hud-ring" />
+          <div className="phx-hud-ring" style={{ position: 'absolute', top: 18, right: 18 }} />
           <div className="phx-command-topbar">
             <span>PHOENIX · PERSONAL HEURISTIC OPERATING ENGINE</span>
             <span className="phx-command-online"><i />{model.phaseLabel} · {model.dayLine}</span>
