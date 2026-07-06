@@ -182,7 +182,9 @@ function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTo
         </div>
       </div>
 
-      <div style={{ position: 'relative' }}>
+      <div className="phx-hud-hero" style={{ position: 'relative', padding: '1.6rem 1.6rem 1.8rem' }}>
+        <div className="phx-hud-scan" />
+        <div className="phx-hud-ring" />
         <div style={s.sectionTag}>PHOENIX</div>
         <h1 className="finance-command-title" style={{ fontFamily: T.fontDisplay, fontSize: 'var(--phx-type-title)', fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1, margin: '0 0 2rem' }}>
           <span style={{ display: 'block', color: '#dff0f5' }}>FINANCE</span>
@@ -199,7 +201,7 @@ function Header({ summary, checklist, recommendation, actionCopy, loading, pnlTo
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
           <span style={{ fontFamily: T.fontBody, fontSize: 28, fontWeight: 300, color: 'rgba(0,187,221,0.53)', lineHeight: 1 }}>€</span>
-          <span className="finance-total-value" style={{
+          <span className="finance-total-value phx-hud-glitch" style={{
             fontFamily: T.fontBody, fontSize: 68, fontWeight: 700, color: T.accent,
             letterSpacing: '-0.04em', lineHeight: 1,
             textShadow: '0 0 40px rgba(0,187,221,0.27), 0 0 80px rgba(0,187,221,0.11)',

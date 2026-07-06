@@ -534,6 +534,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'radial-gradient(circle, rgba(255,143,46,.07) 1px, transparent 1px)', backgroundSize: '28px 28px', opacity: .46 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,rgba(255,143,46,.5),transparent)` }} />
           <div style={{ position: 'absolute', top: 12, right: 14, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: 'rgba(255,143,46,.28)' }}>MISSION CLOCK</div>
+          <div className="phx-hud-ring" style={{ top: 34, right: 14 }} />
           <div className="phx-training-hero-grid" style={{ position: 'relative' }}>
           <div>
             <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.29em', color: 'rgba(255,143,46,.6)', textTransform: 'uppercase' }}>PHOENIX</div>
@@ -546,7 +547,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
               <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(255,143,46,.22), transparent)' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 12 }}>
-              <div style={{ fontFamily: BODY, fontSize: 'clamp(58px, 13vw, 84px)', fontWeight: 700, lineHeight: .88, letterSpacing: '-.04em', color: ORANGE, textShadow: '0 0 44px rgba(255,143,46,.34), 0 0 80px rgba(255,143,46,.14)' }}>
+              <div className="phx-hud-glitch" style={{ fontFamily: BODY, fontSize: 'clamp(58px, 13vw, 84px)', fontWeight: 700, lineHeight: .88, letterSpacing: '-.04em', color: ORANGE, textShadow: '0 0 44px rgba(255,143,46,.34), 0 0 80px rgba(255,143,46,.14)' }}>
                 {daysToAttempt}
               </div>
               <div style={{ paddingBottom: 8 }}>

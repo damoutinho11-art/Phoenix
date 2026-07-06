@@ -1053,6 +1053,7 @@ export default function CalendarDashboard({ onEvent, onFeed, onConnectors, onQui
     <CockpitShell accent={VIOLET} className="phx-calendar-cockpit phx-calendar-v18 phx-calendar-v19" aria-label="Calendar Command Center">
       <div className="phx-domain-frame">
         <header className="phx-command-hero phx-calendar-command-hero phx-enter">
+          <div className="phx-hud-ring" />
           <div className="phx-command-topbar">
             <span>PHOENIX - PERSONAL HEURISTIC OPERATING ENGINE</span>
             <span className="phx-command-online"><i />READ ONLY - NORMALIZED SNAPSHOT</span>
@@ -1068,7 +1069,7 @@ export default function CalendarDashboard({ onEvent, onFeed, onConnectors, onQui
 
               <div className="phx-command-label-line">TODAY LOAD</div>
               <div className="phx-command-value-row">
-                <strong className="phx-command-value">{formatHours(visibleLoadHours)}</strong>
+                <strong className="phx-command-value phx-hud-glitch">{formatHours(visibleLoadHours)}</strong>
                 <span className="phx-command-denominator">HOURS - {displayEvents.length} EVENT{displayEvents.length === 1 ? '' : 'S'}</span>
               </div>
 

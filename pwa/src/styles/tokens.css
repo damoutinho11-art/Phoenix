@@ -445,3 +445,74 @@ textarea::placeholder { color: color-mix(in srgb, var(--phx-muted) 72%, transpar
   .phx-skeleton, .phx-state-loading > .code { animation: none; }
   button, .phx-tap, .phx-file-drop, .phx-enter { transition: none; animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HUD HERO — full-immersive treatment reserved for hero elements only
+   (page titles, headline totals, the home reactor). Domain-agnostic: reads
+   --phx-accent so it works unmodified inside any .phx-scope-* screen.
+   Usage: wrap the hero block in <div class="phx-hud-hero"> … </div>
+     - <div class="phx-hud-scan" />           thin bright sweep, top to bottom
+     - <div class="phx-hud-ring" />           small rotating arc accent
+     - className="phx-hud-glitch" on the headline number/text itself
+   ═══════════════════════════════════════════════════════════════════════════ */
+.phx-hud-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--phx-accent) 40%, transparent);
+  background:
+    radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--phx-accent) 14%, transparent), transparent 55%),
+    repeating-linear-gradient(60deg, color-mix(in srgb, var(--phx-accent) 3.5%, transparent) 0 2px, transparent 2px 14px),
+    repeating-linear-gradient(-60deg, color-mix(in srgb, var(--phx-accent) 3.5%, transparent) 0 2px, transparent 2px 14px),
+    var(--phx-panel);
+}
+.phx-hud-hero::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--phx-accent) 75%, transparent);
+  background:
+    linear-gradient(to right, currentColor 0 14px, transparent 0) top left / 14px 2px no-repeat,
+    linear-gradient(to bottom, currentColor 0 14px, transparent 0) top left / 2px 14px no-repeat,
+    linear-gradient(to left, currentColor 0 14px, transparent 0) top right / 14px 2px no-repeat,
+    linear-gradient(to bottom, currentColor 0 14px, transparent 0) top right / 2px 14px no-repeat,
+    linear-gradient(to right, currentColor 0 14px, transparent 0) bottom left / 14px 2px no-repeat,
+    linear-gradient(to top, currentColor 0 14px, transparent 0) bottom left / 2px 14px no-repeat,
+    linear-gradient(to left, currentColor 0 14px, transparent 0) bottom right / 14px 2px no-repeat,
+    linear-gradient(to top, currentColor 0 14px, transparent 0) bottom right / 2px 14px no-repeat;
+}
+.phx-hud-scan {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--phx-accent), transparent);
+  box-shadow: 0 0 10px var(--phx-accent);
+  animation: phx-hud-sweep 2.6s linear infinite;
+}
+@keyframes phx-hud-sweep { 0% { top: 0; opacity: 0; } 8% { opacity: .85; } 92% { opacity: .85; } 100% { top: 100%; opacity: 0; } }
+
+.phx-hud-ring {
+  position: absolute;
+  top: 18px; right: 18px;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 1.5px solid transparent;
+  border-top-color: color-mix(in srgb, var(--phx-accent) 80%, transparent);
+  border-right-color: color-mix(in srgb, var(--phx-accent) 30%, transparent);
+  animation: phx-hud-spin 3s linear infinite;
+}
+@keyframes phx-hud-spin { to { transform: rotate(360deg); } }
+
+.phx-hud-glitch { animation: phx-hud-glitch 4.5s ease-in-out infinite; }
+@keyframes phx-hud-glitch {
+  0%, 85%, 100% { opacity: 1; transform: translateX(0); }
+  86% { opacity: .35; transform: translateX(-2px); }
+  87% { opacity: 1; transform: translateX(1px); }
+  88% { opacity: .55; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phx-hud-scan, .phx-hud-ring, .phx-hud-glitch { animation: none; }
+}

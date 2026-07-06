@@ -436,6 +436,7 @@ export default function NutritionDashboard({
     <CockpitShell accent={LIME} className="phx-nutrition-cockpit" aria-label="Nutrition Command Center">
       <div className="phx-domain-frame phx-nutrition-frame">
         <header className="phx-command-hero phx-nutrition-command-hero phx-nutrition-command-hero-v3 phx-nutrition-finance-copy phx-enter">
+          <div className="phx-hud-ring" />
           <div className="phx-command-topbar">
             <span>PHOENIX · PERSONAL HEURISTIC OPERATING ENGINE</span>
             <span className="phx-command-online"><i />{model.phaseLabel} · {model.dayLine}</span>
@@ -452,7 +453,7 @@ export default function NutritionDashboard({
               <div className="phx-command-label-line">DAILY ENERGY TARGET</div>
               <div className="phx-command-value-row">
                 <span className="phx-command-unit">KCAL</span>
-                <strong className="phx-command-value">{model.logged.calories.toLocaleString()}</strong>
+                <strong className="phx-command-value phx-hud-glitch">{model.logged.calories.toLocaleString()}</strong>
                 <span className="phx-command-denominator">/ {model.target.calories.toLocaleString()}</span>
               </div>
               <div className="phx-command-brief">
