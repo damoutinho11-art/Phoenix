@@ -65,3 +65,46 @@ def reset_training_nutrition(x_admin_token: str | None = Header(default=None)) -
     conn.close()
 
     return {"status": "reset", "rows_deleted": before, "rows_remaining": after}
+
+
+@router.get("/budget-outliers")
+def budget_outliers(x_admin_token: str | None = Header(default=None), threshold: float = 100000.0) -> dict:
+    """List budget_transactions rows with an absurd amount_eur (corrupted parses).
+
+    Read-only inspection endpoint — does not delete anything. Use
+    /admin/budget-outliers/{id} DELETE to remove a specific bad row once
+    you've confirmed it in the response below.
+    """
+    _check_token(x_admin_token)
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, date, merchant, amount_eur, category, is_income, month, source, description "
+        "FROM budget_transactions WHERE amount_eur > ? ORDER BY amount_eur DESC",
+        (threshold,),
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return {"threshold": threshold, "count": len(rows), "rows": rows}
+
+
+@router.delete("/budget-outliers/{row_id}")
+def delete_budget_outlier(row_id: int, x_admin_token: str | None = Header(default=None)) -> dict:
+    """Delete a single budget_transactions row by id (use after inspecting via GET above)."""
+    _check_token(x_admin_token)
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM budget_transactions WHERE id=?", (row_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"No budget_transactions row with id={row_id}")
+    deleted = dict(row)
+    cur.execute("DELETE FROM budget_transactions WHERE id=?", (row_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "deleted", "row": deleted}

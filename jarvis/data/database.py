@@ -2383,14 +2383,26 @@ def brief_exists_by_id(brief_id: int) -> bool:
         connection.close()
 
 
+MAX_SANE_BUDGET_AMOUNT_EUR = 100_000.0  # a personal bank transaction above this is a parse error, not real money
+
+
 def save_budget_transactions(transactions: list[dict]) -> int:
-    """Insert transactions; skip duplicates by (date, merchant, amount_eur)."""
+    """Insert transactions; skip duplicates by (date, merchant, amount_eur).
+
+    Also silently skips any transaction whose amount is not a sane personal
+    bank figure (e.g. a mis-parsed statement row producing a garbage huge
+    number) — this guards against corrupted budget totals like the April/May
+    2026 multi-trillion-euro "income" bug caused by a bad PDF/AI parse.
+    """
     connection = get_db()
     now = clock.utc_now_iso()
     count = 0
     try:
         for t in transactions:
             try:
+                amount = float(t["amount_eur"])
+                if not (amount == amount) or amount < 0 or amount > MAX_SANE_BUDGET_AMOUNT_EUR:  # NaN or out of range
+                    continue
                 connection.execute(
                     """INSERT OR IGNORE INTO budget_transactions
                        (date, merchant, amount_eur, category, description, source, month, is_income, created_at)
