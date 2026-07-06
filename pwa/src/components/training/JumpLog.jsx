@@ -428,7 +428,21 @@ export default function JumpLog({ onBack }) {
         <div style={{ padding: '14px 18px 32px' }}>
           <Label>JUMP HISTORY</Label>
           {jumpHistory.length === 0 && (
-            <div style={{ fontFamily: MONO, fontSize: 8, color: ORANGE_MUT, letterSpacing: '.12em' }}>NO JUMPS LOGGED YET</div>
+            <div style={{
+              position: 'relative',
+              padding: '18px 16px',
+              border: '1px solid rgba(255,143,46,.22)',
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%),' +
+                'radial-gradient(circle at 10% 0%, rgba(255,143,46,.08), transparent 60%),' +
+                'rgba(255,143,46,.02)',
+              textAlign: 'center',
+            }}>
+              <div style={{ position: 'absolute', top: -1, left: -1, width: 8, height: 8, borderTop: '1px solid rgba(255,143,46,.55)', borderLeft: '1px solid rgba(255,143,46,.55)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderBottom: '1px solid rgba(255,143,46,.55)', borderRight: '1px solid rgba(255,143,46,.55)', pointerEvents: 'none' }} />
+              <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: 999, background: 'rgba(255,143,46,.55)', boxShadow: '0 0 8px rgba(255,143,46,.7)', marginBottom: 8 }} />
+              <div style={{ fontFamily: MONO, fontSize: 8, color: ORANGE_MUT, letterSpacing: '.16em' }}>NO JUMPS LOGGED YET</div>
+            </div>
           )}
           {jumpHistory.map((entry, i) => {
             const isBest  = entry.inches === bestJumpInches
