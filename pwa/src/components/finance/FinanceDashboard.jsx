@@ -615,7 +615,7 @@ function UnitCorrectionPanel({ portfolioState, onFixed }) {
                     </div>
                     <div
                       onClick={() => startEdit(asset)}
-                      style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.5)', border: '1px solid rgba(0,187,221,0.2)', padding: '3px 8px', cursor: 'pointer', userSelect: 'none' }}
+                      style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.5)', border: '1px solid rgba(0,187,221,0.2)', background: 'linear-gradient(180deg, rgba(255,255,255,.03), transparent 55%), rgba(0,187,221,.03)', padding: '3px 8px', cursor: 'pointer', userSelect: 'none' }}
                     >
                       EDIT
                     </div>
@@ -644,13 +644,13 @@ function UnitCorrectionPanel({ portfolioState, onFixed }) {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <div
                           onClick={busy ? null : applyCorrection}
-                          style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: busy ? 'rgba(0,187,221,0.3)' : '#4dffb4', border: `1px solid ${busy ? 'rgba(0,187,221,0.15)' : 'rgba(77,255,180,0.3)'}`, padding: '6px 12px', cursor: busy ? 'default' : 'pointer', userSelect: 'none' }}
+                          style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: busy ? 'rgba(0,187,221,0.3)' : '#4dffb4', border: `1px solid ${busy ? 'rgba(0,187,221,0.15)' : 'rgba(77,255,180,0.3)'}`, background: busy ? 'transparent' : 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(77,255,180,.05)', padding: '6px 12px', cursor: busy ? 'default' : 'pointer', userSelect: 'none' }}
                         >
                           {busy ? 'SAVING…' : 'APPLY'}
                         </div>
                         <div
                           onClick={() => { setEditAsset(null); setMsg(null) }}
-                          style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.4)', border: '1px solid rgba(0,187,221,0.15)', padding: '6px 12px', cursor: 'pointer', userSelect: 'none' }}
+                          style={{ fontFamily: T.fontMono, fontSize: 7, letterSpacing: '0.18em', color: 'rgba(0,187,221,0.4)', border: '1px solid rgba(0,187,221,0.15)', background: 'linear-gradient(180deg, rgba(255,255,255,.03), transparent 55%), rgba(0,187,221,.03)', padding: '6px 12px', cursor: 'pointer', userSelect: 'none' }}
                         >
                           CANCEL
                         </div>

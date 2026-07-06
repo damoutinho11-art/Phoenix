@@ -154,7 +154,7 @@ export default function BudgetMemory({ onBack }) {
         <button
           onClick={save}
           disabled={saving || loading}
-          style={{ border: `1px solid ${GOLD}`, background: 'rgba(0,187,221,.08)', color: GOLD, fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: '.16em', padding: '8px 10px', borderRadius: 2, cursor: saving ? 'wait' : 'pointer' }}
+          style={{ border: `1px solid ${GOLD}`, background: 'linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%), radial-gradient(circle at 15% 0%, rgba(0,187,221,.16), transparent 60%), rgba(0,187,221,.06)', color: GOLD, fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: '.16em', padding: '8px 10px', borderRadius: 2, cursor: saving ? 'wait' : 'pointer' }}
         >
           {saving ? 'SAVING…' : 'SAVE'}
         </button>

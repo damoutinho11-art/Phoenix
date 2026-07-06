@@ -304,11 +304,11 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
             ))}
           </div>
           <button onClick={onSubmit} disabled={saving}
-            style={{ width: '100%', marginTop: 13, padding: '12px', border: ORANGE_BDR_STR, background: 'rgba(255,143,46,.1)', color: ORANGE, fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', cursor: saving ? 'wait' : 'pointer' }}>
+            style={{ width: '100%', marginTop: 13, padding: '12px', border: ORANGE_BDR_STR, background: 'linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%), radial-gradient(circle at 15% 0%, rgba(255,143,46,.16), transparent 60%), rgba(255,143,46,.06)', color: ORANGE, fontFamily: MONO, fontSize: 9, letterSpacing: '.18em', cursor: saving ? 'wait' : 'pointer' }}>
             {saving ? 'ROUTING…' : 'TUNE TODAY’S SESSION'}
           </button>
           <button onClick={onRequestReset} disabled={saving}
-            style={{ width: '100%', marginTop: 7, padding: 9, border: CYAN_BDR, background: 'rgba(32,216,236,.035)', color: CYAN_BR, fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: saving ? 'wait' : 'pointer' }}>
+            style={{ width: '100%', marginTop: 7, padding: 9, border: CYAN_BDR, background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(32,216,236,.04)', color: CYAN_BR, fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: saving ? 'wait' : 'pointer' }}>
             SELECT RECOVERY RESET
           </button>
         </div>
@@ -351,7 +351,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
                     {exercise.dose && <span style={{ color: ORANGE_MUT }}> · {exercise.dose}</span>}
                   </div>
                 ))}
-                <button onClick={() => onCompleteBlock(block.key)} style={{ width: '100%', marginTop: 9, padding: 8, background: 'rgba(255,143,46,.06)', border: ORANGE_BDR, color: ORANGE, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em' }}>LOG COMPLETE</button>
+                <button onClick={() => onCompleteBlock(block.key)} style={{ width: '100%', marginTop: 9, padding: 8, background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(255,143,46,.06)', border: ORANGE_BDR, color: ORANGE, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em' }}>LOG COMPLETE</button>
               </div>
             </CornerCard>
           ))}

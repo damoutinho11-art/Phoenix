@@ -217,7 +217,7 @@ function ManualBuyChecklistSection({ checklist, error, onRecordTransaction }) {
                     <TextList items={item.pre_buy_checks} />
                   </div>
                 )}
-                <div onClick={() => onRecordTransaction(item)} style={{ marginTop: 11, width: '100%', padding: '9px 0', border: `1px solid rgba(0,187,221,.6)`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: '.14em', cursor: 'pointer', textShadow: '0 0 10px rgba(0,187,221,.6)', textAlign: 'center', userSelect: 'none' }}>
+                <div onClick={() => onRecordTransaction(item)} style={{ marginTop: 11, width: '100%', padding: '9px 0', border: `1px solid rgba(0,187,221,.6)`, background: 'linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%), radial-gradient(circle at 15% 0%, rgba(0,187,221,.14), transparent 60%), rgba(0,187,221,.04)', color: '#7de8ff', fontFamily: MONO, fontSize: 8, fontWeight: 700, letterSpacing: '.14em', cursor: 'pointer', textShadow: '0 0 10px rgba(0,187,221,.6)', textAlign: 'center', userSelect: 'none' }}>
                   RECORD TRANSACTION →
                 </div>
               </div>
@@ -438,7 +438,7 @@ function LedgerApplyRow({ transaction, onApplied }) {
             {applyResult && <div style={{ color: 'rgba(77,255,180,.75)', letterSpacing: '.08em', marginTop: 3, lineHeight: 1.5, textTransform: 'none' }}>Portfolio state updated from your manual record.</div>}
             <div style={{ marginTop: 6 }}>
               {voidError && <div style={{ color: '#ff5c7a', marginBottom: 4 }}>{voidError}</div>}
-              <div onClick={!voiding ? voidTransaction : undefined} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '4px 8px', border: '1px solid rgba(255,92,122,.5)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer', userSelect: 'none', display: 'inline-block', opacity: voiding ? 0.6 : 1 }}>
+              <div onClick={!voiding ? voidTransaction : undefined} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '4px 8px', border: '1px solid rgba(255,92,122,.5)', color: '#ff8fa0', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(255,92,122,.05)', cursor: voiding ? 'wait' : 'pointer', userSelect: 'none', display: 'inline-block', opacity: voiding ? 0.6 : 1 }}>
                 {voiding ? 'VOIDING…' : 'VOID & REVERSE'}
               </div>
             </div>
@@ -447,8 +447,8 @@ function LedgerApplyRow({ transaction, onApplied }) {
           <>
             {!preview && !previewLoading && (
               <div style={{ display: 'flex', gap: 6 }}>
-                <div onClick={loadPreview} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: ACCENT, background: 'transparent', cursor: 'pointer', userSelect: 'none' }}>PREVIEW PORTFOLIO IMPACT</div>
-                <div onClick={!voiding ? voidTransaction : undefined} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '5px 8px', border: '1px solid rgba(255,92,122,.4)', color: '#ff8fa0', background: 'transparent', cursor: voiding ? 'wait' : 'pointer', userSelect: 'none', opacity: voiding ? 0.6 : 1 }}>
+                <div onClick={loadPreview} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', padding: '5px 8px', border, color: ACCENT, background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(0,187,221,.05)', cursor: 'pointer', userSelect: 'none' }}>PREVIEW PORTFOLIO IMPACT</div>
+                <div onClick={!voiding ? voidTransaction : undefined} style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', padding: '5px 8px', border: '1px solid rgba(255,92,122,.4)', color: '#ff8fa0', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(255,92,122,.05)', cursor: voiding ? 'wait' : 'pointer', userSelect: 'none', opacity: voiding ? 0.6 : 1 }}>
                   {voiding ? 'VOIDING…' : 'VOID'}
                 </div>
               </div>
@@ -475,7 +475,7 @@ function LedgerApplyRow({ transaction, onApplied }) {
                   {preview.fee_eur > 0 && ` · fee ${formatEur(preview.fee_eur)}`}
                 </div>
                 {applyError && <div style={{ color: '#ff5c7a', fontSize: 7, marginTop: 5 }}>{applyError}</div>}
-                <div onClick={!applying ? applyTransaction : undefined} style={{ marginTop: 8, width: '100%', padding: '8px 0', border: `1px solid ${ACCENT}`, background: 'transparent', color: '#7de8ff', fontFamily: MONO, fontSize: 7, fontWeight: 700, letterSpacing: '.14em', cursor: applying ? 'wait' : 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)', userSelect: 'none', textAlign: 'center', opacity: applying ? 0.6 : 1, boxSizing: 'border-box' }}>
+                <div onClick={!applying ? applyTransaction : undefined} style={{ marginTop: 8, width: '100%', padding: '8px 0', border: `1px solid ${ACCENT}`, background: 'linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%), radial-gradient(circle at 15% 0%, rgba(0,187,221,.16), transparent 60%), rgba(0,187,221,.05)', color: '#7de8ff', fontFamily: MONO, fontSize: 7, fontWeight: 700, letterSpacing: '.14em', cursor: applying ? 'wait' : 'pointer', textShadow: '0 0 8px rgba(0,187,221,.5)', userSelect: 'none', textAlign: 'center', opacity: applying ? 0.6 : 1, boxSizing: 'border-box' }}>
                   {applying ? 'APPLYING…' : 'APPLY TO PORTFOLIO STATE'}
                 </div>
               </div>
@@ -802,9 +802,9 @@ export default function WeeklyBrief({ onBack }) {
                 {actionError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 8, textAlign: 'center', marginBottom: 8 }}>{actionError}</div>}
                 {isApproved && <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: '#4dffb4', textAlign: 'center', marginBottom: 8 }}>APPROVED · NO TRADE EXECUTED</div>}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.6fr', gap: 10 }}>
-                  <div onClick={!acting ? () => handleAction('defer') : undefined} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(180,200,210,.35)', color: '#b4c8d2', opacity: acting ? 0.5 : 1 }}>DEFER</div>
-                  <div onClick={!acting ? () => handleAction('reject') : undefined} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(255,92,122,.6)', color: '#ff8fa0', textShadow: '0 0 8px rgba(255,92,122,.5)', opacity: acting ? 0.5 : 1 }}>REJECT</div>
-                  <div onClick={!acting && !isApproved ? () => handleAction('approve') : undefined} style={{ ...approvalBtnBase, fontSize: 10, fontWeight: 700, letterSpacing: '.18em', border: `1px solid rgba(0,187,221,${isApproved ? '.3' : '.8'})`, color: isApproved ? 'rgba(0,187,221,.5)' : '#ffffff', textShadow: isApproved ? 'none' : '0 0 16px rgba(0,187,221,1), 0 0 32px rgba(0,187,221,.6)', animation: isApproved ? 'none' : 'phApproveGlow 2s ease-in-out infinite', cursor: (acting || isApproved) ? 'default' : 'pointer', opacity: acting ? 0.5 : 1 }}>
+                  <div onClick={!acting ? () => handleAction('defer') : undefined} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(180,200,210,.35)', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(180,200,210,.04)', color: '#b4c8d2', opacity: acting ? 0.5 : 1 }}>DEFER</div>
+                  <div onClick={!acting ? () => handleAction('reject') : undefined} style={{ ...approvalBtnBase, fontSize: 9, border: '1px solid rgba(255,92,122,.6)', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(255,92,122,.06)', color: '#ff8fa0', textShadow: '0 0 8px rgba(255,92,122,.5)', opacity: acting ? 0.5 : 1 }}>REJECT</div>
+                  <div onClick={!acting && !isApproved ? () => handleAction('approve') : undefined} style={{ ...approvalBtnBase, fontSize: 10, fontWeight: 700, letterSpacing: '.18em', border: `1px solid rgba(0,187,221,${isApproved ? '.3' : '.8'})`, background: isApproved ? 'rgba(0,187,221,.03)' : 'linear-gradient(180deg, rgba(255,255,255,.06), transparent 55%), radial-gradient(circle at 50% 0%, rgba(0,187,221,.22), transparent 65%), rgba(0,187,221,.06)', color: isApproved ? 'rgba(0,187,221,.5)' : '#ffffff', textShadow: isApproved ? 'none' : '0 0 16px rgba(0,187,221,1), 0 0 32px rgba(0,187,221,.6)', animation: isApproved ? 'none' : 'phApproveGlow 2s ease-in-out infinite', cursor: (acting || isApproved) ? 'default' : 'pointer', opacity: acting ? 0.5 : 1 }}>
                     {isApproved ? '✓ APPROVED' : '▶ APPROVE'}
                   </div>
                 </div>
@@ -851,7 +851,7 @@ export default function WeeklyBrief({ onBack }) {
                           PHOENIX runs research autonomously. This does not approve or execute a trade.
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <div onClick={!autopilotRunning ? handleFinanceAutopilot : undefined} style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'transparent', color: '#4dffb4', fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', cursor: autopilotRunning ? 'wait' : 'pointer', userSelect: 'none', opacity: autopilotRunning ? 0.6 : 1 }}>
+                          <div onClick={!autopilotRunning ? handleFinanceAutopilot : undefined} style={{ padding: '7px 12px', border: '1px solid rgba(77,255,180,.3)', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(77,255,180,.05)', color: '#4dffb4', fontFamily: MONO, fontSize: 7, letterSpacing: '.12em', cursor: autopilotRunning ? 'wait' : 'pointer', userSelect: 'none', opacity: autopilotRunning ? 0.6 : 1 }}>
                             {autopilotRunning ? 'RUNNING AUTOPILOT…' : 'RUN FINANCE AUTOPILOT'}
                           </div>
                           {autopilotResult && !autopilotResult.error && <span style={{ fontFamily: MONO, fontSize: 7, color: '#4dffb4' }}>{autopilotResult.total_legs} LEG(S) PROCESSED · RESEARCH ONLY</span>}

@@ -177,8 +177,8 @@ function Drawer({ brief, onClose, onAction, onDelete }) {
               <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.16em', color: muted, marginBottom: 9 }}>ACTIONS</div>
               {actError && <div style={{ color: '#ff5c7a', fontFamily: MONO, fontSize: 7, marginBottom: 7 }}>{actError}</div>}
               <div style={{ display: 'flex', gap: 9 }}>
-                <button onClick={() => handleAction('defer')} disabled={acting} style={{ flex: 1, padding: '10px 0', border: '1px solid rgba(180,200,210,.35)', background: 'transparent', color: '#b4c8d2', fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: acting ? 'wait' : 'pointer' }}>DEFER</button>
-                <button onClick={() => handleAction('reject')} disabled={acting} style={{ flex: 1, padding: '10px 0', border: '1px solid rgba(255,92,122,.6)', background: 'transparent', color: '#ff8fa0', fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: acting ? 'wait' : 'pointer' }}>REJECT</button>
+                <button onClick={() => handleAction('defer')} disabled={acting} style={{ flex: 1, padding: '10px 0', border: '1px solid rgba(180,200,210,.35)', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(180,200,210,.04)', color: '#b4c8d2', fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: acting ? 'wait' : 'pointer' }}>DEFER</button>
+                <button onClick={() => handleAction('reject')} disabled={acting} style={{ flex: 1, padding: '10px 0', border: '1px solid rgba(255,92,122,.6)', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(255,92,122,.06)', color: '#ff8fa0', fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: acting ? 'wait' : 'pointer' }}>REJECT</button>
               </div>
             </div>
           )}
@@ -194,7 +194,7 @@ function Drawer({ brief, onClose, onAction, onDelete }) {
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                style={{ width: '100%', padding: '10px 0', border: '1px solid rgba(255,92,122,.35)', background: 'rgba(255,92,122,.04)', color: 'rgba(255,92,122,.6)', fontFamily: MONO, fontSize: 8, letterSpacing: '.16em', cursor: deleting ? 'wait' : 'pointer' }}
+                style={{ width: '100%', padding: '10px 0', border: '1px solid rgba(255,92,122,.35)', background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(255,92,122,.05)', color: 'rgba(255,92,122,.6)', fontFamily: MONO, fontSize: 8, letterSpacing: '.16em', cursor: deleting ? 'wait' : 'pointer' }}
               >
                 {deleting ? 'DELETING…' : 'DELETE BRIEF'}
               </button>

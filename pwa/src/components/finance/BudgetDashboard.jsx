@@ -173,15 +173,37 @@ export default function BudgetDashboard({ onBack, onUpload, onMemory }) {
           <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div
               onClick={onUpload}
-              style={{ display: 'inline-block', padding: '12px 24px', border: `1px solid ${GOLD}`, background: 'rgba(0,187,221,.08)', color: GOLD, fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.4)' }}
+              style={{
+                position: 'relative', display: 'inline-block', padding: '12px 24px',
+                border: `1px solid ${GOLD}`,
+                background:
+                  'linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%),' +
+                  'radial-gradient(circle at 15% 0%, rgba(0,187,221,.16), transparent 60%),' +
+                  'rgba(0,187,221,.08)',
+                color: GOLD, fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em',
+                cursor: 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.4)',
+              }}
             >
+              <span style={{ position: 'absolute', top: -1, left: -1, width: 8, height: 8, borderTop: `1px solid ${GOLD}`, borderLeft: `1px solid ${GOLD}`, pointerEvents: 'none' }} />
+              <span style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderBottom: `1px solid ${GOLD}`, borderRight: `1px solid ${GOLD}`, pointerEvents: 'none' }} />
               + ADD TRANSACTIONS
             </div>
             {onMemory && (
               <div
                 onClick={onMemory}
-                style={{ display: 'inline-block', padding: '12px 24px', border: '1px solid rgba(0,187,221,.35)', background: 'rgba(0,187,221,.04)', color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.25)' }}
+                style={{
+                  position: 'relative', display: 'inline-block', padding: '12px 24px',
+                  border: '1px solid rgba(0,187,221,.35)',
+                  background:
+                    'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%),' +
+                    'radial-gradient(circle at 15% 0%, rgba(0,187,221,.08), transparent 60%),' +
+                    'rgba(0,187,221,.04)',
+                  color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em',
+                  cursor: 'pointer', userSelect: 'none', textShadow: '0 0 10px rgba(0,187,221,.25)',
+                }}
               >
+                <span style={{ position: 'absolute', top: -1, left: -1, width: 8, height: 8, borderTop: '1px solid rgba(125,232,255,.5)', borderLeft: '1px solid rgba(125,232,255,.5)', pointerEvents: 'none' }} />
+                <span style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderBottom: '1px solid rgba(125,232,255,.5)', borderRight: '1px solid rgba(125,232,255,.5)', pointerEvents: 'none' }} />
                 MEMORY RULES
               </div>
             )}
@@ -261,15 +283,37 @@ export default function BudgetDashboard({ onBack, onUpload, onMemory }) {
           <div style={{ padding: '16px 18px 32px', display: 'grid', gridTemplateColumns: onMemory ? '1fr 1fr' : '1fr', gap: 10 }}>
             <div
               onClick={onUpload}
-              style={{ width: '100%', padding: '12px 0', border: `1px solid rgba(0,187,221,.5)`, background: 'rgba(0,187,221,.06)', color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textAlign: 'center', textShadow: '0 0 10px rgba(0,187,221,.4)', borderRadius: 2 }}
+              style={{
+                position: 'relative', width: '100%', padding: '12px 0',
+                border: '1px solid rgba(0,187,221,.5)',
+                background:
+                  'linear-gradient(180deg, rgba(255,255,255,.05), transparent 55%),' +
+                  'radial-gradient(circle at 15% 0%, rgba(0,187,221,.14), transparent 60%),' +
+                  'rgba(0,187,221,.06)',
+                color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em',
+                cursor: 'pointer', userSelect: 'none', textAlign: 'center', textShadow: '0 0 10px rgba(0,187,221,.4)',
+              }}
             >
+              <span style={{ position: 'absolute', top: -1, left: -1, width: 8, height: 8, borderTop: '1px solid rgba(125,232,255,.8)', borderLeft: '1px solid rgba(125,232,255,.8)', pointerEvents: 'none' }} />
+              <span style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderBottom: '1px solid rgba(125,232,255,.8)', borderRight: '1px solid rgba(125,232,255,.8)', pointerEvents: 'none' }} />
               + ADD TRANSACTIONS
             </div>
             {onMemory && (
               <div
                 onClick={onMemory}
-                style={{ width: '100%', padding: '12px 0', border: '1px solid rgba(0,187,221,.35)', background: 'rgba(0,187,221,.04)', color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', cursor: 'pointer', userSelect: 'none', textAlign: 'center', textShadow: '0 0 10px rgba(0,187,221,.25)', borderRadius: 2 }}
+                style={{
+                  position: 'relative', width: '100%', padding: '12px 0',
+                  border: '1px solid rgba(0,187,221,.35)',
+                  background:
+                    'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%),' +
+                    'radial-gradient(circle at 15% 0%, rgba(0,187,221,.08), transparent 60%),' +
+                    'rgba(0,187,221,.04)',
+                  color: '#7de8ff', fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: '.2em',
+                  cursor: 'pointer', userSelect: 'none', textAlign: 'center', textShadow: '0 0 10px rgba(0,187,221,.25)',
+                }}
               >
+                <span style={{ position: 'absolute', top: -1, left: -1, width: 8, height: 8, borderTop: '1px solid rgba(125,232,255,.5)', borderLeft: '1px solid rgba(125,232,255,.5)', pointerEvents: 'none' }} />
+                <span style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderBottom: '1px solid rgba(125,232,255,.5)', borderRight: '1px solid rgba(125,232,255,.5)', pointerEvents: 'none' }} />
                 MEMORY RULES
               </div>
             )}
