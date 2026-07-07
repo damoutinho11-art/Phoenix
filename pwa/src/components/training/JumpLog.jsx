@@ -230,7 +230,7 @@ function JumpBalancePanel({ onLogged }) {
   return (
     <div style={{ padding: '14px 18px', borderBottom: ORANGE_BDR }}>
       <Label>JUMP BALANCE</Label>
-      <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 700, color: ORANGE }}>Jump Balance</div>
+      <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 700, textTransform: 'uppercase', color: ORANGE }}>Jump Balance</div>
       <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM, lineHeight: 1.55, margin: '4px 0 12px' }}>
         Start low—even one quality rep counts. Progress slowly and stop at ten quality reps per plant.
       </div>

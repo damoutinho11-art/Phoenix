@@ -268,7 +268,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
               <Label>READINESS SCAN</Label>
-              <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', color: TEXT }}>Readiness Scan</div>
+              <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', textTransform: 'uppercase', color: TEXT }}>Readiness Scan</div>
               <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.68)', marginTop: 4 }}>
                 Quick readiness scan — this helps Phoenix tune today’s warm-up and substitutions.
               </div>
@@ -317,7 +317,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
       <CornerCard>
         <div style={{ padding: '15px 16px' }}>
           <Label cyan>TODAY’S ROUTE</Label>
-          <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', color: CYAN_BR }}>Today’s Route</div>
+          <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', textTransform: 'uppercase', color: CYAN_BR }}>Today’s Route</div>
           <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT, marginTop: 5 }}>
             {current.readiness_status === 'unchecked'
               ? 'Complete the scan before jumps, sprints, or heavy lower-body work. A conservative warm-up is available now.'
@@ -337,14 +337,22 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
 
       <div style={{ marginTop: 12 }}>
         <Label>JOINT CAPACITY BLOCK</Label>
-        <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', color: TEXT, marginBottom: 9 }}>Joint Capacity Block</div>
+        <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', textTransform: 'uppercase', color: TEXT, marginBottom: 4 }}>Joint Capacity Block</div>
+        <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT_DIM, marginBottom: 9, maxWidth: 640 }}>
+          Do these as your warm-up before today’s main session below — not a replacement for it. Sled Balance and Squat Balance run every day. Pelvic Control only appears here when your readiness scan flags hip or lower-back sensitivity; if you don’t see it, your scan didn’t flag that area today.
+        </div>
         {current.capacity_blocks.length === 0 && <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM }}>Submit the readiness scan to load today’s real capacity route.</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
           {current.capacity_blocks.map(block => (
             <CornerCard key={block.key}>
               <div style={{ padding: '13px 14px' }}>
-                <div style={{ fontFamily: DISPLAY, fontSize: 19, fontWeight: 700, color: block.key === 'recovery_reset' ? CYAN_BR : ORANGE }}>{block.label}</div>
+                <div style={{ fontFamily: DISPLAY, fontSize: 19, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: block.key === 'recovery_reset' ? CYAN_BR : ORANGE }}>{block.label}</div>
                 <div style={{ fontFamily: BODY, fontSize: 11, lineHeight: 1.5, color: TEXT_DIM, margin: '4px 0 8px' }}>{block.purpose}</div>
+                {block.key === 'pelvic_control' && (
+                  <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', color: ORANGE_MUT, textTransform: 'uppercase', marginBottom: 8 }}>
+                    Added today — your scan flagged hip / lower-back sensitivity
+                  </div>
+                )}
                 {block.exercises.slice(0, 6).map((exercise, i) => (
                   <div key={i} style={{ fontFamily: BODY, fontSize: 11, color: 'rgba(199,236,244,.78)', padding: '5px 0', borderTop: i ? '1px solid rgba(255,143,46,.08)' : 'none' }}>
                     {exercise.name || exercise.zone?.replaceAll('_', ' ')}
