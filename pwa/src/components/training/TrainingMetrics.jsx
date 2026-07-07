@@ -234,6 +234,21 @@ function TrainingCore({ overall, sessionType, mesoWeek, onTrack, readinessStatus
   )
 }
 
+function StepBadge({ n, title, color = ORANGE }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 14px 8px' }}>
+      <div style={{
+        width: 22, height: 22, borderRadius: '50%', border: `1px solid ${color}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: MONO, fontSize: 10, fontWeight: 700, color, flexShrink: 0,
+        boxShadow: `0 0 8px ${color}55`, background: `${color}0d`,
+      }}>{n}</div>
+      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '.24em', color, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{title}</div>
+      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${color}55, transparent)` }} />
+    </div>
+  )
+}
+
 function DomainButton({ label, onClick }) {
   return (
     <div
@@ -262,7 +277,11 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
   const toneColor = tone === 'ready' ? GREEN : tone === 'caution' ? YELLOW : RED
 
   return (
-    <div style={{ padding: '14px', borderBottom: ORANGE_BDR, background: 'linear-gradient(145deg,rgba(255,143,46,.04),rgba(32,216,236,.018))' }}>
+    <div style={{ borderBottom: ORANGE_BDR, background: 'linear-gradient(145deg,rgba(255,143,46,.04),rgba(32,216,236,.018))' }}>
+      <div style={{ padding: '0 14px 14px' }}>
+      <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT_DIM, margin: '0 0 10px', maxWidth: 640 }}>
+        Log discomfort per area, plus sleep/soreness above. Phoenix uses this to route today’s warm-up and any substitutions.
+      </div>
       <CornerCard style={{ marginBottom: 12 }}>
         <div style={{ padding: '15px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
@@ -313,33 +332,13 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
           </button>
         </div>
       </CornerCard>
+      </div>
 
-      <CornerCard>
-        <div style={{ padding: '15px 16px' }}>
-          <Label cyan>TODAY’S ROUTE</Label>
-          <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', textTransform: 'uppercase', color: CYAN_BR }}>Today’s Route</div>
-          <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT, marginTop: 5 }}>
-            {current.readiness_status === 'unchecked'
-              ? 'Complete the scan before jumps, sprints, or heavy lower-body work. A conservative warm-up is available now.'
-              : current.readiness_status === 'clear'
-                ? 'Planned session is available with progressive preparation.'
-                : 'Phoenix adjusted today’s session based on your readiness scan.'}
-          </div>
-          {current.substitutions.map((item, index) => (
-            <div key={`${item.area}-${index}`} style={{ marginTop: 9, padding: '9px 10px', border: `1px solid ${toneColor}35`, background: `${toneColor}09` }}>
-              <div style={{ fontFamily: MONO, fontSize: 8, color: toneColor, textTransform: 'uppercase' }}>{item.reason}</div>
-              <div style={{ fontFamily: BODY, fontSize: 11, color: TEXT, marginTop: 4, lineHeight: 1.5 }}>{item.action}</div>
-            </div>
-          ))}
-          <div style={{ fontFamily: MONO, fontSize: 8, lineHeight: 1.55, color: TEXT_DIM, marginTop: 10 }}>{current.safety_note}</div>
-        </div>
-      </CornerCard>
-
-      <div style={{ marginTop: 12 }}>
-        <Label>JOINT CAPACITY BLOCK</Label>
+      <StepBadge n={2} title="WARM-UP" />
+      <div style={{ padding: '0 14px 16px' }}>
         <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', textTransform: 'uppercase', color: TEXT, marginBottom: 4 }}>Joint Capacity Block</div>
         <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT_DIM, marginBottom: 9, maxWidth: 640 }}>
-          Do these as your warm-up before today’s main session below — not a replacement for it. Sled Balance and Squat Balance run every day. Pelvic Control only appears here when your readiness scan flags hip or lower-back sensitivity; if you don’t see it, your scan didn’t flag that area today.
+          Do these as your warm-up before today’s main session below — not a replacement for it. Sled Balance, Squat Balance, and Pelvic Control run every day.
         </div>
         {current.capacity_blocks.length === 0 && <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM }}>Submit the readiness scan to load today’s real capacity route.</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
@@ -348,11 +347,6 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
               <div style={{ padding: '13px 14px' }}>
                 <div style={{ fontFamily: DISPLAY, fontSize: 19, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: block.key === 'recovery_reset' ? CYAN_BR : ORANGE }}>{block.label}</div>
                 <div style={{ fontFamily: BODY, fontSize: 11, lineHeight: 1.5, color: TEXT_DIM, margin: '4px 0 8px' }}>{block.purpose}</div>
-                {block.key === 'pelvic_control' && (
-                  <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', color: ORANGE_MUT, textTransform: 'uppercase', marginBottom: 8 }}>
-                    Added today — your scan flagged hip / lower-back sensitivity
-                  </div>
-                )}
                 {block.exercises.slice(0, 6).map((exercise, i) => (
                   <div key={i} style={{ fontFamily: BODY, fontSize: 11, color: 'rgba(199,236,244,.78)', padding: '5px 0', borderTop: i ? '1px solid rgba(255,143,46,.08)' : 'none' }}>
                     {exercise.name || exercise.zone?.replaceAll('_', ' ')}
@@ -493,6 +487,10 @@ export default function TrainingMetrics({ onBack, onNav }) {
 
   const phaseFull = phase.replace(/_/g, ' ')
 
+  const routeCurrent = routeFallback(route)
+  const routeTone = readinessTone(routeCurrent.readiness_status)
+  const routeToneColor = routeTone === 'ready' ? GREEN : routeTone === 'caution' ? YELLOW : RED
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
@@ -610,6 +608,14 @@ export default function TrainingMetrics({ onBack, onNav }) {
           </div>
         </div>
 
+        <StepBadge n={1} title="CHECK IN" />
+        <RecoveryRing
+          recovery={recovery}
+          onLogSleep={handleLogSleep}
+          onLogSoreness={handleLogSoreness}
+          logging={recoveryLogging}
+          loggedKey={recoveryLoggedKey}
+        />
         <ReadinessCockpit
           route={route} scores={scores} setScores={setScores}
           flags={readinessFlags} setFlags={setReadinessFlags}
@@ -619,8 +625,25 @@ export default function TrainingMetrics({ onBack, onNav }) {
           onRequestReset={handleRequestReset}
         />
 
+        <StepBadge n={3} title="TODAY’S SESSION" />
         {/* TODAY'S SESSION CARD */}
-        <div style={{ padding: '12px 14px', borderBottom: ORANGE_BDR }}>
+        <div style={{ padding: '4px 14px 12px' }}>
+          <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT_DIM, marginBottom: 4 }}>
+            {routeCurrent.readiness_status === 'unchecked'
+              ? 'Complete Step 1 before jumps, sprints, or heavy lower-body work. A conservative warm-up is available now.'
+              : routeCurrent.readiness_status === 'clear'
+                ? 'Planned session is available with progressive preparation.'
+                : 'Phoenix adjusted today’s session based on your readiness scan.'}
+          </div>
+          {routeCurrent.substitutions.map((item, index) => (
+            <div key={`${item.area}-${index}`} style={{ marginBottom: 8, padding: '9px 10px', border: `1px solid ${routeToneColor}35`, background: `${routeToneColor}09` }}>
+              <div style={{ fontFamily: MONO, fontSize: 8, color: routeToneColor, textTransform: 'uppercase' }}>{item.reason}</div>
+              <div style={{ fontFamily: BODY, fontSize: 11, color: TEXT, marginTop: 4, lineHeight: 1.5 }}>{item.action}</div>
+            </div>
+          ))}
+          <div style={{ fontFamily: MONO, fontSize: 8, lineHeight: 1.55, color: TEXT_DIM, marginBottom: 10 }}>{routeCurrent.safety_note}</div>
+        </div>
+        <div style={{ padding: '0 14px 12px', borderBottom: ORANGE_BDR }}>
           <CornerCard>
             <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: ORANGE, boxShadow: `0 0 12px rgba(255,143,46,.45)` }} />
             <div style={{ padding: '13px 14px 13px 18px', cursor: sessionStartAllowed ? 'pointer' : 'default' }} onClick={() => sessionStartAllowed && nav('active-session')}>
@@ -678,15 +701,6 @@ export default function TrainingMetrics({ onBack, onNav }) {
             </div>
           ))}
         </div>
-
-        {/* RECOVERY */}
-        <RecoveryRing
-          recovery={recovery}
-          onLogSleep={handleLogSleep}
-          onLogSoreness={handleLogSoreness}
-          logging={recoveryLogging}
-          loggedKey={recoveryLoggedKey}
-        />
 
         {/* DOMAIN BUTTONS */}
         <div style={{ display: 'flex', gap: 8, padding: '12px 14px 20px' }}>

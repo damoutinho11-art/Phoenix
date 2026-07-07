@@ -156,11 +156,7 @@ def route_session(
     if show_reset:
         blocks.append(RECOVERY_RESET)
     else:
-        blocks.extend((SLED_BALANCE, SQUAT_BALANCE))
-        if scan and (
-            scan.discomfort.hip >= 3 or scan.discomfort.lower_back_pelvic >= 3
-        ):
-            blocks.append(PELVIC_CONTROL)
+        blocks.extend((SLED_BALANCE, SQUAT_BALANCE, PELVIC_CONTROL))
         if session_type == "jump" and status is ReadinessStatus.CLEAR:
             blocks.append(JUMP_BALANCE)
 
