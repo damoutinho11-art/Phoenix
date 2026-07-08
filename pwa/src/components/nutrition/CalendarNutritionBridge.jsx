@@ -3,9 +3,9 @@ import { getNutritionCalendarBridge, importCalendarPlaanSnapshot, getCalendarPla
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const CYAN = '#20d8ec'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.42)'
+const CYAN = '#ffd166'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.42)'
 const TEXT = 'rgba(220,248,236,.88)'
 const DIM = 'rgba(158,204,190,.62)'
 
@@ -86,7 +86,7 @@ export default function CalendarNutritionBridge({ onBack }) {
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.12em', color: DIM, marginTop: 10 }}>{(data.calendar_source?.active_source || 'fixture').toUpperCase().replaceAll('_', ' ')} · NO AI REQUIRED · NO AUTO LOGGING</div>
         </div>
 
-        <div style={{ padding: '13px 18px', borderBottom: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.018)' }}>
+        <div style={{ padding: '13px 18px', borderBottom: `1px solid ${BORDER}`, background: 'rgba(255,209,102,.018)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 7 }}>PLAAN SOURCE BOUNDARY</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div style={{ border: `1px solid ${BORDER}`, padding: '10px', background: 'rgba(0,0,0,.18)' }}>
@@ -118,7 +118,7 @@ export default function CalendarNutritionBridge({ onBack }) {
             placeholder='{"as_of":"2026-08-20T09:00:00","events":[{"event_id":"reh-1","event_type":"rehearsal","title":"Othello rehearsal","date":"2026-08-20","time_start":"11:00","time_end":"15:00"}],"fetch_warnings":[]}'
             style={{ width: '100%', minHeight: 88, resize: 'vertical', boxSizing: 'border-box', border: `1px solid ${BORDER}`, background: 'rgba(0,0,0,.55)', color: TEXT, padding: 10, fontFamily: 'var(--phx-font-mono)', fontSize: 9, lineHeight: 1.45, outline: 'none' }}
           />
-          <button onClick={handleImportSnapshot} disabled={!importText.trim()} style={{ marginTop: 8, width: '100%', padding: '10px 12px', border: `1px solid ${importText.trim() ? 'rgba(157,255,111,.36)' : BORDER}`, background: importText.trim() ? 'rgba(157,255,111,.08)' : 'rgba(32,216,236,.025)', color: importText.trim() ? LIME_BR : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: importText.trim() ? 'pointer' : 'default' }}>IMPORT READ-ONLY SNAPSHOT</button>
+          <button onClick={handleImportSnapshot} disabled={!importText.trim()} style={{ marginTop: 8, width: '100%', padding: '10px 12px', border: `1px solid ${importText.trim() ? 'rgba(157,255,111,.36)' : BORDER}`, background: importText.trim() ? 'rgba(157,255,111,.08)' : 'rgba(255,209,102,.025)', color: importText.trim() ? LIME_BR : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: importText.trim() ? 'pointer' : 'default' }}>IMPORT READ-ONLY SNAPSHOT</button>
           {importResult && <div style={{ marginTop: 8, fontSize: 11.5, color: LIME }}>Imported {importResult.event_count} event(s). Nutrition timing refreshed from manual snapshot.</div>}
           {importError && <div style={{ marginTop: 8, fontSize: 11.5, color: '#ff5c7a' }}>{importError}</div>}
         </div>
@@ -132,7 +132,7 @@ export default function CalendarNutritionBridge({ onBack }) {
 
         <div style={{ display: 'flex', gap: 8, padding: '0 18px 14px', borderBottom: `1px solid ${BORDER}` }}>
           {[3, 7, 14].map(n => (
-            <button key={n} onClick={() => setWindow(n)} style={{ flex: 1, padding: '10px 8px', border: `1px solid ${days === n ? 'rgba(157,255,111,.4)' : BORDER}`, background: days === n ? 'rgba(157,255,111,.08)' : 'rgba(32,216,236,.025)', color: days === n ? LIME_BR : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em' }}>{n} DAYS</button>
+            <button key={n} onClick={() => setWindow(n)} style={{ flex: 1, padding: '10px 8px', border: `1px solid ${days === n ? 'rgba(157,255,111,.4)' : BORDER}`, background: days === n ? 'rgba(157,255,111,.08)' : 'rgba(255,209,102,.025)', color: days === n ? LIME_BR : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em' }}>{n} DAYS</button>
           ))}
         </div>
 
@@ -149,7 +149,7 @@ export default function CalendarNutritionBridge({ onBack }) {
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>SCHEDULE-AWARE TIMING</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {(data.days || []).map(day => (
-              <div key={day.date} style={{ border: `1px solid ${BORDER}`, background: day.priority === 'high' ? 'rgba(255,92,122,.035)' : 'rgba(32,216,236,.02)', padding: '13px' }}>
+              <div key={day.date} style={{ border: `1px solid ${BORDER}`, background: day.priority === 'high' ? 'rgba(255,92,122,.035)' : 'rgba(255,209,102,.02)', padding: '13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div>
                     <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: '.08em' }}>{day.date}</div>

@@ -22,11 +22,11 @@ class PhaseTests(unittest.TestCase):
     def test_get_current_phase_peak(self):
         assert engine.get_current_phase(CONSTITUTION, PEAK_DATE) == "peak"
 
-    def test_cut_ends_aug_17(self):
-        assert engine.get_current_phase(CONSTITUTION, date(2026, 8, 17)) == "cut"
+    def test_cut_ends_aug_30(self):
+        assert engine.get_current_phase(CONSTITUTION, date(2026, 8, 30)) == "cut"
 
-    def test_peak_starts_aug_18(self):
-        assert engine.get_current_phase(CONSTITUTION, date(2026, 8, 18)) == "peak"
+    def test_peak_starts_aug_31(self):
+        assert engine.get_current_phase(CONSTITUTION, date(2026, 8, 31)) == "peak"
 
 
 class TrainingDayTests(unittest.TestCase):
@@ -64,8 +64,8 @@ class MacroTargetTests(unittest.TestCase):
         assert target.protein_g == 165
 
     def test_peak_calories_same_both_days(self):
-        monday = engine.get_macro_target(CONSTITUTION, date(2026, 8, 24))
-        friday = engine.get_macro_target(CONSTITUTION, date(2026, 8, 21))
+        monday = engine.get_macro_target(CONSTITUTION, date(2026, 8, 31))
+        friday = engine.get_macro_target(CONSTITUTION, date(2026, 9, 4))
         assert monday.calories == friday.calories == 2700
 
     def test_returns_macro_target_type(self):

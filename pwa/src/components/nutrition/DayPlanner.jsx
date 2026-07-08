@@ -3,10 +3,10 @@ import { getNutritionDayPlan, logDayPlan } from '../../api/client'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
-const CYAN = '#20d8ec'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
+const TEXT_DIM = 'rgba(190,214,202,.72)'
+const CYAN = '#ffd166'
 
 function safeNumber(value, fallback = 0) {
   const n = Number(value)
@@ -129,14 +129,14 @@ function PlanMealCard({ meal, onMeal }) {
         {(meal.tags || []).map(tag => (
           <span key={tag} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: LIME, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.045)', padding: '3px 7px' }}>{tag}</span>
         ))}
-        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(32,216,236,.24)`, background: 'rgba(32,216,236,.045)', padding: '3px 7px' }}>EDITABLE</span>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(255,209,102,.24)`, background: 'rgba(255,209,102,.045)', padding: '3px 7px' }}>EDITABLE</span>
       </div>
 
       <MacroStrip total={total} />
 
-      <div style={{ marginTop: 12, borderTop: `1px solid rgba(32,216,236,.10)` }}>
+      <div style={{ marginTop: 12, borderTop: `1px solid rgba(255,209,102,.10)` }}>
         {(meal.items || []).map((item, index) => (
-          <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '10px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
+          <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '10px 0', borderBottom: `1px solid rgba(255,209,102,.08)` }}>
             <div>
               <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 600, color: '#fff' }}>{item.name}</div>
               <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(item.servings)}× · {item.unit}</div>
@@ -237,7 +237,7 @@ export default function DayPlanner({ onBack, onSuccess }) {
               ['CARB GAP', fmt(gap.carbs_g, 'g')],
               ['FAT GAP', fmt(gap.fat_g, 'g')],
             ].map(([label, val]) => (
-              <div key={label} style={{ border: `1px solid rgba(32,216,236,.12)`, padding: '8px 9px', background: 'rgba(32,216,236,.025)' }}>
+              <div key={label} style={{ border: `1px solid rgba(255,209,102,.12)`, padding: '8px 9px', background: 'rgba(255,209,102,.025)' }}>
                 <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em', color: MUTED }}>{label}</div>
                 <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, color: LIME_BR, marginTop: 3 }}>{val}</div>
               </div>
@@ -264,7 +264,7 @@ export default function DayPlanner({ onBack, onSuccess }) {
           </div>
         )}
 
-        {data?.recovery_notes?.length > 0 && <div style={{ margin: '8px 18px 12px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
+        {data?.recovery_notes?.length > 0 && <div style={{ margin: '8px 18px 12px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>RECOVERY LOGIC</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {data.recovery_notes.map(note => <div key={note} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7.5, letterSpacing: '.1em', color: TEXT_DIM }}>◆ {note}</div>)}
@@ -281,7 +281,7 @@ export default function DayPlanner({ onBack, onSuccess }) {
           </button>
         </div>}
 
-        <div style={{ margin: '0 18px 16px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, background: 'rgba(32,216,236,.025)' }}>
+        <div style={{ margin: '0 18px 16px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, background: 'rgba(255,209,102,.025)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Autonomous means Phoenix plans and prepares. You edit quantities, remove meals, and approve before anything is logged. No AI credits are needed for this planner.

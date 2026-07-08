@@ -4,10 +4,10 @@ import BarcodeScanner from '../BarcodeScanner'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
-const CYAN = '#20d8ec'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
+const TEXT_DIM = 'rgba(190,214,202,.72)'
+const CYAN = '#ffd166'
 
 const EMPTY_CUSTOM = {
   name: '',
@@ -319,7 +319,7 @@ export default function LogMeal({ onBack, onSuccess }) {
           ) : filtered.map(item => {
             const isSel = selected?.id === (tab === 'recent' ? `recent-${item.id}` : item.id)
             return (
-              <div key={`${tab}-${item.id}`} onClick={() => selectItem(item)} style={{ padding: '11px 12px', borderBottom: `1px solid rgba(32,216,236,.08)`, cursor: 'pointer', borderLeft: `3px solid ${isSel ? LIME : 'transparent'}`, background: isSel ? 'rgba(157,255,111,.04)' : 'none' }}>
+              <div key={`${tab}-${item.id}`} onClick={() => selectItem(item)} style={{ padding: '11px 12px', borderBottom: `1px solid rgba(255,209,102,.08)`, cursor: 'pointer', borderLeft: `3px solid ${isSel ? LIME : 'transparent'}`, background: isSel ? 'rgba(157,255,111,.04)' : 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
                   <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 600, color: '#fff', flex: 1 }}>{item.name}</div>
                   <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 12, color: LIME_BR, flexShrink: 0 }}>{+(item.protein_g || 0).toFixed(1)}g P</div>
@@ -337,7 +337,7 @@ export default function LogMeal({ onBack, onSuccess }) {
           }))}
         </div>
 
-        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
+        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Recipe entries log the displayed serving unit, not the full batch. Custom entries are saved only after you confirm the macros.

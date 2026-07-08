@@ -1,7 +1,38 @@
 import { useState, useEffect, useRef } from 'react'
 import { getTrainingStatus, logWeight } from '../../api/client'
 
-const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
+const KEYFRAMES = `
+  @keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+  @keyframes phScanDrift { 0%{background-position:0 0} 100%{background-position:0 6px} }
+  @keyframes phHoloSweep { 0%{top:-12%} 100%{top:112%} }
+  @keyframes phFlicker {
+    0%, 91%, 94%, 100% { opacity: 1; }
+    92% { opacity: .72; }
+    93% { opacity: .95; }
+    95.5% { opacity: .8; }
+  }
+`
+
+function HoloOverlay() {
+  return (
+    <>
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 60,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,143,46,.026) 0 1px, transparent 1px 3px)',
+        animation: 'phScanDrift 1.4s linear infinite', mixBlendMode: 'screen',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 61,
+        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(1,4,8,.5) 100%)',
+      }} />
+      <div style={{
+        position: 'absolute', left: 0, right: 0, height: '9%', top: '-12%', pointerEvents: 'none', zIndex: 62,
+        background: 'linear-gradient(180deg, transparent, rgba(255,143,46,.05), transparent)',
+        animation: 'phHoloSweep 7s linear infinite',
+      }} />
+    </>
+  )
+}
 
 const BG         = '#060c12'
 const CARD       = '#070e15'
@@ -9,14 +40,14 @@ const ORANGE     = '#ff8f2e'
 const ORANGE_MUT = 'rgba(255,143,46,.42)'
 const ORANGE_BDR = '1px solid rgba(255,143,46,.18)'
 const GREEN      = '#4dffb4'
-const TEXT       = 'rgba(199,236,244,.92)'
-const TEXT_DIM   = 'rgba(132,212,226,.45)'
+const TEXT       = 'rgba(255,244,230,.94)'
+const TEXT_DIM   = 'rgba(236,206,178,.7)'
 const MONO       = "'Share Tech Mono', monospace"
 const DISPLAY    = "'Rajdhani', sans-serif"
 const BODY       = "'Space Grotesk', sans-serif"
 
-const START_KG  = 87
-const TARGET_KG = 81
+const START_KG  = 74.2
+const TARGET_KG = 69.8
 
 function Label({ children }) {
   return (
@@ -49,8 +80,10 @@ function WeightChart({ entries }) {
   )
 
   const weights = entries.map(e => e.kg)
-  const mn = Math.min(...weights, TARGET_KG) - 0.5
-  const mx = Math.max(...weights) + 0.5
+  let mn = Math.min(...weights, TARGET_KG) - 0.5
+  let mx = Math.max(...weights) + 0.5
+  // Guard: if the data is nearly flat, widen the range so the line sits mid-chart
+  if (mx - mn < 2) { const mid = (mx + mn) / 2; mn = mid - 1.5; mx = mid + 1.5 }
   const px = i => (i / (entries.length - 1)) * cw + pad.l
   const py = v => pad.t + (1 - (v - mn) / (mx - mn)) * ch
 
@@ -222,7 +255,8 @@ export default function Body({ onBack }) {
   const weeklies = [...weightHistory].reverse().slice(0, 8)
 
   return (
-    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
+    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY, position: 'relative', animation: 'phFlicker 9s linear infinite' }}>
+      <HoloOverlay />
 
       {/* TOP BAR */}
       <div style={{
@@ -315,9 +349,9 @@ export default function Body({ onBack }) {
           <div style={{ padding: '12px 14px', borderBottom: ORANGE_BDR }}>
             <div
               onClick={() => setModalOpen(true)}
-              style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,143,46,.28)', padding: '14px 0', textAlign: 'center', background: 'rgba(255,143,46,.03)', cursor: 'pointer', animation: 'phScan 3.5s linear infinite' }}
+              style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,143,46,.28)', padding: '14px 0', textAlign: 'center', background: 'rgba(255,143,46,.03)', cursor: 'pointer' }}
             >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${ORANGE},transparent)`, opacity: .5 }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${ORANGE},transparent)`, opacity: .5, animation: 'phScan 3.5s linear infinite' }} />
               <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '.26em', color: ORANGE }}>+ LOG WEIGHT</div>
             </div>
           </div>

@@ -1,8 +1,8 @@
 from datetime import date
 
-CUT_TRAINING_DATE = date(2026, 6, 22)  # Monday
-CUT_REST_DATE = date(2026, 6, 26)      # Friday
-PEAK_DATE = date(2026, 8, 20)          # Thursday in peak week
+CUT_TRAINING_DATE = date(2026, 7, 6)   # Monday
+CUT_REST_DATE = date(2026, 7, 10)      # Friday
+PEAK_DATE = date(2026, 9, 3)           # Thursday in peak week
 
 SAMPLE_LOG_ITEMS = [
     {

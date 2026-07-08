@@ -3,9 +3,9 @@ import { getRecipes, getNutritionStatus } from '../../api/client'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
+const TEXT_DIM = 'rgba(190,214,202,.72)'
 
 const FILTERS = ['MATCH TODAY', 'HIGH PROTEIN', 'CHEAP']
 const DISABLED_FILTERS = ['FAST', 'PREP']
@@ -80,7 +80,7 @@ export default function RecipeList({ onBack }) {
         setAllRecipes((recipesData.recipes || []).map(normalizeRecipe))
         setStatus(statusData)
       } catch {
-        setError('Recipe data unavailable. No prototype meals shown.')
+        setError('Recipe data unavailable. Check that the backend is running.')
       }
       setLoading(false)
     }
@@ -114,7 +114,7 @@ export default function RecipeList({ onBack }) {
     <div className="phx-scope-nutrition" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-nutrition) 7%, transparent), transparent 34rem), linear-gradient(180deg, #081208 0%, var(--phx-bg) 42%, #04090e 100%)', color: 'rgba(220,248,236,.94)', fontFamily: 'var(--phx-font-body)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span onClick={onBack} style={{ color: '#20d8ec', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
+          <span onClick={onBack} style={{ color: '#ffd166', fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
           <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>RECIPES</span>
         </div>
         <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>
@@ -135,7 +135,7 @@ export default function RecipeList({ onBack }) {
             <button key={f} onClick={() => setActiveFilter(f)} style={{ flexShrink: 0, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', border: `1px solid ${f === activeFilter ? 'rgba(157,255,111,.34)' : BORDER}`, padding: '7px 10px', background: f === activeFilter ? 'rgba(157,255,111,.055)' : 'none', color: f === activeFilter ? LIME : MUTED, cursor: 'pointer' }}>{f}</button>
           ))}
           {DISABLED_FILTERS.map(f => (
-            <button key={f} disabled title="Recipe metadata not available yet" style={{ flexShrink: 0, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', border: `1px solid rgba(32,216,236,.08)`, padding: '7px 10px', background: 'none', color: 'rgba(32,216,236,.18)', cursor: 'not-allowed' }}>{f}</button>
+            <button key={f} disabled title="Recipe metadata not available yet" style={{ flexShrink: 0, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', border: `1px solid rgba(255,209,102,.08)`, padding: '7px 10px', background: 'none', color: 'rgba(255,209,102,.18)', cursor: 'not-allowed' }}>{f}</button>
           ))}
         </div>
 
@@ -147,7 +147,7 @@ export default function RecipeList({ onBack }) {
           ) : displayRecipes.length === 0 ? (
             <div style={{ padding: '40px 24px', textAlign: 'center', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 11, lineHeight: 1.7 }}>No recipes match this filter with the current dataset.</div>
           ) : displayRecipes.map(r => (
-            <div key={r.id} onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ padding: '14px 16px', borderBottom: `1px solid rgba(32,216,236,.08)`, display: 'grid', gridTemplateColumns: '1fr 72px', gap: 12, cursor: 'pointer' }}>
+            <div key={r.id} onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ padding: '14px 16px', borderBottom: `1px solid rgba(255,209,102,.08)`, display: 'grid', gridTemplateColumns: '1fr 72px', gap: 12, cursor: 'pointer' }}>
               <div>
                 <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 18, fontWeight: 700, letterSpacing: '.05em', color: '#fff' }}>{r.name}</div>
                 <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 4, lineHeight: 1.6 }}>
@@ -175,7 +175,7 @@ export default function RecipeList({ onBack }) {
           ))}
         </div>
 
-        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
+        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX RECIPE LOGIC</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Recipe macros are now shown per loggable serving. Full-batch calories remain visible for meal prep, while FAST/PREP filters stay disabled until the dataset has real prep-time metadata.

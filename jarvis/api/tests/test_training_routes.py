@@ -186,7 +186,8 @@ class TestTrainingReadinessAndRouting:
         assert response.status_code == 200
         data = response.json()
         assert data["show_recovery_reset"] is True
-        assert [block["key"] for block in data["capacity_blocks"]] == ["recovery_reset"]
+        # Pelvic Control is a daily block — present even on recovery/rest days.
+        assert [block["key"] for block in data["capacity_blocks"]] == ["recovery_reset", "pelvic_control"]
 
     def test_jump_balance_accepts_supported_plant_and_one_rep(self):
         with patch(

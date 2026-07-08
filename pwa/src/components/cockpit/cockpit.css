@@ -1460,6 +1460,11 @@
 
 
 
+@keyframes phBtnSweep {
+  0% { background-position: -180% 0, 0 0, 0 0; }
+  100% { background-position: 280% 0, 0 0, 0 0; }
+}
+
 .phx-command-button {
 
   position: relative;
@@ -1468,13 +1473,18 @@
 
   padding: .65rem .75rem;
 
-  border-color: color-mix(in srgb, var(--phx-accent) 30%, transparent);
+  border-color: color-mix(in srgb, var(--phx-accent) 45%, transparent);
 
   background:
-    linear-gradient(180deg, color-mix(in srgb, white 5%, transparent), transparent 55%),
-    linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 10%, transparent), color-mix(in srgb, var(--phx-accent) 4%, transparent));
+    linear-gradient(105deg, transparent 40%, color-mix(in srgb, var(--phx-accent) 16%, transparent) 50%, transparent 60%),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--phx-accent) 4%, transparent) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 12%, transparent), color-mix(in srgb, var(--phx-accent) 4%, transparent));
 
-  color: color-mix(in srgb, var(--phx-accent) 70%, white 14%);
+  background-size: 250% 100%, auto, auto;
+
+  animation: phBtnSweep 4.5s linear infinite;
+
+  color: color-mix(in srgb, var(--phx-accent) 78%, white 16%);
 
   font-family: var(--phx-font-mono);
 
@@ -1482,11 +1492,17 @@
 
   font-size: .68rem;
 
-  letter-spacing: .15em;
+  letter-spacing: .2em;
 
   text-align: center;
 
   text-transform: uppercase;
+
+  text-shadow: 0 0 10px color-mix(in srgb, var(--phx-accent) 55%, transparent);
+
+  box-shadow:
+    0 0 .8rem color-mix(in srgb, var(--phx-accent) 18%, transparent),
+    inset 0 0 .9rem color-mix(in srgb, var(--phx-accent) 8%, transparent);
 
   transition: transform .16s cubic-bezier(.2,.8,.4,1), border-color .16s cubic-bezier(.2,.8,.4,1), background .16s cubic-bezier(.2,.8,.4,1), box-shadow .2s cubic-bezier(.2,.8,.4,1);
 
@@ -1500,17 +1516,19 @@
 
   position: absolute;
 
-  width: .45rem;
+  width: .7rem;
 
-  height: .45rem;
+  height: .7rem;
 
   pointer-events: none;
 
-  border-color: color-mix(in srgb, var(--phx-accent) 50%, transparent);
+  border-color: color-mix(in srgb, var(--phx-accent) 85%, transparent);
 
   border-style: solid;
 
   content: '';
+
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--phx-accent) 60%, transparent));
 
 }
 

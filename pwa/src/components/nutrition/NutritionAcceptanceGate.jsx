@@ -3,10 +3,10 @@ import { getNutritionAcceptanceGate } from '../../api/client'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const CYAN = '#20d8ec'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
+const CYAN = '#ffd166'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
+const TEXT_DIM = 'rgba(190,214,202,.72)'
 const RED = '#ff5c7a'
 const AMBER = '#ffd56b'
 
@@ -15,8 +15,8 @@ function Pill({ children, tone = 'neutral' }) {
   return (
     <span style={{
       fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.13em', color,
-      border: `1px solid ${tone === 'pass' ? 'rgba(157,255,111,.3)' : tone === 'fail' ? 'rgba(255,92,122,.32)' : 'rgba(32,216,236,.18)'}`,
-      background: tone === 'pass' ? 'rgba(157,255,111,.055)' : tone === 'fail' ? 'rgba(255,92,122,.06)' : 'rgba(32,216,236,.04)',
+      border: `1px solid ${tone === 'pass' ? 'rgba(157,255,111,.3)' : tone === 'fail' ? 'rgba(255,92,122,.32)' : 'rgba(255,209,102,.18)'}`,
+      background: tone === 'pass' ? 'rgba(157,255,111,.055)' : tone === 'fail' ? 'rgba(255,92,122,.06)' : 'rgba(255,209,102,.04)',
       padding: '3px 8px'
     }}>{children}</span>
   )
@@ -111,7 +111,7 @@ export default function NutritionAcceptanceGate({ onBack }) {
         <div style={{ padding: '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>CHECKLIST</span>
-            <button onClick={load} style={{ padding: '7px 10px', border: `1px solid rgba(32,216,236,.18)`, background: 'rgba(32,216,236,.035)', color: CYAN, fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em' }}>RERUN</button>
+            <button onClick={load} style={{ padding: '7px 10px', border: `1px solid rgba(255,209,102,.18)`, background: 'rgba(255,209,102,.035)', color: CYAN, fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em' }}>RERUN</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {checks.map(check => (

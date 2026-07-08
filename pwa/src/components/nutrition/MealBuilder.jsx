@@ -3,10 +3,10 @@ import { getNutritionMealBuilder, logBuiltMeal, logMeal } from '../../api/client
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
-const CYAN = '#20d8ec'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
+const TEXT_DIM = 'rgba(190,214,202,.72)'
+const CYAN = '#ffd166'
 const TEMPLATE_KEY = 'phoenix_nutrition_meal_templates_v1'
 const MEAL_SLOTS = [
   ['breakfast', 'BREAKFAST'],
@@ -97,7 +97,7 @@ function SlotPicker({ slot, onSlot }) {
           key={value}
           onClick={() => onSlot(value)}
           style={{
-            border: `1px solid ${slot === value ? 'rgba(157,255,111,.55)' : 'rgba(32,216,236,.18)'}`,
+            border: `1px solid ${slot === value ? 'rgba(157,255,111,.55)' : 'rgba(255,209,102,.18)'}`,
             background: slot === value ? 'rgba(157,255,111,.10)' : 'rgba(0,0,0,.18)',
             color: slot === value ? LIME : MUTED,
             fontFamily: 'var(--phx-font-mono)',
@@ -118,9 +118,9 @@ function EditableItems({ items, onItems }) {
   }
 
   return (
-    <div style={{ marginTop: 12, borderTop: `1px solid rgba(32,216,236,.10)` }}>
+    <div style={{ marginTop: 12, borderTop: `1px solid rgba(255,209,102,.10)` }}>
       {items.map((item, index) => (
-        <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '10px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
+        <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '10px 0', borderBottom: `1px solid rgba(255,209,102,.08)` }}>
           <div>
             <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 600, color: '#fff' }}>{item.name}</div>
             <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(item.servings)}× · {item.unit}</div>
@@ -196,7 +196,7 @@ function SuggestionCard({ suggestion, onLog, logging, onSaveTemplate }) {
         {(suggestion.tags || []).map(tag => (
           <span key={tag} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: LIME, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.045)', padding: '3px 7px' }}>{tag}</span>
         ))}
-        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(32,216,236,.24)`, background: 'rgba(32,216,236,.045)', padding: '3px 7px' }}>EDITABLE</span>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(255,209,102,.24)`, background: 'rgba(255,209,102,.045)', padding: '3px 7px' }}>EDITABLE</span>
       </div>
 
       <SlotPicker slot={slot} onSlot={setSlot} />
@@ -204,7 +204,7 @@ function SuggestionCard({ suggestion, onLog, logging, onSaveTemplate }) {
       <EditableItems items={items} onItems={setItems} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-        <button onClick={resetItems} style={{ padding: '11px 0', border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.035)', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>RESET</button>
+        <button onClick={resetItems} style={{ padding: '11px 0', border: `1px solid ${BORDER}`, background: 'rgba(255,209,102,.035)', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>RESET</button>
         <button onClick={saveTemplate} disabled={saved || items.length === 0} style={{ padding: '11px 0', border: `1px solid rgba(157,255,111,.24)`, background: saved ? 'rgba(157,255,111,.13)' : 'rgba(157,255,111,.045)', color: LIME, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>{saved ? 'TEMPLATE SAVED' : 'SAVE TEMPLATE'}</button>
       </div>
 
@@ -222,7 +222,7 @@ function SuggestionCard({ suggestion, onLog, logging, onSaveTemplate }) {
 function TemplateCard({ template, onLog, onDelete, logging }) {
   const total = template.total || totalItems(template.items || [])
   return (
-    <div style={{ border: `1px solid rgba(32,216,236,.14)`, background: 'rgba(32,216,236,.025)', padding: 12 }}>
+    <div style={{ border: `1px solid rgba(255,209,102,.14)`, background: 'rgba(255,209,102,.025)', padding: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
         <div>
           <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 18, fontWeight: 700, color: '#fff' }}>{template.title}</div>
@@ -378,7 +378,7 @@ export default function MealBuilder({ onBack, onSuccess }) {
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 10 }}>FULL DAY LOGIC</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
             {data.day_plan.map(step => (
-              <div key={step.slot} style={{ border: `1px solid rgba(32,216,236,.14)`, background: 'rgba(157,255,111,.018)', padding: 11 }}>
+              <div key={step.slot} style={{ border: `1px solid rgba(255,209,102,.14)`, background: 'rgba(157,255,111,.018)', padding: 11 }}>
                 <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, color: '#fff' }}>{step.title}</div>
                 <div style={{ fontSize: 12, lineHeight: 1.55, color: TEXT_DIM, marginTop: 5 }}>{step.guidance}</div>
               </div>
@@ -386,7 +386,7 @@ export default function MealBuilder({ onBack, onSuccess }) {
           </div>
         </div>}
 
-        <div style={{ margin: '0 18px 16px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
+        <div style={{ margin: '0 18px 16px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Autonomous means Phoenix proposes and prepares the meal. You edit and approve before anything is logged. Templates stay local in this browser.

@@ -16,7 +16,49 @@ const KEYFRAMES = `
   @keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
   @keyframes phGlow { 0%,100%{box-shadow:0 0 14px rgba(255,143,46,.3)} 50%{box-shadow:0 0 28px rgba(255,143,46,.6)} }
   @keyframes phPulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+  @keyframes phSweep { 0%{left:-40%} 100%{left:110%} }
+  @keyframes phBlink { 0%,100%{opacity:.9} 50%{opacity:.2} }
+  @keyframes phRotate { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+  @keyframes phRotateRev { 0%{transform:rotate(0deg)} 100%{transform:rotate(-360deg)} }
+  @keyframes phFlicker {
+    0%, 91%, 94%, 100% { opacity: 1; }
+    92% { opacity: .72; }
+    93% { opacity: .95; }
+    95.5% { opacity: .8; }
+  }
+  @keyframes phScanDrift { 0%{background-position:0 0} 100%{background-position:0 6px} }
+  @keyframes phHoloSweep { 0%{top:-12%} 100%{top:112%} }
+  @keyframes phChroma {
+    0%, 88%, 100% { text-shadow: 0 0 42px rgba(255,143,46,.34); transform: none; }
+    89% { text-shadow: -2px 0 rgba(255,143,46,.8), 2px 0 rgba(255,92,122,.7), 0 0 42px rgba(255,143,46,.34); transform: translateX(1px); }
+    90% { text-shadow: 2px 0 rgba(255,143,46,.6), -2px 0 rgba(255,92,122,.5), 0 0 42px rgba(255,143,46,.34); transform: translateX(-1px); }
+    91% { text-shadow: 0 0 42px rgba(255,143,46,.34); transform: none; }
+  }
 `
+
+// Full-screen hologram overlay: scanlines + vignette + slow raster drift
+function HoloOverlay() {
+  return (
+    <>
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 40,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,143,46,.026) 0 1px, transparent 1px 3px)',
+        animation: 'phScanDrift 1.4s linear infinite',
+        mixBlendMode: 'screen',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 41,
+        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(1,4,8,.5) 100%)',
+      }} />
+      {/* slow travelling holo band */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, height: '9%', top: '-12%', pointerEvents: 'none', zIndex: 42,
+        background: 'linear-gradient(180deg, transparent, rgba(255,143,46,.05), transparent)',
+        animation: 'phHoloSweep 7s linear infinite',
+      }} />
+    </>
+  )
+}
 
 const BG      = '#060c12'
 const CARD    = '#070e15'
@@ -25,15 +67,16 @@ const ORANGE_MUT = 'rgba(255,143,46,.42)'
 const ORANGE_DIM = 'rgba(255,143,46,.16)'
 const ORANGE_BDR = '1px solid rgba(255,143,46,.18)'
 const ORANGE_BDR_STR = '1px solid rgba(255,143,46,.28)'
-const CYAN    = '#20d8ec'
-const CYAN_BR = '#7df0ff'
-const CYAN_MUT = 'rgba(32,216,236,.42)'
-const CYAN_BDR = '1px solid rgba(32,216,236,.18)'
+// Warm HUD palette: orange primary, gold secondary (former cyan slots)
+const CYAN    = '#ffd166'
+const CYAN_BR = '#ffe09a'
+const CYAN_MUT = 'rgba(255,209,102,.45)'
+const CYAN_BDR = '1px solid rgba(255,209,102,.2)'
 const GREEN   = '#4dffb4'
 const YELLOW  = '#ffd56b'
 const RED     = '#ff5c7a'
-const TEXT    = 'rgba(199,236,244,.92)'
-const TEXT_DIM = 'rgba(132,212,226,.5)'
+const TEXT    = 'rgba(255,244,230,.94)'
+const TEXT_DIM = 'rgba(236,206,178,.7)'
 const MONO    = "'Share Tech Mono', monospace"
 const DISPLAY = "'Rajdhani', sans-serif"
 const BODY    = "'Space Grotesk', sans-serif"
@@ -102,8 +145,8 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
     return {
       flex: 1, fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', textAlign: 'center',
       color:      isDone ? BG : isLoading ? BG : CYAN_BR,
-      background: isDone ? GREEN : isLoading ? CYAN : 'rgba(32,216,236,.06)',
-      border:     `1px solid ${isDone ? 'rgba(77,255,180,.45)' : 'rgba(32,216,236,.28)'}`,
+      background: isDone ? GREEN : isLoading ? CYAN : 'rgba(255,143,46,.06)',
+      border:     `1px solid ${isDone ? 'rgba(77,255,180,.45)' : 'rgba(255,143,46,.28)'}`,
       padding: '7px 0', cursor: !!logging ? 'default' : 'pointer',
       transition: 'background .22s, color .22s, border .22s',
       boxShadow: isDone ? '0 0 10px rgba(77,255,180,.28)' : 'none',
@@ -112,12 +155,12 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
   }
 
   return (
-    <div style={{ padding: '14px 18px', borderBottom: ORANGE_BDR, background: 'rgba(32,216,236,.018)' }}>
+    <div style={{ padding: '14px 18px', borderBottom: ORANGE_BDR, background: 'rgba(255,143,46,.018)' }}>
       <Label cyan>RECOVERY STATUS</Label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <svg width="72" height="72" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(32,216,236,.08)" strokeWidth="5" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,143,46,.08)" strokeWidth="5" />
             <circle cx="40" cy="40" r="34" fill="none" stroke={ringColor} strokeWidth="5"
               strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
               transform="rotate(-90 40 40)"
@@ -139,16 +182,16 @@ function RecoveryRing({ recovery, onLogSleep, onLogSoreness, logging, loggedKey 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
                 <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: CYAN_MUT }}>{label}</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  {ago && <span style={{ fontFamily: MONO, fontSize: 6, letterSpacing: '.06em', color: 'rgba(32,216,236,.25)' }}>{ago}</span>}
+                  {ago && <span style={{ fontFamily: MONO, fontSize: 6, letterSpacing: '.06em', color: 'rgba(255,143,46,.25)' }}>{ago}</span>}
                   <span style={{ fontFamily: MONO, fontSize: 8, color, letterSpacing: '.04em' }}>{val}</span>
                 </div>
               </div>
-              <div style={{ height: 5, background: 'rgba(32,216,236,.14)', border: '1px solid rgba(32,216,236,.16)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: 5, background: 'rgba(255,143,46,.14)', border: '1px solid rgba(255,143,46,.16)', borderRadius: 2, overflow: 'hidden' }}>
                 {pct > 0
                   ? <div style={{ height: '100%', borderRadius: 1, background: color, width: `${pct}%`, minWidth: 4, transition: 'width 1.1s ease', boxShadow: `0 0 6px ${color}88` }} />
                   : <div style={{
                       height: '100%', width: '100%', borderRadius: 1,
-                      backgroundImage: 'repeating-linear-gradient(90deg, rgba(32,216,236,.22) 0 6px, transparent 6px 12px)',
+                      backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,143,46,.22) 0 6px, transparent 6px 12px)',
                     }} />}
               </div>
             </div>
@@ -206,13 +249,29 @@ function TrainingCore({ overall, sessionType, mesoWeek, onTrack, readinessStatus
         </div>
         <div style={{ position: 'relative', width: 118, height: 118, marginBottom: 12, filter: 'drop-shadow(0 0 18px rgba(255,143,46,.2))' }}>
           <svg width="118" height="118" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,143,46,.14)" strokeWidth=".8" strokeDasharray="1 3.2" />
+            {/* rotating targeting rings */}
+            <g style={{ transformOrigin: '50% 50%', animation: 'phRotate 14s linear infinite' }}>
+              <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,143,46,.16)" strokeWidth=".8" strokeDasharray="1 3.2" />
+              <path d="M 50 1.5 A 48.5 48.5 0 0 1 84 15" fill="none" stroke="rgba(255,143,46,.6)" strokeWidth="1.1" />
+              <path d="M 50 98.5 A 48.5 48.5 0 0 1 16 85" fill="none" stroke="rgba(255,143,46,.6)" strokeWidth="1.1" />
+            </g>
+            <g style={{ transformOrigin: '50% 50%', animation: 'phRotateRev 22s linear infinite' }}>
+              <circle cx="50" cy="50" r="40.5" fill="none" stroke="rgba(255,143,46,.14)" strokeWidth=".6" strokeDasharray="6 5" />
+            </g>
             <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,143,46,.1)" strokeWidth="4.5" />
             <circle cx="50" cy="50" r="44" fill="none" stroke={ringColor} strokeWidth="4.5"
               strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)}
               transform="rotate(-90 50 50)"
               style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)', filter: `drop-shadow(0 0 6px ${ringColor}88)` }} />
             <circle cx="50" cy="50" r="36" fill="rgba(4,8,12,.85)" stroke="rgba(255,143,46,.22)" strokeWidth=".8" />
+            {/* tick marks */}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const a = (i * 30) * Math.PI / 180
+              return <line key={i}
+                x1={50 + 33 * Math.cos(a)} y1={50 + 33 * Math.sin(a)}
+                x2={50 + 35.5 * Math.cos(a)} y2={50 + 35.5 * Math.sin(a)}
+                stroke="rgba(255,143,46,.45)" strokeWidth=".7" />
+            })}
           </svg>
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ fontFamily: DISPLAY, fontSize: 26, fontWeight: 700, color: overall != null ? ringColor : ORANGE_MUT, lineHeight: 1 }}>
@@ -234,17 +293,41 @@ function TrainingCore({ overall, sessionType, mesoWeek, onTrack, readinessStatus
   )
 }
 
-function StepBadge({ n, title, color = ORANGE }) {
+function StepBadge({ n, title, color = ORANGE, sys = 'SYS.TRAIN' }) {
+  const code = String(n).padStart(2, '0')
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 14px 8px' }}>
-      <div style={{
-        width: 22, height: 22, borderRadius: '50%', border: `1px solid ${color}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: MONO, fontSize: 10, fontWeight: 700, color, flexShrink: 0,
-        boxShadow: `0 0 8px ${color}55`, background: `${color}0d`,
-      }}>{n}</div>
-      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '.24em', color, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{title}</div>
-      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${color}55, transparent)` }} />
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 0, padding: '18px 14px 8px', overflow: 'hidden' }}>
+      {/* left bracket */}
+      <div style={{ width: 8, alignSelf: 'stretch', borderLeft: `1px solid ${color}88`, borderTop: `1px solid ${color}88`, borderBottom: `1px solid ${color}88`, marginTop: 14, marginBottom: 0, minHeight: 18, flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+        <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: `${color}66` }}>{sys} //</span>
+        <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.1em', color, textShadow: `0 0 14px ${color}55` }}>{code}</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '.26em', color, textTransform: 'uppercase' }}>{title}</span>
+        <span style={{ width: 5, height: 5, background: color, boxShadow: `0 0 7px ${color}`, animation: 'phBlink 1.8s ease-in-out infinite', display: 'inline-block' }} />
+      </div>
+      {/* right bracket */}
+      <div style={{ width: 8, alignSelf: 'stretch', borderRight: `1px solid ${color}88`, borderTop: `1px solid ${color}88`, borderBottom: `1px solid ${color}88`, marginTop: 14, minHeight: 18, flexShrink: 0 }} />
+      {/* rail + sweep */}
+      <div style={{ flex: 1, position: 'relative', height: 1, marginLeft: 10, background: `linear-gradient(90deg, ${color}44, ${color}0d)`, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, width: '34%', height: 1, left: '-40%', background: `linear-gradient(90deg, transparent, ${color}, transparent)`, animation: 'phSweep 3.2s linear infinite' }} />
+      </div>
+      <div style={{ marginLeft: 8, fontFamily: MONO, fontSize: 6, letterSpacing: '.14em', color: `${color}38`, flexShrink: 0 }}>{`TRN-${code}`}</div>
+    </div>
+  )
+}
+
+// Sub-section wrapper: indented connector rail off the parent section
+function SubSection({ children, color = CYAN, label }) {
+  return (
+    <div style={{ position: 'relative', margin: '0 0 12px', paddingLeft: 13 }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 1, background: `linear-gradient(180deg, ${color}55, ${color}11)` }} />
+      <div style={{ position: 'absolute', left: 0, top: 11, width: 9, height: 1, background: `${color}55` }} />
+      {label && (
+        <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.22em', color: `${color}88`, margin: '4px 0 7px' }}>
+          ▸ {label}
+        </div>
+      )}
+      {children}
     </div>
   )
 }
@@ -277,7 +360,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
   const toneColor = tone === 'ready' ? GREEN : tone === 'caution' ? YELLOW : RED
 
   return (
-    <div style={{ borderBottom: ORANGE_BDR, background: 'linear-gradient(145deg,rgba(255,143,46,.04),rgba(32,216,236,.018))' }}>
+    <div style={{ borderBottom: ORANGE_BDR, background: 'linear-gradient(145deg,rgba(255,143,46,.04),rgba(255,143,46,.018))' }}>
       <div style={{ padding: '0 14px 14px' }}>
       <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.6, color: TEXT_DIM, margin: '0 0 10px', maxWidth: 640 }}>
         Log discomfort per area, plus sleep/soreness above. Phoenix uses this to route today’s warm-up and any substitutions.
@@ -288,7 +371,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
             <div>
               <Label>READINESS SCAN</Label>
               <div style={{ fontFamily: DISPLAY, fontSize: 'var(--phx-type-section)', fontWeight: 700, letterSpacing: '.035em', textTransform: 'uppercase', color: TEXT }}>Readiness Scan</div>
-              <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.55, color: 'rgba(199,236,244,.68)', marginTop: 4 }}>
+              <div style={{ fontFamily: BODY, fontSize: 12, lineHeight: 1.55, color: 'rgba(255,244,230,.68)', marginTop: 4 }}>
                 Quick readiness scan — this helps Phoenix tune today’s warm-up and substitutions.
               </div>
             </div>
@@ -327,7 +410,7 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
             {saving ? 'ROUTING…' : 'TUNE TODAY’S SESSION'}
           </button>
           <button onClick={onRequestReset} disabled={saving}
-            style={{ width: '100%', marginTop: 7, padding: 9, border: CYAN_BDR, background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(32,216,236,.04)', color: CYAN_BR, fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: saving ? 'wait' : 'pointer' }}>
+            style={{ width: '100%', marginTop: 7, padding: 9, border: CYAN_BDR, background: 'linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), rgba(255,143,46,.04)', color: CYAN_BR, fontFamily: MONO, fontSize: 8, letterSpacing: '.14em', cursor: saving ? 'wait' : 'pointer' }}>
             SELECT RECOVERY RESET
           </button>
         </div>
@@ -342,13 +425,16 @@ function ReadinessCockpit({ route, scores, setScores, flags, setFlags, note, set
         </div>
         {current.capacity_blocks.length === 0 && <div style={{ fontFamily: BODY, fontSize: 12, color: TEXT_DIM }}>Submit the readiness scan to load today’s real capacity route.</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
-          {current.capacity_blocks.map(block => (
+          {current.capacity_blocks.map((block, bi) => (
             <CornerCard key={block.key}>
               <div style={{ padding: '13px 14px' }}>
+                <div style={{ fontFamily: MONO, fontSize: 6.5, letterSpacing: '.2em', color: block.key === 'pelvic_control' ? CYAN_MUT : ORANGE_MUT, marginBottom: 3 }}>
+                  {`CAP.${String(bi + 1).padStart(2, '0')}${block.key === 'pelvic_control' ? ' · DAILY' : ''}`}
+                </div>
                 <div style={{ fontFamily: DISPLAY, fontSize: 19, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: block.key === 'recovery_reset' ? CYAN_BR : ORANGE }}>{block.label}</div>
                 <div style={{ fontFamily: BODY, fontSize: 11, lineHeight: 1.5, color: TEXT_DIM, margin: '4px 0 8px' }}>{block.purpose}</div>
                 {block.exercises.slice(0, 6).map((exercise, i) => (
-                  <div key={i} style={{ fontFamily: BODY, fontSize: 11, color: 'rgba(199,236,244,.78)', padding: '5px 0', borderTop: i ? '1px solid rgba(255,143,46,.08)' : 'none' }}>
+                  <div key={i} style={{ fontFamily: BODY, fontSize: 11, color: 'rgba(255,244,230,.78)', padding: '5px 0', borderTop: i ? '1px solid rgba(255,143,46,.08)' : 'none' }}>
                     {exercise.name || exercise.zone?.replaceAll('_', ' ')}
                     {exercise.dose && <span style={{ color: ORANGE_MUT }}> · {exercise.dose}</span>}
                   </div>
@@ -464,7 +550,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
   const mesoWeek       = statusData?.dunk_goal?.current_mesocycle_week ?? '—'
   const onTrack        = statusData?.dunk_goal?.on_track
   const todaySession   = statusData?.today_session
-  const sessionType    = todaySession?.session_type?.toUpperCase() ?? '—'
+  const sessionType    = todaySession?.session_type?.replace(/_/g, ' ').toUpperCase() ?? '—'
   const sessionLabel   = todaySession?.label ?? ''
   const exercises      = todaySession?.exercises ?? []
   const hasConflict    = statusData?.has_hard_conflicts
@@ -493,7 +579,8 @@ export default function TrainingMetrics({ onBack, onNav }) {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
+    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY, position: 'relative', animation: 'phFlicker 9s linear infinite' }}>
+      <HoloOverlay />
 
       {/* TOP BAR — same command-topbar line as the other command centers */}
       <div style={{
@@ -503,6 +590,9 @@ export default function TrainingMetrics({ onBack, onNav }) {
       }}>
         <span style={{ fontFamily: MONO, fontSize: 8.3, letterSpacing: '.28em', color: 'rgba(255,143,46,.46)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, textTransform: 'uppercase' }}>PHOENIX · PERSONAL HEURISTIC OPERATING ENGINE</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <span style={{ fontFamily: MONO, fontSize: 8.3, letterSpacing: '.18em', color: routeToneColor, border: `1px solid ${routeToneColor}44`, padding: '3px 7px', background: `${routeToneColor}0a` }}>
+            {`T-${daysToAttempt}`}
+          </span>
           <span style={{ fontFamily: MONO, fontSize: 8.3, letterSpacing: '.28em', color: 'rgba(255,143,46,.46)', textTransform: 'uppercase' }}>{phaseFull}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: MONO, fontSize: 8.3, letterSpacing: '.28em', color: GREEN }}>
             <i style={{ width: 5, height: 5, borderRadius: 99, background: 'currentColor', boxShadow: '0 0 8px currentColor' }} />ONLINE
@@ -519,7 +609,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
 
       {/* BRIEF PANEL */}
       {brief && (
-        <div style={{ padding: '14px 18px', background: 'rgba(32,216,236,.025)', borderBottom: CYAN_BDR, flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', background: 'rgba(255,143,46,.025)', borderBottom: CYAN_BDR, flexShrink: 0 }}>
           <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.2em', color: CYAN_MUT, marginBottom: 8 }}>PHOENIX BRIEF</div>
           <div style={{ fontFamily: BODY, fontSize: 13, color: TEXT, lineHeight: 1.7 }}>{brief}</div>
         </div>
@@ -540,13 +630,12 @@ export default function TrainingMetrics({ onBack, onNav }) {
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'radial-gradient(circle, rgba(255,143,46,.07) 1px, transparent 1px)', backgroundSize: '28px 28px', opacity: .46 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,rgba(255,143,46,.5),transparent)` }} />
           <div style={{ position: 'absolute', top: 12, right: 14, fontFamily: MONO, fontSize: 7, letterSpacing: '.14em', color: 'rgba(255,143,46,.28)' }}>MISSION CLOCK</div>
-          <div className="phx-hud-ring" style={{ top: 34, right: 14 }} />
           <div className="phx-training-hero-grid" style={{ position: 'relative' }}>
           <div>
             <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.29em', color: 'rgba(255,143,46,.6)', textTransform: 'uppercase' }}>PHOENIX</div>
             <h1 style={{ margin: '4px 0 18px', fontFamily: DISPLAY, fontSize: 'var(--phx-type-title)', fontWeight: 700, lineHeight: .92, letterSpacing: '.04em', textTransform: 'uppercase', color: TEXT }}>
               TRAINING<br />
-              <span style={{ color: ORANGE, textShadow: '0 0 42px rgba(255,143,46,.34)' }}>COMMAND CENTER</span>
+              <span style={{ color: ORANGE, textShadow: '0 0 42px rgba(255,143,46,.34)', display: 'inline-block', animation: 'phChroma 7s linear infinite' }}>COMMAND CENTER</span>
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 9 }}>
               <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.28em', color: 'rgba(255,143,46,.46)' }}>DAYS TO DUNK ATTEMPT</span>
@@ -597,8 +686,8 @@ export default function TrainingMetrics({ onBack, onNav }) {
         {/* WEEK + TODAY STRIP */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: ORANGE_BDR }}>
           <div style={{ padding: '13px 18px', borderRight: ORANGE_BDR }}>
-            <Label cyan>CURRENT WEEK</Label>
-            <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 700, letterSpacing: '.04em', color: CYAN_BR }}>{`WK ${mesoWeek}`}</div>
+            <Label>CURRENT WEEK</Label>
+            <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 700, letterSpacing: '.04em', color: ORANGE }}>{`WK ${mesoWeek}`}</div>
             <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{phaseFull.toLowerCase()}</div>
           </div>
           <div style={{ padding: '13px 18px' }}>
@@ -635,12 +724,16 @@ export default function TrainingMetrics({ onBack, onNav }) {
                 ? 'Planned session is available with progressive preparation.'
                 : 'Phoenix adjusted today’s session based on your readiness scan.'}
           </div>
-          {routeCurrent.substitutions.map((item, index) => (
-            <div key={`${item.area}-${index}`} style={{ marginBottom: 8, padding: '9px 10px', border: `1px solid ${routeToneColor}35`, background: `${routeToneColor}09` }}>
-              <div style={{ fontFamily: MONO, fontSize: 8, color: routeToneColor, textTransform: 'uppercase' }}>{item.reason}</div>
-              <div style={{ fontFamily: BODY, fontSize: 11, color: TEXT, marginTop: 4, lineHeight: 1.5 }}>{item.action}</div>
-            </div>
-          ))}
+          {routeCurrent.substitutions.length > 0 && (
+            <SubSection color={routeToneColor} label="ACTIVE SUBSTITUTIONS">
+              {routeCurrent.substitutions.map((item, index) => (
+                <div key={`${item.area}-${index}`} style={{ marginBottom: 8, padding: '9px 10px', border: `1px solid ${routeToneColor}35`, background: `${routeToneColor}09` }}>
+                  <div style={{ fontFamily: MONO, fontSize: 8, color: routeToneColor, textTransform: 'uppercase' }}>{item.reason}</div>
+                  <div style={{ fontFamily: BODY, fontSize: 11, color: TEXT, marginTop: 4, lineHeight: 1.5 }}>{item.action}</div>
+                </div>
+              ))}
+            </SubSection>
+          )}
           <div style={{ fontFamily: MONO, fontSize: 8, lineHeight: 1.55, color: TEXT_DIM, marginBottom: 10 }}>{routeCurrent.safety_note}</div>
         </div>
         <div style={{ padding: '0 14px 12px', borderBottom: ORANGE_BDR }}>
@@ -658,7 +751,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
                 <div>
                   {exercises.slice(0, 3).map((ex, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < Math.min(exercises.length, 3) - 1 ? `1px solid rgba(255,143,46,.08)` : 'none' }}>
-                      <span style={{ fontFamily: BODY, fontSize: 13, color: 'rgba(199,236,244,.8)', fontWeight: 300 }}>{ex.name}</span>
+                      <span style={{ fontFamily: BODY, fontSize: 13, color: 'rgba(255,244,230,.8)', fontWeight: 300 }}>{ex.name}</span>
                       <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '.06em', color: ORANGE_MUT }}>{ex.sets_reps || ex.label || ''}</span>
                     </div>
                   ))}
@@ -675,8 +768,9 @@ export default function TrainingMetrics({ onBack, onNav }) {
           </CornerCard>
         </div>
 
+        <StepBadge n={4} title="TELEMETRY" color={ORANGE} />
         {/* STATS ROW */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: `1px solid rgba(32,216,236,.14)` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: `1px solid rgba(255,143,46,.14)`, borderTop: `1px solid rgba(255,143,46,.1)` }}>
           {[
             { label: 'SESSIONS', val: sessionCount > 0 ? String(sessionCount) : '—', color: CYAN_BR, sub: 'this block' },
             {
@@ -702,8 +796,9 @@ export default function TrainingMetrics({ onBack, onNav }) {
           ))}
         </div>
 
+        <StepBadge n={5} title="MODULES" color={ORANGE} />
         {/* DOMAIN BUTTONS */}
-        <div style={{ display: 'flex', gap: 8, padding: '12px 14px 20px' }}>
+        <div style={{ display: 'flex', gap: 8, padding: '4px 14px 20px' }}>
           <DomainButton label="JUMP LOG" onClick={() => nav('jump-log')} />
           <DomainButton label="HISTORY"  onClick={() => nav('training-history')} />
           <DomainButton label="BODY"     onClick={() => nav('body')} />

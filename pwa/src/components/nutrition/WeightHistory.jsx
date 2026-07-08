@@ -3,10 +3,10 @@ import { getWeightHistory, logWeight, getMealHistory } from '../../api/client'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
-const CYAN = '#20d8ec'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
+const TEXT_DIM = 'rgba(190,214,202,.72)'
+const CYAN = '#ffd166'
 
 function average(values) {
   if (!values.length) return null
@@ -15,7 +15,7 @@ function average(values) {
 
 function WeightTrendChart({ weights, baselineWeightKg }) {
   if (!weights || weights.length < 2) {
-    return <div style={{ height: 132, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 12, border: `1px solid rgba(32,216,236,.08)`, background: 'linear-gradient(rgba(32,216,236,.05) 1px,transparent 1px)', backgroundSize: '100% 25%' }}>Log at least 2 entries to see trend</div>
+    return <div style={{ height: 132, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 12, border: `1px solid rgba(255,209,102,.08)`, background: 'linear-gradient(rgba(255,209,102,.05) 1px,transparent 1px)', backgroundSize: '100% 25%' }}>Log at least 2 entries to see trend</div>
   }
 
   const W = 390, H = 132
@@ -30,7 +30,7 @@ function WeightTrendChart({ weights, baselineWeightKg }) {
   const baselineY = py(baseline).toFixed(1)
 
   return (
-    <div style={{ height: 132, position: 'relative', border: `1px solid rgba(32,216,236,.08)`, background: 'linear-gradient(rgba(32,216,236,.05) 1px,transparent 1px)', backgroundSize: '100% 25%' }}>
+    <div style={{ height: 132, position: 'relative', border: `1px solid rgba(255,209,102,.08)`, background: 'linear-gradient(rgba(255,209,102,.05) 1px,transparent 1px)', backgroundSize: '100% 25%' }}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '100%', display: 'block' }} preserveAspectRatio="none">
         <polyline points={pts} fill="none" stroke={LIME} strokeWidth="3" />
         <path d={`M0,${py(vals[0]).toFixed(1)} ${weights.slice(1).map((w, i) => `L${px(i+1).toFixed(1)},${py(w.weight_kg).toFixed(1)}`).join(' ')} L${px(n - 1).toFixed(1)},${H} L0,${H} Z`} fill="rgba(157,255,111,.12)" />
@@ -45,7 +45,7 @@ const HEAT_COLORS = {
   good: { bg: 'rgba(157,255,111,.18)', border: 'rgba(157,255,111,.28)', color: LIME_BR },
   warn: { bg: 'rgba(255,213,107,.12)', border: 'rgba(255,213,107,.2)', color: '#ffd56b' },
   miss: { bg: 'rgba(255,92,122,.10)', border: 'rgba(255,92,122,.18)', color: '#ff5c7a' },
-  empty: { bg: 'rgba(32,216,236,.035)', border: 'rgba(32,216,236,.08)', color: MUTED },
+  empty: { bg: 'rgba(255,209,102,.035)', border: 'rgba(255,209,102,.08)', color: MUTED },
 }
 
 export default function WeightHistory({ onBack }) {
@@ -66,7 +66,7 @@ export default function WeightHistory({ onBack }) {
       setBaselineWeightKg(weightsData.baseline_weight_kg || null)
       setMealHistory(mealsData)
     } catch {
-      setError('Trend data unavailable. No prototype values shown.')
+      setError('Trend data unavailable. Check that the backend is running.')
     }
     setLoading(false)
   }
@@ -164,7 +164,7 @@ export default function WeightHistory({ onBack }) {
           {error && <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, color: '#ff5c7a', marginTop: 8 }}>{error}</div>}
         </div>
 
-        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
+        <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX TREND LOGIC</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Weight trend now uses only logged values. Nutrition adherence comes from the strict meal-history contract: calories must be close to target and protein must be close to target; under-eating no longer counts as success.

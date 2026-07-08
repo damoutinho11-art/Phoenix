@@ -3,30 +3,63 @@ import { getTrainingRoutedSession, getTrainingStatus, logSession } from '../../a
 import { canStartHighNeural, readinessLabel } from './trainingViewModel'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
+const KEYFRAMES = `
+  @keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+  @keyframes phScanDrift { 0%{background-position:0 0} 100%{background-position:0 6px} }
+  @keyframes phHoloSweep { 0%{top:-12%} 100%{top:112%} }
+  @keyframes phFlicker {
+    0%, 91%, 94%, 100% { opacity: 1; }
+    92% { opacity: .72; }
+    93% { opacity: .95; }
+    95.5% { opacity: .8; }
+  }
+`
 
+// Warm HUD palette: orange primary, gold secondary ("cyan" slots kept for minimal churn)
 const T = {
   bg:          '#060c12',
   surface:     'rgba(255,143,46,.032)',
-  surfaceCyan: 'rgba(32,216,236,.035)',
+  surfaceCyan: 'rgba(255,209,102,.04)',
   orange:      '#ff8f2e',
   orangeDim:   'rgba(255,143,46,.18)',
   orangeMuted: 'rgba(255,143,46,.42)',
   orangeBorder:'rgba(255,143,46,.16)',
-  cyan:        '#20d8ec',
-  cyanBr:      '#7df0ff',
-  cyanDim:     'rgba(32,216,236,.18)',
-  cyanMuted:   'rgba(32,216,236,.4)',
+  cyan:        '#ffd166',
+  cyanBr:      '#ffe09a',
+  cyanDim:     'rgba(255,209,102,.2)',
+  cyanMuted:   'rgba(255,209,102,.45)',
   green:       '#4dffb4',
   yellow:      '#ffd56b',
   red:         '#ff5c7a',
-  text:        'rgba(199,236,244,.92)',
-  textDim:     'rgba(132,212,226,.58)',
+  text:        'rgba(255,244,230,.94)',
+  textDim:     'rgba(236,206,178,.7)',
   border:      '1px solid rgba(255,143,46,.18)',
-  borderCyan:  '1px solid rgba(32,216,236,.18)',
+  borderCyan:  '1px solid rgba(255,209,102,.2)',
   mono:        "'Share Tech Mono', monospace",
   display:     "'Rajdhani', sans-serif",
   body:        "'Space Grotesk', sans-serif",
+}
+
+// Full-screen hologram overlay (scanlines + vignette + travelling band)
+function HoloOverlay() {
+  return (
+    <>
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 60,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,143,46,.026) 0 1px, transparent 1px 3px)',
+        animation: 'phScanDrift 1.4s linear infinite', mixBlendMode: 'screen',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 61,
+        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(1,4,8,.5) 100%)',
+      }} />
+      <div style={{
+        position: 'absolute', left: 0, right: 0, height: '9%', top: '-12%', pointerEvents: 'none', zIndex: 62,
+        background: 'linear-gradient(180deg, transparent, rgba(255,143,46,.05), transparent)',
+        animation: 'phHoloSweep 7s linear infinite',
+      }} />
+    </>
+  )
 }
 
 // ─── Session builders ────────────────────────────────────────────────────────
@@ -307,7 +340,7 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
       style={{ position: 'fixed', inset: 0, background: 'rgba(1,6,8,.9)', zIndex: 30, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div style={{ width: '100%', maxWidth: 430, background: T.bg, borderTop: T.borderCyan, padding: '20px 20px 40px' }}>
+      <div style={{ width: '100%', maxWidth: 430, boxSizing: 'border-box', background: T.bg, borderTop: T.borderCyan, padding: '20px 20px 40px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.22em', color: T.cyanMuted }}>
             {ex.name.toUpperCase()} · SET {setIdx + 1}
@@ -319,23 +352,33 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
           {prevNote}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: ex.bodyweight ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: ex.bodyweight ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 18, width: '100%', boxSizing: 'border-box' }}>
           {!ex.bodyweight && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
               <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.cyanMuted }}>WEIGHT (KG)</div>
-              <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan }}>
-                <div onClick={() => setInputW(v => Math.max(0, Math.round((v - 2.5) * 2) / 2))}
+              <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan, overflow: 'hidden', boxSizing: 'border-box' }}>
+                <div onClick={() => setInputW(v => Math.max(0, Math.round(((parseFloat(v) || 0) - 2.5) * 2) / 2))}
                   style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>−</div>
-                <div style={{ flex: 1, textAlign: 'center', fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.text }}>{inputW}</div>
-                <div onClick={() => setInputW(v => Math.round((v + 2.5) * 2) / 2)}
+                <input
+                  type="text" inputMode="decimal" aria-label="Weight in kg"
+                  value={inputW ?? ''}
+                  onFocus={e => e.target.select()}
+                  onChange={e => {
+                    const raw = e.target.value.replace(',', '.')
+                    if (raw === '' || /^\d*\.?\d*$/.test(raw)) setInputW(raw === '' ? '' : raw)
+                  }}
+                  onBlur={() => setInputW(v => { const n = parseFloat(v); return Number.isFinite(n) ? Math.max(0, n) : 0 })}
+                  style={{ flex: 1, minWidth: 0, textAlign: 'center', fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.text, background: 'transparent', border: 'none', outline: 'none', padding: 0 }}
+                />
+                <div onClick={() => setInputW(v => Math.round(((parseFloat(v) || 0) + 2.5) * 2) / 2)}
                   style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>+</div>
               </div>
               <div style={{ fontFamily: T.mono, fontSize: 7, color: T.cyanMuted, letterSpacing: '.1em', textAlign: 'center' }}>KG</div>
             </div>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
             <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.2em', color: T.cyanMuted }}>{ex.bodyweight ? 'SETS DONE' : 'REPS'}</div>
-            <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan }}>
+            <div style={{ display: 'flex', alignItems: 'center', border: T.borderCyan, background: T.surfaceCyan, overflow: 'hidden', boxSizing: 'border-box' }}>
               <div onClick={() => setInputR(v => Math.max(1, v - 1))}
                 style={{ width: 52, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: T.display, fontSize: 22, color: T.orange, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>−</div>
               <div style={{ flex: 1, textAlign: 'center', fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.text }}>{inputR}</div>
@@ -349,8 +392,8 @@ function LogModal({ ex, setIdx, logged, onLog, onClose }) {
         </div>
 
         <div
-          onClick={() => onLog({ w: inputW, r: inputR })}
-          style={{ width: '100%', padding: '18px 0', textAlign: 'center', fontFamily: T.display, fontSize: 18, fontWeight: 700, letterSpacing: '.24em', color: T.bg, background: T.cyan, cursor: 'pointer', boxShadow: `0 0 22px rgba(32,216,236,.4)`, userSelect: 'none' }}
+          onClick={() => onLog({ w: ex.bodyweight ? inputW : (parseFloat(inputW) || 0), r: inputR })}
+          style={{ width: '100%', padding: '18px 0', textAlign: 'center', fontFamily: T.display, fontSize: 18, fontWeight: 700, letterSpacing: '.24em', color: T.bg, background: T.cyan, cursor: 'pointer', boxShadow: `0 0 22px rgba(255,209,102,.4)`, userSelect: 'none' }}
         >
           LOG SET
         </div>
@@ -370,7 +413,7 @@ function RestOverlay({ seconds, total, nextNote, onSkip }) {
     const offset = (1 - pct) * 439.8
     arcRef.current.style.transition = 'stroke-dashoffset .95s linear'
     arcRef.current.setAttribute('stroke-dashoffset', offset)
-    const color = pct < 0.25 ? '#ff5c7a' : pct < 0.5 ? '#ffd56b' : '#20d8ec'
+    const color = pct < 0.25 ? '#ff5c7a' : pct < 0.5 ? '#ffd56b' : '#ff8f2e'
     arcRef.current.setAttribute('stroke', color)
   }, [seconds, total])
 
@@ -380,12 +423,13 @@ function RestOverlay({ seconds, total, nextNote, onSkip }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(1,6,8,.96)', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <HoloOverlay />
       <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.32em', color: T.cyanMuted, marginBottom: 18 }}>REST PERIOD</div>
-      <div style={{ fontFamily: T.display, fontSize: 96, fontWeight: 700, lineHeight: 1, letterSpacing: '-.02em', color: T.cyanBr, filter: `drop-shadow(0 0 28px rgba(32,216,236,.5))` }}>
+      <div style={{ fontFamily: T.display, fontSize: 96, fontWeight: 700, lineHeight: 1, letterSpacing: '-.02em', color: T.cyanBr, filter: `drop-shadow(0 0 28px rgba(255,209,102,.5))` }}>
         {timeStr}
       </div>
       <svg width="160" height="160" viewBox="0 0 160 160" style={{ margin: '24px 0' }}>
-        <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(32,216,236,.08)" strokeWidth="5" />
+        <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,209,102,.08)" strokeWidth="5" />
         <circle ref={arcRef} cx="80" cy="80" r="70" fill="none" stroke={T.cyan}
           strokeWidth="5" strokeLinecap="round"
           strokeDasharray="439.8" strokeDashoffset="0"
@@ -421,7 +465,8 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
     : '—'
 
   return (
-    <div className="phx-scope-training" style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: T.bg, color: T.text }}>
+    <div className="phx-scope-training" style={{ height: '100%', overflowY: 'auto', paddingBottom: 88, background: T.bg, color: T.text, position: 'relative', animation: 'phFlicker 9s linear infinite' }}>
+      <HoloOverlay />
 
       {/* Hero */}
       <div style={{ padding: '44px 24px 28px', borderBottom: T.borderCyan, textAlign: 'center', background: 'linear-gradient(180deg,rgba(77,255,180,.04),transparent)', position: 'relative' }}>
@@ -458,7 +503,7 @@ function CompleteView({ sessionName, elapsed, exercises, onBack }) {
             ? `${maxS[0].logged.w}kg · ${done}/${total}`
             : `${done}/${total} sets`
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid rgba(32,216,236,.07)` }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid rgba(255,209,102,.07)` }}>
               <span style={{ fontFamily: T.body, fontSize: 14, color: T.text }}>{ex.name}</span>
               <span style={{ fontFamily: T.mono, fontSize: 9, color: T.green, letterSpacing: '.08em' }}>{detail}</span>
             </div>
@@ -495,7 +540,7 @@ function RestDayView({ onBack }) {
       <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '.14em', color: T.cyanMuted, lineHeight: 1.9, maxWidth: 260 }}>Recovery is training. Sleep, eat, stay off your feet.</div>
       <div
         onClick={onBack}
-        style={{ marginTop: 24, padding: '14px 36px', fontFamily: T.mono, fontSize: 9, letterSpacing: '.22em', color: T.bg, background: T.cyan, cursor: 'pointer', boxShadow: `0 0 16px rgba(32,216,236,.3)` }}
+        style={{ marginTop: 24, padding: '14px 36px', fontFamily: T.mono, fontSize: 9, letterSpacing: '.22em', color: T.bg, background: T.cyan, cursor: 'pointer', boxShadow: `0 0 16px rgba(255,209,102,.3)` }}
       >
         ← BACK
       </div>
@@ -646,7 +691,7 @@ export default function ActiveSession({ onBack }) {
   if (phase === 'rest') return <RestDayView onBack={onBack} />
   if (phase === 'gated') return (
     <div style={{ minHeight: '100%', overflowY: 'auto', padding: '48px 24px 120px', boxSizing: 'border-box', background: T.bg, color: T.text, fontFamily: T.body }}>
-      <div style={{ maxWidth: 620, margin: '0 auto', border: T.border, background: 'linear-gradient(145deg,rgba(255,143,46,.06),rgba(32,216,236,.025))', padding: 24, boxShadow: '0 24px 70px rgba(0,0,0,.42)' }}>
+      <div style={{ maxWidth: 620, margin: '0 auto', border: T.border, background: 'linear-gradient(145deg,rgba(255,143,46,.06),rgba(255,209,102,.025))', padding: 24, boxShadow: '0 24px 70px rgba(0,0,0,.42)' }}>
         <div style={{ fontFamily: T.mono, fontSize: 8, letterSpacing: '.22em', color: T.orangeMuted }}>READINESS GATE</div>
         <div style={{ fontFamily: T.display, fontSize: 32, fontWeight: 700, color: T.orange, marginTop: 8 }}>Complete Readiness Scan</div>
         <div style={{ fontFamily: T.mono, fontSize: 9, color: T.yellow, marginTop: 6, letterSpacing: '.12em' }}>{readinessLabel(route?.readiness_status)}</div>
@@ -698,13 +743,15 @@ export default function ActiveSession({ onBack }) {
   const topSetNote = status?.today_session?.working_weights?.top_set_note
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, fontFamily: T.body }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: T.bg, color: T.text, fontFamily: T.body, position: 'relative', animation: 'phFlicker 9s linear infinite' }}>
+      <HoloOverlay />
 
       {/* TOP BAR */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: T.border, position: 'sticky', top: 0, background: 'rgba(6,12,18,.97)', backdropFilter: 'blur(14px)', zIndex: 10, flexShrink: 0, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${T.orange},transparent)`, animation: 'phScan 3.5s linear infinite' }} />
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span onClick={onBack} style={{ color: T.orange, fontSize: 16, marginRight: 12, cursor: 'pointer' }}>←</span>
+          <span style={{ fontFamily: T.mono, fontSize: 7, letterSpacing: '.18em', color: T.orangeMuted, marginRight: 10 }}>SYS.TRAIN // LIVE</span>
           <span style={{ fontFamily: T.display, fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: T.orange }}>{sessionName}</span>
         </div>
         <span style={{ fontFamily: T.mono, fontSize: 15, letterSpacing: '.08em', color: T.cyan }}>{fmt(elapsed)}</span>
@@ -766,9 +813,9 @@ export default function ActiveSession({ onBack }) {
           const state        = logged ? 'completed' : prevSetsDone ? 'active-set' : 'upcoming'
           const isWarmup     = set.type === 'warmup'
 
-          const rowBorder = state === 'completed' ? `1px solid rgba(77,255,180,.22)` : state === 'active-set' ? T.borderCyan : isWarmup ? `1px solid rgba(255,213,107,.14)` : `1px solid rgba(32,216,236,.08)`
+          const rowBorder = state === 'completed' ? `1px solid rgba(77,255,180,.22)` : state === 'active-set' ? T.borderCyan : isWarmup ? `1px solid rgba(255,213,107,.14)` : `1px solid rgba(255,209,102,.08)`
           const rowBg     = state === 'completed' ? 'rgba(77,255,180,.04)' : state === 'active-set' ? T.surfaceCyan : isWarmup ? 'rgba(255,213,107,.02)' : 'transparent'
-          const indBg     = state === 'completed' ? 'rgba(77,255,180,.14)' : state === 'active-set' ? 'rgba(32,216,236,.14)' : isWarmup ? 'rgba(255,213,107,.1)' : 'rgba(32,216,236,.05)'
+          const indBg     = state === 'completed' ? 'rgba(77,255,180,.14)' : state === 'active-set' ? 'rgba(255,209,102,.14)' : isWarmup ? 'rgba(255,213,107,.1)' : 'rgba(255,209,102,.05)'
           const indColor  = state === 'completed' ? T.green : state === 'active-set' ? T.cyanBr : isWarmup ? T.yellow : T.cyanMuted
           const indBorder = state === 'completed' ? `rgba(77,255,180,.3)` : state === 'active-set' ? T.cyan : isWarmup ? `rgba(255,213,107,.25)` : T.cyanDim
           const indContent= state === 'completed' ? '✓' : isWarmup ? 'W' : (i + 1)
@@ -786,7 +833,7 @@ export default function ActiveSession({ onBack }) {
                 padding: '15px 14px',
                 border: rowBorder, background: rowBg,
                 cursor: state !== 'upcoming' ? 'pointer' : 'default',
-                boxShadow: state === 'active-set' ? `0 0 14px rgba(32,216,236,.12)` : 'none',
+                boxShadow: state === 'active-set' ? `0 0 14px rgba(255,209,102,.12)` : 'none',
                 opacity: state === 'upcoming' ? .5 : 1,
                 position: 'relative',
               }}
@@ -794,7 +841,7 @@ export default function ActiveSession({ onBack }) {
               {state === 'active-set' && (
                 <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: T.cyan, boxShadow: `0 0 8px ${T.cyan}` }} />
               )}
-              <div style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: T.mono, fontSize: isWarmup ? 8 : 10, fontWeight: 700, background: indBg, color: indColor, border: `1px solid ${indBorder}`, boxShadow: state === 'active-set' ? `0 0 10px rgba(32,216,236,.3)` : 'none' }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: T.mono, fontSize: isWarmup ? 8 : 10, fontWeight: 700, background: indBg, color: indColor, border: `1px solid ${indBorder}`, boxShadow: state === 'active-set' ? `0 0 10px rgba(255,209,102,.3)` : 'none' }}>
                 {indContent}
               </div>
               <div style={{ flex: 1 }}>
@@ -837,7 +884,7 @@ export default function ActiveSession({ onBack }) {
         ) : (
           <div
             onClick={() => setCurEx(c => Math.min(exercises.length - 1, c + 1))}
-            style={{ flex: 2, padding: '15px 0', textAlign: 'center', fontFamily: T.mono, fontSize: 9, letterSpacing: '.2em', color: T.bg, fontWeight: 700, background: T.cyan, border: 'none', cursor: 'pointer', boxShadow: `0 0 16px rgba(32,216,236,.3)` }}
+            style={{ flex: 2, padding: '15px 0', textAlign: 'center', fontFamily: T.mono, fontSize: 9, letterSpacing: '.2em', color: T.bg, fontWeight: 700, background: T.cyan, border: 'none', cursor: 'pointer', boxShadow: `0 0 16px rgba(255,209,102,.3)` }}
           >
             NEXT →
           </div>

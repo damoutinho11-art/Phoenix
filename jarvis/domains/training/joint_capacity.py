@@ -51,8 +51,9 @@ SQUAT_BALANCE = CapacityBlockRecommendation(
 PELVIC_CONTROL = CapacityBlockRecommendation(
     key="pelvic_control",
     label="Pelvic Control",
-    purpose="Coordinate rib-pelvis position, trunk control, and hip function without diagnosis.",
+    purpose="Coordinate rib-pelvis position, trunk control, and hip function without diagnosis. Do this block every day, including rest days.",
     exercises=(
+        {"name": "Kegels", "cue": "3 sets of 10 slow contractions; fully relax between reps"},
         {"name": "Dead bug", "cue": "Keep ribs and pelvis controlled"},
         {"name": "Couch stretch", "cue": "Use a comfortable hip-flexor range"},
         {"name": "Glute bridge", "cue": "Controlled hip extension"},
@@ -156,9 +157,11 @@ def route_session(
     if show_reset:
         blocks.append(RECOVERY_RESET)
     else:
-        blocks.extend((SLED_BALANCE, SQUAT_BALANCE, PELVIC_CONTROL))
+        blocks.extend((SLED_BALANCE, SQUAT_BALANCE))
         if session_type == "jump" and status is ReadinessStatus.CLEAR:
             blocks.append(JUMP_BALANCE)
+    # Pelvic Control (incl. kegels) is a daily block — every day, rest days included.
+    blocks.append(PELVIC_CONTROL)
 
     safety = "This is performance guidance, not a diagnosis."
     if scan and (scan.sharp_pain or scan.limping or scan.next_day_worsening):

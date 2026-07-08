@@ -4,7 +4,36 @@ import { getTrainingHistory, getTrainingStatus, logJump, postTrainingJumpBalance
 const KEYFRAMES = `
   @keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
   @keyframes phGlow { 0%,100%{box-shadow:0 0 14px rgba(255,143,46,.3)} 50%{box-shadow:0 0 28px rgba(255,143,46,.6)} }
+  @keyframes phScanDrift { 0%{background-position:0 0} 100%{background-position:0 6px} }
+  @keyframes phHoloSweep { 0%{top:-12%} 100%{top:112%} }
+  @keyframes phFlicker {
+    0%, 91%, 94%, 100% { opacity: 1; }
+    92% { opacity: .72; }
+    93% { opacity: .95; }
+    95.5% { opacity: .8; }
+  }
 `
+
+function HoloOverlay() {
+  return (
+    <>
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 60,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,143,46,.026) 0 1px, transparent 1px 3px)',
+        animation: 'phScanDrift 1.4s linear infinite', mixBlendMode: 'screen',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 61,
+        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(1,4,8,.5) 100%)',
+      }} />
+      <div style={{
+        position: 'absolute', left: 0, right: 0, height: '9%', top: '-12%', pointerEvents: 'none', zIndex: 62,
+        background: 'linear-gradient(180deg, transparent, rgba(255,143,46,.05), transparent)',
+        animation: 'phHoloSweep 7s linear infinite',
+      }} />
+    </>
+  )
+}
 
 const BG         = '#060c12'
 const CARD       = '#070e15'
@@ -14,8 +43,10 @@ const ORANGE_BDR = '1px solid rgba(255,143,46,.18)'
 const ORANGE_BDR_STR = '1px solid rgba(255,143,46,.28)'
 const GREEN      = '#4dffb4'
 const YELLOW     = '#ffd56b'
-const TEXT       = 'rgba(199,236,244,.92)'
-const TEXT_DIM   = 'rgba(132,212,226,.45)'
+const TEXT       = 'rgba(255,244,230,.94)'
+const TEXT_DIM   = 'rgba(236,206,178,.7)'
+const GOLD       = '#ffd166'
+const GOLD_MUT   = 'rgba(255,209,102,.45)'
 const MONO       = "'Share Tech Mono', monospace"
 const DISPLAY    = "'Rajdhani', sans-serif"
 const BODY       = "'Space Grotesk', sans-serif"
@@ -38,7 +69,7 @@ function CornerCard({ children, style = {}, onClick }) {
 
 function Label({ children, cyan = false }) {
   return (
-    <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.22em', color: cyan ? 'rgba(32,216,236,.42)' : ORANGE_MUT, marginBottom: 8 }}>
+    <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.22em', color: cyan ? 'rgba(255,209,102,.42)' : ORANGE_MUT, marginBottom: 8 }}>
       {children}
     </div>
   )
@@ -54,7 +85,7 @@ function JumpChart({ jumpData, targetLine = TARGET_IN }) {
   const ch = H - pad.t - pad.b
 
   if (!jumpData || jumpData.length < 2) return (
-    <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: 9, color: 'rgba(32,216,236,.3)' }}>
+    <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: 9, color: 'rgba(255,209,102,.3)' }}>
       No jump data yet
     </div>
   )
@@ -342,7 +373,8 @@ export default function JumpLog({ onBack }) {
     : null
 
   return (
-    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
+    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY, position: 'relative', animation: 'phFlicker 9s linear infinite' }}>
+      <HoloOverlay />
 
       {/* TOP BAR */}
       <div style={{

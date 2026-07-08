@@ -76,8 +76,8 @@ class CrossDomainAlertTests(unittest.TestCase):
         assert not any("CONFLICT" in alert for alert in result)
 
     def test_peak_warning_near_peak_week(self):
-        # 5 days before peak week starts (Aug 24)
-        near_peak = date(2026, 8, 19)
+        # 5 days before peak week starts (Aug 31)
+        near_peak = date(2026, 8, 26)
         result = self._run(today=near_peak)
         assert any("Peak week" in alert for alert in result)
 

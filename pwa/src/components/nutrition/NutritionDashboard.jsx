@@ -6,7 +6,7 @@ import { buildNutritionDashboardModel } from './nutritionDashboardModel'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const PROTEIN_COL = '#7df0ff'
+const PROTEIN_COL = '#ffd166'
 const CARB_COL = '#ffd56b'
 const FAT_COL = '#ff9f43'
 
@@ -169,9 +169,6 @@ function SafetyStrip({ memory }) {
   const pantryCount = memory?.pantry_count || 0
   return (
     <div className="phx-nutrition-safety-strip" aria-label="Nutrition safety locks">
-      <span>LOGGED-DATA ONLY</span>
-      <span>USER-APPROVED PLANS</span>
-      <span>NO MEDICAL CLAIMS</span>
       <span>{favoriteCount} FAV · {avoidCount} AVOID · {pantryCount} PANTRY</span>
     </div>
   )
@@ -354,10 +351,8 @@ function SafetyLocks({ memory }) {
   const pantryCount = memory?.pantry_count || 0
   return (
     <div className="phx-nutrition-lock-grid">
-      <div><strong>LOCAL FIRST</strong><span>sqlite logs + local food brain</span></div>
-      <div><strong>APPROVAL ONLY</strong><span>no auto food logging</span></div>
+      <div><strong>FOOD BRAIN</strong><span>156 recipes · 60 staples</span></div>
       <div><strong>MEMORY</strong><span>{favoriteCount} favorites · {avoidCount} dislikes · {pantryCount} pantry</span></div>
-      <div><strong>CLAIM SAFE</strong><span>no medical or guarantee language</span></div>
     </div>
   )
 }
@@ -393,7 +388,7 @@ export default function NutritionDashboard({
       setStatus(s)
       setHistoryData(h)
     } catch (err) {
-      setError('Nutrition data unavailable. No prototype values shown.')
+      setError('Nutrition data unavailable. Check that the backend is running.')
     }
     setLoading(false)
   }
@@ -417,7 +412,7 @@ export default function NutritionDashboard({
 
   if (loading) return (
     <CockpitShell accent={LIME} className="phx-nutrition-cockpit" aria-label="Nutrition Command Center">
-      <EmptyState status="LOADING" title="Nutrition loading" message="Reading persisted nutrition logs only." />
+      <EmptyState status="LOADING" title="Nutrition loading" message="Syncing your logs…" />
     </CockpitShell>
   )
 
@@ -458,7 +453,7 @@ export default function NutritionDashboard({
               </div>
               <div className="phx-command-brief">
                 <strong>{model.remaining.calories} KCAL LEFT · {model.primarySignal}</strong><br />
-                {nextResultText} No medical claims; plans stay user-approved.
+                {nextResultText}
               </div>
               <ProgressBar pct={model.pct.calories} />
               <DayModeTabs mode={dayMode} onModeChange={setDayMode} defaultLabel={model.dayLine} />
@@ -532,7 +527,7 @@ export default function NutritionDashboard({
           <div className="phx-panel-body">
             <div className="phx-nutrition-route-grid phx-nutrition-route-grid-clean">
               <SubsectionRoute code="MEALS" title="Meals" copy="Full meal ledger, add/edit/delete, recipes, and daily history." action={onLogMeal} primary />
-              <SubsectionRoute code="PLAN" title="Plan" copy="Build next meal and review the user-approved day plan." action={onDayPlanner} />
+              <SubsectionRoute code="PLAN" title="Plan" copy="Build your next meal and review today's plan." action={onDayPlanner} />
               <SubsectionRoute code="TARGETS" title="Targets" copy="Preferences, pantry, saved choices, and manual settings." action={onMemory} />
               <SubsectionRoute code="HISTORY" title="History" copy="Weekly rhythm, trends, and previous-day review." action={onWeight} />
             </div>

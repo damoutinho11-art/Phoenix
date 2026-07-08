@@ -3,10 +3,10 @@ import { getNutritionWeeklyPlan, logWeeklyPlan } from '../../api/client'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
-const TEXT_DIM = 'rgba(158,204,190,.58)'
-const CYAN = '#20d8ec'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
+const TEXT_DIM = 'rgba(190,214,202,.72)'
+const CYAN = '#ffd166'
 
 function safeNumber(value, fallback = 0) {
   const n = Number(value)
@@ -130,7 +130,7 @@ function MealEditor({ meal, onMeal }) {
   }
 
   return (
-    <div style={{ borderTop: `1px solid rgba(32,216,236,.10)`, marginTop: 10, paddingTop: 10 }}>
+    <div style={{ borderTop: `1px solid rgba(255,209,102,.10)`, marginTop: 10, paddingTop: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
         <div>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em', color: CYAN }}>{String(meal.slot || '').replace('_', ' ').toUpperCase()}</div>
@@ -142,7 +142,7 @@ function MealEditor({ meal, onMeal }) {
         </div>
       </div>
       {(meal.items || []).map((item, index) => (
-        <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '9px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
+        <div key={`${item.item_id}-${item.name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '9px 0', borderBottom: `1px solid rgba(255,209,102,.08)` }}>
           <div>
             <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 14, fontWeight: 600, color: '#fff' }}>{item.name}</div>
             <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(item.servings)}× · {item.unit || 'serving'}</div>
@@ -192,8 +192,8 @@ function DayCard({ day, onDay }) {
 
 function Section({ title, children, subtitle }) {
   return (
-    <div style={{ margin: '14px 18px 0', border: `1px solid rgba(32,216,236,.14)`, background: 'rgba(0,0,0,.16)' }}>
-      <div style={{ padding: '12px 13px', borderBottom: `1px solid rgba(32,216,236,.10)` }}>
+    <div style={{ margin: '14px 18px 0', border: `1px solid rgba(255,209,102,.14)`, background: 'rgba(0,0,0,.16)' }}>
+      <div style={{ padding: '12px 13px', borderBottom: `1px solid rgba(255,209,102,.10)` }}>
         <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7.5, letterSpacing: '.18em', color: LIME }}>{title}</div>
         {subtitle && <div style={{ fontSize: 12, lineHeight: 1.45, color: TEXT_DIM, marginTop: 4 }}>{subtitle}</div>}
       </div>
@@ -293,13 +293,13 @@ export default function WeeklyPlanner({ onBack, onSuccess }) {
 
         <Section title="BATCH PREP" subtitle="Cook/stock these groups first. Pantry items are handled in the shopping list logic.">
           {(data?.batch_prep || []).length ? data.batch_prep.map(block => (
-            <div key={block.category} style={{ padding: '10px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
+            <div key={block.category} style={{ padding: '10px 0', borderBottom: `1px solid rgba(255,209,102,.08)` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME }}>{String(block.category).toUpperCase()} · {String(block.action).toUpperCase()}</div>
                 <div style={{ fontFamily: 'var(--phx-font-display)', color: LIME_BR }}>{money(block.estimated_cost_eur)}</div>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
-                {(block.items || []).map(item => <span key={`${block.category}-${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(32,216,236,.12)`, padding: '4px 7px' }}>{item.name} · {fmt(item.servings)}×</span>)}
+                {(block.items || []).map(item => <span key={`${block.category}-${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(255,209,102,.12)`, padding: '4px 7px' }}>{item.name} · {fmt(item.servings)}×</span>)}
               </div>
             </div>
           )) : <div style={{ padding: '12px 0', color: TEXT_DIM, fontSize: 13 }}>No batch-prep blocks returned.</div>}
@@ -313,7 +313,7 @@ export default function WeeklyPlanner({ onBack, onSuccess }) {
               ['MISSING €', money(data?.shopping_list?.estimated_missing_cost_eur || 0)],
               ['FULL €', money(data?.shopping_list?.estimated_full_cost_eur || 0)],
             ].map(([label, value]) => (
-              <div key={label} style={{ border: `1px solid ${BORDER}`, background: 'rgba(32,216,236,.025)', padding: '8px 9px' }}>
+              <div key={label} style={{ border: `1px solid ${BORDER}`, background: 'rgba(255,209,102,.025)', padding: '8px 9px' }}>
                 <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.14em', color: MUTED }}>{label}</div>
                 <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 15, fontWeight: 700, color: LIME_BR, marginTop: 3 }}>{value}</div>
               </div>
@@ -341,10 +341,6 @@ export default function WeeklyPlanner({ onBack, onSuccess }) {
           </button>
         </div>}
 
-        <div style={{ margin: '0 18px 16px', padding: '11px 13px', border: `1px solid rgba(32,216,236,.16)`, background: 'rgba(32,216,236,.025)' }}>
-          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
-          <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>Weekly prep is local-first and approval-first. Phoenix can plan the week, but you edit days/meals and approve before anything is logged. Grocery output is a checklist only.</div>
-        </div>
       </div>
     </div>
   )

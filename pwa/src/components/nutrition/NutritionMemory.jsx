@@ -11,10 +11,10 @@ import {
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(32,216,236,.18)'
-const MUTED = 'rgba(32,216,236,.38)'
+const BORDER = 'rgba(255,209,102,.18)'
+const MUTED = 'rgba(255,209,102,.38)'
 const TEXT_DIM = 'rgba(158,204,190,.58)'
-const CYAN = '#20d8ec'
+const CYAN = '#ffd166'
 
 function fmt(value, suffix = '') {
   const n = Number(value || 0)
@@ -54,7 +54,7 @@ function ActionButton({ children, onClick, tone = 'lime', disabled = false }) {
 
 function EntryRow({ entry, onDelete }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: `1px solid rgba(32,216,236,.08)` }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: `1px solid rgba(255,209,102,.08)` }}>
       <div>
         <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 700, color: '#fff' }}>{entry.name}</div>
         <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.11em', color: TEXT_DIM, marginTop: 2 }}>
@@ -196,7 +196,7 @@ export default function NutritionMemory({ onBack, onSuccess }) {
               const preferKey = `preferred:staple:${staple.id}:${staple.name}`
               const avoidKey = `dislike:staple:${staple.id}:${staple.name}`
               return (
-                <div key={staple.id} style={{ border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(157,255,111,.018)', padding: '10px 11px' }}>
+                <div key={staple.id} style={{ border: `1px solid rgba(255,209,102,.12)`, background: 'rgba(157,255,111,.018)', padding: '10px 11px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                     <div>
                       <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, color: '#fff', fontWeight: 700 }}>{staple.name}</div>
@@ -226,7 +226,7 @@ export default function NutritionMemory({ onBack, onSuccess }) {
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED, marginBottom: 9 }}>RECENT MEALS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {recent.map(meal => (
-              <div key={meal.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', padding: '10px 11px', border: `1px solid rgba(32,216,236,.12)`, background: 'rgba(32,216,236,.025)' }}>
+              <div key={meal.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', padding: '10px 11px', border: `1px solid rgba(255,209,102,.12)`, background: 'rgba(255,209,102,.025)' }}>
                 <div>
                   <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, color: '#fff', fontWeight: 700 }}>{meal.name}</div>
                   <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 2 }}>{fmt(meal.calories)} kcal · {fmt(meal.protein_g, 'g')} P</div>

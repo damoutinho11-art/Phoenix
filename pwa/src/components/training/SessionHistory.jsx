@@ -1,18 +1,49 @@
 import { useState, useEffect } from 'react'
 import { getTrainingHistory, getTrainingStatus } from '../../api/client'
 
-const KEYFRAMES = `@keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`
+const KEYFRAMES = `
+  @keyframes phScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+  @keyframes phScanDrift { 0%{background-position:0 0} 100%{background-position:0 6px} }
+  @keyframes phHoloSweep { 0%{top:-12%} 100%{top:112%} }
+  @keyframes phFlicker {
+    0%, 91%, 94%, 100% { opacity: 1; }
+    92% { opacity: .72; }
+    93% { opacity: .95; }
+    95.5% { opacity: .8; }
+  }
+`
+
+function HoloOverlay() {
+  return (
+    <>
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 60,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,143,46,.026) 0 1px, transparent 1px 3px)',
+        animation: 'phScanDrift 1.4s linear infinite', mixBlendMode: 'screen',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 61,
+        background: 'radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(1,4,8,.5) 100%)',
+      }} />
+      <div style={{
+        position: 'absolute', left: 0, right: 0, height: '9%', top: '-12%', pointerEvents: 'none', zIndex: 62,
+        background: 'linear-gradient(180deg, transparent, rgba(255,143,46,.05), transparent)',
+        animation: 'phHoloSweep 7s linear infinite',
+      }} />
+    </>
+  )
+}
 
 const BG         = '#060c12'
 const CARD       = '#070e15'
 const ORANGE     = '#ff8f2e'
 const ORANGE_MUT = 'rgba(255,143,46,.42)'
 const ORANGE_BDR = '1px solid rgba(255,143,46,.18)'
-const CYAN_BR    = '#7df0ff'
-const CYAN_MUT   = 'rgba(32,216,236,.42)'
+const CYAN_BR    = '#ffe09a'
+const CYAN_MUT   = 'rgba(255,209,102,.45)'
 const GREEN      = '#4dffb4'
-const TEXT       = 'rgba(199,236,244,.92)'
-const TEXT_DIM   = 'rgba(132,212,226,.45)'
+const TEXT       = 'rgba(255,244,230,.94)'
+const TEXT_DIM   = 'rgba(236,206,178,.7)'
 const MONO       = "'Share Tech Mono', monospace"
 const DISPLAY    = "'Rajdhani', sans-serif"
 const BODY       = "'Space Grotesk', sans-serif"
@@ -28,7 +59,7 @@ function Label({ children }) {
 function Tag({ children, color = 'orange' }) {
   const styles = {
     orange: { border: '1px solid rgba(255,143,46,.2)',  color: 'rgba(255,143,46,.6)',  background: 'rgba(255,143,46,.04)'  },
-    cyan:   { border: '1px solid rgba(32,216,236,.2)',  color: 'rgba(32,216,236,.6)',  background: 'rgba(32,216,236,.04)'  },
+    cyan:   { border: '1px solid rgba(255,209,102,.2)',  color: 'rgba(255,209,102,.6)',  background: 'rgba(255,209,102,.04)'  },
     green:  { border: '1px solid rgba(77,255,180,.25)', color: 'rgba(77,255,180,.75)', background: 'rgba(77,255,180,.04)'  },
   }
   return (
@@ -148,7 +179,8 @@ export default function SessionHistory({ onBack }) {
   })()
 
   return (
-    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY }}>
+    <div className="phx-scope-training" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: BG, color: TEXT, fontFamily: BODY, position: 'relative', animation: 'phFlicker 9s linear infinite' }}>
+      <HoloOverlay />
 
       {/* TOP BAR */}
       <div style={{
