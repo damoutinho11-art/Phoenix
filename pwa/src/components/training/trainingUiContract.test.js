@@ -9,7 +9,7 @@ const jump = readFileSync(new URL('./JumpLog.jsx', import.meta.url), 'utf8')
 test('training cockpit exposes readiness route and capacity language', () => {
   for (const label of [
     'Readiness Scan',
-    'Today’s Route',
+    'TODAY’S SESSION',
     'Joint Capacity Block',
     'Sled Balance',
     'Squat Balance',
@@ -17,6 +17,11 @@ test('training cockpit exposes readiness route and capacity language', () => {
     'Recovery Reset',
     'Jump Balance',
   ]) assert.match(metrics, new RegExp(label))
+
+  assert.match(metrics, /title="TELEMETRY" color={ORANGE} numbered={false}/)
+  assert.match(metrics, /title="MODULES" color={ORANGE} numbered={false}/)
+  assert.doesNotMatch(metrics, /<StepBadge n={4}/)
+  assert.doesNotMatch(metrics, /<StepBadge n={5}/)
 })
 
 test('active session contains the backend readiness gate', () => {

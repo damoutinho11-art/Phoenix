@@ -293,15 +293,15 @@ function TrainingCore({ overall, sessionType, mesoWeek, onTrack, readinessStatus
   )
 }
 
-function StepBadge({ n, title, color = ORANGE, sys = 'SYS.TRAIN' }) {
-  const code = String(n).padStart(2, '0')
+function StepBadge({ n, title, color = ORANGE, sys = 'SYS.TRAIN', numbered = true }) {
+  const code = numbered ? String(n).padStart(2, '0') : null
   return (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 0, padding: '18px 14px 8px', overflow: 'hidden' }}>
       {/* left bracket */}
       <div style={{ width: 8, alignSelf: 'stretch', borderLeft: `1px solid ${color}88`, borderTop: `1px solid ${color}88`, borderBottom: `1px solid ${color}88`, marginTop: 14, marginBottom: 0, minHeight: 18, flexShrink: 0 }} />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, padding: '2px 10px', whiteSpace: 'nowrap' }}>
         <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: '.18em', color: `${color}66` }}>{sys} //</span>
-        <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.1em', color, textShadow: `0 0 14px ${color}55` }}>{code}</span>
+        {numbered && <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 700, letterSpacing: '.1em', color, textShadow: `0 0 14px ${color}55` }}>{code}</span>}
         <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '.26em', color, textTransform: 'uppercase' }}>{title}</span>
         <span style={{ width: 5, height: 5, background: color, boxShadow: `0 0 7px ${color}`, animation: 'phBlink 1.8s ease-in-out infinite', display: 'inline-block' }} />
       </div>
@@ -311,7 +311,7 @@ function StepBadge({ n, title, color = ORANGE, sys = 'SYS.TRAIN' }) {
       <div style={{ flex: 1, position: 'relative', height: 1, marginLeft: 10, background: `linear-gradient(90deg, ${color}44, ${color}0d)`, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, width: '34%', height: 1, left: '-40%', background: `linear-gradient(90deg, transparent, ${color}, transparent)`, animation: 'phSweep 3.2s linear infinite' }} />
       </div>
-      <div style={{ marginLeft: 8, fontFamily: MONO, fontSize: 6, letterSpacing: '.14em', color: `${color}38`, flexShrink: 0 }}>{`TRN-${code}`}</div>
+      <div style={{ marginLeft: 8, fontFamily: MONO, fontSize: 6, letterSpacing: '.14em', color: `${color}38`, flexShrink: 0 }}>{numbered ? `TRN-${code}` : 'TRN-SUPPORT'}</div>
     </div>
   )
 }
@@ -768,7 +768,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
           </CornerCard>
         </div>
 
-        <StepBadge n={4} title="TELEMETRY" color={ORANGE} />
+        <StepBadge title="TELEMETRY" color={ORANGE} numbered={false} />
         {/* STATS ROW */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: `1px solid rgba(255,143,46,.14)`, borderTop: `1px solid rgba(255,143,46,.1)` }}>
           {[
@@ -796,7 +796,7 @@ export default function TrainingMetrics({ onBack, onNav }) {
           ))}
         </div>
 
-        <StepBadge n={5} title="MODULES" color={ORANGE} />
+        <StepBadge title="MODULES" color={ORANGE} numbered={false} />
         {/* DOMAIN BUTTONS */}
         <div style={{ display: 'flex', gap: 8, padding: '4px 14px 20px' }}>
           <DomainButton label="JUMP LOG" onClick={() => nav('jump-log')} />
