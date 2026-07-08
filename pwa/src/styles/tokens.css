@@ -228,7 +228,7 @@ textarea::placeholder { color: color-mix(in srgb, var(--phx-muted) 72%, transpar
 /* card container: header (title+pill) / body / optional footer */
 .phx-card {
   border: 1px solid color-mix(in srgb, var(--phx-accent) 18%, transparent);
-  border-radius: 4px;
+  border-radius: 0;
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--phx-accent) 4%, transparent), transparent 38%),
     linear-gradient(180deg, var(--phx-panel-raised), var(--phx-panel));
