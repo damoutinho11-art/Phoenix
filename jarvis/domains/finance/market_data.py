@@ -23,8 +23,8 @@ TICKER_MAP: dict[str, str] = {
     "tao":  "TAO-EUR",
     # Active ETF sleeves (Lightyear — not yet funded)
     "global_core_etf":   "VWCE.DE",
-    "growth_nasdaq_etf": "CNDX.L",
-    "quality_etf":       "IWQU.L",
+    "growth_nasdaq_etf": "XNAS.DE",  # Xtrackers Nasdaq 100 (Xetra) — matches the ETF actually held
+    "quality_etf":       "IS3Q.DE",  # iShares Edge MSCI World Quality Factor (Xetra) — matches the ETF actually held
     # Legacy LHV Growth holdings
     "lhv_growth_sxr8":           "SXR8.DE",
     "lhv_growth_iemm":           "IEEM.L",   # IEMM.L is delisted; IEEM.L is live
