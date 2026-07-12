@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTokens'
 import { HOLDINGS, HOLDING_ANGLES, HOLDING_RADII, APPROVE_CHECKS, BRIEF_TEXT } from '../holoDomains'
-import SubShell, { SubLabel } from './SubShell'
+import { SubLabel } from './SubShell'
 
 const dirColor = h => (h.dir === 'TRIM' ? R : h.dir === 'FEED' ? Y : ACC)
 
@@ -109,14 +109,6 @@ export function HoldingsContent({ sel = 0, onSel = () => {}, live }) {
   )
 }
 
-export function HoldingsSub({ onClose, sel, onSel, live }) {
-  return (
-    <SubShell subKey="holdings" onClose={onClose} meta={live?.meta}>
-      <HoldingsContent sel={sel} onSel={onSel} live={live} />
-    </SubShell>
-  )
-}
-
 // ── FINANCE // W28 APPROVAL — tap-to-verify checklist + arm sequence ──
 export function ApproveContent({ checks, onToggle, stamped, onConfirm }) {
   const n = stamped ? 4 : checks.filter(Boolean).length
@@ -166,14 +158,6 @@ export function ApproveContent({ checks, onToggle, stamped, onConfirm }) {
   )
 }
 
-export function ApproveSub({ onClose, checks, onToggle, stamped, onConfirm }) {
-  return (
-    <SubShell subKey="approve" onClose={onClose}>
-      <ApproveContent checks={checks} onToggle={onToggle} stamped={stamped} onConfirm={onConfirm} />
-    </SubShell>
-  )
-}
-
 // ── FINANCE // WEEKLY BRIEF — typewriter terminal ──
 export function BriefContent() {
   const [n, setN] = useState(0)
@@ -215,10 +199,3 @@ export function BriefContent() {
   )
 }
 
-export function BriefSub({ onClose }) {
-  return (
-    <SubShell subKey="brief" onClose={onClose}>
-      <BriefContent />
-    </SubShell>
-  )
-}

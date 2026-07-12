@@ -10,7 +10,6 @@ import HoloCore from './HoloCore'
 import HoloWings from './HoloWings'
 import HoloFocus from './HoloFocus'
 import HoloDock, { DOCK_ORDER } from './HoloDock'
-import { HoldingsSub, ApproveSub, BriefSub } from './subs/FinanceSubs'
 import FinanceControlRoom from './subs/FinanceControlRoom'
 import { LogMealSub, DinnerSub, PlanDaySub } from './subs/NutritionSubs'
 import { SessionSub, ReadinessSub, SleepSub } from './subs/TrainingSubs'
@@ -76,7 +75,6 @@ export default function HoloCommand({ startTab = 'home' }) {
   const [voiceMsg, setVoiceMsg] = useState(null)
   const [chatLog, setChatLog] = useState([])
   // sub-screen state that must survive close / feed back into the main screen
-  const [holdSel, setHoldSel] = useState(0)
   const [appChecks, setAppChecks] = useState([false, false, false, false])
   const [appStamped, setAppStamped] = useState(false)
   const [mealLog, setMealLog] = useState([])
@@ -228,7 +226,9 @@ export default function HoloCommand({ startTab = 'home' }) {
     if (tab === 'calendar') d = applyCalendar(d, live.calendar, live.connectors)
     if (tab === 'finance' && appStamped) {
       d.heroChips = [d.heroChips[0], d.heroChips[1], { text: 'W28 APPROVED ✓', color: G }]
-      d.panels[1].rows[1] = { title: 'Approval', sub: 'MARKED BY YOU · JUST NOW', value: 'APPROVED', valueColor: G }
+      // fixture panel has an "Approval" row; the live panel's equivalent is "Weekly deploy"
+      const i = d.panels[1].rows.findIndex(r => /^(Approval|Weekly deploy)$/.test(r.title))
+      if (i >= 0) d.panels[1].rows[i] = { ...d.panels[1].rows[i], sub: 'MARKED BY YOU · JUST NOW', value: 'APPROVED', valueColor: G }
     }
     if (tab === 'nutrition' && mealLog.length) {
       const ek = mealLog.reduce((acc, m) => acc + m.k, 0)
@@ -372,17 +372,6 @@ export default function HoloCommand({ startTab = 'home' }) {
           finance={live.finance}
         />
       )}
-      {sub === 'holdings' && <HoldingsSub {...subProps} sel={holdSel} onSel={setHoldSel} live={mapHoldings(live.holdings, live.finance)} />}
-      {sub === 'approve' && (
-        <ApproveSub
-          {...subProps}
-          checks={appChecks}
-          stamped={appStamped}
-          onToggle={i => { if (!appStamped) setAppChecks(c => c.map((v, j) => (j === i ? !v : v))) }}
-          onConfirm={() => { if (appChecks.every(Boolean) && !appStamped) setAppStamped(true) }}
-        />
-      )}
-      {sub === 'brief' && <BriefSub {...subProps} />}
       {sub === 'logmeal' && (
         <LogMealSub
           {...subProps}

@@ -220,10 +220,8 @@ export function buildDomains(dayPart) {
 }
 
 // ── sub-screen shell metadata: crumb / meta / width ──
+// (finance lives in the Control Room now — no shell entries needed for it)
 export const SUB_META = {
-  holdings: ['SYS.FINANCE // HOLDINGS MAP', '6 SLEEVES · €1,893.33', 'min(1020px, calc(100vw - 26px))'],
-  approve: ['SYS.FINANCE // W28 APPROVAL', 'MANUAL EXECUTION ONLY', 'min(900px, calc(100vw - 26px))'],
-  brief: ['SYS.FINANCE // WEEKLY BRIEF', 'W28 · JUL 07–13', 'min(780px, calc(100vw - 26px))'],
   logmeal: ['SYS.NUTRITION // MEAL COMPOSER', '860 KCAL OPEN', 'min(1020px, calc(100vw - 26px))'],
   dinner: ['SYS.NUTRITION // DINNER CANDIDATES', 'PROTEIN GAP 53G', 'min(1000px, calc(100vw - 26px))'],
   planday: ['SYS.NUTRITION // FUEL TIMELINE', 'TARGET 2,100 KCAL', 'min(1020px, calc(100vw - 26px))'],
