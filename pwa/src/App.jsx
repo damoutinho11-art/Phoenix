@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Chat from './components/Chat'
-import PhoenixOpeningScreen from './components/PhoenixOpeningScreen'
+import HoloCommand from './components/holo/HoloCommand'
 import BottomNav from './components/BottomNav'
 import NutritionDashboard from './components/nutrition/NutritionDashboard'
 import RecipeList from './components/nutrition/RecipeList'
@@ -47,31 +47,6 @@ export default function App() {
     if (t === 'nutrition') setNutritionScreen('dashboard')
     if (t === 'finance') setFinanceScreen('dashboard')
     if (t === 'calendar') { setCalendarScreen('dashboard'); setCalendarEvent(null) }
-  }
-
-  function openPhoenixDomain(domain) {
-    if (domain === 'finance') {
-      switchTab('finance')
-      return
-    }
-
-    if (domain === 'training') {
-      switchTab('training')
-      return
-    }
-
-    if (domain === 'recovery' || domain === 'nutrition') {
-      switchTab('nutrition')
-      return
-    }
-
-    if (domain === 'calendar') {
-      switchTab('calendar')
-      return
-    }
-
-    setChatPrefill(null)
-    setTab('chat')
   }
 
   function handleQuickAsk(message) {
@@ -214,11 +189,8 @@ export default function App() {
   }
 
   if (tab === 'home') {
-    return (
-      <PhoenixOpeningScreen
-        onOpenDomain={openPhoenixDomain}
-      />
-    )
+    // Holo Command hosts all five domains itself (dock, keys 1–5, ESC walkback).
+    return <HoloCommand />
   }
 
   return (
