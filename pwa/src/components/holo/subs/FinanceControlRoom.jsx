@@ -2,15 +2,17 @@ import { useMemo, useState } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTokens'
 import { APPROVE_CHECKS, HOLDINGS } from '../holoDomains'
 import { ApproveContent, HoldingsContent, BriefContent } from './FinanceSubs'
+import { BudgetContent } from './BudgetContent'
 
-const TABS = ['ACTION', 'PORTFOLIO', 'INTEL', 'HISTORY', 'CASH']
+const TABS = ['ACTION', 'PORTFOLIO', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']
 
 const TAB_META = {
   ACTION: ['APPROVAL VECTOR', 'Manual order gate', G],
   PORTFOLIO: ['ORBITAL MAP', 'Sleeve allocation', ACC],
   INTEL: ['WEEKLY SIGNAL', 'Brief transmission', Y],
+  BUDGET: ['MONTHLY LEDGER', 'Income vs spending', ACC],
   HISTORY: ['AUDIT STREAM', 'Source trail', W],
-  CASH: ['RUNWAY', 'Deployment pressure', G],
+  CASH: ['RUNWAY', 'Portfolio cash sleeve', G],
 }
 
 const money = value => Number.isFinite(value)
@@ -80,6 +82,11 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
               {tab === 'INTEL' && (
                 <RoomStage label="INTEL TRANSMISSION" color={Y} immersive>
                   <BriefContent />
+                </RoomStage>
+              )}
+              {tab === 'BUDGET' && (
+                <RoomStage label="MONTHLY LEDGER" color={ACC}>
+                  <BudgetContent />
                 </RoomStage>
               )}
               {tab === 'HISTORY' && <AuditPanel finance={finance} alerts={alerts} />}

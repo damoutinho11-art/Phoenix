@@ -23,13 +23,23 @@ test('finance projection opens the Finance Control Room as the primary action', 
 test('finance control room exposes refined lanes with action as the default', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
 
-  for (const label of ['ACTION', 'PORTFOLIO', 'INTEL', 'HISTORY', 'CASH']) {
+  for (const label of ['ACTION', 'PORTFOLIO', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']) {
     assert.match(room, new RegExp(`'${label}'`))
   }
 
   assert.match(room, /useState\('ACTION'\)/)
   assert.match(room, /SYS\.FINANCE \/\/ CONTROL ROOM/)
   assert.match(room, /RETURN TO PROJECTION/)
+})
+
+test('finance control room surfaces the budget ledger from the real endpoint', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+  const budget = await src('./subs/BudgetContent.jsx')
+
+  assert.match(room, /BudgetContent/)
+  assert.match(budget, /getBudgetSummary/)
+  assert.match(budget, /getBudgetMonths/)
+  assert.match(budget, /SAVINGS RATE/)
 })
 
 test('finance control room reuses existing finance instrument designs', async () => {
