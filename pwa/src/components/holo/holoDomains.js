@@ -38,7 +38,7 @@ export function buildDomains(dayPart) {
       heroChips: [chip('PHASE 1 · ACCUMULATION', ACC), chip('+€112.40 · +6.31%', G), chip('1 DRIFT ALERT', Y)],
       heroBrief: 'Deploy this week’s €85.00 into Global Core via VWCE on Lightyear. Manual only — nothing is ordered or executed for you.',
       heroActions: [
-        { label: 'APPROVE WEEK', sub: 'approve', primary: true },
+        { label: 'CONTROL ROOM', sub: 'finance-room', primary: true },
         { label: 'HOLDINGS', sub: 'holdings' },
         { label: 'BRIEF', sub: 'brief' },
       ],

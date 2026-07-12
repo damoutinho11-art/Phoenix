@@ -12,6 +12,7 @@ test('finance projection opens the Finance Control Room as the primary action', 
   assert.match(domains, /sub:\s*'finance-room'/)
   assert.match(command, /<FinanceControlRoom\b/)
   assert.match(command, /sub === 'finance-room'/)
+  assert.match(command, /!isHome && isMobile/)
 })
 
 test('finance control room exposes all room tabs with approval as the default', async () => {

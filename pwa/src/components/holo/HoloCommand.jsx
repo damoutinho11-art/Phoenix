@@ -11,6 +11,7 @@ import HoloWings from './HoloWings'
 import HoloFocus from './HoloFocus'
 import HoloDock, { DOCK_ORDER } from './HoloDock'
 import { HoldingsSub, ApproveSub, BriefSub } from './subs/FinanceSubs'
+import FinanceControlRoom from './subs/FinanceControlRoom'
 import { LogMealSub, DinnerSub, PlanDaySub } from './subs/NutritionSubs'
 import { SessionSub, ReadinessSub, SleepSub } from './subs/TrainingSubs'
 import { TodaySub, WeekMapSub, FeedsSub } from './subs/CalendarSubs'
@@ -299,7 +300,7 @@ export default function HoloCommand({ startTab = 'home' }) {
         {!isHome && <HoloWings domain={D} isMobile={isMobile} showTele={showTele} onFocus={setFocus} />}
 
         {/* ── brief + actions / home composer ── */}
-        <div style={{ position: 'absolute', left: '50%', bottom: 'calc(70px + env(safe-area-inset-bottom))', transform: 'translateX(-50%)', width: isMobile ? 'calc(100vw - 24px)' : isShort ? 'min(400px, 40vw)' : 'min(560px, 46vw)', zIndex: 45, textAlign: 'center', animation: 'holo-inX .6s cubic-bezier(.2,.8,.4,1) .55s both' }}>
+        <div style={{ position: 'absolute', left: '50%', bottom: isMobile && !isHome ? 'calc(126px + env(safe-area-inset-bottom))' : 'calc(70px + env(safe-area-inset-bottom))', transform: 'translateX(-50%)', width: isMobile ? 'calc(100vw - 24px)' : isShort ? 'min(400px, 40vw)' : 'min(560px, 46vw)', zIndex: 45, textAlign: 'center', animation: 'holo-inX .6s cubic-bezier(.2,.8,.4,1) .55s both' }}>
           {(isHome || (!isShort && !isMobile)) && (
             <p style={{ margin: '0 0 11px', fontFamily: FB, fontSize: '15.5px', fontWeight: 300, lineHeight: 1.5, color: mix(BODY, 90), textShadow: '0 1px 10px rgba(0,0,0,.8)' }}>
               {isHome && voiceMsg ? voiceMsg : D.heroBrief}
@@ -312,6 +313,19 @@ export default function HoloCommand({ startTab = 'home' }) {
                 const primary = act.primary && !approved
                 return (
                   <button key={act.label} onClick={() => setSub(act.sub)} style={{ minHeight: 42, padding: '0 20px', fontFamily: FM, fontSize: '9.5px', letterSpacing: '.2em', color: approved ? G : primary ? INK : a(ACC, 'cc'), background: primary ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${approved ? mix(G, 40) : primary ? ACC : a(ACC, '44')}`, cursor: 'pointer', textTransform: 'uppercase', boxShadow: primary ? `0 0 24px ${a(ACC, '55')}` : 'none' }}>
+                    {act.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {!isHome && isMobile && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 7, width: 'min(330px, 100%)', margin: '0 auto' }}>
+              {D.heroActions.map(act => {
+                const approved = act.approved
+                const primary = act.primary && !approved
+                return (
+                  <button key={act.label} onClick={() => setSub(act.sub)} style={{ minHeight: primary ? 42 : 34, padding: '0 12px', fontFamily: FM, fontSize: primary ? 9 : 8, letterSpacing: primary ? '.18em' : '.15em', color: approved ? G : primary ? INK : a(ACC, 'cc'), background: primary ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58), border: `1px solid ${approved ? mix(G, 40) : primary ? ACC : a(ACC, '40')}`, cursor: 'pointer', textTransform: 'uppercase', boxShadow: primary ? `0 0 20px ${a(ACC, '44')}` : 'none', overflowWrap: 'anywhere' }}>
                     {act.label}
                   </button>
                 )
@@ -348,6 +362,17 @@ export default function HoloCommand({ startTab = 'home' }) {
       </div>
 
       {/* ── sub-screen projections ── */}
+      {sub === 'finance-room' && (
+        <FinanceControlRoom
+          {...subProps}
+          checks={appChecks}
+          stamped={appStamped}
+          onToggle={i => { if (!appStamped) setAppChecks(c => c.map((v, j) => (j === i ? !v : v))) }}
+          onConfirm={() => { if (appChecks.every(Boolean) && !appStamped) setAppStamped(true) }}
+          holdings={mapHoldings(live.holdings, live.finance)}
+          finance={live.finance}
+        />
+      )}
       {sub === 'holdings' && <HoldingsSub {...subProps} sel={holdSel} onSel={setHoldSel} live={mapHoldings(live.holdings, live.finance)} />}
       {sub === 'approve' && (
         <ApproveSub
