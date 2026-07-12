@@ -9,11 +9,32 @@ export function LogMealSub({ onClose, onLog, budget }) {
   const kcalOpen = Math.max(1, budget?.kcalOpen ?? 860)
   const proteinGap = Math.max(1, budget?.proteinGap ?? 53)
   const [adds, setAdds] = useState([])
+  const [posting, setPosting] = useState(false)
+  const [error, setError] = useState(false)
   const cnt = {}
   adds.forEach(id => { cnt[id] = (cnt[id] || 0) + 1 })
-  const mk = adds.reduce((acc, id) => acc + FOODS.find(f => f.id === id).k, 0)
-  const mp = adds.reduce((acc, id) => acc + FOODS.find(f => f.id === id).p, 0)
+  const sum = key => adds.reduce((acc, id) => acc + (FOODS.find(f => f.id === id)[key] || 0), 0)
+  const mk = sum('k')
+  const mp = sum('p')
   const empty = adds.length === 0
+  const confirm = async () => {
+    if (empty || posting) return
+    setPosting(true)
+    setError(false)
+    try {
+      await onLog({
+        k: mk,
+        p: mp,
+        f: sum('f'),
+        c: sum('c'),
+        parts: Object.keys(cnt).map(id => FOODS.find(x => x.id === id).n + (cnt[id] > 1 ? ' ×' + cnt[id] : '')),
+      })
+      onClose()
+    } catch {
+      setError(true)
+      setPosting(false)
+    }
+  }
   const bars = [
     { l: 'KCAL VS OPEN', v: `${mk} / ${kcalOpen}`, w: Math.min(100, (mk / kcalOpen) * 100).toFixed(0) + '%', c: mk > kcalOpen ? R : G },
     { l: 'PROTEIN VS GAP', v: `${mp} / ${proteinGap}G`, w: Math.min(100, (mp / proteinGap) * 100).toFixed(0) + '%', c: W },
@@ -72,9 +93,14 @@ export function LogMealSub({ onClose, onLog, budget }) {
           <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: mk > kcalOpen ? R : G, margin: '10px 0 12px' }}>
             {mk > kcalOpen ? `OVER TARGET BY ${mk - kcalOpen} KCAL` : `AFTER LOG → ${kcalOpen - mk} KCAL OPEN`}
           </div>
-          <button onClick={() => { if (!empty) { onLog({ k: mk, p: mp }); onClose() } }} disabled={empty} style={{ minHeight: 46, width: '100%', fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: empty ? a(ACC, '77') : INK, background: empty ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${empty ? a(ACC, '30') : ACC}`, cursor: empty ? 'not-allowed' : 'pointer', boxShadow: empty ? 'none' : `0 0 26px ${a(ACC, '55')}` }}>
-            {empty ? 'ADD COMPONENTS TO LOG' : `CONFIRM LOG · ${mk} KCAL`}
+          <button onClick={confirm} disabled={empty || posting} style={{ minHeight: 46, width: '100%', fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: empty ? a(ACC, '77') : INK, background: empty ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${empty ? a(ACC, '30') : ACC}`, cursor: empty || posting ? 'not-allowed' : 'pointer', boxShadow: empty ? 'none' : `0 0 26px ${a(ACC, '55')}` }}>
+            {empty ? 'ADD COMPONENTS TO LOG' : posting ? 'TRANSMITTING…' : `CONFIRM LOG · ${mk} KCAL`}
           </button>
+          {error && (
+            <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: R, marginTop: 9 }}>
+              LOG FAILED — LINK DOWN · TAP TO RETRY
+            </div>
+          )}
         </div>
       </div>
     </SubShell>

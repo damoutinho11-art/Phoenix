@@ -341,6 +341,14 @@ export async function logSleep(eventType) {
   })
 }
 
+export async function logSleepDuration(minutes) {
+  return apiFetch('/training/log/sleep-duration', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ minutes }),
+  })
+}
+
 export async function getLastSleep() {
   return apiFetch('/training/sleep/last')
 }

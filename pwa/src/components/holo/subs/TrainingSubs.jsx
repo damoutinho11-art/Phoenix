@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ACC, G, Y, W, BODY, INK, FM, FD, FB, a, mix, deep, pad2 } from '../holoTokens'
+import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep, pad2 } from '../holoTokens'
 import { SESSION_EXERCISES, READINESS_GAUGES } from '../holoDomains'
 import SubShell, { SubLabel } from './SubShell'
 
@@ -186,6 +186,19 @@ export function ReadinessSub({ onClose }) {
 
 // ── TRAINING // SLEEP LOG — dial + ±15min + stage bars ──
 export function SleepSub({ onClose, min, logged, onAdjust, onLog }) {
+  const [posting, setPosting] = useState(false)
+  const [error, setError] = useState(false)
+  const submit = async () => {
+    if (logged || posting) return
+    setPosting(true)
+    setError(false)
+    try {
+      await onLog()
+    } catch {
+      setError(true)
+    }
+    setPosting(false)
+  }
   const wake = (23 * 60 + 40 + min) % 1440
   const stage = pct => {
     const sm = Math.round(min * pct)
@@ -232,11 +245,11 @@ export function SleepSub({ onClose, min, logged, onAdjust, onLog }) {
               </div>
             </div>
           ))}
-          <button onClick={onLog} style={{ minHeight: 46, width: '100%', marginTop: 12, fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: INK, background: logged ? `linear-gradient(135deg, ${G}, ${mix(G, 73)})` : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${logged ? G : ACC}`, cursor: 'pointer', boxShadow: `0 0 26px ${logged ? mix(G, 33) : a(ACC, '55')}` }}>
-            {logged ? '✓ LOGGED' : 'LOG SLEEP'}
+          <button onClick={submit} disabled={posting} style={{ minHeight: 46, width: '100%', marginTop: 12, fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: INK, background: logged ? `linear-gradient(135deg, ${G}, ${mix(G, 73)})` : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${logged ? G : ACC}`, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: `0 0 26px ${logged ? mix(G, 33) : a(ACC, '55')}` }}>
+            {logged ? '✓ LOGGED' : posting ? 'TRANSMITTING…' : 'LOG SLEEP'}
           </button>
-          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.12em', color: logged ? G : a(ACC, '77'), marginTop: 9, textAlign: 'center' }}>
-            {logged ? '✓ SYNCED TO RECOVERY MODEL — READINESS RECALCULATED' : "FEEDS TOMORROW'S READINESS GATE"}
+          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.12em', color: error ? R : logged ? G : a(ACC, '77'), marginTop: 9, textAlign: 'center' }}>
+            {error ? 'LOG FAILED — LINK DOWN · TAP TO RETRY' : logged ? '✓ SYNCED TO RECOVERY MODEL — READINESS RECALCULATED' : "FEEDS TOMORROW'S READINESS GATE"}
           </div>
         </div>
       </div>

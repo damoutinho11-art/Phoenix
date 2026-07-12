@@ -260,15 +260,16 @@ export const BRIEF_TEXT =
   'PHOENIX WEEKLY BRIEF · W28 · JUL 07–13\n\n▸ PORTFOLIO — €1,893.33, up €112.40 (+6.31%) on the quarter. The 90-day trend is intact; no sleeve broke its risk limit this week.\n\n▸ THIS WEEK’S DEPLOY — €85.00 into Global Core (VWCE) on Lightyear. The order is prepared but never executed by Phoenix — you place it manually.\n\n▸ DRIFT — Bitcoin sits +3.0% over its 10–12% band after the rally; cash is −3.0% under. Recommended: trim BTC into cash at the next review, not before.\n\n▸ WATCH — ECB rate decision Thursday. Historically noise for this allocation; no pre-positioning.\n\n▸ DISCIPLINE — 14 consecutive weeks deployed on schedule. Phase 1 (Accumulation) completes in 9 weeks at current pace.'
 
 // ── NUTRITION fixtures ──
+// f/c are approximate macros so composed meals POST with a full profile
 export const FOODS = [
-  { id: 'salmon', n: 'Salmon fillet', k: 320, p: 34 },
-  { id: 'chick', n: 'Chicken breast', k: 220, p: 42 },
-  { id: 'pot', n: 'Roast potatoes', k: 180, p: 4 },
-  { id: 'rice', n: 'Rice · cup', k: 210, p: 5 },
-  { id: 'eggs', n: 'Eggs × 2', k: 160, p: 13 },
-  { id: 'skyr', n: 'Skyr bowl', k: 120, p: 22 },
-  { id: 'whey', n: 'Whey shake', k: 130, p: 25 },
-  { id: 'toast', n: 'Rye toast', k: 90, p: 3 },
+  { id: 'salmon', n: 'Salmon fillet', k: 320, p: 34, f: 18, c: 0 },
+  { id: 'chick', n: 'Chicken breast', k: 220, p: 42, f: 5, c: 0 },
+  { id: 'pot', n: 'Roast potatoes', k: 180, p: 4, f: 4, c: 30 },
+  { id: 'rice', n: 'Rice · cup', k: 210, p: 5, f: 1, c: 45 },
+  { id: 'eggs', n: 'Eggs × 2', k: 160, p: 13, f: 11, c: 1 },
+  { id: 'skyr', n: 'Skyr bowl', k: 120, p: 22, f: 0, c: 7 },
+  { id: 'whey', n: 'Whey shake', k: 130, p: 25, f: 2, c: 4 },
+  { id: 'toast', n: 'Rye toast', k: 90, p: 3, f: 1, c: 17 },
 ]
 
 export const DINNERS = [

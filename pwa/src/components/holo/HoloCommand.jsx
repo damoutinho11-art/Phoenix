@@ -3,6 +3,7 @@ import './holo.css'
 import { ACC, G, Y, W, SCENE, RAISED, PANEL, BG, BODY, INK, FM, FB, HOME_ACCENT, scopeClass, a, mix, deep } from './holoTokens'
 import { buildDomains } from './holoDomains'
 import useHoloData from './useHoloData'
+import { logMeal as apiLogMeal, logSleepDuration } from '../../api/client'
 import { applyFinance, applyNutrition, applyTraining, applyCalendar, mapHoldings, mealBudget, mapDinners, mapSessionExercises, mapConnectorLanes, mapTodayRail } from './holoLive'
 import HoloScene, { useHoloAtmosphere, HoloEdgeChrome, HoloBootLine, HoloDomainFlash, HoloBeams } from './HoloScene'
 import HoloCore from './HoloCore'
@@ -358,7 +359,27 @@ export default function HoloCommand({ startTab = 'home' }) {
         />
       )}
       {sub === 'brief' && <BriefSub {...subProps} />}
-      {sub === 'logmeal' && <LogMealSub {...subProps} onLog={m => setMealLog(s => s.concat([m]))} budget={budget} />}
+      {sub === 'logmeal' && (
+        <LogMealSub
+          {...subProps}
+          budget={budget}
+          onLog={async m => {
+            // real write first — the sub keeps its error state if this throws
+            await apiLogMeal({
+              item_id: 'holo_composed',
+              item_type: 'holo_composed',
+              name: 'Holo meal: ' + m.parts.join(', '),
+              servings: 1,
+              calories: m.k,
+              protein_g: m.p,
+              fat_g: m.f,
+              carbs_g: m.c,
+              source: 'holo_meal_composer',
+            })
+            setMealLog(s => s.concat([m]))
+          }}
+        />
+      )}
       {sub === 'dinner' && (
         <DinnerSub {...subProps} sel={dinnerSel} locked={dinnerLocked} onPick={i => { setDinnerSel(i); setDinnerLocked(false) }} onLock={() => setDinnerLocked(true)} dinners={liveDinners} budget={budget} />
       )}
@@ -366,7 +387,16 @@ export default function HoloCommand({ startTab = 'home' }) {
       {sub === 'session' && <SessionSub {...subProps} exercises={mapSessionExercises(live.training)} meta={live.training ? (live.training.today_session?.display_name || '').toUpperCase() : undefined} />}
       {sub === 'readiness' && <ReadinessSub {...subProps} />}
       {sub === 'sleep' && (
-        <SleepSub {...subProps} min={slpMin} logged={slpLogged} onAdjust={d => { setSlpMin(m => Math.min(600, Math.max(240, m + d))); setSlpLogged(false) }} onLog={() => setSlpLogged(true)} />
+        <SleepSub
+          {...subProps}
+          min={slpMin}
+          logged={slpLogged}
+          onAdjust={d => { setSlpMin(m => Math.min(600, Math.max(240, m + d))); setSlpLogged(false) }}
+          onLog={async () => {
+            await logSleepDuration(slpMin)
+            setSlpLogged(true)
+          }}
+        />
       )}
       {sub === 'today' && <TodaySub {...subProps} clock={clock} rail={mapTodayRail(live.calendar)} />}
       {sub === 'weekmap' && <WeekMapSub {...subProps} />}

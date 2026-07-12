@@ -2726,6 +2726,27 @@ def log_sleep_event(event_type: str) -> int:
         return cur.lastrowid
 
 
+def log_sleep_duration(minutes: int) -> dict[str, str]:
+    """Log a completed sleep of `minutes` as a backdated bedtime→wakeup pair.
+
+    Lets duration-based clients (the holo sleep dial) reuse the existing
+    event-pair schema, so get_last_sleep() and recovery pick it up unchanged.
+    """
+    wakeup_at = datetime.fromisoformat(_utc_now())
+    bedtime_at = wakeup_at - timedelta(minutes=minutes)
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO sleep_log (event_type, logged_at) VALUES (?, ?)",
+            ("bedtime", bedtime_at.isoformat()),
+        )
+        conn.execute(
+            "INSERT INTO sleep_log (event_type, logged_at) VALUES (?, ?)",
+            ("wakeup", wakeup_at.isoformat()),
+        )
+        conn.commit()
+    return {"bedtime": bedtime_at.isoformat(), "wakeup": wakeup_at.isoformat()}
+
+
 def get_last_sleep() -> dict[str, Any] | None:
     """Return duration info for the most recent completed sleep period (bedtime → wakeup)."""
     with get_db() as conn:

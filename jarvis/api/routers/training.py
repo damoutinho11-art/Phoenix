@@ -489,6 +489,10 @@ class SleepLogRequest(BaseModel):
     event_type: Literal["bedtime", "wakeup"]
 
 
+class SleepDurationRequest(BaseModel):
+    minutes: int = Field(ge=60, le=960)
+
+
 class SorenessLogRequest(BaseModel):
     score: int = Field(ge=0, le=5)
 
@@ -497,6 +501,13 @@ class SorenessLogRequest(BaseModel):
 def log_sleep(request: SleepLogRequest) -> dict:
     event_id = database.log_sleep_event(request.event_type)
     return {"status": "logged", "event_type": request.event_type, "id": event_id}
+
+
+@router.post("/log/sleep-duration")
+def log_sleep_duration(request: SleepDurationRequest) -> dict:
+    """Duration-based sleep log: stores a backdated bedtime→wakeup pair."""
+    pair = database.log_sleep_duration(request.minutes)
+    return {"status": "logged", "minutes": request.minutes, **pair}
 
 
 @router.post("/log/soreness")
