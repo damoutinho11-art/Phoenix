@@ -7,7 +7,7 @@ const dirColor = h => (h.dir === 'TRIM' ? R : h.dir === 'FEED' ? Y : ACC)
 
 // ── FINANCE // HOLDINGS MAP — 3D orbital plane of sleeve spheres ──
 // `live` (from holoLive.mapHoldings) replaces the fixture sleeve list.
-export function HoldingsSub({ onClose, sel, onSel, live }) {
+export function HoldingsContent({ sel = 0, onSel = () => {}, live }) {
   const list = live?.list || HOLDINGS
   const coreLabel = live?.coreLabel || 'CORE · €1,893'
   // fixture weights top out ~42% (0–50 axis); live weights can reach 100%
@@ -21,8 +21,7 @@ export function HoldingsSub({ onClose, sel, onSel, live }) {
       ? `−${(h.lo - h.w).toFixed(1)}% UNDER BAND`
       : 'WITHIN BAND'
   return (
-    <SubShell subKey="holdings" onClose={onClose} meta={live?.meta}>
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1.3, minWidth: 280, width: '100%', maxWidth: 'min(470px, max(320px, calc(100vh - 250px)))', aspectRatio: '1', margin: '0 auto' }}>
           {/* tilted orbit plane */}
           <div style={{ position: 'absolute', left: '50%', top: '55%', width: '88%', aspectRatio: '1', transform: 'translate(-50%,-50%) scaleY(.42)' }}>
@@ -106,18 +105,24 @@ export function HoldingsSub({ onClose, sel, onSel, live }) {
           </div>
           <p style={{ margin: '12px 0 0', fontFamily: FB, fontSize: '15.5px', fontWeight: 300, lineHeight: 1.5, color: mix(BODY, 84) }}>{h.note}</p>
         </div>
-      </div>
+    </div>
+  )
+}
+
+export function HoldingsSub({ onClose, sel, onSel, live }) {
+  return (
+    <SubShell subKey="holdings" onClose={onClose} meta={live?.meta}>
+      <HoldingsContent sel={sel} onSel={onSel} live={live} />
     </SubShell>
   )
 }
 
 // ── FINANCE // W28 APPROVAL — tap-to-verify checklist + arm sequence ──
-export function ApproveSub({ onClose, checks, onToggle, stamped, onConfirm }) {
+export function ApproveContent({ checks, onToggle, stamped, onConfirm }) {
   const n = stamped ? 4 : checks.filter(Boolean).length
   const armed = n === 4
   return (
-    <SubShell subKey="approve" onClose={onClose}>
-      <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
         <div style={{ flex: 1.25, minWidth: 300 }}>
           <SubLabel>PRE-FLIGHT CHECKS — TAP TO VERIFY</SubLabel>
           {APPROVE_CHECKS.map((ck, i) => {
@@ -157,13 +162,20 @@ export function ApproveSub({ onClose, checks, onToggle, stamped, onConfirm }) {
             </div>
           )}
         </div>
-      </div>
+    </div>
+  )
+}
+
+export function ApproveSub({ onClose, checks, onToggle, stamped, onConfirm }) {
+  return (
+    <SubShell subKey="approve" onClose={onClose}>
+      <ApproveContent checks={checks} onToggle={onToggle} stamped={stamped} onConfirm={onConfirm} />
     </SubShell>
   )
 }
 
 // ── FINANCE // WEEKLY BRIEF — typewriter terminal ──
-export function BriefSub({ onClose }) {
+export function BriefContent() {
   const [n, setN] = useState(0)
   const ivRef = useRef(null)
   const start = () => {
@@ -183,7 +195,7 @@ export function BriefSub({ onClose }) {
   }, [])
   const done = n >= BRIEF_TEXT.length
   return (
-    <SubShell subKey="brief" onClose={onClose}>
+    <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.2em', color: a(ACC, '99') }}>TRANSMISSION {Math.round((n / BRIEF_TEXT.length) * 100)}%</span>
         <button onClick={start} style={{ minHeight: 30, padding: '0 14px', fontFamily: FM, fontSize: 8, letterSpacing: '.2em', color: a(ACC, 'cc'), background: deep(50), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>↺ REPLAY</button>
@@ -199,6 +211,14 @@ export function BriefSub({ onClose }) {
           <span style={{ width: 40, height: 1, background: `linear-gradient(90deg, ${a(ACC, '88')}, transparent)` }} />
         </div>
       )}
+    </>
+  )
+}
+
+export function BriefSub({ onClose }) {
+  return (
+    <SubShell subKey="brief" onClose={onClose}>
+      <BriefContent />
     </SubShell>
   )
 }

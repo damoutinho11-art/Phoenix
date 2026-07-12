@@ -39,8 +39,6 @@ export function buildDomains(dayPart) {
       heroBrief: 'Deploy this week’s €85.00 into Global Core via VWCE on Lightyear. Manual only — nothing is ordered or executed for you.',
       heroActions: [
         { label: 'CONTROL ROOM', sub: 'finance-room', primary: true },
-        { label: 'HOLDINGS', sub: 'holdings' },
-        { label: 'BRIEF', sub: 'brief' },
       ],
       readout: [
         { k: 'GLOBAL CORE', v: '42.0%', w: '42%' }, { k: 'NASDAQ', v: '18.0%', w: '18%' },

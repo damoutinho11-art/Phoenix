@@ -229,7 +229,6 @@ export default function HoloCommand({ startTab = 'home' }) {
     if (tab === 'finance' && appStamped) {
       d.heroChips = [d.heroChips[0], d.heroChips[1], { text: 'W28 APPROVED ✓', color: G }]
       d.panels[1].rows[1] = { title: 'Approval', sub: 'MARKED BY YOU · JUST NOW', value: 'APPROVED', valueColor: G }
-      d.heroActions[0] = { label: 'W28 APPROVED ✓', sub: 'approve', approved: true }
     }
     if (tab === 'nutrition' && mealLog.length) {
       const ek = mealLog.reduce((acc, m) => acc + m.k, 0)
