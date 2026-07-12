@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react'
-import { ACC, G, Y, R, W, BODY, FM, FD, FB, a, mix, deep } from '../holoTokens'
-import { getBudgetSummary, getBudgetMonths } from '../../../api/client'
+import { useCallback, useEffect, useState } from 'react'
+import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTokens'
+import {
+  getBudgetSummary,
+  getBudgetMonths,
+  parseBudgetTransactions,
+  parseBudgetPdf,
+  saveBudgetTransactions,
+} from '../../../api/client'
 
 // Category grouping mirrors the original BudgetDashboard so the holo view
 // classifies transactions identically (savings-rate math stays the same).
@@ -8,6 +14,28 @@ const SAVINGS_CATS = new Set(['Investment', 'Emergency Fund'])
 const FIXED_CATS = new Set(['Housing'])
 const TRANSFER_CATS = new Set(['Transfers'])
 const NON_SPENDING = new Set(['Income', ...SAVINGS_CATS, ...TRANSFER_CATS])
+
+const ALL_CATEGORIES = [
+  'Housing', 'Food & Groceries', 'Eating Out', 'Transport',
+  'Subscriptions', 'Health & Sport', 'Shopping', 'Investment',
+  'Income', 'Banking & Fees', 'Other',
+]
+
+// category → token (no raw hex): reuse domain accents + semantic status colors
+const CAT_COLOR = {
+  Income: G,
+  Investment: ACC,
+  'Food & Groceries': 'var(--phx-nutrition)',
+  'Eating Out': 'var(--phx-training)',
+  Subscriptions: R,
+  Transport: ACC,
+  Housing: 'var(--phx-calendar)',
+  'Health & Sport': G,
+  Shopping: Y,
+  'Banking & Fees': a(ACC, '55'),
+  Other: a(ACC, '55'),
+}
+const catColor = c => CAT_COLOR[c] || a(ACC, '55')
 
 const euro = (value, digits = 2) => {
   const n = Number(value || 0)
@@ -55,16 +83,24 @@ function StatTile({ label, value, color }) {
   )
 }
 
+function AddButton({ onClick, label }) {
+  return (
+    <button onClick={onClick} style={{ minHeight: 44, padding: '0 20px', fontFamily: FM, fontSize: '9.5px', letterSpacing: '.2em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{label}</button>
+  )
+}
+
 // ── FINANCE // BUDGET — monthly income / expense / savings breakdown ──
 // Self-fetching (like BriefContent): reads /budget/summary + /budget/months.
+// Switches into an upload sub-mode to parse + save a statement, then refetches.
 export function BudgetContent() {
   const thisMonth = new Date().toISOString().slice(0, 7)
   const [month, setMonth] = useState(thisMonth)
   const [months, setMonths] = useState([thisMonth])
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [mode, setMode] = useState('view') // 'view' | 'upload'
 
-  useEffect(() => {
+  const loadMonths = useCallback(() => {
     getBudgetMonths()
       .then(r => {
         const list = r.months || []
@@ -72,22 +108,34 @@ export function BudgetContent() {
         setMonths(list)
       })
       .catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [thisMonth])
 
-  useEffect(() => {
+  const loadSummary = useCallback(m => {
     let alive = true
     setLoading(true)
-    getBudgetSummary(month)
+    getBudgetSummary(m)
       .then(r => { if (alive) setSummary(r) })
       .catch(() => { if (alive) setSummary(null) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [month])
+  }, [])
+
+  useEffect(() => { loadMonths() }, [loadMonths])
+  useEffect(() => loadSummary(month), [month, loadSummary])
 
   const idx = months.indexOf(month)
   const prev = () => { if (idx < months.length - 1) setMonth(months[idx + 1]) }
   const next = () => { if (idx > 0) setMonth(months[idx - 1]) }
+
+  const afterSave = () => {
+    loadMonths()
+    loadSummary(month)
+    setMode('view')
+  }
+
+  if (mode === 'upload') {
+    return <UploadStage onDone={afterSave} onCancel={() => setMode('view')} />
+  }
 
   const hasData = summary && (summary.income_total > 0 || summary.expenses_total > 0)
   const cats = summary?.by_category || {}
@@ -117,11 +165,12 @@ export function BudgetContent() {
       )}
 
       {!loading && !hasData && (
-        <div style={{ padding: '44px 18px', textAlign: 'center', border: `1px dashed ${a(ACC, '30')}`, background: deep(60) }}>
+        <div style={{ padding: '40px 18px', textAlign: 'center', border: `1px dashed ${a(ACC, '30')}`, background: deep(60) }}>
           <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: ACC, marginBottom: 8 }}>No transactions for {fmtMonth(month)}</div>
-          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: a(ACC, '99'), lineHeight: 1.7 }}>
-            UPLOAD A STATEMENT TO POPULATE THIS MONTH.<br />STATEMENT IMPORT ARRIVES IN A FOLLOW-UP STEP.
+          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: a(ACC, '99'), lineHeight: 1.7, marginBottom: 18 }}>
+            UPLOAD A STATEMENT TO POPULATE THIS MONTH.
           </div>
+          <AddButton onClick={() => setMode('upload')} label="+ ADD TRANSACTIONS" />
         </div>
       )}
 
@@ -150,8 +199,144 @@ export function BudgetContent() {
               <div style={{ fontFamily: FB, fontSize: 13, lineHeight: 1.6, color: mix(BODY, 90) }}>{summary.insight}</div>
             </div>
           )}
+
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
+            <AddButton onClick={() => setMode('upload')} label="+ ADD TRANSACTIONS" />
+          </div>
         </>
       )}
+    </div>
+  )
+}
+
+// ── upload sub-mode: paste text or PDF → parse → review → save ──
+function UploadStage({ onDone, onCancel }) {
+  const [input, setInput] = useState('text') // 'text' | 'pdf'
+  const [raw, setRaw] = useState('')
+  const [pdfFile, setPdfFile] = useState(null)
+  const [parsing, setParsing] = useState(false)
+  const [error, setError] = useState('')
+  const [transactions, setTransactions] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [pickerIdx, setPickerIdx] = useState(null)
+
+  const parseText = async () => {
+    if (!raw.trim() || parsing) return
+    setParsing(true); setError('')
+    try {
+      const r = await parseBudgetTransactions(raw.trim())
+      setTransactions(r.transactions || [])
+    } catch (err) {
+      setError(err.message || 'Parse failed. Check your text and try again.')
+    } finally { setParsing(false) }
+  }
+
+  const parsePdf = async () => {
+    if (!pdfFile || parsing) return
+    setParsing(true); setError('')
+    try {
+      const r = await parseBudgetPdf(pdfFile)
+      setTransactions(r.transactions || [])
+    } catch (err) {
+      setError(err.message || 'PDF parse failed. Use a text-based PDF or paste the statement.')
+    } finally { setParsing(false) }
+  }
+
+  const save = async () => {
+    if (saving) return
+    setSaving(true); setError('')
+    try {
+      await saveBudgetTransactions(transactions)
+      onDone()
+    } catch (err) {
+      setError(err.message || 'Save failed — link down. Try again.')
+      setSaving(false)
+    }
+  }
+
+  const inputTab = (id, label) => (
+    <button key={id} onClick={() => { setInput(id); setError('') }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
+  )
+  const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.24em', color: a(ACC, 'cc') }}>{transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}</span>
+        <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
+      </div>
+
+      {!transactions ? (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            {inputTab('text', 'PASTE TEXT')}
+            {inputTab('pdf', 'UPLOAD PDF')}
+          </div>
+
+          {input === 'pdf' ? (
+            <>
+              <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>UPLOAD A TEXT-BASED BANK PDF</div>
+              <label htmlFor="holo-budget-pdf" style={{ display: 'block', padding: '26px 14px', textAlign: 'center', cursor: 'pointer', border: `1px ${pdfFile ? 'solid' : 'dashed'} ${a(ACC, pdfFile ? '60' : '30')}`, background: deep(pdfFile ? 66 : 55) }}>
+                <input id="holo-budget-pdf" type="file" accept="application/pdf,.pdf" onChange={e => { setPdfFile(e.target.files?.[0] || null); setError('') }} style={{ display: 'none' }} />
+                <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, letterSpacing: '.14em', color: pdfFile ? W : a(ACC, '99'), marginBottom: 6 }}>{pdfFile ? pdfFile.name : 'TAP TO SELECT PDF'}</div>
+                <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.06em', color: a(ACC, '77'), lineHeight: 1.6 }}>Text-based PDFs only · max 8 MB · parsed, not stored</div>
+              </label>
+              {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginTop: 8 }}>{error}</div>}
+              <button onClick={parsePdf} disabled={!pdfFile || parsing} style={parseBtnStyle(!!pdfFile && !parsing)}>{parsing ? 'EXTRACTING PDF…' : 'PARSE PDF TRANSACTIONS'}</button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>PASTE BANK TRANSACTIONS</div>
+              <textarea value={raw} onChange={e => setRaw(e.target.value)} placeholder="Paste your statement text here…" className="phx-input" style={{ width: '100%', minHeight: 200, fontFamily: FM, fontSize: 12, padding: 12, resize: 'vertical', boxSizing: 'border-box' }} />
+              {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginTop: 8 }}>{error}</div>}
+              <button onClick={parseText} disabled={!raw.trim() || parsing} style={parseBtnStyle(!!raw.trim() && !parsing)}>{parsing ? 'PARSING…' : 'PARSE TRANSACTIONS'}</button>
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 10 }}>{transactions.length} TRANSACTIONS FOUND · TAP CATEGORY TO EDIT</div>
+          <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(76), marginBottom: 14 }}>
+            {transactions.map((t, i) => (
+              <div key={i} style={{ padding: '10px 14px', borderBottom: i < transactions.length - 1 ? `1px solid ${a(ACC, '10')}` : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: FB, fontSize: 13, color: mix(BODY, 90), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.merchant}</div>
+                  <div style={{ fontFamily: FM, fontSize: 8, color: a(ACC, '77') }}>{t.date}</div>
+                </div>
+                <button onClick={() => setPickerIdx(i)} style={{ padding: '4px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 8, letterSpacing: '.06em', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t.category}</button>
+                <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: t.is_income ? G : W, flexShrink: 0 }}>{t.is_income ? '+' : ''}€{Math.abs(t.amount_eur).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+          {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginBottom: 10 }}>{error}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setTransactions(null)} style={{ flex: 1, minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>← RE-PARSE</button>
+            <button onClick={save} disabled={saving} style={{ flex: 2, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : `SAVE ALL · ${transactions.length}`}</button>
+          </div>
+        </>
+      )}
+
+      {pickerIdx !== null && (
+        <CategoryPicker
+          current={transactions[pickerIdx]?.category}
+          onChange={cat => setTransactions(prev => prev.map((t, i) => (i === pickerIdx ? { ...t, category: cat } : t)))}
+          onClose={() => setPickerIdx(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function CategoryPicker({ current, onChange, onClose }) {
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 82%, transparent)', backdropFilter: 'blur(6px)', zIndex: 120, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'holo-fadeIn .2s ease both' }}>
+      <div style={{ width: '100%', maxWidth: 480, maxHeight: '70vh', overflowY: 'auto', padding: '18px 16px 28px', background: deep(94), borderTop: `1px solid ${a(ACC, '44')}` }}>
+        <div style={{ width: 36, height: 3, background: a(ACC, '30'), margin: '0 auto 16px' }} />
+        <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99'), marginBottom: 12 }}>SELECT CATEGORY</div>
+        {ALL_CATEGORIES.map(cat => (
+          <button key={cat} onClick={() => { onChange(cat); onClose() }} style={{ display: 'block', width: '100%', textAlign: 'left', minHeight: 42, padding: '10px 12px', background: cat === current ? a(ACC, '10') : 'transparent', border: 'none', borderBottom: `1px solid ${a(ACC, '10')}`, color: catColor(cat), fontSize: 14, fontFamily: FB, cursor: 'pointer' }}>{cat}</button>
+        ))}
+      </div>
     </div>
   )
 }

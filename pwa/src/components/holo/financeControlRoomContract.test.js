@@ -42,6 +42,18 @@ test('finance control room surfaces the budget ledger from the real endpoint', a
   assert.match(budget, /SAVINGS RATE/)
 })
 
+test('budget lane can upload a statement: parse text/pdf, review categories, save', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+
+  assert.match(budget, /parseBudgetTransactions/)
+  assert.match(budget, /parseBudgetPdf/)
+  assert.match(budget, /saveBudgetTransactions/)
+  assert.match(budget, /ADD TRANSACTIONS/)
+  assert.match(budget, /CategoryPicker/)
+  // save refetches the ledger rather than leaving stale data on screen
+  assert.match(budget, /afterSave/)
+})
+
 test('finance control room reuses existing finance instrument designs', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
   const subs = await src('./subs/FinanceSubs.jsx')
