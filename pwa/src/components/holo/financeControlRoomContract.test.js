@@ -54,6 +54,17 @@ test('budget lane can upload a statement: parse text/pdf, review categories, sav
   assert.match(budget, /afterSave/)
 })
 
+test('budget lane can edit and save budget memory (savings target + category lanes)', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+
+  assert.match(budget, /getBudgetMemory/)
+  assert.match(budget, /saveBudgetMemory/)
+  assert.match(budget, /MemoryStage/)
+  assert.match(budget, /savings_target_pct/)
+  assert.match(budget, /fixed_categories/)
+  assert.match(budget, /merchant_rules/)
+})
+
 test('finance control room reuses existing finance instrument designs', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
   const subs = await src('./subs/FinanceSubs.jsx')

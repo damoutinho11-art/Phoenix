@@ -6,6 +6,8 @@ import {
   parseBudgetTransactions,
   parseBudgetPdf,
   saveBudgetTransactions,
+  getBudgetMemory,
+  saveBudgetMemory,
 } from '../../../api/client'
 
 // Category grouping mirrors the original BudgetDashboard so the holo view
@@ -136,6 +138,9 @@ export function BudgetContent() {
   if (mode === 'upload') {
     return <UploadStage onDone={afterSave} onCancel={() => setMode('view')} />
   }
+  if (mode === 'memory') {
+    return <MemoryStage onDone={() => { loadSummary(month); setMode('view') }} onCancel={() => setMode('view')} />
+  }
 
   const hasData = summary && (summary.income_total > 0 || summary.expenses_total > 0)
   const cats = summary?.by_category || {}
@@ -151,8 +156,11 @@ export function BudgetContent() {
   return (
     <div>
       {/* month picker */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.24em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.24em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
+          <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ MEMORY</button>
+        </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <button onClick={prev} disabled={idx >= months.length - 1} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx >= months.length - 1 ? 'not-allowed' : 'pointer' }}>‹</button>
           <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, 'cc'), minWidth: 118, textAlign: 'center' }}>{fmtMonth(month)}</span>
@@ -322,6 +330,151 @@ function UploadStage({ onDone, onCancel }) {
           onChange={cat => setTransactions(prev => prev.map((t, i) => (i === pickerIdx ? { ...t, category: cat } : t)))}
           onClose={() => setPickerIdx(null)}
         />
+      )}
+    </div>
+  )
+}
+
+// ── memory sub-mode: savings target, category lanes, merchant rules ──
+const prettyJson = v => JSON.stringify(v || {}, null, 2)
+const parseList = v => String(v || '').split(',').map(s => s.trim()).filter(Boolean)
+
+function MemField({ label, children }) {
+  return (
+    <label style={{ display: 'block' }}>
+      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: a(ACC, '88'), marginBottom: 6 }}>{label}</div>
+      {children}
+    </label>
+  )
+}
+
+function ChipRow({ items }) {
+  if (!items.length) return null
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+      {items.map(c => (
+        <span key={c} style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 8px', border: `1px solid ${mix(catColor(c), 33)}`, color: catColor(c), background: mix(catColor(c), 10), fontFamily: FM, fontSize: 8, letterSpacing: '.06em' }}>{c}</span>
+      ))}
+    </div>
+  )
+}
+
+function MemoryStage({ onDone, onCancel }) {
+  const [profile, setProfile] = useState(null)
+  const [draft, setDraft] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    getBudgetMemory()
+      .then(p => { if (alive) { const loaded = p.profile || {}; setProfile(loaded); setDraft(prettyJson(loaded)) } })
+      .catch(err => { if (alive) setError(err.message || 'Could not load budget memory') })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
+
+  const update = patch => {
+    const next = { ...(profile || {}), ...patch }
+    setProfile(next)
+    setDraft(prettyJson(next))
+    setError('')
+  }
+  const updateList = (key, value) => update({ [key]: parseList(value) })
+
+  const save = async () => {
+    if (saving) return
+    let payload
+    try { payload = JSON.parse(draft || '{}') } catch { setError('Memory JSON is not valid.'); return }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) { setError('Memory JSON is not valid.'); return }
+    setSaving(true); setError('')
+    try {
+      await saveBudgetMemory(payload)
+      onDone()
+    } catch (err) {
+      setError(err.message || 'Save failed — link down. Try again.')
+      setSaving(false)
+    }
+  }
+
+  const fixed = Array.isArray(profile?.fixed_categories) ? profile.fixed_categories : []
+  const flexible = Array.isArray(profile?.flexible_categories) ? profile.flexible_categories : []
+  const nonSpending = Array.isArray(profile?.non_spending_categories) ? profile.non_spending_categories : []
+  const rules = Array.isArray(profile?.merchant_rules) ? profile.merchant_rules : []
+  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '10px 11px', fontFamily: FB, fontSize: 13 }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.24em', color: a(ACC, 'cc') }}>BUDGET MEMORY</span>
+        <span style={{ display: 'inline-flex', gap: 8 }}>
+          <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
+          <button onClick={save} disabled={saving || loading} style={{ minHeight: 30, padding: '0 16px', fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: '.16em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'SAVING…' : 'SAVE'}</button>
+        </span>
+      </div>
+
+      {loading && <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.24em', color: a(ACC, '99') }}>LOADING MEMORY…</div>}
+
+      {!loading && profile && (
+        <>
+          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), marginBottom: 10 }}>CORE RULES</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+            <MemField label="SAVINGS TARGET %">
+              <input className="phx-input" type="number" min="0" max="100" style={inputStyle} value={profile.savings_target_pct ?? 25} onChange={e => update({ savings_target_pct: Number(e.target.value || 0) })} />
+            </MemField>
+            <MemField label="SALARY CUTOFF DAY">
+              <input className="phx-input" type="number" min="1" max="31" style={inputStyle} value={profile.salary_day_cutoff ?? 25} onChange={e => update({ salary_day_cutoff: Number(e.target.value || 25) })} />
+            </MemField>
+            <MemField label="MONTH-END SALARY">
+              <button type="button" onClick={() => update({ salary_next_month: !profile.salary_next_month })} className="phx-input" style={{ ...inputStyle, cursor: 'pointer', fontFamily: FM, fontWeight: 700, letterSpacing: '.12em', color: profile.salary_next_month ? G : R }}>
+                {profile.salary_next_month ? 'NEXT MONTH' : 'SAME MONTH'}
+              </button>
+            </MemField>
+          </div>
+
+          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CATEGORY LANES</div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <MemField label="FIXED CATEGORIES">
+              <input className="phx-input" style={inputStyle} value={fixed.join(', ')} onChange={e => updateList('fixed_categories', e.target.value)} />
+            </MemField>
+            <ChipRow items={fixed} />
+            <MemField label="FLEXIBLE CATEGORIES">
+              <input className="phx-input" style={inputStyle} value={flexible.join(', ')} onChange={e => updateList('flexible_categories', e.target.value)} />
+            </MemField>
+            <ChipRow items={flexible} />
+            <MemField label="NON-SPENDING CATEGORIES">
+              <input className="phx-input" style={inputStyle} value={nonSpending.join(', ')} onChange={e => updateList('non_spending_categories', e.target.value)} />
+            </MemField>
+            <ChipRow items={nonSpending} />
+          </div>
+
+          {rules.length > 0 && (
+            <>
+              <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>MERCHANT MEMORY <span style={{ color: a(ACC, '77') }}>· {rules.length} RULES · READ ONLY</span></div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {rules.map((rule, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '9px 11px', border: `1px solid ${a(ACC, '14')}`, background: deep(58) }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 5 }}>
+                        {(rule.contains || []).map(tok => <span key={tok} style={{ padding: '3px 7px', border: `1px solid ${a(ACC, '22')}`, color: mix(BODY, 80), fontFamily: FM, fontSize: 8 }}>{tok}</span>)}
+                      </div>
+                      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.12em', color: a(ACC, '77') }}>
+                        {rule.is_income ? 'INCOME' : 'OUTFLOW'}{rule.fixed ? ' · FIXED' : ''}{rule.budget_month ? ' · ' + String(rule.budget_month).replace(/_/g, ' ').toUpperCase() : ''}
+                      </div>
+                    </div>
+                    <span style={{ flexShrink: 0, padding: '4px 8px', border: `1px solid ${mix(catColor(rule.category), 33)}`, color: catColor(rule.category), background: mix(catColor(rule.category), 10), fontFamily: FM, fontSize: 8 }}>{rule.category || 'Other'}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), margin: '16px 0 8px' }}>ADVANCED MEMORY JSON <span style={{ color: a(ACC, '77') }}>· EDIT CAREFULLY</span></div>
+          <textarea className="phx-input" value={draft} spellCheck={false} onChange={e => { setDraft(e.target.value); setError('') }} style={{ width: '100%', boxSizing: 'border-box', minHeight: 200, resize: 'vertical', fontFamily: FM, fontSize: 10, lineHeight: 1.55, padding: 11 }} />
+          {error && <div style={{ marginTop: 10, color: R, fontFamily: FB, fontSize: 12 }}>{error}</div>}
+          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: '100%', minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING MEMORY…' : 'SAVE BUDGET MEMORY'}</button>
+        </>
       )}
     </div>
   )
