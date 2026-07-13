@@ -18,15 +18,6 @@ import ActiveSession from './components/training/ActiveSession'
 import JumpLog from './components/training/JumpLog'
 import SessionHistory from './components/training/SessionHistory'
 import Body from './components/training/Body'
-import FinanceDashboard from './components/finance/FinanceDashboard'
-import WeeklyBrief from './components/finance/WeeklyBrief'
-import Holdings from './components/finance/Holdings'
-import BriefHistory from './components/finance/BriefHistory'
-import Performance from './components/finance/Performance'
-import Research from './components/finance/Research'
-import BudgetDashboard from './components/finance/BudgetDashboard'
-import BudgetUpload from './components/finance/BudgetUpload'
-import BudgetMemory from './components/finance/BudgetMemory'
 import CalendarDashboard from './components/calendar/CalendarDashboard'
 import EventDetail from './components/calendar/EventDetail'
 import CalendarFeedPublisher from './components/calendar/CalendarFeedPublisher'
@@ -36,7 +27,6 @@ export default function App() {
   const [tab, setTab] = useState('home')
   const [trainingScreen, setTrainingScreen] = useState('dashboard')
   const [nutritionScreen, setNutritionScreen] = useState('dashboard')
-  const [financeScreen, setFinanceScreen] = useState('dashboard')
   const [calendarScreen, setCalendarScreen] = useState('dashboard')
   const [calendarEvent, setCalendarEvent] = useState(null)
   const [chatPrefill, setChatPrefill] = useState(null)
@@ -45,7 +35,6 @@ export default function App() {
     setTab(t)
     if (t === 'training') setTrainingScreen('dashboard')
     if (t === 'nutrition') setNutritionScreen('dashboard')
-    if (t === 'finance') setFinanceScreen('dashboard')
     if (t === 'calendar') { setCalendarScreen('dashboard'); setCalendarEvent(null) }
   }
 
@@ -92,30 +81,6 @@ export default function App() {
           return <CalendarFeedPublisher onBack={() => setCalendarScreen('dashboard')} />
         case 'connectors':
           return <ConnectorsPanel onBack={() => setCalendarScreen('dashboard')} />
-        default:
-          return null
-      }
-    }
-    if (tab === 'finance') {
-      switch (financeScreen) {
-        case 'dashboard':
-          return <FinanceDashboard onNav={setFinanceScreen} onQuickAsk={handleQuickAsk} />
-        case 'brief':
-          return <WeeklyBrief onBack={() => setFinanceScreen('dashboard')} />
-        case 'holdings':
-          return <Holdings onBack={() => setFinanceScreen('dashboard')} onQuickAsk={handleQuickAsk} />
-        case 'performance':
-          return <Performance onBack={() => setFinanceScreen('dashboard')} />
-        case 'history':
-          return <BriefHistory onBack={() => setFinanceScreen('dashboard')} />
-        case 'research':
-          return <Research onBack={() => setFinanceScreen('dashboard')} />
-        case 'budget':
-          return <BudgetDashboard onBack={() => setFinanceScreen('dashboard')} onUpload={() => setFinanceScreen('budget-upload')} onMemory={() => setFinanceScreen('budget-memory')} />
-        case 'budget-upload':
-          return <BudgetUpload onBack={() => setFinanceScreen('budget')} onSaved={() => setFinanceScreen('budget')} />
-        case 'budget-memory':
-          return <BudgetMemory onBack={() => setFinanceScreen('budget')} />
         default:
           return null
       }
