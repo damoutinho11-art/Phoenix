@@ -20,14 +20,19 @@ test('finance projection opens the Finance Control Room as the primary action', 
   assert.match(command, /!isHome && isMobile/)
 })
 
-test('finance control room exposes refined lanes with action as the default', async () => {
+test('finance control room consolidates into four lanes with brief as the default', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
 
-  for (const label of ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'RESEARCH', 'BUDGET', 'BRIEFS', 'HISTORY', 'CASH']) {
-    assert.match(room, new RegExp(`'${label}'`))
+  // four top-level lanes; the weekly-cycle and portfolio views live under sub-tabs
+  assert.match(room, /const TABS = \['BRIEF', 'PORTFOLIO', 'BUDGET', 'RESEARCH'\]/)
+  for (const sub of ['SIGNAL', 'APPROVE', 'DECISIONS', 'HOLDINGS', 'CURVE']) {
+    assert.match(room, new RegExp(`'${sub}'`))
   }
+  // the redundant standalone lanes are gone
+  assert.doesNotMatch(room, /AuditPanel/)
+  assert.doesNotMatch(room, /BudgetPanel/)
 
-  assert.match(room, /useState\('ACTION'\)/)
+  assert.match(room, /useState\('BRIEF'\)/)
   assert.match(room, /SYS\.FINANCE \/\/ CONTROL ROOM/)
   assert.match(room, /RETURN TO PROJECTION/)
 })

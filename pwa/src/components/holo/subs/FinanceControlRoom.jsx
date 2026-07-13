@@ -1,37 +1,29 @@
 import { useMemo, useState } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTokens'
-import { APPROVE_CHECKS, HOLDINGS } from '../holoDomains'
+import { APPROVE_CHECKS } from '../holoDomains'
 import { ApproveContent, HoldingsContent, BriefContent } from './FinanceSubs'
 import { BudgetContent } from './BudgetContent'
 import { PerformanceContent } from './PerformanceContent'
 import { BriefHistoryContent } from './BriefHistoryContent'
 import { ResearchContent } from './ResearchContent'
 
-const TABS = ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'RESEARCH', 'BUDGET', 'BRIEFS', 'HISTORY', 'CASH']
+// Four lanes. The weekly-cycle views (signal → approve → log) and the two
+// portfolio views live under lightweight sub-tabs; the always-on rail carries
+// the at-a-glance status that the old HISTORY/CASH lanes duplicated.
+const TABS = ['BRIEF', 'PORTFOLIO', 'BUDGET', 'RESEARCH']
 
 const TAB_META = {
-  ACTION: ['APPROVAL VECTOR', 'Manual order gate', G],
-  PORTFOLIO: ['ORBITAL MAP', 'Sleeve allocation', ACC],
-  PERFORMANCE: ['VALUE CURVE', 'Portfolio over time', ACC],
-  INTEL: ['WEEKLY SIGNAL', 'Brief transmission', Y],
-  RESEARCH: ['MEMO LIBRARY', 'Analysis · no trades', ACC],
+  BRIEF: ['WEEKLY CYCLE', 'Signal · approve · log', G],
+  PORTFOLIO: ['PORTFOLIO', 'Holdings · value curve', ACC],
   BUDGET: ['MONTHLY LEDGER', 'Income vs spending', ACC],
-  BRIEFS: ['DECISION LOG', 'Past briefs + outcomes', G],
-  HISTORY: ['AUDIT STREAM', 'Source trail', W],
-  CASH: ['RUNWAY', 'Portfolio cash sleeve', G],
+  RESEARCH: ['MEMO LIBRARY', 'Analysis · no trades', ACC],
 }
 
-const money = value => Number.isFinite(value)
-  ? 'EUR ' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  : 'EUR 85.00'
-
-const upper = value => String(value || '').replace(/_/g, ' ').toUpperCase()
-const sleeveColor = sleeve => (sleeve?.dir === 'TRIM' ? R : sleeve?.dir === 'FEED' ? Y : G)
-
 export default function FinanceControlRoom({ onClose, checks = [], stamped, onToggle, onConfirm, holdings, finance }) {
-  const [tab, setTab] = useState('ACTION')
+  const [tab, setTab] = useState('BRIEF')
+  const [briefSub, setBriefSub] = useState('SIGNAL')
+  const [portSub, setPortSub] = useState('HOLDINGS')
   const [holdSel, setHoldSel] = useState(0)
-  const sleeves = holdings?.list?.length ? holdings.list : HOLDINGS
   const verified = stamped ? APPROVE_CHECKS.length : checks.filter(Boolean).length
   const activeMeta = TAB_META[tab]
   const alerts = finance?.sleeve_summary?.filter(s => s.band_status !== 'within_band') || []
@@ -40,6 +32,7 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
     ['ACTIVE LANE', activeMeta[0], activeMeta[2]],
     ['SOURCE', finance ? 'LIVE FINANCE' : 'FIXTURE FALLBACK', finance ? G : Y],
     ['WEEK', finance?.week_label || 'W28', W],
+    ['CONSTITUTION', finance?.constitution_valid === false ? 'INVALID' : 'VALID', finance?.constitution_valid === false ? R : G],
     ['MANUAL SAFETY', 'PHOENIX NEVER EXECUTES ORDERS', G],
     ['MODE', 'MANUAL ONLY', G],
   ], [activeMeta, finance])
@@ -75,24 +68,44 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
             </nav>
 
             <section style={{ minHeight: 0, flex: 1, border: `1px solid ${a(activeMeta[2], '2f')}`, background: `linear-gradient(180deg, ${a(activeMeta[2], '08')}, ${a(ACC, '05')})`, boxShadow: `inset 0 0 54px ${a(activeMeta[2], '07')}`, padding: 'clamp(10px, 1.4vw, 16px)', overflow: 'auto' }}>
-              {tab === 'ACTION' && (
-                <RoomStage label="ACTION SEQUENCE" color={G}>
-                  <ApproveContent checks={checks} stamped={stamped} onToggle={onToggle} onConfirm={onConfirm} />
-                </RoomStage>
+              {tab === 'BRIEF' && (
+                <>
+                  <SubTabs options={['SIGNAL', 'APPROVE', 'DECISIONS']} value={briefSub} onChange={setBriefSub} color={G} />
+                  {briefSub === 'SIGNAL' && (
+                    <RoomStage label="INTEL TRANSMISSION" color={Y} immersive>
+                      <BriefContent />
+                    </RoomStage>
+                  )}
+                  {briefSub === 'APPROVE' && (
+                    <RoomStage label="ACTION SEQUENCE" color={G}>
+                      <ApproveContent checks={checks} stamped={stamped} onToggle={onToggle} onConfirm={onConfirm} />
+                    </RoomStage>
+                  )}
+                  {briefSub === 'DECISIONS' && (
+                    <RoomStage label="DECISION LOG" color={G}>
+                      <BriefHistoryContent />
+                    </RoomStage>
+                  )}
+                </>
               )}
               {tab === 'PORTFOLIO' && (
-                <RoomStage label={holdings?.meta || 'PORTFOLIO ORBIT'} color={ACC} immersive>
-                  <HoldingsContent sel={holdSel} onSel={setHoldSel} live={holdings} />
-                </RoomStage>
+                <>
+                  <SubTabs options={['HOLDINGS', 'CURVE']} value={portSub} onChange={setPortSub} color={ACC} />
+                  {portSub === 'HOLDINGS' && (
+                    <RoomStage label={holdings?.meta || 'PORTFOLIO ORBIT'} color={ACC} immersive>
+                      <HoldingsContent sel={holdSel} onSel={setHoldSel} live={holdings} />
+                    </RoomStage>
+                  )}
+                  {portSub === 'CURVE' && (
+                    <RoomStage label="VALUE CURVE" color={ACC}>
+                      <PerformanceContent />
+                    </RoomStage>
+                  )}
+                </>
               )}
-              {tab === 'PERFORMANCE' && (
-                <RoomStage label="VALUE CURVE" color={ACC}>
-                  <PerformanceContent />
-                </RoomStage>
-              )}
-              {tab === 'INTEL' && (
-                <RoomStage label="INTEL TRANSMISSION" color={Y} immersive>
-                  <BriefContent />
+              {tab === 'BUDGET' && (
+                <RoomStage label="MONTHLY LEDGER" color={ACC}>
+                  <BudgetContent />
                 </RoomStage>
               )}
               {tab === 'RESEARCH' && (
@@ -100,18 +113,6 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
                   <ResearchContent />
                 </RoomStage>
               )}
-              {tab === 'BUDGET' && (
-                <RoomStage label="MONTHLY LEDGER" color={ACC}>
-                  <BudgetContent />
-                </RoomStage>
-              )}
-              {tab === 'BRIEFS' && (
-                <RoomStage label="DECISION LOG" color={G}>
-                  <BriefHistoryContent />
-                </RoomStage>
-              )}
-              {tab === 'HISTORY' && <AuditPanel finance={finance} alerts={alerts} />}
-              {tab === 'CASH' && <BudgetPanel finance={finance} sleeves={sleeves} />}
             </section>
           </main>
 
@@ -120,6 +121,20 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
           </aside>
         </div>
       </div>
+    </div>
+  )
+}
+
+// lightweight segmented control for grouping views inside one lane
+function SubTabs({ options, value, onChange, color = ACC }) {
+  return (
+    <div style={{ display: 'inline-flex', gap: 3, marginBottom: 12, padding: 3, border: `1px solid ${a(ACC, '22')}`, background: deep(58) }}>
+      {options.map(key => {
+        const on = value === key
+        return (
+          <button key={key} onClick={() => onChange(key)} style={{ minHeight: 30, padding: '0 13px', fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: on ? INK : a(ACC, 'cc'), background: on ? color : 'transparent', border: 'none', cursor: 'pointer' }}>{key}</button>
+        )
+      })}
     </div>
   )
 }
@@ -155,56 +170,6 @@ function RoomCard({ label, title, children, style }) {
       {title && <div style={{ fontFamily: FB, fontSize: 21, fontWeight: 400, color: W, lineHeight: 1.15, marginBottom: 11 }}>{title}</div>}
       {children}
     </section>
-  )
-}
-
-function AuditPanel({ finance, alerts }) {
-  const rows = [
-    ['WEEK WINDOW', finance?.week_done ? 'RECORDED' : 'OPEN', finance?.week_done ? G : Y],
-    ['BROKER PATH', 'USER PLACED', W],
-    ['ORDER STATE', 'NO BROKER BRIDGE', G],
-    ['DRIFT SCAN', `${alerts.length || 1} ALERT${(alerts.length || 1) === 1 ? '' : 'S'}`, alerts.length ? Y : G],
-    ['CONSTITUTION', finance?.constitution_valid === false ? 'INVALID' : 'VALID', finance?.constitution_valid === false ? R : G],
-  ]
-  return (
-    <RoomCard label="HISTORY STREAM" title="Capital trail">
-      <div style={{ display: 'grid', gap: 8 }}>
-        {rows.map(([label, value, color], i) => (
-          <div key={label} style={{ display: 'grid', gridTemplateColumns: '34px minmax(110px, 150px) 1fr auto', gap: 10, alignItems: 'center', minHeight: 44, padding: '0 10px', background: i === 0 ? a(color, '10') : deep(58), border: `1px solid ${i === 0 ? a(color, '36') : a(ACC, '20')}` }}>
-            <span style={{ fontFamily: FD, fontSize: 17, fontWeight: 700, color: a(color, 'cc') }}>{String(i + 1).padStart(2, '0')}</span>
-            <span style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.17em', color: a(ACC, '88') }}>{label}</span>
-            <span style={{ fontFamily: FB, fontSize: 15, color: mix(BODY, 92), overflowWrap: 'anywhere' }}>{value}</span>
-            <span style={{ width: 7, height: 7, borderRadius: 99, background: color, boxShadow: `0 0 9px ${color}` }} />
-          </div>
-        ))}
-      </div>
-    </RoomCard>
-  )
-}
-
-function BudgetPanel({ finance, sleeves }) {
-  const cash = sleeves.find(s => /cash|reserve/i.test(`${s.name} ${s.tk}`))
-  const total = Number.isFinite(finance?.total_invested) ? finance.total_invested : null
-  const cashWeight = Number(cash?.w || 0)
-  const impliedCash = total == null ? null : total * cashWeight / 100
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-      <RoomCard label="DEPLOYMENT" title="This week">
-        <Field label="WEEKLY DEPLOY" value={money(finance?.week_budget)} color={ACC} />
-        <Field label="WINDOW" value={finance?.week_done ? 'CLOSED' : 'OPEN'} color={finance?.week_done ? G : Y} />
-        <Field label="ACTION" value={finance?.week_done ? 'RECORDED' : 'APPROVAL NEEDED'} color={finance?.week_done ? G : Y} />
-      </RoomCard>
-      <RoomCard label="RUNWAY" title="Cash posture">
-        <Field label="CASH SLEEVE" value={cash?.v || money(impliedCash)} color={W} />
-        <Field label="CASH WEIGHT" value={`${cashWeight.toFixed(1)}%`} color={cash?.dir === 'FEED' ? Y : G} />
-        <Field label="DIRECTIVE" value={cash?.dir || 'HOLD'} color={sleeveColor(cash)} />
-      </RoomCard>
-      <RoomCard label="BOUNDARY" title="Manual lane">
-        <p style={{ margin: 0, fontFamily: FB, fontSize: 15, lineHeight: 1.55, color: mix(BODY, 88) }}>
-          Cash view shows runway and deployment pressure only. No cash movement, no broker bridge, no placed trade.
-        </p>
-      </RoomCard>
-    </div>
   )
 }
 
