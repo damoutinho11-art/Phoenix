@@ -3,12 +3,14 @@ import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTok
 import { APPROVE_CHECKS, HOLDINGS } from '../holoDomains'
 import { ApproveContent, HoldingsContent, BriefContent } from './FinanceSubs'
 import { BudgetContent } from './BudgetContent'
+import { PerformanceContent } from './PerformanceContent'
 
-const TABS = ['ACTION', 'PORTFOLIO', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']
+const TABS = ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']
 
 const TAB_META = {
   ACTION: ['APPROVAL VECTOR', 'Manual order gate', G],
   PORTFOLIO: ['ORBITAL MAP', 'Sleeve allocation', ACC],
+  PERFORMANCE: ['VALUE CURVE', 'Portfolio over time', ACC],
   INTEL: ['WEEKLY SIGNAL', 'Brief transmission', Y],
   BUDGET: ['MONTHLY LEDGER', 'Income vs spending', ACC],
   HISTORY: ['AUDIT STREAM', 'Source trail', W],
@@ -77,6 +79,11 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
               {tab === 'PORTFOLIO' && (
                 <RoomStage label={holdings?.meta || 'PORTFOLIO ORBIT'} color={ACC} immersive>
                   <HoldingsContent sel={holdSel} onSel={setHoldSel} live={holdings} />
+                </RoomStage>
+              )}
+              {tab === 'PERFORMANCE' && (
+                <RoomStage label="VALUE CURVE" color={ACC}>
+                  <PerformanceContent />
                 </RoomStage>
               )}
               {tab === 'INTEL' && (

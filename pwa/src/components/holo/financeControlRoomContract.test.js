@@ -23,7 +23,7 @@ test('finance projection opens the Finance Control Room as the primary action', 
 test('finance control room exposes refined lanes with action as the default', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
 
-  for (const label of ['ACTION', 'PORTFOLIO', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']) {
+  for (const label of ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']) {
     assert.match(room, new RegExp(`'${label}'`))
   }
 
@@ -52,6 +52,21 @@ test('budget lane can upload a statement: parse text/pdf, review categories, sav
   assert.match(budget, /CategoryPicker/)
   // save refetches the ledger rather than leaving stale data on screen
   assert.match(budget, /afterSave/)
+})
+
+test('performance lane plots real snapshots only and never fabricates returns', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+  const perf = await src('./subs/PerformanceContent.jsx')
+
+  assert.match(room, /PerformanceContent/)
+  assert.match(perf, /getFinancePerformanceHistory/)
+  // change-over-time chart with a hover layer
+  assert.match(perf, /polyline/)
+  assert.match(perf, /onMouseMove/)
+  // needs >= 2 points to draw a trend; single/zero states are handled
+  assert.match(perf, /length < 2/)
+  // honest safety framing — no simulated returns
+  assert.match(perf, /NO SIMULATED RETURNS/)
 })
 
 test('budget lane can edit and save budget memory (savings target + category lanes)', async () => {
