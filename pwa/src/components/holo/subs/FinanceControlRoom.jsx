@@ -4,15 +4,19 @@ import { APPROVE_CHECKS, HOLDINGS } from '../holoDomains'
 import { ApproveContent, HoldingsContent, BriefContent } from './FinanceSubs'
 import { BudgetContent } from './BudgetContent'
 import { PerformanceContent } from './PerformanceContent'
+import { BriefHistoryContent } from './BriefHistoryContent'
+import { ResearchContent } from './ResearchContent'
 
-const TABS = ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']
+const TABS = ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'RESEARCH', 'BUDGET', 'BRIEFS', 'HISTORY', 'CASH']
 
 const TAB_META = {
   ACTION: ['APPROVAL VECTOR', 'Manual order gate', G],
   PORTFOLIO: ['ORBITAL MAP', 'Sleeve allocation', ACC],
   PERFORMANCE: ['VALUE CURVE', 'Portfolio over time', ACC],
   INTEL: ['WEEKLY SIGNAL', 'Brief transmission', Y],
+  RESEARCH: ['MEMO LIBRARY', 'Analysis · no trades', ACC],
   BUDGET: ['MONTHLY LEDGER', 'Income vs spending', ACC],
+  BRIEFS: ['DECISION LOG', 'Past briefs + outcomes', G],
   HISTORY: ['AUDIT STREAM', 'Source trail', W],
   CASH: ['RUNWAY', 'Portfolio cash sleeve', G],
 }
@@ -91,9 +95,19 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
                   <BriefContent />
                 </RoomStage>
               )}
+              {tab === 'RESEARCH' && (
+                <RoomStage label="MEMO LIBRARY" color={ACC}>
+                  <ResearchContent />
+                </RoomStage>
+              )}
               {tab === 'BUDGET' && (
                 <RoomStage label="MONTHLY LEDGER" color={ACC}>
                   <BudgetContent />
+                </RoomStage>
+              )}
+              {tab === 'BRIEFS' && (
+                <RoomStage label="DECISION LOG" color={G}>
+                  <BriefHistoryContent />
                 </RoomStage>
               )}
               {tab === 'HISTORY' && <AuditPanel finance={finance} alerts={alerts} />}

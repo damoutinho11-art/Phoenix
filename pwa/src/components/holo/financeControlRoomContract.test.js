@@ -23,7 +23,7 @@ test('finance projection opens the Finance Control Room as the primary action', 
 test('finance control room exposes refined lanes with action as the default', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
 
-  for (const label of ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'BUDGET', 'HISTORY', 'CASH']) {
+  for (const label of ['ACTION', 'PORTFOLIO', 'PERFORMANCE', 'INTEL', 'RESEARCH', 'BUDGET', 'BRIEFS', 'HISTORY', 'CASH']) {
     assert.match(room, new RegExp(`'${label}'`))
   }
 
@@ -67,6 +67,26 @@ test('performance lane plots real snapshots only and never fabricates returns', 
   assert.match(perf, /length < 2/)
   // honest safety framing — no simulated returns
   assert.match(perf, /NO SIMULATED RETURNS/)
+})
+
+test('briefs lane surfaces past briefs with defer/reject/delete actions', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+  const briefs = await src('./subs/BriefHistoryContent.jsx')
+
+  assert.match(room, /BriefHistoryContent/)
+  assert.match(briefs, /getFinanceBriefHistory/)
+  assert.match(briefs, /postBriefAction/)
+  assert.match(briefs, /deleteBrief/)
+})
+
+test('research lane surfaces memos + validation records, read-only and never a trade', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+  const research = await src('./subs/ResearchContent.jsx')
+
+  assert.match(room, /ResearchContent/)
+  assert.match(research, /getFinanceResearchMemos/)
+  assert.match(research, /getFinanceResearchValidationRecords/)
+  assert.match(research, /NO TRADES EXECUTED/)
 })
 
 test('budget lane can edit and save budget memory (savings target + category lanes)', async () => {
