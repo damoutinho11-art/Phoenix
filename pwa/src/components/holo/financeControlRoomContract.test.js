@@ -119,11 +119,23 @@ test('finance control room reuses existing finance instrument designs', async ()
 
 test('finance control room keeps manual-only safety and avoids automatic trading language', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
+  const subs = await src('./subs/FinanceSubs.jsx')
   const combined = `${room}`.toLowerCase()
 
-  assert.match(room, /PHOENIX NEVER EXECUTES ORDERS/)
+  // slim header safety chip in the room; the full no-execute promise lives in
+  // the Approve sub-screen, next to the point of action
   assert.match(room, /MANUAL ONLY/)
+  assert.match(subs, /PHOENIX NEVER EXECUTES ORDERS/)
   for (const forbidden of ['auto trade', 'autotrade', 'automatic order', 'order executed for you']) {
     assert.equal(combined.includes(forbidden), false)
   }
+})
+
+test('finance control room drops the redundant context rail', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+
+  assert.doesNotMatch(room, /ContextRail/)
+  assert.doesNotMatch(room, /ROOM STATUS/)
+  // the one kept status signal: live vs fixture data
+  assert.match(room, /'LIVE' : 'FIXTURE'/)
 })

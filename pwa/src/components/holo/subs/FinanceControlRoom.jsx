@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTokens'
-import { APPROVE_CHECKS } from '../holoDomains'
+import { useState } from 'react'
+import { ACC, G, Y, W, INK, FM, FB, a, mix, deep } from '../holoTokens'
 import { ApproveContent, HoldingsContent, BriefContent } from './FinanceSubs'
 import { BudgetContent } from './BudgetContent'
 import { PerformanceContent } from './PerformanceContent'
@@ -24,18 +23,7 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
   const [briefSub, setBriefSub] = useState('SIGNAL')
   const [portSub, setPortSub] = useState('HOLDINGS')
   const [holdSel, setHoldSel] = useState(0)
-  const verified = stamped ? APPROVE_CHECKS.length : checks.filter(Boolean).length
   const activeMeta = TAB_META[tab]
-  const alerts = finance?.sleeve_summary?.filter(s => s.band_status !== 'within_band') || []
-
-  const contextRows = useMemo(() => [
-    ['ACTIVE LANE', activeMeta[0], activeMeta[2]],
-    ['SOURCE', finance ? 'LIVE FINANCE' : 'FIXTURE FALLBACK', finance ? G : Y],
-    ['WEEK', finance?.week_label || 'W28', W],
-    ['CONSTITUTION', finance?.constitution_valid === false ? 'INVALID' : 'VALID', finance?.constitution_valid === false ? R : G],
-    ['MANUAL SAFETY', 'PHOENIX NEVER EXECUTES ORDERS', G],
-    ['MODE', 'MANUAL ONLY', G],
-  ], [activeMeta, finance])
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 82, background: 'color-mix(in srgb, black 72%, transparent)', backdropFilter: 'blur(8px)', animation: 'holo-fadeIn .25s ease both' }}>
@@ -47,13 +35,19 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
             <div style={{ marginTop: 5, fontFamily: FB, fontSize: 26, color: W, fontWeight: 400, lineHeight: 1.05 }}>Capital operations deck</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <div style={{ minHeight: 36, display: 'grid', placeItems: 'center', padding: '0 12px', border: `1px solid ${a(activeMeta[2], '40')}`, background: a(activeMeta[2], '10'), fontFamily: FM, fontSize: 8, letterSpacing: '.18em', color: activeMeta[2] }}>{activeMeta[0]}</div>
+            {/* data source + week: the one at-a-glance status worth keeping */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 36, padding: '0 11px', border: `1px solid ${a(ACC, '2a')}`, background: deep(58), fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, 'cc') }}>
+              <i style={{ width: 6, height: 6, borderRadius: 99, background: finance ? G : Y, boxShadow: `0 0 7px ${finance ? G : Y}` }} />
+              {finance ? 'LIVE' : 'FIXTURE'} · {finance?.week_label || 'W28'}
+            </span>
+            {/* single manual-only safety chip */}
+            <span title="Phoenix never executes orders — you place every trade manually" style={{ minHeight: 36, display: 'grid', placeItems: 'center', padding: '0 11px', border: `1px solid ${mix(G, 34)}`, background: mix(G, 7), fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: G }}>MANUAL ONLY</span>
             <button onClick={onClose} style={{ minHeight: 36, padding: '0 14px', fontFamily: FM, fontSize: 8, letterSpacing: '.18em', color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer', flexShrink: 0 }}>RETURN TO PROJECTION</button>
           </div>
         </header>
 
-        <div style={{ position: 'relative', display: 'flex', gap: 14, height: 'calc(100% - 78px)', padding: 14, overflow: 'auto', alignItems: 'stretch', flexWrap: 'wrap' }}>
-          <main style={{ flex: '1 1 690px', minWidth: 'min(100%, 300px)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ position: 'relative', height: 'calc(100% - 78px)', padding: 14, overflow: 'auto' }}>
+          <main style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
             <nav style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))', gap: 7, flexShrink: 0 }}>
               {TABS.map(label => {
                 const [lane, sub, color] = TAB_META[label]
@@ -115,10 +109,6 @@ export default function FinanceControlRoom({ onClose, checks = [], stamped, onTo
               )}
             </section>
           </main>
-
-          <aside style={{ flex: '0 1 286px', minWidth: 'min(100%, 236px)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <ContextRail rows={contextRows} verified={verified} stamped={stamped} alerts={alerts.length} />
-          </aside>
         </div>
       </div>
     </div>
@@ -151,45 +141,6 @@ function RoomStage({ label, color = ACC, immersive = false, children }) {
         {children}
       </div>
     </div>
-  )
-}
-
-function Field({ label, value, color = W }) {
-  return (
-    <div style={{ minWidth: 0, padding: '9px 0', borderTop: `1px solid ${a(ACC, '16')}` }}>
-      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.18em', color: a(ACC, '88') }}>{label}</div>
-      <div style={{ marginTop: 4, fontFamily: FD, fontSize: 17, fontWeight: 700, color, overflowWrap: 'anywhere' }}>{value}</div>
-    </div>
-  )
-}
-
-function RoomCard({ label, title, children, style }) {
-  return (
-    <section style={{ minWidth: 0, border: `1px solid ${a(ACC, '26')}`, background: `linear-gradient(180deg, ${a(ACC, '0d')}, ${deep(76)})`, boxShadow: `inset 0 0 38px ${a(ACC, '07')}`, padding: 14, clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)', ...style }}>
-      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.24em', color: a(ACC, '95'), marginBottom: 5 }}>{label}</div>
-      {title && <div style={{ fontFamily: FB, fontSize: 21, fontWeight: 400, color: W, lineHeight: 1.15, marginBottom: 11 }}>{title}</div>}
-      {children}
-    </section>
-  )
-}
-
-function ContextRail({ rows, verified, stamped, alerts }) {
-  return (
-    <>
-      <RoomCard label="ROOM STATUS" title="Control rail">
-        {rows.map(([label, value, color]) => <Field key={label} label={label} value={value} color={color} />)}
-      </RoomCard>
-      <RoomCard label="APPROVAL" title={stamped ? 'Stamped' : 'Pending'}>
-        <div style={{ position: 'relative', height: 12, background: a(ACC, '12'), border: `1px solid ${a(ACC, '22')}`, overflow: 'hidden', marginBottom: 9 }}>
-          <div style={{ height: '100%', width: `${(verified / APPROVE_CHECKS.length) * 100}%`, background: stamped ? G : ACC, boxShadow: `0 0 12px ${stamped ? G : ACC}`, transition: 'width .35s ease' }} />
-        </div>
-        <div style={{ fontFamily: FD, fontSize: 34, fontWeight: 700, color: W }}>{verified}/{APPROVE_CHECKS.length}</div>
-        <div style={{ marginTop: 6, fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: stamped ? G : Y }}>{stamped ? 'WEEK APPROVED' : 'CHECKS REQUIRED'}</div>
-      </RoomCard>
-      <RoomCard label="DRIFT" title={`${alerts || 1} alert${(alerts || 1) === 1 ? '' : 's'}`}>
-        <Field label="WATCH" value={(alerts || 1) > 1 ? 'MULTI SLEEVE' : 'BITCOIN / CASH'} color={alerts ? Y : G} />
-      </RoomCard>
-    </>
   )
 }
 
