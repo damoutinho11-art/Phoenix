@@ -9,6 +9,7 @@ import {
   getBudgetMemory,
   saveBudgetMemory,
 } from '../../../api/client'
+import { financeButton, financeLabel, financeMicro } from './financeReadability'
 
 // Category grouping mirrors the original BudgetDashboard so the holo view
 // classifies transactions identically (savings-rate math stays the same).
@@ -56,8 +57,8 @@ function BreakdownGroup({ title, subtitle, rows, color }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(color, 'cc') }}>{title}</span>
-        <span style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.1em', color: a(ACC, '77'), textAlign: 'right' }}>{subtitle}</span>
+        <span style={financeLabel({ fontSize: 9, letterSpacing: '.16em', color: a(color, 'cc') })}>{title}</span>
+        <span style={financeMicro({ color: a(ACC, '77'), textAlign: 'right' })}>{subtitle}</span>
       </div>
       <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(76) }}>
         {rows.map(([cat, data], i) => (
@@ -79,7 +80,7 @@ function BreakdownGroup({ title, subtitle, rows, color }) {
 function StatTile({ label, value, color }) {
   return (
     <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(58), padding: '11px 12px', textAlign: 'center' }}>
-      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: a(ACC, '88'), marginBottom: 5 }}>{label}</div>
+      <div style={{ ...financeMicro({ color: a(ACC, '88') }), marginBottom: 5 }}>{label}</div>
       <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color }}>{value}</div>
     </div>
   )
@@ -87,7 +88,7 @@ function StatTile({ label, value, color }) {
 
 function AddButton({ onClick, label }) {
   return (
-    <button onClick={onClick} style={{ minHeight: 44, padding: '0 20px', fontFamily: FM, fontSize: '9.5px', letterSpacing: '.2em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{label}</button>
+    <button onClick={onClick} style={{ minHeight: 44, padding: '0 20px', ...financeButton({ color: INK }), background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{label}</button>
   )
 }
 
@@ -158,8 +159,8 @@ export function BudgetContent() {
       {/* month picker */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.24em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
-          <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ MEMORY</button>
+          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
+          <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ MEMORY</button>
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <button onClick={prev} disabled={idx >= months.length - 1} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx >= months.length - 1 ? 'not-allowed' : 'pointer' }}>‹</button>
@@ -169,13 +170,13 @@ export function BudgetContent() {
       </div>
 
       {loading && (
-        <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.24em', color: a(ACC, '99') }}>LOADING LEDGER…</div>
+        <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING LEDGER…</div>
       )}
 
       {!loading && !hasData && (
         <div style={{ padding: '40px 18px', textAlign: 'center', border: `1px dashed ${a(ACC, '30')}`, background: deep(60) }}>
           <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: ACC, marginBottom: 8 }}>No transactions for {fmtMonth(month)}</div>
-          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: a(ACC, '99'), lineHeight: 1.7, marginBottom: 18 }}>
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), lineHeight: 1.7, marginBottom: 18 }}>
             UPLOAD A STATEMENT TO POPULATE THIS MONTH.
           </div>
           <AddButton onClick={() => setMode('upload')} label="+ ADD TRANSACTIONS" />
@@ -186,8 +187,8 @@ export function BudgetContent() {
         <>
           <div style={{ textAlign: 'center', padding: '6px 0 4px' }}>
             <div style={{ fontFamily: FD, fontSize: 58, fontWeight: 700, lineHeight: 1, color: savingsGood ? G : ACC, textShadow: `0 0 40px ${mix(savingsGood ? G : ACC, 33)}` }}>{rate}%</div>
-            <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.2em', color: a(ACC, '99'), marginTop: 7 }}>SAVINGS RATE · TARGET 25%</div>
-            {!savingsGood && <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.15em', color: Y, marginTop: 4 }}>BELOW TARGET</div>}
+            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 7 }}>SAVINGS RATE · TARGET 25%</div>
+            {!savingsGood && <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.15em', color: Y, marginTop: 4 }}>BELOW TARGET</div>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
@@ -203,7 +204,7 @@ export function BudgetContent() {
 
           {summary.insight && (
             <div style={{ marginTop: 16, padding: '12px 14px', background: deep(76), border: `1px solid ${a(ACC, '20')}`, borderLeft: `3px solid ${a(ACC, '99')}` }}>
-              <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.18em', color: a(ACC, '99'), marginBottom: 6 }}>PHOENIX ASSESSMENT</div>
+              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99'), marginBottom: 6 }}>PHOENIX ASSESSMENT</div>
               <div style={{ fontFamily: FB, fontSize: 13, lineHeight: 1.6, color: mix(BODY, 90) }}>{summary.insight}</div>
             </div>
           )}
@@ -265,13 +266,13 @@ function UploadStage({ onDone, onCancel }) {
   const inputTab = (id, label) => (
     <button key={id} onClick={() => { setInput(id); setError('') }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
   )
-  const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
+  const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.24em', color: a(ACC, 'cc') }}>{transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}</span>
-        <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>{transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}</span>
+        <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
       </div>
 
       {!transactions ? (
@@ -283,18 +284,18 @@ function UploadStage({ onDone, onCancel }) {
 
           {input === 'pdf' ? (
             <>
-              <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>UPLOAD A TEXT-BASED BANK PDF</div>
+              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>UPLOAD A TEXT-BASED BANK PDF</div>
               <label htmlFor="holo-budget-pdf" style={{ display: 'block', padding: '26px 14px', textAlign: 'center', cursor: 'pointer', border: `1px ${pdfFile ? 'solid' : 'dashed'} ${a(ACC, pdfFile ? '60' : '30')}`, background: deep(pdfFile ? 66 : 55) }}>
                 <input id="holo-budget-pdf" type="file" accept="application/pdf,.pdf" onChange={e => { setPdfFile(e.target.files?.[0] || null); setError('') }} style={{ display: 'none' }} />
                 <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, letterSpacing: '.14em', color: pdfFile ? W : a(ACC, '99'), marginBottom: 6 }}>{pdfFile ? pdfFile.name : 'TAP TO SELECT PDF'}</div>
-                <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.06em', color: a(ACC, '77'), lineHeight: 1.6 }}>Text-based PDFs only · max 8 MB · parsed, not stored</div>
+                <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.06em', color: a(ACC, '77'), lineHeight: 1.6 }}>Text-based PDFs only · max 8 MB · parsed, not stored</div>
               </label>
               {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginTop: 8 }}>{error}</div>}
               <button onClick={parsePdf} disabled={!pdfFile || parsing} style={parseBtnStyle(!!pdfFile && !parsing)}>{parsing ? 'EXTRACTING PDF…' : 'PARSE PDF TRANSACTIONS'}</button>
             </>
           ) : (
             <>
-              <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>PASTE BANK TRANSACTIONS</div>
+              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>PASTE BANK TRANSACTIONS</div>
               <textarea value={raw} onChange={e => setRaw(e.target.value)} placeholder="Paste your statement text here…" className="phx-input" style={{ width: '100%', minHeight: 200, fontFamily: FM, fontSize: 12, padding: 12, resize: 'vertical', boxSizing: 'border-box' }} />
               {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginTop: 8 }}>{error}</div>}
               <button onClick={parseText} disabled={!raw.trim() || parsing} style={parseBtnStyle(!!raw.trim() && !parsing)}>{parsing ? 'PARSING…' : 'PARSE TRANSACTIONS'}</button>
@@ -303,15 +304,15 @@ function UploadStage({ onDone, onCancel }) {
         </>
       ) : (
         <>
-          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 10 }}>{transactions.length} TRANSACTIONS FOUND · TAP CATEGORY TO EDIT</div>
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 10 }}>{transactions.length} TRANSACTIONS FOUND · TAP CATEGORY TO EDIT</div>
           <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(76), marginBottom: 14 }}>
             {transactions.map((t, i) => (
               <div key={i} style={{ padding: '10px 14px', borderBottom: i < transactions.length - 1 ? `1px solid ${a(ACC, '10')}` : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: FB, fontSize: 13, color: mix(BODY, 90), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.merchant}</div>
-                  <div style={{ fontFamily: FM, fontSize: 8, color: a(ACC, '77') }}>{t.date}</div>
+                  <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '77') }}>{t.date}</div>
                 </div>
-                <button onClick={() => setPickerIdx(i)} style={{ padding: '4px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 8, letterSpacing: '.06em', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t.category}</button>
+                <button onClick={() => setPickerIdx(i)} style={{ padding: '4px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 9, letterSpacing: '.06em', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t.category}</button>
                 <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: t.is_income ? G : W, flexShrink: 0 }}>{t.is_income ? '+' : ''}€{Math.abs(t.amount_eur).toFixed(2)}</div>
               </div>
             ))}
@@ -342,7 +343,7 @@ const parseList = v => String(v || '').split(',').map(s => s.trim()).filter(Bool
 function MemField({ label, children }) {
   return (
     <label style={{ display: 'block' }}>
-      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: a(ACC, '88'), marginBottom: 6 }}>{label}</div>
+      <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '88'), marginBottom: 6 }}>{label}</div>
       {children}
     </label>
   )
@@ -353,7 +354,7 @@ function ChipRow({ items }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
       {items.map(c => (
-        <span key={c} style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 8px', border: `1px solid ${mix(catColor(c), 33)}`, color: catColor(c), background: mix(catColor(c), 10), fontFamily: FM, fontSize: 8, letterSpacing: '.06em' }}>{c}</span>
+        <span key={c} style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 8px', border: `1px solid ${mix(catColor(c), 33)}`, color: catColor(c), background: mix(catColor(c), 10), fontFamily: FM, fontSize: 9, letterSpacing: '.06em' }}>{c}</span>
       ))}
     </div>
   )
@@ -407,18 +408,18 @@ function MemoryStage({ onDone, onCancel }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.24em', color: a(ACC, 'cc') }}>BUDGET MEMORY</span>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>BUDGET MEMORY</span>
         <span style={{ display: 'inline-flex', gap: 8 }}>
-          <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
-          <button onClick={save} disabled={saving || loading} style={{ minHeight: 30, padding: '0 16px', fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: '.16em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'SAVING…' : 'SAVE'}</button>
+          <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
+          <button onClick={save} disabled={saving || loading} style={{ minHeight: 30, padding: '0 16px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'SAVING…' : 'SAVE'}</button>
         </span>
       </div>
 
-      {loading && <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.24em', color: a(ACC, '99') }}>LOADING MEMORY…</div>}
+      {loading && <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING MEMORY…</div>}
 
       {!loading && profile && (
         <>
-          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), marginBottom: 10 }}>CORE RULES</div>
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), marginBottom: 10 }}>CORE RULES</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
             <MemField label="SAVINGS TARGET %">
               <input className="phx-input" type="number" min="0" max="100" style={inputStyle} value={profile.savings_target_pct ?? 25} onChange={e => update({ savings_target_pct: Number(e.target.value || 0) })} />
@@ -433,7 +434,7 @@ function MemoryStage({ onDone, onCancel }) {
             </MemField>
           </div>
 
-          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CATEGORY LANES</div>
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CATEGORY LANES</div>
           <div style={{ display: 'grid', gap: 12 }}>
             <MemField label="FIXED CATEGORIES">
               <input className="phx-input" style={inputStyle} value={fixed.join(', ')} onChange={e => updateList('fixed_categories', e.target.value)} />
@@ -451,29 +452,29 @@ function MemoryStage({ onDone, onCancel }) {
 
           {rules.length > 0 && (
             <>
-              <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>MERCHANT MEMORY <span style={{ color: a(ACC, '77') }}>· {rules.length} RULES · READ ONLY</span></div>
+              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>MERCHANT MEMORY <span style={{ color: a(ACC, '77') }}>· {rules.length} RULES · READ ONLY</span></div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {rules.map((rule, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '9px 11px', border: `1px solid ${a(ACC, '14')}`, background: deep(58) }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 5 }}>
-                        {(rule.contains || []).map(tok => <span key={tok} style={{ padding: '3px 7px', border: `1px solid ${a(ACC, '22')}`, color: mix(BODY, 80), fontFamily: FM, fontSize: 8 }}>{tok}</span>)}
+                        {(rule.contains || []).map(tok => <span key={tok} style={{ padding: '3px 7px', border: `1px solid ${a(ACC, '22')}`, color: mix(BODY, 80), fontFamily: FM, fontSize: 9 }}>{tok}</span>)}
                       </div>
-                      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.12em', color: a(ACC, '77') }}>
+                      <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, '77') }}>
                         {rule.is_income ? 'INCOME' : 'OUTFLOW'}{rule.fixed ? ' · FIXED' : ''}{rule.budget_month ? ' · ' + String(rule.budget_month).replace(/_/g, ' ').toUpperCase() : ''}
                       </div>
                     </div>
-                    <span style={{ flexShrink: 0, padding: '4px 8px', border: `1px solid ${mix(catColor(rule.category), 33)}`, color: catColor(rule.category), background: mix(catColor(rule.category), 10), fontFamily: FM, fontSize: 8 }}>{rule.category || 'Other'}</span>
+                    <span style={{ flexShrink: 0, padding: '4px 8px', border: `1px solid ${mix(catColor(rule.category), 33)}`, color: catColor(rule.category), background: mix(catColor(rule.category), 10), fontFamily: FM, fontSize: 9 }}>{rule.category || 'Other'}</span>
                   </div>
                 ))}
               </div>
             </>
           )}
 
-          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, 'cc'), margin: '16px 0 8px' }}>ADVANCED MEMORY JSON <span style={{ color: a(ACC, '77') }}>· EDIT CAREFULLY</span></div>
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 8px' }}>ADVANCED MEMORY JSON <span style={{ color: a(ACC, '77') }}>· EDIT CAREFULLY</span></div>
           <textarea className="phx-input" value={draft} spellCheck={false} onChange={e => { setDraft(e.target.value); setError('') }} style={{ width: '100%', boxSizing: 'border-box', minHeight: 200, resize: 'vertical', fontFamily: FM, fontSize: 10, lineHeight: 1.55, padding: 11 }} />
           {error && <div style={{ marginTop: 10, color: R, fontFamily: FB, fontSize: 12 }}>{error}</div>}
-          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: '100%', minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.2em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING MEMORY…' : 'SAVE BUDGET MEMORY'}</button>
+          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: '100%', minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING MEMORY…' : 'SAVE BUDGET MEMORY'}</button>
         </>
       )}
     </div>

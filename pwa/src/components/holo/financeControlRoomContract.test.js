@@ -37,6 +37,86 @@ test('finance control room consolidates into four lanes with brief as the defaul
   assert.match(room, /RETURN TO PROJECTION/)
 })
 
+test('finance control room uses the projected main-finance shell and pop animation', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+
+  assert.match(room, /FINANCE_ROOM_MOTION_CSS/)
+  for (const name of [
+    'holo-financeRoomScrim',
+    'holo-financeRoomPop',
+    'holo-financeRoomScan',
+    'holo-financeRoomDivider',
+    'holo-financeLaneIn',
+    'holo-financeInstrumentIn',
+  ]) {
+    assert.match(room, new RegExp(name))
+  }
+
+  assert.match(room, /PROJECTED FINANCE LAYER/)
+  assert.match(room, /translate\(-50%,-50%\)/)
+  assert.match(room, /maxHeight:\s*'calc\(100vh - 170px\)'/)
+  assert.match(room, /holo-finance-room-scrim/)
+  assert.match(room, /holo-finance-room-shell/)
+  assert.doesNotMatch(room, /inset:\s*'16px 16px calc\(66px/)
+})
+
+test('finance control room chrome stays finance-blue instead of mixed domain status colors', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+
+  assert.match(room, /BRIEF:\s*\['WEEKLY CYCLE', 'Signal · approve · log', ACC\]/)
+  assert.match(room, /PORTFOLIO:\s*\['PORTFOLIO', 'Holdings · value curve', ACC\]/)
+  assert.match(room, /BUDGET:\s*\['MONTHLY LEDGER', 'Income vs spending', ACC\]/)
+  assert.match(room, /RESEARCH:\s*\['MEMO LIBRARY', 'Analysis · no trades', ACC\]/)
+  assert.doesNotMatch(room, /background:\s*finance \? G : Y/)
+  assert.doesNotMatch(room, /color=\{G\}/)
+  assert.doesNotMatch(room, /color=\{Y\}/)
+  assert.doesNotMatch(room, /color:\s*G/)
+})
+
+test('finance signal brief reads the real finance brief endpoint, not fixture copy', async () => {
+  const subs = await src('./subs/FinanceSubs.jsx')
+
+  assert.match(subs, /getFinanceBrief/)
+  assert.match(subs, /getFinanceRecommendation/)
+  assert.match(subs, /formatRecommendationBrief/)
+  assert.doesNotMatch(subs, /BRIEF_TEXT/)
+  assert.match(subs, /LOADING REAL BRIEF/)
+  assert.match(subs, /UNABLE TO LOAD FINANCE BRIEF/)
+  assert.match(subs, /AI brief unavailable/)
+  assert.match(subs, /briefText\.slice\(0, n\)/)
+})
+
+test('finance room uses one readable text system across every finance surface', async () => {
+  const readability = await src('./subs/financeReadability.js')
+  const financeFiles = [
+    './subs/FinanceControlRoom.jsx',
+    './subs/FinanceSubs.jsx',
+    './subs/BudgetContent.jsx',
+    './subs/PerformanceContent.jsx',
+    './subs/BriefHistoryContent.jsx',
+    './subs/ResearchContent.jsx',
+    './subs/LedgerContent.jsx',
+  ]
+
+  assert.match(readability, /FINANCE_TEXT_SYSTEM/)
+  assert.match(readability, /financeMicro/)
+  assert.match(readability, /financeBody/)
+  assert.match(readability, /financeMonoBody/)
+  assert.match(readability, /fontSize:\s*9/)
+  assert.match(readability, /fontSize:\s*14/)
+
+  for (const file of financeFiles) {
+    const source = await src(file)
+    assert.match(source, /finance(Micro|Label|Body|MonoBody|Value)|FINANCE_TEXT_SYSTEM/, `${file} should use the shared finance text system`)
+    assert.doesNotMatch(source, /fontSize:\s*['"]?(?:6(?:\.5)?|7(?:\.5)?)(?:px)?['"]?/, `${file} should not render sub-8px finance text`)
+    assert.doesNotMatch(source, /letterSpacing:\s*'\.3em'/, `${file} should avoid hard-to-read extreme tracking`)
+  }
+
+  const subs = await src('./subs/FinanceSubs.jsx')
+  assert.match(subs, /fontSize:\s*'14\.5px'/)
+  assert.match(subs, /lineHeight:\s*1\.78/)
+})
+
 test('finance control room surfaces the budget ledger from the real endpoint', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
   const budget = await src('./subs/BudgetContent.jsx')

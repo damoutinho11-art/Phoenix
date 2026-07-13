@@ -6,6 +6,7 @@ import {
   getFinanceResearchMemo,
   deleteFinanceResearchMemo,
 } from '../../../api/client'
+import { financeBody, financeLabel, financeMicro } from './financeReadability'
 
 const verdictColor = { BUY_CANDIDATE: G, WATCH: ACC, REJECT: R, INSUFFICIENT_DATA: Y }
 const valColor = { PASS: G, WARNING: Y, FAIL: R, UNVERIFIED: ACC }
@@ -45,47 +46,47 @@ function MemoCard({ memo, onDelete }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, lineHeight: 1.25 }}>{memo.title}</div>
-          <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), marginTop: 4, letterSpacing: '.1em' }}>{[memo.asset, memo.sleeve].filter(Boolean).join(' · ').toUpperCase() || 'UNSCOPED'}</div>
+          <div style={{ ...financeMicro({ color: a(ACC, '99') }), marginTop: 4 }}>{[memo.asset, memo.sleeve].filter(Boolean).join(' · ').toUpperCase() || 'UNSCOPED'}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexShrink: 0 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: FM, fontSize: 7, color: vc, letterSpacing: '.1em' }}>{memo.verdict}</div>
-            <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), marginTop: 3 }}>{String(memo.status).toUpperCase()}</div>
+            <div style={{ fontFamily: FM, fontSize: 9, color: vc, letterSpacing: '.1em' }}>{memo.verdict}</div>
+            <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99'), marginTop: 3 }}>{String(memo.status).toUpperCase()}</div>
           </div>
           <button onClick={del} disabled={deleting} style={{ background: 'none', border: 'none', color: mix(R, 40), fontFamily: FM, fontSize: 10, cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}>{deleting ? '…' : '✕'}</button>
         </div>
       </div>
 
-      <div style={{ marginTop: 10, fontFamily: FB, fontSize: 12, lineHeight: 1.65, color: mix(BODY, 82), whiteSpace: 'pre-wrap' }}>{memo.thesis}</div>
+      <div style={{ marginTop: 10, ...financeBody({ fontSize: 13, lineHeight: 1.65, color: mix(BODY, 84) }), whiteSpace: 'pre-wrap' }}>{memo.thesis}</div>
 
       {Array.isArray(memo.risks) && memo.risks.length > 0 && (
         <div style={{ marginTop: 9 }}>
-          <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), letterSpacing: '.14em', marginBottom: 4 }}>RISKS</div>
+          <div style={{ ...financeLabel({ fontSize: 9, color: a(ACC, '99') }), marginBottom: 4 }}>RISKS</div>
           {memo.risks.map((rk, i) => <div key={i} style={{ fontFamily: FB, fontSize: 11, color: mix(Y, 78), lineHeight: 1.5 }}>· {rk}</div>)}
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 10, fontFamily: FM, fontSize: 7, color: a(ACC, '99') }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 10, ...financeMicro({ color: a(ACC, '99') }) }}>
         <span>CONFIDENCE {memo.data_confidence}</span>
         <span>{fmtDate(memo.created_at)}</span>
       </div>
 
       <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${a(ACC, '12')}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontFamily: FM, fontSize: 7, color: qColor, letterSpacing: '.1em' }}>{qLabel}</span>
-        <button onClick={toggleEvidence} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: FM, fontSize: 7, letterSpacing: '.1em', color: ACC }}>{open ? 'HIDE EVIDENCE' : 'VIEW EVIDENCE'}</button>
+        <span style={{ fontFamily: FM, fontSize: 9, color: qColor, letterSpacing: '.1em' }}>{qLabel}</span>
+        <button onClick={toggleEvidence} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', ...financeMicro({ color: ACC }) }}>{open ? 'HIDE EVIDENCE' : 'VIEW EVIDENCE'}</button>
       </div>
-      <div style={{ fontFamily: FM, fontSize: 6, color: a(ACC, '77'), marginTop: 4, letterSpacing: '.1em' }}>RESEARCH TRUST ONLY · NOT A TRADE SIGNAL</div>
+      <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '77'), marginTop: 4, letterSpacing: '.1em' }}>RESEARCH TRUST ONLY · NOT A TRADE SIGNAL</div>
 
       {open && (
         <div style={{ marginTop: 10 }}>
-          {!detail && !detailErr && <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99') }}>LOADING LINKED EVIDENCE…</div>}
-          {detailErr && <div style={{ fontFamily: FM, fontSize: 7, color: R }}>UNABLE TO LOAD LINKED EVIDENCE</div>}
+          {!detail && !detailErr && <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99') }}>LOADING LINKED EVIDENCE…</div>}
+          {detailErr && <div style={{ fontFamily: FM, fontSize: 9, color: R }}>UNABLE TO LOAD LINKED EVIDENCE</div>}
           {detail && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 8 }}>
                 {[['PASS', detail.evidence_summary?.pass_count], ['WARN', detail.evidence_summary?.warning_count], ['FAIL', detail.evidence_summary?.fail_count], ['OPEN', detail.evidence_summary?.unverified_count]].map(([l, v]) => (
                   <div key={l} style={{ padding: '6px 3px', border: `1px solid ${a(ACC, '12')}`, textAlign: 'center' }}>
-                    <div style={{ fontFamily: FM, fontSize: 6, color: a(ACC, '99') }}>{l}</div>
+                    <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99') }}>{l}</div>
                     <div style={{ fontFamily: FD, fontSize: 13, color: ACC, marginTop: 2 }}>{v ?? 0}</div>
                   </div>
                 ))}
@@ -94,10 +95,10 @@ function MemoCard({ memo, onDelete }) {
               {detail.validation_records?.map(rec => (
                 <div key={rec.id} style={{ padding: '7px 0', borderTop: `1px solid ${a(ACC, '10')}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ fontFamily: FM, fontSize: 8, color: W }}>{rec.field_name}</span>
-                    <span style={{ fontFamily: FM, fontSize: 7, color: valColor[rec.status] || ACC }}>{rec.status}</span>
+                    <span style={{ fontFamily: FM, fontSize: 9, color: W }}>{rec.field_name}</span>
+                    <span style={{ fontFamily: FM, fontSize: 9, color: valColor[rec.status] || ACC }}>{rec.status}</span>
                   </div>
-                  <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), marginTop: 3 }}>{rec.check_type} · {String(rec.confidence).toUpperCase()} CONFIDENCE</div>
+                  <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99'), marginTop: 3 }}>{rec.check_type} · {String(rec.confidence).toUpperCase()} CONFIDENCE</div>
                 </div>
               ))}
             </>
@@ -132,18 +133,18 @@ export function ResearchContent() {
 
   const safe = safety?.research_only === true && safety?.trades_executed === false && safety?.portfolio_state_updated === false
 
-  if (error) return <div style={{ padding: '20px 0', fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: R }}>UNABLE TO LOAD RESEARCH</div>
-  if (memos === null) return <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.24em', color: a(ACC, '99') }}>LOADING RESEARCH…</div>
+  if (error) return <div style={{ padding: '20px 0', ...financeLabel({ fontSize: 9, color: R }) }}>UNABLE TO LOAD RESEARCH</div>
+  if (memos === null) return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING RESEARCH…</div>
 
   return (
     <div>
-      <div style={{ padding: '9px 11px', border: `1px solid ${mix(G, 22)}`, background: mix(G, 4), fontFamily: FM, fontSize: 7, letterSpacing: '.12em', color: G, lineHeight: 1.6, marginBottom: 12 }}>
+      <div style={{ padding: '9px 11px', border: `1px solid ${mix(G, 22)}`, background: mix(G, 4), ...financeMicro({ color: G, lineHeight: 1.6 }), marginBottom: 12 }}>
         {safe ? 'SAFETY CONFIRMED · ' : ''}RESEARCH ONLY · NO TRADES EXECUTED · NO PORTFOLIO UPDATE
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.2em', color: a(ACC, 'cc') }}>MEMOS</span>
-        <span style={{ fontFamily: FM, fontSize: 8, color: a(ACC, '99') }}>{memos.length}</span>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc') }}>MEMOS</span>
+        <span style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99') }}>{memos.length}</span>
       </div>
 
       {memos.length === 0 && (
@@ -157,8 +158,8 @@ export function ResearchContent() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 10px', paddingTop: 14, borderTop: `1px solid ${a(ACC, '18')}` }}>
-        <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.2em', color: a(ACC, 'cc') }}>VALIDATION RECORDS</span>
-        <span style={{ fontFamily: FM, fontSize: 8, color: a(ACC, '99') }}>{records?.length ?? '…'}</span>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc') }}>VALIDATION RECORDS</span>
+        <span style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99') }}>{records?.length ?? '…'}</span>
       </div>
 
       {records?.length === 0 && (
@@ -173,14 +174,14 @@ export function ResearchContent() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontFamily: FD, fontSize: 14, fontWeight: 700, color: W }}>{rec.field_name}</div>
-                <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), marginTop: 3 }}>{rec.check_type} · {String(rec.asset || 'UNSCOPED').toUpperCase()}</div>
+                <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99'), marginTop: 3 }}>{rec.check_type} · {String(rec.asset || 'UNSCOPED').toUpperCase()}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: FM, fontSize: 8, color: valColor[rec.status] || ACC }}>{rec.status}</div>
-                <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), marginTop: 3 }}>{String(rec.confidence).toUpperCase()} CONFIDENCE</div>
+                <div style={{ fontFamily: FM, fontSize: 9, color: valColor[rec.status] || ACC }}>{rec.status}</div>
+                <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99'), marginTop: 3 }}>{String(rec.confidence).toUpperCase()} CONFIDENCE</div>
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 8, fontFamily: FM, fontSize: 7, color: a(ACC, '99') }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 8, fontFamily: FM, fontSize: 9, color: a(ACC, '99') }}>
               <span>{rec.deviation_pct == null ? 'DEVIATION NOT RECORDED' : `DEVIATION ${rec.deviation_pct}%`}</span>
               <span>{fmtDate(rec.created_at)}</span>
             </div>
