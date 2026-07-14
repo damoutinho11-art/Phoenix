@@ -25,9 +25,112 @@ const pct = w => (w * 100).toFixed(1) + '%'
 const eur = v => '€' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const bandColor = st => (st === 'above_max' ? R : st === 'below_min' ? Y : G)
 const bandDir = st => (st === 'above_max' ? 'TRIM' : st === 'below_min' ? 'FEED' : 'HOLD')
+const finite = v => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+const pctNum = w => Math.max(0, Math.min(100, (Number(w) || 0) * 100))
+const moneyFromWeight = (s, total) => {
+  if (finite(s.amount) != null && Number(s.amount) > 0) return Number(s.amount)
+  if (finite(total) == null) return 0
+  return (Number(s.current_weight) || 0) * Number(total)
+}
+const graphTextDate = v => String(v || '').slice(0, 10).toUpperCase()
+
+function graphGeometry(series) {
+  const vals = series.map(Number).filter(Number.isFinite)
+  const safe = vals.length ? vals : [0]
+  const width = 154
+  const height = 52
+  let lo = Math.min(...safe)
+  let hi = Math.max(...safe)
+  if (lo === hi) {
+    const pad = Math.max(1, Math.abs(lo) * 0.02)
+    lo -= pad
+    hi += pad
+  }
+  const xOf = i => safe.length === 1 ? 118 : 6 + (i / (safe.length - 1)) * (width - 12)
+  const yOf = v => height - 8 - ((v - lo) / (hi - lo || 1)) * (height - 16)
+  const nodes = safe.map((v, i) => ({ x: xOf(i).toFixed(1), y: yOf(v).toFixed(1), value: eur(v) }))
+  const linePoints = safe.length === 1
+    ? `8,${nodes[0].y} ${width - 8},${nodes[0].y}`
+    : nodes.map(p => `${p.x},${p.y}`).join(' ')
+  const last = nodes[nodes.length - 1]
+  return {
+    points: linePoints,
+    pointsArea: `${linePoints} ${width - 8},${height - 4} 8,${height - 4}`,
+    lastX: last.x,
+    lastY: last.y,
+    nodes,
+  }
+}
+
+// Categorical sleeve palette — one distinct hue per sleeve, assigned in fixed
+// order (identity, never status). Drawn from the cool half of the wheel
+// (cyan → azure → violet → magenta) so it never collides with the green/gold/
+// pink that TRIM/HOLD/FEED status uses. Luminous on the dark HUD surface.
+const SLEEVE_COLORS = [ACC, '#4d8dff', '#9b6bff', '#e05be0', '#ff6ba6', '#2fe0cf']
+
+function allocationSlices(rows, total) {
+  const colors = SLEEVE_COLORS
+  let offset = 0
+  return rows.map((s, i) => {
+    const weight = pctNum(s.current_weight)
+    const target = pctNum(s.target_weight)
+    const visible = Math.max(1.2, weight)
+    const slice = {
+      label: sleeveName(s.name),
+      short: sleeveName(s.name).replace('GLOBAL ', '').replace('GROWTH ', '').slice(0, 12),
+      value: eur(moneyFromWeight(s, total)),
+      weight,
+      target,
+      gap: (weight - target).toFixed(1),
+      status: bandDir(s.band_status),
+      color: colors[i % colors.length],
+      statusColor: bandColor(s.band_status),
+      dash: `${visible.toFixed(1)} ${Math.max(0, 100 - visible).toFixed(1)}`,
+      offset: (-offset).toFixed(1),
+    }
+    offset += weight
+    return slice
+  })
+}
+
+function valueGraphPanel(fin, perf) {
+  const snapshots = Array.isArray(perf?.snapshots) ? perf.snapshots : []
+  const ordered = snapshots
+    .filter(s => finite(s.total_value_eur) != null)
+    .slice()
+    .sort((x, y) => new Date(x.created_at) - new Date(y.created_at))
+  const values = ordered.map(s => Number(s.total_value_eur))
+  const fallback = finite(fin.total_invested) ?? 0
+  const series = values.length ? values : [fallback]
+  const last = series[series.length - 1]
+  const first = series[0]
+  const delta = last - first
+  const pctDelta = first ? (delta / first) * 100 : 0
+  const isSeed = series.length < 2
+  const up = delta >= 0
+  const geo = graphGeometry(series)
+  return {
+    code: 'PERFORMANCE',
+    meta: isSeed ? graphTextDate(fin.as_of || ordered[0]?.created_at) : series.length + ' SNAPSHOTS',
+    type: 'valueGraph',
+    big: eur(last),
+    delta: isSeed
+      ? 'SNAPSHOT SEED'
+      : `${up ? '+' : '-'}${eur(Math.abs(delta))} · ${up ? '+' : '-'}${Math.abs(pctDelta).toFixed(2)}%`,
+    deltaColor: isSeed ? ACC : up ? G : R,
+    graphLabel: isSeed ? 'SNAPSHOT SEED · NEED 2 FOR TREND' : 'RECORDED VALUE TREND · EUR',
+    isSeed,
+    values: series,
+    dates: ordered.map(s => graphTextDate(s.created_at)),
+    ...geo,
+  }
+}
 
 // ── FINANCE ──
-export function applyFinance(d, fin) {
+export function applyFinance(d, fin, financePerformance) {
   if (!fin || !fin.sleeve_summary) return d
   const sleeves = fin.sleeve_summary
   const alerts = sleeves.filter(s => s.band_status !== 'within_band')
@@ -51,23 +154,27 @@ export function applyFinance(d, fin) {
     k: sleeveName(s.name), v: pct(s.current_weight), w: ((s.current_weight / maxW) * 100).toFixed(0) + '%',
   }))
   // ALLOCATION panel
-  d.panels[0] = { code: 'ALLOCATION', meta: sleeves.length + ' SLEEVES', type: 'bars', bars: byWeight.slice(0, 4).map(s => ({
-    label: sleeveName(s.name) + (s.band_status === 'above_max' ? ' · OVER' : s.band_status === 'below_min' ? ' · UNDER' : ''),
-    w: ((s.current_weight / maxW) * 100).toFixed(0) + '%',
-    val: pct(s.current_weight),
-    color: bandColor(s.band_status),
-  })) }
+  const slices = allocationSlices(byWeight, fin.total_invested)
+  const activeAll = slices.filter(s => s.weight >= 0.5)
+  const activeSlices = activeAll.slice(0, 6)
+  const dormantCount = slices.length - activeAll.length
+  d.panels[0] = {
+    code: 'ALLOCATION',
+    meta: dormantCount ? `${activeAll.length} ACTIVE · ${dormantCount} DORMANT` : sleeves.length + ' SLEEVES',
+    type: 'allocationOrbit',
+    total: eur(fin.total_invested),
+    slices: activeSlices,
+    allocationSlices: activeSlices,
+    dormantCount,
+  }
   // THIS WEEK panel
   d.panels[1] = { code: 'THIS WEEK', meta: 'MANUAL ONLY', type: 'rows', rows: [
     { title: 'Weekly deploy', sub: (fin.week_label || '').toUpperCase(), value: fin.week_done ? 'DONE' : 'PENDING', valueColor: fin.week_done ? G : Y },
     { title: 'Prices refreshed', sub: (fin.prices_refreshed_at || '').slice(0, 16).replace('T', ' · ').toUpperCase() || '—', value: fin.staleness_warning ? 'STALE' : 'FRESH', valueColor: fin.staleness_warning ? Y : G },
     { title: 'Auto-execution', sub: 'PHOENIX NEVER TRADES', value: 'OFF', valueColor: G },
   ] }
-  // PERFORMANCE spark: no snapshot history yet — show current value flatline honestly
-  d.panels[2] = Object.assign(
-    spark([fin.total_invested, fin.total_invested], 'VALUE · SNAPSHOT HISTORY PENDING', eur(fin.total_invested), 'AS OF ' + (fin.as_of || '').toUpperCase(), G),
-    { code: 'PERFORMANCE', meta: (fin.as_of || '').toUpperCase() },
-  )
+  // PERFORMANCE graph: recorded history only; one point stays a seed state.
+  d.panels[2] = valueGraphPanel(fin, financePerformance)
   // DRIFT WATCH panel
   const driftRows = alerts.slice(0, 3).map(s => ({
     title: sleeveName(s.name).charAt(0) + sleeveName(s.name).slice(1).toLowerCase() + ' sleeve',

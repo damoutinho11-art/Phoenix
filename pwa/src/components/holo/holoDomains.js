@@ -53,11 +53,13 @@ export function buildDomains(dayPart) {
         { t: 'SUN', msg: 'DEPOSIT €85 DETECTED', tone: G },
       ],
       panels: [
-        { code: 'ALLOCATION', meta: '6 SLEEVES', type: 'bars', bars: [
-          { label: 'GLOBAL CORE', w: '84%', val: '42.0%', color: G },
-          { label: 'GROWTH NASDAQ', w: '72%', val: '18.0%', color: W },
-          { label: 'BITCOIN · OVER', w: '100%', val: '15.0%', color: R },
-          { label: 'CASH · UNDER', w: '58%', val: '7.0%', color: Y },
+        { code: 'ALLOCATION', meta: '6 SLEEVES', type: 'allocationOrbit', total: '€1,893.33', dormantCount: 0, slices: [
+          { label: 'GLOBAL CORE', short: 'CORE', value: '€795.20', weight: 42, target: 42, gap: '0.0', status: 'HOLD', color: ACC, statusColor: G, dash: '42.0 58.0', offset: '0' },
+          { label: 'NASDAQ', short: 'NASDAQ', value: '€340.80', weight: 18, target: 18, gap: '0.0', status: 'HOLD', color: '#7ee9ff', statusColor: G, dash: '18.0 82.0', offset: '-42.0' },
+          { label: 'BITCOIN', short: 'BITCOIN', value: '€284.00', weight: 15, target: 12, gap: '3.0', status: 'TRIM', color: W, statusColor: R, dash: '15.0 85.0', offset: '-60.0' },
+          { label: 'QUALITY', short: 'QUALITY', value: '€189.33', weight: 10, target: 10, gap: '0.0', status: 'HOLD', color: '#18bde8', statusColor: G, dash: '10.0 90.0', offset: '-75.0' },
+          { label: 'DISCOVERY', short: 'DISCOVERY', value: '€151.47', weight: 8, target: 8, gap: '0.0', status: 'HOLD', color: '#5bdcff', statusColor: G, dash: '8.0 92.0', offset: '-85.0' },
+          { label: 'CASH', short: 'CASH', value: '€132.53', weight: 7, target: 10, gap: '-3.0', status: 'FEED', color: '#a8f3ff', statusColor: Y, dash: '7.0 93.0', offset: '-93.0' },
         ] },
         { code: 'THIS WEEK', meta: 'MANUAL ONLY', type: 'rows', rows: [
           { title: 'Buy VWCE', sub: 'LIGHTYEAR · VERIFIED', value: '€85.00', valueColor: W },
@@ -66,7 +68,7 @@ export function buildDomains(dayPart) {
         ] },
         Object.assign(
           spark([1720, 1748, 1735, 1781, 1804, 1842, 1836, 1871, 1893], '90-DAY VALUE TREND · EUR', '+6.31%', '+€112.40', G),
-          { code: 'PERFORMANCE', meta: '90 DAYS' },
+          { code: 'PERFORMANCE', meta: '90 DAYS', type: 'valueGraph', graphLabel: 'RECORDED VALUE TREND · EUR', isSeed: false },
         ),
         { code: 'DRIFT WATCH', meta: '1 ALERT', type: 'rows', rows: [
           { title: 'Bitcoin sleeve', sub: '+3.0% OVER BAND', value: 'TRIM', valueColor: Y },

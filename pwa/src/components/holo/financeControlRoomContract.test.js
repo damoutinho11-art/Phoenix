@@ -86,6 +86,54 @@ test('finance signal brief reads the real finance brief endpoint, not fixture co
   assert.match(subs, /briefText\.slice\(0, n\)/)
 })
 
+test('main finance projection uses real history graph data and an allocation chart model', async () => {
+  const live = await src('./holoLive.js')
+  const data = await src('./useHoloData.js')
+  const command = await src('./HoloCommand.jsx')
+  const domains = await src('./holoDomains.js')
+  const financeStart = domains.indexOf('finance: {')
+  const financeEnd = domains.indexOf('nutrition: {', financeStart)
+  const financeSource = domains.slice(financeStart, financeEnd)
+
+  assert.match(data, /getFinancePerformanceHistory/)
+  assert.match(data, /financePerformance:\s*null/)
+  assert.match(data, /grab\('financePerformance', getFinancePerformanceHistory\)/)
+  assert.match(command, /applyFinance\(d, live\.finance, live\.financePerformance\)/)
+
+  assert.match(live, /type:\s*'allocationOrbit'/)
+  assert.match(live, /allocationSlices/)
+  assert.match(live, /dormantCount/)
+  assert.match(live, /ACTIVE/)
+  assert.match(live, /DORMANT/)
+  assert.match(live, /type:\s*'valueGraph'/)
+  assert.match(live, /RECORDED VALUE TREND/)
+  assert.match(live, /SNAPSHOT SEED/)
+  assert.doesNotMatch(live, /spark\(\[fin\.total_invested,\s*fin\.total_invested\]/)
+
+  assert.match(financeSource, /type:\s*'allocationOrbit'/)
+  assert.match(financeSource, /type:\s*'valueGraph'/)
+})
+
+test('holo wing renderer draws upgraded finance allocation and performance charts', async () => {
+  const wings = await src('./HoloWings.jsx')
+
+  assert.match(wings, /function AllocationOrbitPanel/)
+  assert.match(wings, /function ValueGraphPanel/)
+  assert.match(wings, /function ValueSeedPanel/)
+  assert.match(wings, /seedSize/)
+  assert.match(wings, /panel\.type === 'allocationOrbit'/)
+  assert.match(wings, /panel\.type === 'valueGraph' && panel\.isSeed/)
+  assert.match(wings, /panel\.type === 'valueGraph'/)
+  assert.match(wings, /activeSlices/)
+  assert.match(wings, /dormantCount/)
+  assert.match(wings, /orbitSize/)
+  assert.match(wings, /radialGradient/)
+  assert.match(wings, /strokeDasharray/)
+  assert.match(wings, /polyline/)
+  assert.match(wings, /panel\.isSeed/)
+  assert.doesNotMatch(wings, /strokeDasharray=\{panel\.isSeed \?/)
+})
+
 test('finance room uses one readable text system across every finance surface', async () => {
   const readability = await src('./subs/financeReadability.js')
   const financeFiles = [
@@ -162,6 +210,22 @@ test('briefs lane surfaces past briefs with defer/reject/delete actions', async 
   assert.match(briefs, /getFinanceBriefHistory/)
   assert.match(briefs, /postBriefAction/)
   assert.match(briefs, /deleteBrief/)
+})
+
+test('brief lane has a ledger for recording placed buys and applying them to state', async () => {
+  const room = await src('./subs/FinanceControlRoom.jsx')
+  const ledger = await src('./subs/LedgerContent.jsx')
+
+  // ledger is a sub-tab of the weekly-cycle lane, after approve
+  assert.match(room, /'SIGNAL', 'APPROVE', 'LEDGER', 'DECISIONS'/)
+  assert.match(room, /LedgerContent/)
+  // record → apply-preview → apply, plus void
+  assert.match(ledger, /postManualFinanceTransaction/)
+  assert.match(ledger, /getFinanceTransactionApplyPreview/)
+  assert.match(ledger, /postFinanceTransactionApply/)
+  assert.match(ledger, /postFinanceTransactionVoid/)
+  // manual-only framing — you place the order, then log it
+  assert.match(ledger, /YOU PLACE THE ORDER/)
 })
 
 test('research lane surfaces memos + validation records, read-only and never a trade', async () => {

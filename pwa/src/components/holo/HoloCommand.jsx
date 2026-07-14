@@ -220,7 +220,7 @@ export default function HoloCommand({ startTab = 'home' }) {
     const all = buildDomains(dayPart)
     let d = all[tab] || all.finance
     // real sources override fixtures per-domain (fixtures remain the fallback)
-    if (tab === 'finance') d = applyFinance(d, live.finance)
+    if (tab === 'finance') d = applyFinance(d, live.finance, live.financePerformance)
     if (tab === 'nutrition') d = applyNutrition(d, live.nutrition)
     if (tab === 'training') d = applyTraining(d, live.training)
     if (tab === 'calendar') d = applyCalendar(d, live.calendar, live.connectors)

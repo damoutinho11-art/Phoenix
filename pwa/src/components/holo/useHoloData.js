@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   getFinanceSummary,
   getFinanceHoldings,
+  getFinancePerformanceHistory,
   getNutritionStatus,
   getTrainingStatus,
   getCalendarSnapshot,
@@ -15,6 +16,7 @@ export default function useHoloData() {
   const [live, setLive] = useState({
     finance: null,
     holdings: null,
+    financePerformance: null,
     nutrition: null,
     training: null,
     calendar: null,
@@ -29,6 +31,7 @@ export default function useHoloData() {
         .catch(() => {}) // fixture fallback
     grab('finance', getFinanceSummary)
     grab('holdings', getFinanceHoldings)
+    grab('financePerformance', getFinancePerformanceHistory)
     grab('nutrition', getNutritionStatus)
     grab('training', getTrainingStatus)
     grab('calendar', getCalendarSnapshot)
