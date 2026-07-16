@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+import json
 from typing import Any, Mapping, Sequence
 
 from .adaptive_planner import PlanningSnapshot
@@ -17,6 +18,10 @@ AREA_KEYS = (
     "lower_back_pelvic",
 )
 _HARD_PAIN_FLAGS = ("pain", "sharp_pain", "limping", "next_day_worsening")
+
+
+def _session_content_key(session: Mapping[str, Any]) -> str:
+    return json.dumps(session, default=str, separators=(",", ":"), sort_keys=True)
 
 
 def pain_blocked_areas(readiness: Mapping[str, Any] | None) -> tuple[str, ...]:
@@ -39,7 +44,7 @@ def build_planning_snapshot(
     preferences: Mapping[str, Any],
 ) -> PlanningSnapshot:
     """Construct the canonical planner input from current evidence."""
-    completed_sessions = tuple(sessions)
+    completed_sessions = tuple(sorted(sessions, key=_session_content_key))
     return PlanningSnapshot(
         week_start=week_start,
         created_at=created_at,

@@ -74,6 +74,7 @@ def validate_plan(
     *,
     baseline_days=None,
     safety_blocks=(),
+    pain_routed_dates=(),
     calendar_conflict_dates=(),
 ):
     minimum_recovery_hours = _minimum_recovery_hours(policy)
@@ -92,6 +93,18 @@ def validate_plan(
         else 0.0
     )
     pain_passed = not safety_blocks or not high_neural_days
+    if not safety_blocks:
+        pain_detail = "No hard pain block is active."
+    elif pain_routed_dates:
+        pain_detail = (
+            f"Hard pain block for {', '.join(safety_blocks)} routed high-neural work "
+            f"to recovery: {_calendar_detail(pain_routed_dates)}."
+        )
+    else:
+        pain_detail = (
+            f"Hard pain block for {', '.join(safety_blocks)} required no additional routing; "
+            "no high-neural work remained after constraints."
+        )
     calendar_passed = all(
         day.session_type == "recovery"
         for day in days
@@ -108,14 +121,7 @@ def validate_plan(
             "pain_block",
             pain_passed,
             "hard",
-            (
-                "No hard pain block is active."
-                if not safety_blocks
-                else (
-                    f"Hard pain block for {', '.join(safety_blocks)} routed loaded and "
-                    "explosive work to recovery."
-                )
-            ),
+            pain_detail,
         ),
         PlanValidation(
             "calendar_conflicts",
@@ -253,13 +259,16 @@ def _route_to_recovery(day, objective, reason):
 
 def _apply_pain_blocks(days, safety_blocks):
     if not safety_blocks:
-        return days
-    return tuple(
-        _route_to_recovery(day, "pain_safe_recovery", "hard_pain_block")
-        if day.session_type in _HIGH_NEURAL_SESSION_TYPES
-        else day
-        for day in days
-    )
+        return days, ()
+    planned = []
+    routed_dates = []
+    for day in days:
+        if day.session_type in _HIGH_NEURAL_SESSION_TYPES:
+            planned.append(_route_to_recovery(day, "pain_safe_recovery", "hard_pain_block"))
+            routed_dates.append(day.date)
+        else:
+            planned.append(day)
+    return tuple(planned), tuple(routed_dates)
 
 
 def _safety_blocks(snapshot):
@@ -299,10 +308,11 @@ def _calendar_hard_conflict_dates(days, calendar_events):
     return tuple(sorted(hard_conflicts))
 
 
-def _apply_calendar_hard_conflicts(days, conflict_dates):
+def _apply_calendar_hard_conflicts(days, conflict_dates, protected_dates=()):
+    protected_dates = set(protected_dates)
     return tuple(
         _route_to_recovery(day, "calendar_recovery", "calendar_hard_conflict")
-        if day.date in conflict_dates
+        if day.date in conflict_dates and day.date not in protected_dates
         else day
         for day in days
     )
@@ -528,9 +538,9 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
     baseline_days = days
     days = apply_constraints(days, constraints, constitution)
     safety_blocks = _safety_blocks(snapshot)
-    days = _apply_pain_blocks(days, safety_blocks)
+    days, pain_routed_dates = _apply_pain_blocks(days, safety_blocks)
     calendar_conflict_dates = _calendar_hard_conflict_dates(days, snapshot.calendar_events)
-    days = _apply_calendar_hard_conflicts(days, calendar_conflict_dates)
+    days = _apply_calendar_hard_conflicts(days, calendar_conflict_dates, pain_routed_dates)
     days = _apply_recovery_spacing(days, policy)
     days = _apply_progression(days, snapshot.progression)
     validations = validate_plan(
@@ -538,6 +548,7 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
         policy,
         baseline_days=baseline_days,
         safety_blocks=safety_blocks,
+        pain_routed_dates=pain_routed_dates,
         calendar_conflict_dates=calendar_conflict_dates,
     )
     if any(not row.passed and row.severity == "hard" for row in validations):

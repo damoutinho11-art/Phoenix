@@ -10,6 +10,7 @@ from jarvis.domains.training.adaptive_planner import (
     apply_constraints,
     generate_weekly_plan,
 )
+from jarvis.domains.training.plan_evidence import build_planning_snapshot
 from jarvis.domains.training.plan_contracts import PlanDay, TrainingConstraint
 
 
@@ -108,6 +109,30 @@ def test_hard_readiness_signal_blocks_without_precomputed_safety_blocks(training
     assert plan.days[0].change_reason == "hard_pain_block"
 
 
+def test_pain_block_validation_reports_no_op_when_constraints_removed_high_neural_work(
+    training_constitution,
+):
+    unsafe = replace(
+        snapshot(),
+        readiness={"knee": 5, "sharp_pain": True},
+        safety_blocks=("knee",),
+    )
+    constraints = (
+        TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-20"}),
+        TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-22"}),
+        TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-25"}),
+    )
+
+    plan = generate_weekly_plan(training_constitution, unsafe, constraints)
+
+    pain_validation = next(row for row in plan.validations if row.rule == "pain_block")
+    assert pain_validation.passed
+    assert pain_validation.detail == (
+        "Hard pain block for knee required no additional routing; "
+        "no high-neural work remained after constraints."
+    )
+
+
 def test_pain_block_precedes_calendar_and_progression_routing(training_constitution):
     unsafe = replace(
         snapshot(),
@@ -128,6 +153,26 @@ def test_pain_block_precedes_calendar_and_progression_routing(training_constitut
     assert plan.days[0].session_type == "recovery"
     assert plan.days[0].change_reason == "hard_pain_block"
     assert plan.days[0].exercises == ()
+
+
+def test_explicit_hard_calendar_event_preserves_pain_recovery_provenance(training_constitution):
+    unsafe = replace(
+        snapshot(),
+        readiness={"knee": 5, "sharp_pain": True},
+        safety_blocks=("knee",),
+        calendar_events=({"severity": "hard", "date": "2026-07-20"},),
+    )
+
+    plan = generate_weekly_plan(training_constitution, unsafe)
+
+    assert plan.days[0].session_type == "recovery"
+    assert plan.days[0].objective == "pain_safe_recovery"
+    assert plan.days[0].change_reason == "hard_pain_block"
+    calendar_validation = next(
+        row for row in plan.validations if row.rule == "calendar_conflicts"
+    )
+    assert calendar_validation.passed
+    assert "2026-07-20" in calendar_validation.detail
 
 
 def test_calendar_performance_conflict_routes_high_neural_day_to_recovery(training_constitution):
@@ -209,6 +254,59 @@ def test_progression_alias_order_does_not_change_receipt(training_constitution):
         exercise for exercise in first_plan.days[1].exercises if exercise["name"] == "bench_press"
     )
     assert bench_press["suggested_kg"] == 62.5
+
+
+def test_reversed_same_date_sessions_without_ids_produce_identical_progression_and_receipt(
+    training_constitution,
+):
+    completed = (
+        {
+            "date": "2026-07-19",
+            "session_type": "general",
+            "exercises": [
+                {
+                    "name": "Bench Press",
+                    "target_reps": 5,
+                    "sets": [{"reps": 5, "target_reps": 5, "weight_kg": 60}],
+                }
+            ],
+        },
+        {
+            "date": "2026-07-19",
+            "session_type": "general",
+            "exercises": [
+                {
+                    "name": "Bench Press",
+                    "target_reps": 5,
+                    "sets": [{"reps": 3, "target_reps": 5, "weight_kg": 80}],
+                }
+            ],
+        },
+    )
+    first = build_planning_snapshot(
+        week_start=date(2026, 7, 20),
+        created_at="2026-07-20T06:00:00Z",
+        sessions=completed,
+        readiness=None,
+        calendar_events=(),
+        equipment=("barbell", "bench"),
+        preferences={},
+    )
+    second = build_planning_snapshot(
+        week_start=date(2026, 7, 20),
+        created_at="2026-07-20T06:00:00Z",
+        sessions=tuple(reversed(completed)),
+        readiness=None,
+        calendar_events=(),
+        equipment=("barbell", "bench"),
+        preferences={},
+    )
+
+    assert first.completed_sessions == second.completed_sessions
+    assert first.progression == second.progression
+    assert generate_weekly_plan(training_constitution, first).receipt_hash == generate_weekly_plan(
+        training_constitution, second
+    ).receipt_hash
 
 
 def test_weekly_volume_change_validation_is_explicit(training_constitution):
