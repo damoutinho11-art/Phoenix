@@ -23,6 +23,8 @@ _PHASE_EXERCISE_KEYS = {
     "shoulder": "general_shoulder",
 }
 
+_HIGH_NEURAL_SESSION_TYPES = frozenset({"high_intensity", "jump", "peak", "attempt"})
+
 
 @dataclass(frozen=True)
 class PlanningSnapshot:
@@ -34,6 +36,7 @@ class PlanningSnapshot:
     progression: Mapping[str, dict[str, Any]]
     equipment: tuple[str, ...]
     preferences: tuple[tuple[str, Any], ...]
+    safety_blocks: tuple[str, ...] = ()
 
 
 def _objective(session_type: str) -> str:
@@ -46,14 +49,106 @@ def _objective(session_type: str) -> str:
     }.get(session_type, session_type)
 
 
-def validate_plan(days, policy):
+def _format_number(value):
+    return f"{value:g}"
+
+
+def _minimum_recovery_hours(policy):
+    values = policy.get("minimum_recovery_hours", {})
+    if not isinstance(values, Mapping):
+        return 0.0
+    return max((float(value) for value in values.values()), default=0.0)
+
+
+def _volume_minutes(days):
+    return sum(day.estimated_minutes for day in days)
+
+
+def _calendar_detail(dates):
+    return ", ".join(day.isoformat() for day in dates) or "none"
+
+
+def validate_plan(
+    days,
+    policy,
+    *,
+    baseline_days=None,
+    safety_blocks=(),
+    calendar_conflict_dates=(),
+):
+    minimum_recovery_hours = _minimum_recovery_hours(policy)
+    high_neural_days = [day for day in days if day.session_type in _HIGH_NEURAL_SESSION_TYPES]
+    spacing_passed = all(
+        (later.date - earlier.date).total_seconds() / 3600 >= minimum_recovery_hours
+        for earlier, later in zip(high_neural_days, high_neural_days[1:])
+    )
+    baseline_minutes = _volume_minutes(baseline_days or days)
+    planned_minutes = _volume_minutes(days)
+    maximum_increase_pct = float(policy.get("maximum_weekly_volume_increase_pct", 0))
+    maximum_minutes = baseline_minutes * (1 + maximum_increase_pct / 100)
+    volume_change_pct = (
+        (planned_minutes - baseline_minutes) / baseline_minutes * 100
+        if baseline_minutes
+        else 0.0
+    )
+    pain_passed = not safety_blocks or not high_neural_days
+    calendar_passed = all(
+        day.session_type == "recovery"
+        for day in days
+        if day.date in calendar_conflict_dates
+    )
     validations = [
         PlanValidation(
             "seven_unique_days",
             len(days) == 7 and len({day.date for day in days}) == 7,
             "hard",
             "Plan contains seven unique dates",
-        )
+        ),
+        PlanValidation(
+            "pain_block",
+            pain_passed,
+            "hard",
+            (
+                "No hard pain block is active."
+                if not safety_blocks
+                else (
+                    f"Hard pain block for {', '.join(safety_blocks)} routed loaded and "
+                    "explosive work to recovery."
+                )
+            ),
+        ),
+        PlanValidation(
+            "calendar_conflicts",
+            calendar_passed,
+            "hard",
+            (
+                "No calendar hard conflicts."
+                if not calendar_conflict_dates
+                else (
+                    "Calendar hard-conflict dates are recovery-safe: "
+                    f"{_calendar_detail(calendar_conflict_dates)}."
+                )
+            ),
+        ),
+        PlanValidation(
+            "recovery_spacing",
+            spacing_passed,
+            "hard",
+            (
+                "High-neural sessions are separated by at least "
+                f"{_format_number(minimum_recovery_hours)} hours."
+            ),
+        ),
+        PlanValidation(
+            "weekly_volume_change",
+            planned_minutes <= maximum_minutes,
+            "warning",
+            (
+                f"Planned weekly volume is {planned_minutes} minutes versus {baseline_minutes} "
+                f"minutes baseline ({volume_change_pct:+.1f}%; cap "
+                f"+{_format_number(maximum_increase_pct)}%)."
+            ),
+        ),
     ]
     return tuple(validations)
 
@@ -143,6 +238,137 @@ def _apply_exercise_updates(day, exercises, reasons):
     for reason in reasons:
         updated = _append_reason(updated, reason)
     return updated
+
+
+def _route_to_recovery(day, objective, reason):
+    return _update_for_change(
+        day,
+        reason,
+        session_type="recovery",
+        objective=objective,
+        exercises=(),
+        estimated_minutes=0,
+    )
+
+
+def _apply_pain_blocks(days, safety_blocks):
+    if not safety_blocks:
+        return days
+    return tuple(
+        _route_to_recovery(day, "pain_safe_recovery", "hard_pain_block")
+        if day.session_type in _HIGH_NEURAL_SESSION_TYPES
+        else day
+        for day in days
+    )
+
+
+def _safety_blocks(snapshot):
+    # Import lazily because the evidence module constructs PlanningSnapshot values.
+    from .plan_evidence import pain_blocked_areas
+
+    return tuple(sorted(set(snapshot.safety_blocks) | set(pain_blocked_areas(snapshot.readiness))))
+
+
+def _event_date(event):
+    value = event.get("training_date", event.get("date"))
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _calendar_hard_conflict_dates(days, calendar_events):
+    high_neural_dates = {
+        day.date for day in days if day.session_type in _HIGH_NEURAL_SESSION_TYPES
+    }
+    hard_conflicts = set()
+    for event in calendar_events:
+        event_date = _event_date(event)
+        if event_date is None:
+            continue
+        if str(event.get("severity", "")).lower() == "hard" or bool(
+            event.get("hard_conflict")
+        ):
+            hard_conflicts.add(event_date)
+        elif str(event.get("event_type", "")).lower() == "performance":
+            for candidate in (event_date - timedelta(days=1), event_date):
+                if candidate in high_neural_dates:
+                    hard_conflicts.add(candidate)
+    return tuple(sorted(hard_conflicts))
+
+
+def _apply_calendar_hard_conflicts(days, conflict_dates):
+    return tuple(
+        _route_to_recovery(day, "calendar_recovery", "calendar_hard_conflict")
+        if day.date in conflict_dates
+        else day
+        for day in days
+    )
+
+
+def _apply_recovery_spacing(days, policy):
+    minimum_recovery_hours = _minimum_recovery_hours(policy)
+    planned = []
+    previous_high_neural = None
+    for day in days:
+        if (
+            day.session_type in _HIGH_NEURAL_SESSION_TYPES
+            and previous_high_neural is not None
+            and (day.date - previous_high_neural.date).total_seconds() / 3600
+            < minimum_recovery_hours
+        ):
+            planned.append(
+                _route_to_recovery(
+                    day,
+                    "recovery_spacing",
+                    f"recovery_spacing:{previous_high_neural.date.isoformat()}",
+                )
+            )
+            continue
+        planned.append(day)
+        if day.session_type in _HIGH_NEURAL_SESSION_TYPES:
+            previous_high_neural = day
+    return tuple(planned)
+
+
+def _progression_key(value):
+    return "".join(character for character in str(value).casefold() if character.isalnum())
+
+
+def _apply_progression(days, progression):
+    by_exercise = {}
+    for name, values in sorted(
+        progression.items(), key=lambda item: (_progression_key(item[0]), str(item[0]))
+    ):
+        by_exercise.setdefault(_progression_key(name), values)
+    planned = []
+    for day in days:
+        if day.session_type in {"recovery", "rest"}:
+            planned.append(day)
+            continue
+        exercises = []
+        reasons = []
+        for exercise in day.exercises:
+            suggestion = by_exercise.get(_progression_key(exercise.get("name", "")))
+            if not suggestion or "suggested_kg" not in suggestion:
+                exercises.append(exercise)
+                continue
+            suggested_kg = suggestion["suggested_kg"]
+            updated = {
+                **exercise,
+                "suggested_kg": suggested_kg,
+                "progression_basis": suggestion.get("basis", ""),
+                "deload": bool(suggestion.get("deload", False)),
+            }
+            exercises.append(updated)
+            if updated != exercise:
+                reasons.append(
+                    f"progression_applied:{exercise['name']}:{_format_number(float(suggested_kg))}kg"
+                )
+        planned.append(_apply_exercise_updates(day, tuple(exercises), reasons))
+    return tuple(planned)
 
 
 def _apply_availability_or_preference(planned, constraint, constitution):
@@ -299,8 +525,21 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
         for session in sessions
     )
     policy = constitution["adaptive_planner"]
+    baseline_days = days
     days = apply_constraints(days, constraints, constitution)
-    validations = validate_plan(days, policy)
+    safety_blocks = _safety_blocks(snapshot)
+    days = _apply_pain_blocks(days, safety_blocks)
+    calendar_conflict_dates = _calendar_hard_conflict_dates(days, snapshot.calendar_events)
+    days = _apply_calendar_hard_conflicts(days, calendar_conflict_dates)
+    days = _apply_recovery_spacing(days, policy)
+    days = _apply_progression(days, snapshot.progression)
+    validations = validate_plan(
+        days,
+        policy,
+        baseline_days=baseline_days,
+        safety_blocks=safety_blocks,
+        calendar_conflict_dates=calendar_conflict_dates,
+    )
     if any(not row.passed and row.severity == "hard" for row in validations):
         raise ValueError("Baseline weekly plan violates hard rules")
     return WeeklyPlanReceipt.create(

@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -79,6 +80,144 @@ def test_identical_snapshot_produces_identical_receipt(training_constitution):
     second = generate_weekly_plan(training_constitution, snapshot())
     assert first.plan_id == second.plan_id
     assert first.receipt_hash == second.receipt_hash
+
+
+def test_pain_block_routes_high_neural_days_to_recovery(training_constitution):
+    unsafe = replace(
+        snapshot(),
+        readiness={"knee": 5, "sharp_pain": True},
+        safety_blocks=("knee",),
+    )
+
+    plan = generate_weekly_plan(training_constitution, unsafe)
+
+    assert plan.days[0].session_type == "recovery"
+    assert plan.days[0].objective == "pain_safe_recovery"
+    assert plan.days[0].exercises == ()
+    assert plan.days[0].change_reason == "hard_pain_block"
+    assert plan.days[5].session_type == "recovery"
+    assert any(row.rule == "pain_block" and row.passed for row in plan.validations)
+
+
+def test_hard_readiness_signal_blocks_without_precomputed_safety_blocks(training_constitution):
+    unsafe = replace(snapshot(), readiness={"ankle": 4, "limping": True})
+
+    plan = generate_weekly_plan(training_constitution, unsafe)
+
+    assert plan.days[0].session_type == "recovery"
+    assert plan.days[0].change_reason == "hard_pain_block"
+
+
+def test_pain_block_precedes_calendar_and_progression_routing(training_constitution):
+    unsafe = replace(
+        snapshot(),
+        readiness={"knee": 5, "sharp_pain": True},
+        safety_blocks=("knee",),
+        calendar_events=({"event_type": "performance", "date": "2026-07-20"},),
+        progression={
+            "Back Squat": {
+                "suggested_kg": 72.5,
+                "basis": "All sets hit target reps; add 5kg.",
+                "deload": False,
+            }
+        },
+    )
+
+    plan = generate_weekly_plan(training_constitution, unsafe)
+
+    assert plan.days[0].session_type == "recovery"
+    assert plan.days[0].change_reason == "hard_pain_block"
+    assert plan.days[0].exercises == ()
+
+
+def test_calendar_performance_conflict_routes_high_neural_day_to_recovery(training_constitution):
+    conflicted = replace(
+        snapshot(),
+        calendar_events=({"event_type": "performance", "date": "2026-07-22"},),
+    )
+
+    plan = generate_weekly_plan(training_constitution, conflicted)
+
+    assert plan.days[2].session_type == "recovery"
+    assert plan.days[2].objective == "calendar_recovery"
+    assert plan.days[2].change_reason == "calendar_hard_conflict"
+    assert plan.days[1].session_type == "general"
+    assert any(row.rule == "calendar_conflicts" and row.passed for row in plan.validations)
+
+
+def test_move_preserves_minimum_high_neural_spacing(training_constitution):
+    move = TrainingConstraint.from_mapping(
+        "move_session", "user", {"source_date": "2026-07-20", "target_date": "2026-07-21"}
+    )
+
+    plan = generate_weekly_plan(training_constitution, snapshot(), (move,))
+    high_neural_dates = [
+        day.date for day in plan.days if day.session_type in {"high_intensity", "jump"}
+    ]
+
+    assert all(
+        (later - earlier).days >= 2
+        for earlier, later in zip(high_neural_dates, high_neural_dates[1:])
+    )
+    assert any(row.rule == "recovery_spacing" and row.passed for row in plan.validations)
+
+
+def test_progression_enriches_safe_exercise_payloads(training_constitution):
+    evidence = replace(
+        snapshot(),
+        progression={
+            "Bench Press": {
+                "suggested_kg": 62.5,
+                "basis": "All sets hit target reps; add 2.5kg.",
+                "deload": False,
+            }
+        },
+    )
+
+    plan = generate_weekly_plan(training_constitution, evidence)
+    bench_press = next(
+        exercise for exercise in plan.days[1].exercises if exercise["name"] == "bench_press"
+    )
+
+    assert bench_press["suggested_kg"] == 62.5
+    assert bench_press["progression_basis"] == "All sets hit target reps; add 2.5kg."
+    assert bench_press["deload"] is False
+    assert plan.days[1].change_reason == "progression_applied:bench_press:62.5kg"
+
+
+def test_progression_alias_order_does_not_change_receipt(training_constitution):
+    first = replace(
+        snapshot(),
+        progression={
+            "bench_press": {"suggested_kg": 65, "basis": "underscore", "deload": False},
+            "Bench Press": {"suggested_kg": 62.5, "basis": "spaced", "deload": False},
+        },
+    )
+    second = replace(
+        snapshot(),
+        progression={
+            "Bench Press": {"suggested_kg": 62.5, "basis": "spaced", "deload": False},
+            "bench_press": {"suggested_kg": 65, "basis": "underscore", "deload": False},
+        },
+    )
+
+    first_plan = generate_weekly_plan(training_constitution, first)
+    second_plan = generate_weekly_plan(training_constitution, second)
+
+    assert first_plan.receipt_hash == second_plan.receipt_hash
+    bench_press = next(
+        exercise for exercise in first_plan.days[1].exercises if exercise["name"] == "bench_press"
+    )
+    assert bench_press["suggested_kg"] == 62.5
+
+
+def test_weekly_volume_change_validation_is_explicit(training_constitution):
+    plan = generate_weekly_plan(training_constitution, snapshot())
+    volume_validation = next(row for row in plan.validations if row.rule == "weekly_volume_change")
+
+    assert volume_validation.passed
+    assert volume_validation.severity == "warning"
+    assert "360 minutes" in volume_validation.detail
 
 
 def test_move_today_to_tomorrow_replans_downstream_week(training_constitution):
