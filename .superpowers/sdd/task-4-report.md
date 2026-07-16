@@ -124,3 +124,35 @@ Completed and verified. Commit: `2596d629571293cda8bb31aa65013215b28c6fa8` (`fea
 ### Concerns
 
 - None within Task 4 scope. Performance events retain the existing policy of affecting an in-horizon preceding high-neural day or the performance date itself.
+
+## Review Fix 3
+
+### RED Evidence
+
+1. `pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k "hard_pain_flags_route_loaded_general or pain_block_validation_rejects_loaded"`
+   - Result: `5 failed, 34 deselected in 0.35s`.
+   - Failure: each hard flag left the loaded `general`/`bench_press` day active while only high-neural days were routed; `pain_block` also passed for a manually supplied loaded general day.
+
+### GREEN Evidence
+
+1. `pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k "hard_pain_flags_route_loaded_general or pain_block_validation_rejects_loaded or pain_block_validation_reports_no_op_when_constraints_removed_pain_blocked_work"`
+   - Result: `6 passed, 33 deselected in 0.17s`.
+2. `pytest jarvis/domains/training/tests/test_plan_evidence.py jarvis/domains/training/tests/test_adaptive_planner.py -q`
+   - Result: `45 passed in 0.33s`.
+3. `pytest jarvis/domains/training/tests -q`
+   - Result: `136 passed in 3.19s`.
+4. `python -m compileall -q jarvis/domains/training/adaptive_planner.py jarvis/domains/training/plan_evidence.py`
+   - Result: exit code 0.
+5. `git diff --check`
+   - Result: exit code 0 with no whitespace errors.
+
+### Changes
+
+- Added regressions for `pain`, `limping`, `sharp_pain`, and `next_day_worsening`; each global hard flag now routes both loaded general work (`bench_press`) and high-neural/explosive work to empty `pain_safe_recovery` days.
+- Added a shared, deterministic pain-work classifier used by both routing and `pain_block` validation. It reads each `PlanDay` exercise payload, recognizes pure mobility, rehab, and isometric recovery work, honors explicit load fields, and derives loaded/explosive exercise profiles from the active constitution.
+- With no body-area exercise map available, named non-recovery payloads fail closed under a hard pain flag. Consequently, `pain_block` cannot pass while loaded or explosive work remains.
+- Updated the no-op regression so it requires constraints to remove all loaded and explosive work before the hard pain validation may pass.
+
+### Concerns
+
+- The conservative fallback treats an unrecognized named exercise as pain-blocked unless it is clearly mobility, rehab, or isometric recovery. This is intentional while no safe body-area exercise mapping exists.

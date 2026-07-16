@@ -24,6 +24,8 @@ _PHASE_EXERCISE_KEYS = {
 }
 
 _HIGH_NEURAL_SESSION_TYPES = frozenset({"high_intensity", "jump", "peak", "attempt"})
+_RECOVERY_EXERCISE_MARKERS = frozenset({"isometric", "mobility", "flexibility", "rehab"})
+_EXPLICIT_LOAD_FIELDS = ("load_kg", "weight_kg", "weight", "load")
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,69 @@ def _calendar_detail(dates):
     return ", ".join(day.isoformat() for day in dates) or "none"
 
 
+def _exercise_name(exercise):
+    if not isinstance(exercise, Mapping):
+        return ""
+    return str(exercise.get("name", "")).casefold().strip()
+
+
+def _is_recovery_exercise(exercise):
+    name = _exercise_name(exercise)
+    return bool(name) and any(marker in name for marker in _RECOVERY_EXERCISE_MARKERS)
+
+
+def _has_explicit_load(exercise):
+    if not isinstance(exercise, Mapping):
+        return False
+    for field in _EXPLICIT_LOAD_FIELDS:
+        try:
+            if float(exercise.get(field, 0)) > 0:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def _is_loaded_or_explosive_exercise(exercise, loaded_exercises, explosive_exercises):
+    if _is_recovery_exercise(exercise):
+        return False
+    name = _exercise_name(exercise)
+    return (
+        _has_explicit_load(exercise)
+        or name in loaded_exercises
+        or name in explosive_exercises
+        or bool(name)
+    )
+
+
+def _contains_pain_blocked_work(day, loaded_exercises=(), explosive_exercises=()):
+    if day.session_type in _HIGH_NEURAL_SESSION_TYPES:
+        return True
+    return any(
+        _is_loaded_or_explosive_exercise(exercise, loaded_exercises, explosive_exercises)
+        for exercise in day.exercises
+    )
+
+
+def _pain_work_profiles(constitution):
+    policy = constitution.get("adaptive_planner", {})
+    equipment = policy.get("exercise_equipment", {}) if isinstance(policy, Mapping) else {}
+    loaded_exercises = frozenset(
+        str(name).casefold()
+        for name, requirements in equipment.items()
+        if requirements
+    )
+    movement_families = policy.get("movement_families", {}) if isinstance(policy, Mapping) else {}
+    explosive_exercises = {
+        str(name).casefold()
+        for name in movement_families.get("explosive", ())
+    }
+    for prescription in constitution.get("mesocycle_progression", {}).values():
+        if isinstance(prescription, Mapping) and prescription.get("explosive_exercise"):
+            explosive_exercises.add(str(prescription["explosive_exercise"]).casefold())
+    return loaded_exercises, frozenset(explosive_exercises)
+
+
 def validate_plan(
     days,
     policy,
@@ -76,6 +141,8 @@ def validate_plan(
     safety_blocks=(),
     pain_routed_dates=(),
     calendar_conflict_dates=(),
+    loaded_exercises=(),
+    explosive_exercises=(),
 ):
     minimum_recovery_hours = _minimum_recovery_hours(policy)
     high_neural_days = [day for day in days if day.session_type in _HIGH_NEURAL_SESSION_TYPES]
@@ -92,18 +159,23 @@ def validate_plan(
         if baseline_minutes
         else 0.0
     )
-    pain_passed = not safety_blocks or not high_neural_days
+    pain_blocked_days = [
+        day
+        for day in days
+        if _contains_pain_blocked_work(day, loaded_exercises, explosive_exercises)
+    ]
+    pain_passed = not safety_blocks or not pain_blocked_days
     if not safety_blocks:
         pain_detail = "No hard pain block is active."
     elif pain_routed_dates:
         pain_detail = (
-            f"Hard pain block for {', '.join(safety_blocks)} routed high-neural work "
+            f"Hard pain block for {', '.join(safety_blocks)} routed loaded or explosive work "
             f"to recovery: {_calendar_detail(pain_routed_dates)}."
         )
     else:
         pain_detail = (
             f"Hard pain block for {', '.join(safety_blocks)} required no additional routing; "
-            "no high-neural work remained after constraints."
+            "no loaded or explosive work remained after constraints."
         )
     calendar_passed = all(
         day.session_type == "recovery"
@@ -257,13 +329,13 @@ def _route_to_recovery(day, objective, reason):
     )
 
 
-def _apply_pain_blocks(days, safety_blocks):
+def _apply_pain_blocks(days, safety_blocks, loaded_exercises=(), explosive_exercises=()):
     if not safety_blocks:
         return days, ()
     planned = []
     routed_dates = []
     for day in days:
-        if day.session_type in _HIGH_NEURAL_SESSION_TYPES:
+        if _contains_pain_blocked_work(day, loaded_exercises, explosive_exercises):
             planned.append(_route_to_recovery(day, "pain_safe_recovery", "hard_pain_block"))
             routed_dates.append(day.date)
         else:
@@ -540,7 +612,13 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
     baseline_days = days
     days = apply_constraints(days, constraints, constitution)
     safety_blocks = _safety_blocks(snapshot)
-    days, pain_routed_dates = _apply_pain_blocks(days, safety_blocks)
+    loaded_exercises, explosive_exercises = _pain_work_profiles(constitution)
+    days, pain_routed_dates = _apply_pain_blocks(
+        days,
+        safety_blocks,
+        loaded_exercises,
+        explosive_exercises,
+    )
     calendar_conflict_dates = _calendar_hard_conflict_dates(days, snapshot.calendar_events)
     days = _apply_calendar_hard_conflicts(days, calendar_conflict_dates, pain_routed_dates)
     days = _apply_recovery_spacing(days, policy)
@@ -552,6 +630,8 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
         safety_blocks=safety_blocks,
         pain_routed_dates=pain_routed_dates,
         calendar_conflict_dates=calendar_conflict_dates,
+        loaded_exercises=loaded_exercises,
+        explosive_exercises=explosive_exercises,
     )
     if any(not row.passed and row.severity == "hard" for row in validations):
         raise ValueError("Baseline weekly plan violates hard rules")

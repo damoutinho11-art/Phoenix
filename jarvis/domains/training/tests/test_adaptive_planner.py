@@ -9,6 +9,7 @@ from jarvis.domains.training.adaptive_planner import (
     PlanningSnapshot,
     apply_constraints,
     generate_weekly_plan,
+    validate_plan,
 )
 from jarvis.domains.training.plan_evidence import build_planning_snapshot
 from jarvis.domains.training.plan_contracts import PlanDay, TrainingConstraint
@@ -109,7 +110,64 @@ def test_hard_readiness_signal_blocks_without_precomputed_safety_blocks(training
     assert plan.days[0].change_reason == "hard_pain_block"
 
 
-def test_pain_block_validation_reports_no_op_when_constraints_removed_high_neural_work(
+@pytest.mark.parametrize("hard_flag", ("pain", "limping", "sharp_pain", "next_day_worsening"))
+def test_hard_pain_flags_route_loaded_general_and_high_neural_work_when_area_is_global(
+    training_constitution, hard_flag
+):
+    unsafe = replace(snapshot(), readiness={hard_flag: True})
+
+    plan = generate_weekly_plan(training_constitution, unsafe)
+
+    for index in (0, 1, 5):
+        assert plan.days[index].session_type == "recovery"
+        assert plan.days[index].objective == "pain_safe_recovery"
+        assert plan.days[index].exercises == ()
+        assert plan.days[index].change_reason == "hard_pain_block"
+
+
+def test_pain_block_validation_rejects_loaded_work_but_allows_pure_recovery_payload(
+    training_constitution,
+):
+    loaded_day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="general",
+        objective="general_strength",
+        exercises=({"name": "bench_press"},),
+        estimated_minutes=60,
+    )
+    recovery_day = PlanDay(
+        date=date(2026, 7, 21),
+        session_type="iso_only",
+        objective="joint_capacity",
+        exercises=(
+            {"name": "knee_extension_isometrics"},
+            {"name": "dynamic_flexibility"},
+            {"name": "shoulder_rehab"},
+        ),
+        estimated_minutes=20,
+    )
+
+    validations = validate_plan(
+        (loaded_day, recovery_day),
+        training_constitution["adaptive_planner"],
+        safety_blocks=("global",),
+    )
+
+    pain_validation = next(row for row in validations if row.rule == "pain_block")
+    assert not pain_validation.passed
+
+    recovery_validations = validate_plan(
+        (recovery_day,),
+        training_constitution["adaptive_planner"],
+        safety_blocks=("global",),
+    )
+    recovery_pain_validation = next(
+        row for row in recovery_validations if row.rule == "pain_block"
+    )
+    assert recovery_pain_validation.passed
+
+
+def test_pain_block_validation_reports_no_op_when_constraints_removed_pain_blocked_work(
     training_constitution,
 ):
     unsafe = replace(
@@ -119,7 +177,9 @@ def test_pain_block_validation_reports_no_op_when_constraints_removed_high_neura
     )
     constraints = (
         TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-20"}),
+        TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-21"}),
         TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-22"}),
+        TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-23"}),
         TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-25"}),
     )
 
@@ -129,7 +189,7 @@ def test_pain_block_validation_reports_no_op_when_constraints_removed_high_neura
     assert pain_validation.passed
     assert pain_validation.detail == (
         "Hard pain block for knee required no additional routing; "
-        "no high-neural work remained after constraints."
+        "no loaded or explosive work remained after constraints."
     )
 
 
