@@ -156,3 +156,30 @@ Completed and verified. Commit: `2596d629571293cda8bb31aa65013215b28c6fa8` (`fea
 ### Concerns
 
 - The conservative fallback treats an unrecognized named exercise as pain-blocked unless it is clearly mobility, rehab, or isometric recovery. This is intentional while no safe body-area exercise mapping exists.
+
+## Review Fix 4
+
+### RED Evidence
+
+1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k loaded_recovery_marker`
+   - Result: `8 failed, 39 deselected in 0.31s`.
+   - Failure: explicitly weighted isometric and loaded rehab payloads were incorrectly treated as unloaded recovery under each hard flag (`pain`, `limping`, `sharp_pain`, and `next_day_worsening`).
+
+### GREEN Evidence
+
+1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k "loaded_recovery_marker or hard_pain_flags_route_loaded_general or pain_block_validation_rejects_loaded"`
+   - Result: `13 passed, 34 deselected in 0.10s`.
+2. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q`
+   - Result: `47 passed in 0.25s`.
+3. `python -m pytest jarvis/domains/training/tests -q`
+   - Result: `144 passed in 2.31s`.
+
+### Changes
+
+- `_is_loaded_or_explosive_exercise` now checks explicit positive load fields before recovery marker allowlists.
+- Clearly unloaded mobility, rehab, flexibility, and isometric recovery payloads retain their safe classification.
+- Added an 8-case regression matrix covering loaded isometric and loaded rehab payloads under every hard flag.
+
+### Concerns
+
+- None within Task 4 scope.

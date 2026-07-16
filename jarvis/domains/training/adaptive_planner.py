@@ -94,12 +94,13 @@ def _has_explicit_load(exercise):
 
 
 def _is_loaded_or_explosive_exercise(exercise, loaded_exercises, explosive_exercises):
+    if _has_explicit_load(exercise):
+        return True
     if _is_recovery_exercise(exercise):
         return False
     name = _exercise_name(exercise)
     return (
-        _has_explicit_load(exercise)
-        or name in loaded_exercises
+        name in loaded_exercises
         or name in explosive_exercises
         or bool(name)
     )

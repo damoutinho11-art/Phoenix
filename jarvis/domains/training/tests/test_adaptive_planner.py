@@ -167,6 +167,35 @@ def test_pain_block_validation_rejects_loaded_work_but_allows_pure_recovery_payl
     assert recovery_pain_validation.passed
 
 
+@pytest.mark.parametrize("hard_flag", ("pain", "limping", "sharp_pain", "next_day_worsening"))
+@pytest.mark.parametrize(
+    "exercise",
+    (
+        {"name": "knee_extension_isometrics", "weight_kg": 5},
+        {"name": "shoulder_rehab", "load_kg": 2},
+    ),
+)
+def test_pain_block_rejects_loaded_recovery_marker_payloads(
+    training_constitution, hard_flag, exercise
+):
+    loaded_recovery_day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="iso_only",
+        objective="joint_capacity",
+        exercises=(exercise,),
+        estimated_minutes=20,
+    )
+
+    validations = validate_plan(
+        (loaded_recovery_day,),
+        training_constitution["adaptive_planner"],
+        safety_blocks=(hard_flag,),
+    )
+
+    pain_validation = next(row for row in validations if row.rule == "pain_block")
+    assert not pain_validation.passed
+
+
 def test_pain_block_validation_reports_no_op_when_constraints_removed_pain_blocked_work(
     training_constitution,
 ):
