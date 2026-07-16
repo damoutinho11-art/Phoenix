@@ -190,6 +190,24 @@ def test_calendar_performance_conflict_routes_high_neural_day_to_recovery(traini
     assert any(row.rule == "calendar_conflicts" and row.passed for row in plan.validations)
 
 
+def test_out_of_horizon_hard_calendar_event_is_excluded_from_conflict_validation(
+    training_constitution,
+):
+    out_of_horizon = replace(
+        snapshot(),
+        calendar_events=({"severity": "hard", "date": "2026-07-27"},),
+    )
+
+    plan = generate_weekly_plan(training_constitution, out_of_horizon)
+
+    calendar_validation = next(
+        row for row in plan.validations if row.rule == "calendar_conflicts"
+    )
+    assert calendar_validation.passed
+    assert calendar_validation.detail == "No calendar hard conflicts."
+    assert all(day.change_reason is None for day in plan.days)
+
+
 def test_move_preserves_minimum_high_neural_spacing(training_constitution):
     move = TrainingConstraint.from_mapping(
         "move_session", "user", {"source_date": "2026-07-20", "target_date": "2026-07-21"}

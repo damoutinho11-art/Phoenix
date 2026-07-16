@@ -289,6 +289,7 @@ def _event_date(event):
 
 
 def _calendar_hard_conflict_dates(days, calendar_events):
+    plan_dates = {day.date for day in days}
     high_neural_dates = {
         day.date for day in days if day.session_type in _HIGH_NEURAL_SESSION_TYPES
     }
@@ -300,7 +301,8 @@ def _calendar_hard_conflict_dates(days, calendar_events):
         if str(event.get("severity", "")).lower() == "hard" or bool(
             event.get("hard_conflict")
         ):
-            hard_conflicts.add(event_date)
+            if event_date in plan_dates:
+                hard_conflicts.add(event_date)
         elif str(event.get("event_type", "")).lower() == "performance":
             for candidate in (event_date - timedelta(days=1), event_date):
                 if candidate in high_neural_dates:
