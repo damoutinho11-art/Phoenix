@@ -39,6 +39,41 @@ def test_baseline_plan_has_seven_ordered_days(training_constitution):
     )
 
 
+def test_baseline_plan_uses_engine_order_and_constitution_prescriptions(training_constitution):
+    plan = generate_weekly_plan(training_constitution, snapshot())
+
+    assert _exercise_names(plan.days[0]) == (
+        "knee_extension_isometrics",
+        "dynamic_flexibility",
+        "barbell_warmup",
+        "hex_bar_jump",
+        "back_squat",
+        "hip_thrust",
+        "seated_calf_raise",
+    )
+    assert _exercise_names(plan.days[1]) == (
+        "shoulder_rehab",
+        "bench_press",
+        "lat_pulldown",
+        "lateral_raise",
+    )
+    assert _exercise_names(plan.days[5]) == (
+        "knee_extension_isometrics",
+        "dynamic_flexibility",
+        "sprint_development_drills",
+        "jumps_10_to_100pct",
+        "max_effort_approach_jumps",
+    )
+
+
+def test_constitution_defines_equipment_for_programmed_exercises(training_constitution):
+    equipment = training_constitution["adaptive_planner"]["exercise_equipment"]
+
+    assert equipment["back_squat"] == ["barbell", "rack"]
+    assert equipment["bench_press"] == ["barbell", "bench"]
+    assert equipment["max_effort_approach_jumps"] == []
+
+
 def test_identical_snapshot_produces_identical_receipt(training_constitution):
     first = generate_weekly_plan(training_constitution, snapshot())
     second = generate_weekly_plan(training_constitution, snapshot())
@@ -93,6 +128,9 @@ def test_replacement_preserves_movement_family(training_constitution):
         "replace_exercise", "user", {"date": "2026-07-20", "from": "back_squat", "to": "split_squat"}
     )
     plan = generate_weekly_plan(training_constitution, snapshot(), (constraint,))
+
+    assert "back_squat" not in _exercise_names(plan.days[0])
+    assert "split_squat" in _exercise_names(plan.days[0])
     assert plan.days[0].change_reason == "exercise_replaced:back_squat:split_squat"
 
 
@@ -123,6 +161,10 @@ def _exercise_day():
     )
 
 
+def _exercise_names(day):
+    return tuple(exercise["name"] for exercise in day.exercises)
+
+
 def test_equipment_substitutes_first_valid_family_exercise_deterministically(training_constitution):
     constraint = TrainingConstraint.from_mapping(
         "equipment_available", "user", {"date": "2026-07-20", "equipment": ("barbell",)}
@@ -136,6 +178,63 @@ def test_equipment_substitutes_first_valid_family_exercise_deterministically(tra
     assert first[0].change_reason == "equipment_substituted:back_squat:split_squat"
 
 
+def test_equipment_substitutes_every_affected_exercise_and_preserves_reasons(training_constitution):
+    day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="high_intensity",
+        objective="jump_strength",
+        exercises=({"name": "back_squat"}, {"name": "power_clean"}),
+        estimated_minutes=60,
+    )
+    constraint = TrainingConstraint.from_mapping(
+        "equipment_available", "user", {"date": "2026-07-20", "equipment": ("barbell",)}
+    )
+
+    plan = apply_constraints((day,), (constraint,), training_constitution)
+
+    assert _exercise_names(plan[0]) == ("split_squat", "approach_jump")
+    assert plan[0].change_reason == (
+        "equipment_substituted:back_squat:split_squat;"
+        "equipment_substituted:power_clean:approach_jump"
+    )
+
+
+def test_equipment_without_metadata_retains_exercise_with_explicit_reason(training_constitution):
+    training_constitution["adaptive_planner"]["exercise_equipment"].pop("back_squat")
+    day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="high_intensity",
+        objective="jump_strength",
+        exercises=({"name": "back_squat"},),
+        estimated_minutes=60,
+    )
+    constraint = TrainingConstraint.from_mapping(
+        "equipment_available", "user", {"date": "2026-07-20", "equipment": ()}
+    )
+
+    plan = apply_constraints((day,), (constraint,), training_constitution)
+
+    assert _exercise_names(plan[0]) == ("back_squat",)
+    assert plan[0].change_reason == "equipment_retained:back_squat:unknown_equipment"
+
+
+def test_substitutions_record_no_reason_when_exercise_content_is_unchanged(training_constitution):
+    equipment = TrainingConstraint.from_mapping(
+        "equipment_available", "user", {"date": "2026-07-20", "equipment": ("barbell", "rack")}
+    )
+    preference = TrainingConstraint.from_mapping(
+        "exercise_preference",
+        "user",
+        {"date": "2026-07-20", "exercise": "back_squat", "avoid_or_prefer": "prefer"},
+    )
+
+    equipment_plan = apply_constraints((_exercise_day(),), (equipment,), training_constitution)
+    preference_plan = apply_constraints((_exercise_day(),), (preference,), training_constitution)
+
+    assert equipment_plan[0].change_reason is None
+    assert preference_plan[0].change_reason is None
+
+
 def test_avoid_preference_substitutes_first_valid_family_exercise(training_constitution):
     constraint = TrainingConstraint.from_mapping(
         "exercise_preference",
@@ -147,6 +246,49 @@ def test_avoid_preference_substitutes_first_valid_family_exercise(training_const
 
     assert plan[0].exercises[0]["name"] == "split_squat"
     assert plan[0].change_reason == "preference_substituted:back_squat:split_squat"
+
+
+def test_preference_substitutes_every_matching_family_exercise(training_constitution):
+    day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="high_intensity",
+        objective="jump_strength",
+        exercises=({"name": "split_squat"}, {"name": "leg_press"}),
+        estimated_minutes=60,
+    )
+    constraint = TrainingConstraint.from_mapping(
+        "exercise_preference",
+        "user",
+        {"date": "2026-07-20", "exercise": "back_squat", "avoid_or_prefer": "prefer"},
+    )
+
+    plan = apply_constraints((day,), (constraint,), training_constitution)
+
+    assert _exercise_names(plan[0]) == ("back_squat", "back_squat")
+    assert plan[0].change_reason == (
+        "preference_substituted:split_squat:back_squat;"
+        "preference_substituted:leg_press:back_squat"
+    )
+
+
+def test_preference_rejects_unknown_to_unknown_family_pair(training_constitution):
+    day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="general",
+        objective="general_strength",
+        exercises=({"name": "unknown_source"},),
+        estimated_minutes=60,
+    )
+    constraint = TrainingConstraint.from_mapping(
+        "exercise_preference",
+        "user",
+        {"date": "2026-07-20", "exercise": "unknown_target", "avoid_or_prefer": "prefer"},
+    )
+
+    plan = apply_constraints((day,), (constraint,), training_constitution)
+
+    assert _exercise_names(plan[0]) == ("unknown_source",)
+    assert plan[0].change_reason is None
 
 
 def test_prefer_preference_substitutes_within_the_same_family(training_constitution):
@@ -167,6 +309,37 @@ def test_prefer_preference_substitutes_within_the_same_family(training_constitut
 
     assert plan[0].exercises[0]["name"] == "back_squat"
     assert plan[0].change_reason == "preference_substituted:split_squat:back_squat"
+
+
+def test_replacement_records_no_change_when_source_is_not_in_the_day(training_constitution):
+    constraint = TrainingConstraint.from_mapping(
+        "replace_exercise", "user", {"date": "2026-07-20", "from": "leg_press", "to": "split_squat"}
+    )
+
+    plan = generate_weekly_plan(training_constitution, snapshot(), (constraint,))
+
+    assert "leg_press" not in _exercise_names(plan.days[0])
+    assert plan.days[0].change_reason is None
+
+
+def test_composes_change_reasons_only_for_actual_exercise_replacements(training_constitution):
+    constraints = (
+        TrainingConstraint.from_mapping(
+            "time_limit", "user", {"date": "2026-07-20", "minutes": 30}
+        ),
+        TrainingConstraint.from_mapping(
+            "replace_exercise",
+            "user",
+            {"date": "2026-07-20", "from": "back_squat", "to": "split_squat"},
+        ),
+    )
+
+    plan = generate_weekly_plan(training_constitution, snapshot(), constraints)
+
+    assert "split_squat" in _exercise_names(plan.days[0])
+    assert plan.days[0].change_reason == (
+        "time_limit;exercise_replaced:back_squat:split_squat"
+    )
 
 
 def test_apply_constraints_orders_days_by_date(training_constitution):
