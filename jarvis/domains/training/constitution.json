@@ -1,6 +1,6 @@
 {
   "name": "PHOENIX Training Domain Constitution",
-  "version": "0",
+  "version": "1",
   "system": "Isiah Rivera Long Conjugate Sequence System",
   "goal": "dunk",
   "start_date": "2026-07-06",
@@ -98,6 +98,18 @@
     "heavy_session_day_before_performance": "hard_block",
     "any_session_day_before_performance": "advisory",
     "general_day_conflicts": "skip_first"
+  },
+  "adaptive_planner": {
+    "version": "adaptive-v1",
+    "minimum_recovery_hours": {"high_neural_to_high_neural": 36, "jump_to_high_intensity": 36},
+    "maximum_weekly_volume_increase_pct": 10,
+    "maximum_session_volume_reduction_pct": 40,
+    "pain_block_flags": ["sharp_pain", "limping", "next_day_worsening"],
+    "movement_families": {
+      "knee_extension": ["back_squat", "split_squat", "leg_press"],
+      "posterior_chain": ["hip_thrust", "rdl", "back_extension"],
+      "explosive": ["hex_bar_jump", "power_clean", "approach_jump"]
+    }
   },
   "read_only": true,
   "manual_approval_required_for_any_external_action": true
