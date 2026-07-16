@@ -2,6 +2,7 @@ import sqlite3
 import tempfile
 import unittest
 from datetime import date, timedelta
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -35,6 +36,156 @@ class DatabaseTests(unittest.TestCase):
         }
         values.update(overrides)
         return database.log_meal(**values)
+
+    def _training_plan_receipt(self, **overrides):
+        receipt = {
+            "plan_id": "plan-1",
+            "parent_plan_id": None,
+            "constitution_version": "1",
+            "planner_version": "adaptive-v1",
+            "cycle_id": "2026-W30",
+            "days": [
+                {
+                    "date": "2026-07-20",
+                    "session_type": "high_intensity",
+                    "objective": "jump_strength",
+                    "exercises": [],
+                    "estimated_minutes": 60,
+                    "change_reason": None,
+                }
+            ],
+            "constraints": [],
+            "validations": [
+                {
+                    "rule": "seven_unique_dates",
+                    "passed": True,
+                    "severity": "hard",
+                    "detail": "Within policy",
+                }
+            ],
+            "created_at": "2026-07-20T06:00:00Z",
+            "status": "proposed",
+            "input_hash": "input-hash-1",
+            "receipt_hash": "receipt-hash-1",
+        }
+        receipt.update(overrides)
+        return receipt
+
+    def test_training_plan_receipt_round_trips_immutable_payload(self):
+        receipt = self._training_plan_receipt(plan_id="plan-1", status="proposed")
+
+        database.save_training_plan_receipt(receipt)
+
+        stored = database.get_training_plan_receipt("plan-1")
+
+        assert stored["payload"] == receipt
+        assert stored["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            row = connection.execute(
+                "SELECT payload_json, receipt_hash FROM training_plan_receipts WHERE plan_id = ?",
+                ("plan-1",),
+            ).fetchone()
+        finally:
+            connection.close()
+        assert row == (
+            json.dumps(receipt, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False),
+            receipt["receipt_hash"],
+        )
+
+    def test_training_plan_apply_atomically_supersedes_parent_and_is_idempotent(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        first = database.apply_training_plan_proposal("plan-2")
+        second = database.apply_training_plan_proposal("plan-2")
+
+        assert first["status"] == second["status"] == "active"
+        assert database.get_training_plan_receipt("plan-1")["status"] == "superseded"
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-2"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            event_count = connection.execute(
+                "SELECT COUNT(*) FROM training_plan_lifecycle_events"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert event_count == 4
+
+    def test_training_plan_rejection_preserves_active_parent(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        first = database.reject_training_plan_proposal("plan-2")
+        second = database.reject_training_plan_proposal("plan-2")
+
+        assert first["status"] == second["status"] == "rejected"
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "rejected"
+
+    def test_training_plan_receipt_history_reports_current_lifecycle_statuses(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        rows = database.list_training_plan_receipts()
+
+        assert [(row["plan_id"], row["status"]) for row in rows] == [
+            ("plan-2", "proposed"),
+            ("plan-1", "active"),
+        ]
+        assert database.list_training_plan_receipts(limit=0) == []
+
+    def test_training_plan_receipt_rows_are_append_only(self):
+        receipt = self._training_plan_receipt()
+        database.save_training_plan_receipt(receipt)
+
+        connection = sqlite3.connect(self.db_path)
+        try:
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+                connection.execute(
+                    "UPDATE training_plan_receipts SET receipt_hash = ? WHERE plan_id = ?",
+                    ("changed", receipt["plan_id"]),
+                )
+            connection.rollback()
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+                connection.execute(
+                    "DELETE FROM training_plan_receipts WHERE plan_id = ?",
+                    (receipt["plan_id"],),
+                )
+        finally:
+            connection.close()
+
+        assert database.get_training_plan_receipt(receipt["plan_id"])["payload"] == receipt
+
+    def test_training_plan_rejects_second_active_receipt_for_cycle(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+
+        with self.assertRaisesRegex(ValueError, "one active training plan"):
+            database.save_training_plan_receipt(
+                self._training_plan_receipt(plan_id="plan-2", status="active")
+            )
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
 
     def test_init_db_creates_all_tables(self):
         connection = sqlite3.connect(self.db_path)
