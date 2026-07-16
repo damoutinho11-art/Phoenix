@@ -106,7 +106,13 @@ class WeeklyPlanReceipt:
 
     @classmethod
     def create(cls, **values):
-        days = tuple(values["days"])
+        values = {
+            **values,
+            "days": tuple(values["days"]),
+            "constraints": tuple(values["constraints"]),
+            "validations": tuple(values["validations"]),
+        }
+        days = values["days"]
         if len({day.date for day in days}) != len(days):
             raise ValueError("Plan days must use unique dates")
         unsigned = {**values, "days": days}

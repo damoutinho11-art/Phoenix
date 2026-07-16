@@ -81,6 +81,61 @@ def test_receipt_hashes_nonempty_constraints_and_validations_deterministically()
     assert first.receipt_hash == second.receipt_hash
 
 
+def test_receipt_detaches_source_collections_before_hashing():
+    day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="high_intensity",
+        objective="jump_strength",
+        exercises=(),
+        estimated_minutes=60,
+    )
+    constraint = TrainingConstraint.from_mapping(
+        kind="time_limit",
+        source="user",
+        values={"minutes": 60},
+    )
+    validation = PlanValidation(
+        rule="weekly_volume_cap",
+        passed=True,
+        severity="info",
+        detail="Within policy",
+    )
+    days = [day]
+    constraints = [constraint]
+    validations = [validation]
+
+    receipt = WeeklyPlanReceipt.create(
+        parent_plan_id=None,
+        constitution_version="1",
+        planner_version="adaptive-v1",
+        cycle_id="2026-W30",
+        days=days,
+        constraints=constraints,
+        validations=validations,
+        created_at="2026-07-20T06:00:00Z",
+        status="proposed",
+    )
+    original = (
+        tuple(receipt.days),
+        tuple(receipt.constraints),
+        tuple(receipt.validations),
+        receipt.input_hash,
+        receipt.receipt_hash,
+    )
+
+    days.append(day)
+    constraints.append(constraint)
+    validations.append(validation)
+
+    assert (
+        tuple(receipt.days),
+        tuple(receipt.constraints),
+        tuple(receipt.validations),
+        receipt.input_hash,
+        receipt.receipt_hash,
+    ) == original
+
+
 def test_training_constraint_freezes_source_mapping_and_nested_list():
     source = {"equipment": ["barbell"]}
     constraint = TrainingConstraint.from_mapping(
