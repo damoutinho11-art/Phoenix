@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from datetime import date
 from hashlib import sha256
 import json
+from types import MappingProxyType
 from typing import Any, Literal, Mapping
 from uuid import NAMESPACE_URL, uuid5
 
@@ -14,7 +15,22 @@ ConstraintKind = Literal[
 ]
 
 
+def _freeze(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
 def _canonical(value: Any) -> Any:
+    if is_dataclass(value) and not isinstance(value, type):
+        contract_type = f"{type(value).__module__}.{type(value).__qualname__}"
+        return {
+            "type": "dataclass",
+            "name": contract_type,
+            "fields": [[field.name, _canonical(getattr(value, field.name))] for field in fields(value)],
+        }
     if isinstance(value, Mapping):
         return {"type": "mapping", "items": [[key, _canonical(item)] for key, item in sorted(value.items())]}
     if isinstance(value, tuple):
@@ -44,6 +60,9 @@ class TrainingConstraint:
     source: Literal["user", "phoenix", "safety"]
     values: tuple[tuple[str, Any], ...]
 
+    def __post_init__(self):
+        object.__setattr__(self, "values", tuple((key, _freeze(value)) for key, value in self.values))
+
     @classmethod
     def from_mapping(cls, kind: ConstraintKind, source: str, values: Mapping[str, Any]):
         return cls(kind=kind, source=source, values=tuple(sorted(values.items())))
@@ -54,9 +73,12 @@ class PlanDay:
     date: date
     session_type: str
     objective: str
-    exercises: tuple[dict[str, Any], ...]
+    exercises: tuple[Mapping[str, Any], ...]
     estimated_minutes: int
     change_reason: str | None = None
+
+    def __post_init__(self):
+        object.__setattr__(self, "exercises", tuple(_freeze(exercise) for exercise in self.exercises))
 
 
 @dataclass(frozen=True)
@@ -87,7 +109,7 @@ class WeeklyPlanReceipt:
         days = tuple(values["days"])
         if len({day.date for day in days}) != len(days):
             raise ValueError("Plan days must use unique dates")
-        unsigned = {**values, "days": tuple(asdict(day) for day in days)}
+        unsigned = {**values, "days": days}
         input_hash = canonical_hash({"days": unsigned["days"], "constraints": values["constraints"]})
         plan_id = str(uuid5(NAMESPACE_URL, f"training-plan:{input_hash}:{values['cycle_id']}"))
         receipt_hash = canonical_hash({**unsigned, "plan_id": plan_id, "input_hash": input_hash})
