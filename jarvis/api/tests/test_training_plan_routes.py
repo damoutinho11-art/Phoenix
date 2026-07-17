@@ -444,6 +444,34 @@ def test_proposal_rejects_malformed_calendar_resolver_boundary_with_calendar_503
             {"date": "2026-07-21", "severity": ""},
             id="severity-empty",
         ),
+        pytest.param(
+            {"date": "2026-07-21", "severity": "blocker"},
+            id="severity-unknown",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "hard_conflict": []},
+            id="hard-conflict-list",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "hard_conflict": {}},
+            id="hard-conflict-mapping",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "hard_conflict": 0},
+            id="hard-conflict-zero",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "hard_conflict": 1},
+            id="hard-conflict-one",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "hard_conflict": "false"},
+            id="hard-conflict-string-false",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "hard_conflict": None},
+            id="hard-conflict-null",
+        ),
     ],
 )
 def test_proposal_fails_closed_for_malformed_calendar_event_entries(
@@ -542,6 +570,118 @@ def test_proposal_preserves_valid_calendar_event_fields_at_planning_boundary(
 
     assert response.status_code == 200
     assert captured_events == [event]
+
+
+@pytest.mark.parametrize(
+    ("event", "expected_event"),
+    [
+        pytest.param(
+            {"date": "2026-07-21", "event_type": " Performance "},
+            {"date": "2026-07-21", "event_type": "performance"},
+            id="event-type-performance",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "severity": " Hard "},
+            {"date": "2026-07-21", "severity": "hard"},
+            id="severity-hard",
+        ),
+    ],
+)
+def test_proposal_normalizes_known_calendar_routing_fields_before_planning(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    event: dict,
+    expected_event: dict,
+):
+    captured_events: list[dict] = []
+    real_build_snapshot = training_router.build_planning_snapshot
+
+    def capture_planning_snapshot(**kwargs):
+        captured_events.extend(kwargs["calendar_events"])
+        return real_build_snapshot(**kwargs)
+
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return {"events": [event]}, {"active_source": "env_json"}
+
+    monkeypatch.setattr(
+        training_router,
+        "build_planning_snapshot",
+        capture_planning_snapshot,
+    )
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured_events == [expected_event]
+
+
+@pytest.mark.parametrize(
+    ("hard_conflict", "is_hard"),
+    [
+        pytest.param(True, True, id="true"),
+        pytest.param(False, False, id="false"),
+    ],
+)
+def test_proposal_routes_only_boolean_true_hard_conflict_as_hard(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    hard_conflict: bool,
+    is_hard: bool,
+):
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return (
+            {
+                "events": [
+                    {
+                        "date": "2026-07-20",
+                        "event_type": "gala",
+                        "hard_conflict": hard_conflict,
+                    }
+                ]
+            },
+            {"active_source": "env_json"},
+        )
+
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    day = next(item for item in response.json()["days"] if item["date"] == "2026-07-20")
+    assert (day["change_reason"] == "calendar_hard_conflict") is is_hard
 
 
 def test_proposal_returns_explicit_503_when_calendar_resolver_fails(

@@ -70,6 +70,8 @@ _PUBLIC_ADAPTIVE_PLANNER_FIELDS = (
 _AUTHORITATIVE_CALENDAR_SOURCES = frozenset(
     {"env_json", "local_file", "manual_import", "read_only_url"}
 )
+_CALENDAR_ROUTING_EVENT_TYPES = frozenset({"performance"})
+_CALENDAR_ROUTING_SEVERITIES = frozenset({"hard", "warning", "info"})
 
 
 class CalendarEvidenceUnavailable(RuntimeError):
@@ -715,12 +717,23 @@ def _current_calendar_events() -> list[dict[str, Any]]:
             if not isinstance(event_date, str):
                 raise CalendarEvidenceUnavailable
             date.fromisoformat(event_date)
-            for field in ("event_type", "severity"):
-                if field in event and (
-                    not isinstance(event[field], str) or not event[field].strip()
-                ):
+            validated_event = dict(event)
+            for field, recognized_values in (
+                ("event_type", _CALENDAR_ROUTING_EVENT_TYPES),
+                ("severity", _CALENDAR_ROUTING_SEVERITIES),
+            ):
+                if field not in event:
+                    continue
+                if not isinstance(event[field], str) or not event[field].strip():
                     raise CalendarEvidenceUnavailable
-            validated_events.append(dict(event))
+                normalized_value = event[field].strip().lower()
+                if field == "severity" and normalized_value not in recognized_values:
+                    raise CalendarEvidenceUnavailable
+                if normalized_value in recognized_values:
+                    validated_event[field] = normalized_value
+            if "hard_conflict" in event and not isinstance(event["hard_conflict"], bool):
+                raise CalendarEvidenceUnavailable
+            validated_events.append(validated_event)
         return validated_events
     except CalendarEvidenceUnavailable:
         raise
