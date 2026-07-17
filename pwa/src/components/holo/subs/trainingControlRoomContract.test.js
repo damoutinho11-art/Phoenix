@@ -258,3 +258,14 @@ test('training CSS reserves green yellow and red for validation rather than life
     /\.training-(?:lifecycle-status|plan-live-state)\.(?:active|proposed|rejected|completed|superseded)\s*\{[^}]*--phx-(?:positive|caution|danger)/,
   )
 })
+
+test('training CSS keeps danger red inside validation hard-block selectors', () => {
+  const css = readSource('../holo.css')
+  const trainingCss = css.slice(css.indexOf('/* Training Control Room'))
+  const redBlocks = [...trainingCss.matchAll(/([^{}]+)\{([^{}]*--phx-danger[^{}]*)\}/gi)]
+
+  const validationHardBlock = /\.training-(?:week-day\.changed\.blocked|section-heading\s+\.blocked|validation-list\s+\.blocked|history-validation\.blocked)\b/
+  for (const [selector] of redBlocks) {
+    assert.match(selector, validationHardBlock, `danger red escaped validation scope: ${selector.trim()}`)
+  }
+})

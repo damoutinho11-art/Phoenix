@@ -188,3 +188,57 @@ Result: 73 passed, 1 failed. The unchanged failure is the pre-existing Finance `
 ### Concerns
 
 - Task 10 follow-up, low priority: browser-level verification should exercise the Training Control Room through its real mount/unmount lifecycle alongside any nested overlay. The existing focus trap and restoration behavior remains covered by the Task 8 source contract; no QA temporary files were created for this review fix.
+
+## Review Fix 3
+
+### Status
+
+Resolved the final Task 8 semantic color violation within the owned Training CSS and contract test. Endpoint/service failures now use Training orange/neutral treatment; red remains limited to validation hard-block selectors.
+
+### Behavior Changes
+
+- `.training-plan-error` now uses `--training-accent` and neutral body mixing for its border, text, and background instead of `--phx-danger`.
+- The Training CSS contract scans every declaration block containing `--phx-danger` and fails if its selector is outside the validation hard-block set.
+
+### TDD Evidence
+
+The new contract was red first: 11 passed, 1 failed on `.training-plan-error` escaping validation red scope. After the CSS-only correction, the focused contract passed 12/12.
+
+### Verification
+
+Focused Task 8:
+
+```text
+node --test src/components/holo/subs/trainingControlRoomContract.test.js
+```
+
+Result: 12 passed, 0 failed.
+
+Training scope:
+
+```text
+node --test src/components/training/trainingViewModel.test.js src/components/training/trainingUiContract.test.js src/components/holo/subs/trainingPlannerViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js
+```
+
+Result: 31 passed, 0 failed.
+
+Build:
+
+```text
+npm run build
+```
+
+Result: PASS. Vite transformed 313 modules and generated the PWA service worker. The existing 670.52 kB chunk-size warning remains.
+
+Full PWA:
+
+```text
+npm test
+```
+
+Result: 74 passed, 1 failed. The unchanged failure is the pre-existing Finance `orbitSize` source contract at `src/components/holo/financeControlRoomContract.test.js:117`.
+
+### Concerns
+
+- Full PWA verification remains red only for the documented pre-existing Finance contract failure.
+- `.superpowers/sdd/task-7-report.md` was left untouched and unstaged.

@@ -289,9 +289,9 @@
 }
 
 .training-plan-error {
-  border-left-color: var(--phx-danger);
-  color: var(--phx-danger);
-  background: color-mix(in srgb, var(--phx-danger) 6%, transparent);
+  border-left-color: var(--training-accent);
+  color: color-mix(in srgb, var(--training-accent) 78%, var(--phx-body) 22%);
+  background: color-mix(in srgb, var(--training-accent) 6%, transparent);
 }
 
 .training-control-panel {
