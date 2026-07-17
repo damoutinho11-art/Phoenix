@@ -4,10 +4,10 @@ import {
   postTrainingPlanProposal,
   rejectTrainingPlanProposal,
 } from '../../../api/client.js'
-import { normalizeTrainingPlan } from './trainingPlannerViewModel.js'
 import {
   describeTrainingPlanDay,
   getAdaptValidationTone,
+  getAppliedTrainingPlanOutcome,
   getProposalLifecycleState,
   getProposalRequestState,
   normalizeTrainingAdaptProposal,
@@ -159,9 +159,17 @@ export default function TrainingAdaptView({ activePlan, onApplied, onRejected })
     setBusy(true)
     setError('')
     try {
-      const active = normalizeTrainingPlan(await applyTrainingPlanProposal(currentProposal.plan_id))
+      const outcome = getAppliedTrainingPlanOutcome(
+        await applyTrainingPlanProposal(currentProposal.plan_id),
+        currentProposal,
+      )
+      if (!outcome.valid) {
+        setProposal(getProposalLifecycleState('apply', false, currentProposal).proposal)
+        setError('Plan apply returned invalid lifecycle evidence. The proposal remains available for review.')
+        return
+      }
       const lifecycle = getProposalLifecycleState('apply', true, currentProposal)
-      onApplied?.(active)
+      onApplied?.(outcome.plan)
       setProposal(lifecycle.proposal)
       setIntent('')
     } catch (err) {

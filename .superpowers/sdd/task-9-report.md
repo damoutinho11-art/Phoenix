@@ -158,3 +158,79 @@ Implemented and committed after scoped verification. The Task 7 report modificat
 - Confirmed every preview collection is guarded before rendering and `[null]` validation evidence cannot reach `.some` or `.map` unsafely.
 - Confirmed missing diff evidence is no longer synthesized into an eligible preview; Task 7 client routes remain unchanged.
 - Confirmed the focused tests exercise the pure state transitions that the two views consume, plus source contracts that verify those helpers are wired into the UI.
+
+## Review Fix 2
+
+### Router Contract Verified
+
+- Inspected `jarvis/api/routers/training.py` before changing the frontend boundary. Its `_validated_constraint` accepts exactly: `unavailable`, `move_session`, `skip_session`, `replace_exercise`, `time_limit`, `equipment_available`, and `exercise_preference`.
+- The client mirrors the router's required date/text fields, `time_limit` integer range of `15..180`, non-empty equipment lists, `avoid|prefer`, and optional dates only for equipment and preference constraints. It intentionally does not attempt the server-only planning-horizon check.
+
+### RED Evidence
+
+1. Added the trust-boundary cases to `trainingAdaptViewModel.test.js`, then ran:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js
+   ```
+
+   - Result: expected RED, `5 passed, 4 failed`.
+   - The failures proved that object-valued changed-day reasons remained in preview rows, top-level/after plan identity mismatches could still apply, malformed rollover dates and incomplete constraints were accepted, and `getAppliedTrainingPlanOutcome` did not exist.
+2. Added the component contract for the apply-response helper, then ran:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingControlRoomContract.test.js
+   ```
+
+   - Result: expected RED, `16 passed, 1 failed` because `TrainingAdaptView` did not import or use `getAppliedTrainingPlanOutcome`.
+
+### GREEN Evidence
+
+1. Focused Task 9 review contracts:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js
+   ```
+
+   - Result: `26 passed, 0 failed`.
+2. Full Training PWA suite:
+
+   ```powershell
+   cd pwa
+   node --test src/components/training/trainingViewModel.test.js src/components/training/trainingUiContract.test.js src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js src/components/holo/subs/trainingPlannerViewModel.test.js
+   ```
+
+   - Result: `45 passed, 0 failed`.
+3. Full PWA suite:
+
+   ```powershell
+   cd pwa
+   npm test
+   ```
+
+   - Result: `88 passed, 1 failed`.
+   - Sole failure: the documented unrelated Finance contract at `src/components/holo/financeControlRoomContract.test.js:129`, which expects `orbitSize` while `HoloWings.jsx` declares `donutSize`.
+4. Production build and whitespace check:
+
+   ```powershell
+   cd pwa
+   npm run build
+   git -C .. diff --check
+   ```
+
+   - Result: Vite production build succeeded and `git diff --check` was clean. The only build note is the existing chunk-size warning.
+
+### Behavior Fixed
+
+- Changed-day `reason` and plan-day `change_reason` now accept only strings, null, or omission. Any object/non-string value is withheld from preview evidence and disables Apply, so it cannot reach a React child.
+- A proposal is eligible only when its top-level proposed plan and `after` snapshot have the identical plan ID, days, validations, and constraints. Interpreted constraints must also match the authoritative `after.constraints`; otherwise preview evidence is withheld and Apply is disabled.
+- The constraint validator now follows the Task 7 router's complete allowed-kind schema and exact round-trip ISO calendar validation. Unknown, incomplete, rollover-date, or semantically invalid constraints fail closed.
+- A successful apply response must be an active, well-formed plan with the reviewed proposal ID before `onApplied`, preview clearing, and WEEK focus can occur. Invalid lifecycle evidence retains the proposal and reports a lifecycle-evidence error.
+
+### Review Self-Check 2
+
+- Confirmed the implementation preserves the existing Apply/Reject focus behavior; the new apply gate only permits the successful lifecycle transition after verified active-plan evidence.
+- Confirmed no backend route, SessionSub, ActiveSession, Finance, Task 7 report, or `progress.md` file was changed or staged.

@@ -37,6 +37,7 @@ test('adapt view consumes fail-closed evidence and lifecycle helpers', () => {
     'getAdaptValidationTone',
     'getProposalRequestState',
     'getProposalLifecycleState',
+    'getAppliedTrainingPlanOutcome',
     'describeTrainingPlanDay',
   ]) {
     assert.match(adapt, new RegExp(helperName))
