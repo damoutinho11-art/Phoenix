@@ -28,6 +28,10 @@ from jarvis.domains.training.plan_contracts import (
     iso_cycle_id,
 )
 from jarvis.domains.training.plan_evidence import build_planning_snapshot
+from jarvis.domains.training.plan_acceptance import (
+    training_planner_acceptance_status,
+    training_planner_mode,
+)
 
 router = APIRouter()
 
@@ -151,6 +155,7 @@ class TrainingPlanDiffResponse(BaseModel):
 
 
 class TrainingPlanProposalResponse(TrainingPlanResponse):
+    authoritative: bool
     before: TrainingPlanResponse | None
     after: TrainingPlanResponse
     diff: TrainingPlanDiffResponse
@@ -671,6 +676,10 @@ def _proposal_projection(
     before = _plan_projection(parent) if parent else None
     return {
         **after,
+        "authoritative": (
+            training_planner_mode() == "live"
+            and training_planner_acceptance_status()["accepted"] is True
+        ),
         "before": before,
         "after": after,
         "diff": _plan_diff(before, after),
@@ -910,6 +919,16 @@ def training_plan_proposal(proposal_id: str) -> dict[str, Any]:
 )
 def apply_training_plan(proposal_id: str) -> dict[str, Any]:
     proposal = _training_plan_record_or_404(proposal_id)
+    if training_planner_mode() != "live":
+        raise HTTPException(
+            status_code=409,
+            detail="Training planner is in shadow mode; proposal cannot be applied",
+        )
+    if training_planner_acceptance_status()["accepted"] is not True:
+        raise HTTPException(
+            status_code=503,
+            detail="Training planner live acceptance evidence is unavailable",
+        )
     if proposal["status"] == "active":
         return _plan_projection(proposal)
     if proposal["status"] != "proposed":

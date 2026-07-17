@@ -70,12 +70,34 @@ def _receipt(
     }
 
 
+def _accepted_planner_evidence() -> str:
+    return json.dumps(
+        {
+            "accepted": True,
+            "planner_version": "adaptive-v1",
+            "constitution_version": "1",
+            "evidence_id": "training-shadow-2026-07-17",
+            "fixture_summary": {"move": 1},
+        }
+    )
+
+
+def _enable_live_planner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
+    monkeypatch.setenv(
+        "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
+        _accepted_planner_evidence(),
+    )
+
+
 @pytest.fixture(autouse=True)
 def isolated_training_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "training-plan-routes.db")
     monkeypatch.setattr(clock, "today", lambda: TODAY)
     monkeypatch.setattr(clock, "utc_now_iso", lambda: "2026-07-20T06:00:00+00:00")
     monkeypatch.setenv("PHOENIX_PLAAN_SNAPSHOT_JSON", json.dumps(LIVE_SNAPSHOT_RAW))
+    monkeypatch.delenv("PHOENIX_TRAINING_PLANNER_MODE", raising=False)
+    monkeypatch.delenv("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON", raising=False)
     database.init_db()
 
 
@@ -140,6 +162,7 @@ def test_move_proposal_returns_before_after_without_activation(
     body = response.json()
     assert body["status"] == "proposed"
     assert body["parent_plan_id"] == seeded_active_plan
+    assert body["authoritative"] is False
     assert body["before"]["plan_id"] == seeded_active_plan
     assert body["after"]["plan_id"] == body["plan_id"]
     assert body["diff"]["changed_days"]
@@ -728,8 +751,12 @@ def test_unsupported_intent_returns_422_without_creating_a_plan(client: TestClie
 
 
 def test_apply_makes_proposal_authoritative_and_is_idempotent(
-    client: TestClient, seeded_proposal: str
+    client: TestClient,
+    seeded_proposal: str,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    _enable_live_planner(monkeypatch)
+
     first = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
     second = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
 
@@ -739,8 +766,12 @@ def test_apply_makes_proposal_authoritative_and_is_idempotent(
 
 
 def test_hard_safety_block_disables_apply(
-    client: TestClient, pain_blocked_proposal: str
+    client: TestClient,
+    pain_blocked_proposal: str,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    _enable_live_planner(monkeypatch)
+
     response = client.post(f"/training/plan/proposals/{pain_blocked_proposal}/apply")
 
     assert response.status_code == 409
@@ -887,6 +918,8 @@ def test_apply_storage_failure_returns_503_without_changing_active_plan(
     seeded_proposal: str,
     monkeypatch: pytest.MonkeyPatch,
 ):
+    _enable_live_planner(monkeypatch)
+
     def fail_apply(_: str):
         raise OSError("storage offline")
 
@@ -897,3 +930,119 @@ def test_apply_storage_failure_returns_503_without_changing_active_plan(
     assert response.status_code == 503
     assert response.json()["detail"] == "Training plan storage unavailable"
     assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
+
+
+def test_shadow_mode_cannot_apply_or_supersede_proposal(
+    client: TestClient,
+    seeded_active_plan: str,
+    seeded_proposal: str,
+):
+    response = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Training planner is in shadow mode; proposal cannot be applied"
+    )
+    assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
+    assert database.get_training_plan_receipt(seeded_proposal)["status"] == "proposed"
+
+
+def test_live_apply_returns_503_without_accepted_evidence(
+    client: TestClient,
+    seeded_active_plan: str,
+    seeded_proposal: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
+
+    response = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Training planner live acceptance evidence is unavailable"
+    )
+    assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
+    assert database.get_training_plan_receipt(seeded_proposal)["status"] == "proposed"
+
+
+def test_live_proposal_is_authoritative_only_with_accepted_evidence(
+    client: TestClient,
+    seeded_active_plan: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
+    rejected = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "skip_session",
+                    "values": {"date": TODAY.isoformat()},
+                }
+            ]
+        },
+    )
+
+    monkeypatch.setenv(
+        "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
+        _accepted_planner_evidence(),
+    )
+    accepted = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "skip_session",
+                    "values": {"date": (TODAY + timedelta(days=1)).isoformat()},
+                }
+            ]
+        },
+    )
+
+    assert rejected.status_code == accepted.status_code == 200
+    assert rejected.json()["authoritative"] is False
+    assert accepted.json()["authoritative"] is True
+    assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
+
+
+def test_propose_and_live_apply_have_no_session_or_calendar_write_side_effects(
+    client: TestClient,
+    seeded_active_plan: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _enable_live_planner(monkeypatch)
+    session_writes = []
+    calendar_writes = []
+    monkeypatch.setattr(
+        database,
+        "log_session",
+        lambda *args, **kwargs: session_writes.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        database,
+        "save_calendar_snapshot_import",
+        lambda *args, **kwargs: calendar_writes.append((args, kwargs)),
+    )
+
+    proposed = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "skip_session",
+                    "values": {"date": TODAY.isoformat()},
+                }
+            ]
+        },
+    )
+    applied = client.post(
+        f"/training/plan/proposals/{proposed.json()['plan_id']}/apply"
+    )
+
+    assert proposed.status_code == applied.status_code == 200
+    assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == proposed.json()[
+        "plan_id"
+    ]
+    assert session_writes == []
+    assert calendar_writes == []
+    assert database.get_sessions() == []
