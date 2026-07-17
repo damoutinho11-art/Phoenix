@@ -11,6 +11,7 @@ from jarvis.api.dependencies import get_training_constitution
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
+from jarvis.domains.calendar import plaan_live
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.training import engine, joint_capacity, progression
 from jarvis.domains.training.adaptive_planner import generate_weekly_plan
@@ -57,6 +58,19 @@ ConstraintKind = Literal[
     "exercise_preference",
 ]
 PlanStatus = Literal["proposed", "active", "superseded", "completed", "rejected"]
+_PUBLIC_ADAPTIVE_PLANNER_FIELDS = (
+    "version",
+    "minimum_recovery_hours",
+    "maximum_weekly_volume_increase_pct",
+    "maximum_session_volume_reduction_pct",
+    "pain_block_flags",
+    "movement_families",
+    "exercise_equipment",
+)
+
+
+class CalendarEvidenceUnavailable(RuntimeError):
+    """Raised when the read-only calendar boundary cannot provide valid evidence."""
 
 
 class TrainingConstraintRequest(BaseModel):
@@ -666,6 +680,10 @@ def _active_constraint_groups(active: Mapping[str, Any] | None) -> tuple[list[di
     return preferences, temporary
 
 
+def _public_adaptive_planner_policy(policy: Mapping[str, Any]) -> dict[str, Any]:
+    return {field: policy[field] for field in _PUBLIC_ADAPTIVE_PLANNER_FIELDS}
+
+
 def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[str, Any] | None):
     week_start, _ = _planning_horizon()
     preferences, _ = _active_constraint_groups(active)
@@ -678,12 +696,19 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         for requirements in constitution["adaptive_planner"]["exercise_equipment"].values()
         for equipment in requirements
     }
+    try:
+        calendar_snapshot_raw, _ = plaan_live.resolve_snapshot_raw(LIVE_SNAPSHOT_RAW)
+    except Exception as exc:
+        raise CalendarEvidenceUnavailable from exc
+    calendar_events = calendar_snapshot_raw.get("events")
+    if not isinstance(calendar_events, list):
+        raise CalendarEvidenceUnavailable
     return build_planning_snapshot(
         week_start=week_start,
         created_at=clock.utc_now_iso(),
         sessions=database.get_sessions(),
         readiness=database.get_latest_training_readiness_scan(),
-        calendar_events=LIVE_SNAPSHOT_RAW.get("events", []),
+        calendar_events=calendar_events,
         equipment=sorted(configured_equipment),
         preferences=preference_map,
     )
@@ -766,6 +791,10 @@ def propose_training_plan(
     try:
         active = database.get_active_training_plan(_current_cycle())
         snapshot = _current_planning_snapshot(constitution, active)
+    except CalendarEvidenceUnavailable as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan calendar evidence unavailable"
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=503, detail="Training plan storage unavailable"
@@ -905,7 +934,7 @@ def training_rules(
             status_code=503, detail="Training plan storage unavailable"
         ) from exc
     preferences, temporary_constraints = _active_constraint_groups(active)
-    policy = constitution["adaptive_planner"]
+    policy = _public_adaptive_planner_policy(constitution["adaptive_planner"])
     return {
         "objective": constitution["goal"],
         "planner_version": str(policy["version"]),

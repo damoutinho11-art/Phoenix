@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from jarvis.api.dependencies import get_training_constitution
 from jarvis.api.main import app
+from jarvis.api.routers import training as training_router
 from jarvis.core import clock
 from jarvis.data import database
 
@@ -234,6 +236,73 @@ def test_supported_intent_compiles_to_constraint_but_never_applies(
     assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
 
 
+def test_proposal_routes_resolved_performance_and_hard_calendar_events(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    resolved_events = [
+        {"event_type": "performance", "date": "2026-07-20"},
+        {"event_type": "calendar", "date": "2026-07-21", "hard_conflict": True},
+    ]
+
+    def resolve_calendar_snapshot(default_raw: dict):
+        return {"events": resolved_events}, {"active_source": "manual_import"}
+
+    monkeypatch.setattr(
+        training_router,
+        "plaan_live",
+        type("CalendarResolver", (), {"resolve_snapshot_raw": resolve_calendar_snapshot}),
+        raising=False,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    days_by_date = {day["date"]: day for day in response.json()["days"]}
+    assert days_by_date["2026-07-20"]["session_type"] == "recovery"
+    assert days_by_date["2026-07-21"]["session_type"] == "recovery"
+    assert {day["change_reason"] for day in days_by_date.values()} >= {
+        "calendar_hard_conflict"
+    }
+
+
+def test_proposal_returns_explicit_503_when_calendar_resolver_fails(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    def fail_to_resolve_calendar_snapshot(default_raw: dict):
+        raise OSError("calendar evidence unavailable")
+
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        fail_to_resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+
+
 def test_unsupported_intent_returns_422_without_creating_a_plan(client: TestClient):
     response = client.post(
         "/training/plan/proposals",
@@ -328,6 +397,49 @@ def test_history_and_rules_return_readable_detail(
     serialized_rules = str(rules.json()).lower()
     assert "system_prompt" not in serialized_rules
     assert "secret" not in serialized_rules
+
+
+def test_rules_whitelist_excludes_private_policy_fields(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    constitution = get_training_constitution()
+    policy = {
+        **constitution["adaptive_planner"],
+        "system_prompt": "never expose this",
+        "service_token": "token-value",
+        "secret_instructions": "private",
+    }
+    constitution["adaptive_planner"] = policy
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        get_training_constitution,
+        lambda: constitution,
+    )
+
+    response = client.get("/training/rules")
+
+    assert response.status_code == 200
+    rules = response.json()
+    assert set(rules["planner"]) == {
+        "version",
+        "minimum_recovery_hours",
+        "maximum_weekly_volume_increase_pct",
+        "maximum_session_volume_reduction_pct",
+        "pain_block_flags",
+        "movement_families",
+        "exercise_equipment",
+    }
+    assert rules["planner"]["version"] == "adaptive-v1"
+    assert rules["recovery_spacing"] == policy["minimum_recovery_hours"]
+    assert rules["adaptation_limits"] == {
+        "maximum_weekly_volume_increase_pct": 10,
+        "maximum_session_volume_reduction_pct": 40,
+    }
+    assert rules["movement_families"] == policy["movement_families"]
+    serialized_rules = str(rules).lower()
+    assert "system_prompt" not in serialized_rules
+    assert "service_token" not in serialized_rules
+    assert "secret_instructions" not in serialized_rules
 
 
 def test_rules_exposes_constraints_from_active_plan(client: TestClient):
