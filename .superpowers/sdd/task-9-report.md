@@ -234,3 +234,79 @@ Implemented and committed after scoped verification. The Task 7 report modificat
 
 - Confirmed the implementation preserves the existing Apply/Reject focus behavior; the new apply gate only permits the successful lifecycle transition after verified active-plan evidence.
 - Confirmed no backend route, SessionSub, ActiveSession, Finance, Task 7 report, or `progress.md` file was changed or staged.
+
+## Review Fix 3
+
+### API Authority Verified
+
+- Inspected `jarvis/api/routers/training.py`: `_proposal_projection` returns the active parent as `before` when one exists; otherwise it returns `before: null`. The top-level proposal projection and `after` are the same receipt projection.
+- Safe bootstrap rule: only `parent_plan_id: null` with `before: null` is accepted as a root proposal. Any non-null parent ID requires a complete active parent snapshot whose `plan_id` is exactly that ID.
+
+### RED Evidence
+
+1. Added authority, parent, and calendar regressions, then ran:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js
+   ```
+
+   - Result: expected RED, `9 passed, 3 failed`.
+   - The failures showed that year `0000` was accepted, no deterministic applied-plan authority comparator existed, and incomplete or mismatched `before` parent snapshots remained eligible.
+2. Added the comparator source contract and ran:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingControlRoomContract.test.js
+   ```
+
+   - Result: expected RED, `16 passed, 1 failed` because `hasSameTrainingPlanAuthority` did not exist in the scoped adaptation view model.
+
+### GREEN Evidence
+
+1. Focused Task 9 review contracts:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js
+   ```
+
+   - Result: `29 passed, 0 failed`.
+2. Full Training PWA suite:
+
+   ```powershell
+   cd pwa
+   node --test src/components/training/trainingViewModel.test.js src/components/training/trainingUiContract.test.js src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js src/components/holo/subs/trainingPlannerViewModel.test.js
+   ```
+
+   - Result: `48 passed, 0 failed`.
+3. Full PWA suite:
+
+   ```powershell
+   cd pwa
+   npm test
+   ```
+
+   - Result: `91 passed, 1 failed`.
+   - Sole failure: the documented unrelated Finance contract at `src/components/holo/financeControlRoomContract.test.js:129`, which expects `orbitSize` while `HoloWings.jsx` declares `donutSize`.
+4. Production build and whitespace check:
+
+   ```powershell
+   cd pwa
+   npm run build
+   git -C .. diff --check
+   ```
+
+   - Result: Vite production build succeeded and `git diff --check` was clean. The existing chunk-size warning remains.
+
+### Behavior Fixed
+
+- `getAppliedTrainingPlanOutcome` now requires a complete active receipt and compares its authoritative fields deterministically against the reviewed `proposal.after`: plan and parent identity, constitution/planner versions, cycle, exact days and exercise content, constraints, validations, creation timestamp, and input/receipt hashes. Lifecycle-only status/reason/timestamp/supersession fields may differ.
+- Same-ID apply responses with modified exercises, constraints, validations, cycle, or hashes retain the proposal and surface the existing lifecycle-evidence error rather than activating the response.
+- Non-bootstrap proposal previews require a complete active `before` snapshot matching `parent_plan_id`; root proposals explicitly require the API's `null` parent and `null` before pairing. Parent constraints may be empty, matching the backend's valid root-plan contract.
+- Exact calendar validation now rejects ISO year `0000`, matching Python `date.fromisoformat` behavior.
+
+### Review Self-Check 3
+
+- Confirmed the canonical comparison is a pure deterministic field-list helper with regressions for exercise, constraint, validation, cycle, hash, and allowed status-transition cases.
+- Confirmed no unrelated source, backend, SessionSub, ActiveSession, Finance, Task 7 report, or `progress.md` file was changed or staged.

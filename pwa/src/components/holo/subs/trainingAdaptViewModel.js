@@ -6,6 +6,19 @@ const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key)
 const hasText = value => typeof value === 'string' && value.trim().length > 0
 const isPlanId = value => hasText(value) && value === value.trim()
 const isOptionalText = value => value === undefined || value === null || typeof value === 'string'
+const AUTHORITY_FIELDS = [
+  'plan_id',
+  'parent_plan_id',
+  'constitution_version',
+  'planner_version',
+  'cycle_id',
+  'days',
+  'constraints',
+  'validations',
+  'created_at',
+  'input_hash',
+  'receipt_hash',
+]
 
 const labelize = value => String(value || '')
   .replaceAll('_', ' ')
@@ -14,6 +27,7 @@ const labelize = value => String(value || '')
 
 const isIsoDate = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  if (value.slice(0, 4) === '0000') return false
   const parsed = new Date(`${value}T00:00:00.000Z`)
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
@@ -88,13 +102,25 @@ export const isUsableTrainingPlanDay = day => (
 )
 
 const hasUniqueDayDates = days => new Set(days.map(day => day.date)).size === days.length
-const isUsablePlanEvidence = (plan, expectedStatus) => (
+const isUsablePlanEvidence = (plan, expectedStatus, requireConstraints = true) => (
   isRecord(plan) &&
   isPlanId(plan.plan_id) &&
   plan.status === expectedStatus &&
   Array.isArray(plan.days) && plan.days.length > 0 && plan.days.every(isUsableTrainingPlanDay) && hasUniqueDayDates(plan.days) &&
   Array.isArray(plan.validations) && plan.validations.length > 0 && plan.validations.every(isUsableTrainingValidation) &&
-  Array.isArray(plan.constraints) && plan.constraints.length > 0 && plan.constraints.every(isUsableTrainingConstraint)
+  Array.isArray(plan.constraints) && (!requireConstraints || plan.constraints.length > 0) && plan.constraints.every(isUsableTrainingConstraint)
+)
+
+const hasAuthorityMetadata = plan => (
+  isRecord(plan) &&
+  hasOwn(plan, 'parent_plan_id') &&
+  (plan.parent_plan_id === null || isPlanId(plan.parent_plan_id)) &&
+  ['constitution_version', 'planner_version', 'cycle_id', 'created_at', 'input_hash', 'receipt_hash']
+    .every(field => hasText(plan[field]))
+)
+
+const isCompletePlanSnapshot = (plan, expectedStatus, requireConstraints = true) => (
+  isUsablePlanEvidence(plan, expectedStatus, requireConstraints) && hasAuthorityMetadata(plan)
 )
 
 const dayMap = plan => new Map(asArray(plan?.days).map(day => [day.date, day]))
@@ -134,13 +160,22 @@ const reconcilesChangedDays = (rows, before, after) => {
 }
 
 const matchesAuthoritativeAfter = (proposal, after) => (
-  isUsablePlanEvidence(proposal, 'proposed') &&
-  isUsablePlanEvidence(after, 'proposed') &&
+  isCompletePlanSnapshot(proposal, 'proposed') &&
+  isCompletePlanSnapshot(after, 'proposed') &&
   proposal.plan_id === after.plan_id &&
   sameValue(proposal.days, after.days) &&
   sameValue(proposal.validations, after.validations) &&
   sameValue(proposal.constraints, after.constraints)
 )
+
+const hasValidBeforeAuthority = source => {
+  if (source.parent_plan_id === null) return source.before === null
+  return (
+    isPlanId(source.parent_plan_id) &&
+    isCompletePlanSnapshot(source.before, 'active', false) &&
+    source.before.plan_id === source.parent_plan_id
+  )
+}
 
 export function normalizeTrainingAdaptProposal(raw) {
   const source = isRecord(raw) ? raw : {}
@@ -155,6 +190,7 @@ export function normalizeTrainingAdaptProposal(raw) {
   const rawConstraints = asArray(source.interpreted_constraints)
   const rawChangedDays = asArray(source.diff?.changed_days)
   const snapshotEvidenceComplete = after !== undefined && matchesAuthoritativeAfter(source, source.after)
+  const beforeAuthorityComplete = hasValidBeforeAuthority(source)
   const validationEvidenceComplete = snapshotEvidenceComplete && rawValidations.length > 0 && rawValidations.every(isUsableTrainingValidation)
   const constraintEvidenceComplete = (
     snapshotEvidenceComplete &&
@@ -164,7 +200,7 @@ export function normalizeTrainingAdaptProposal(raw) {
   )
   const diffEvidenceComplete = (
     snapshotEvidenceComplete &&
-    hasOwn(source, 'before') &&
+    beforeAuthorityComplete &&
     before !== undefined &&
     reconcilesChangedDays(rawChangedDays, before, after)
   )
@@ -172,7 +208,7 @@ export function normalizeTrainingAdaptProposal(raw) {
   return {
     ...proposal,
     plan_id: isPlanId(source.plan_id) ? source.plan_id : '',
-    parent_plan_id: isOptionalText(source.parent_plan_id) ? source.parent_plan_id : null,
+    parent_plan_id: source.parent_plan_id === null || isPlanId(source.parent_plan_id) ? source.parent_plan_id : null,
     before: before === undefined ? null : before,
     after: snapshotEvidenceComplete ? after : null,
     validations: validationEvidenceComplete ? rawValidations : [],
@@ -200,8 +236,18 @@ export function getProposalLifecycleState(action, success, proposal) {
   return { proposal: null, focusTarget: action === 'apply' ? 'week' : 'adapt' }
 }
 
+export function hasSameTrainingPlanAuthority(left, right) {
+  return isRecord(left) && isRecord(right) && AUTHORITY_FIELDS.every(field => sameValue(left[field], right[field]))
+}
+
 export function getAppliedTrainingPlanOutcome(raw, proposal) {
-  const valid = isUsablePlanEvidence(raw, 'active') && isPlanId(proposal?.plan_id) && raw.plan_id === proposal.plan_id
+  const valid = (
+    isCompletePlanSnapshot(raw, 'active') &&
+    isCompletePlanSnapshot(proposal?.after, 'proposed') &&
+    isPlanId(proposal?.plan_id) &&
+    raw.plan_id === proposal.plan_id &&
+    hasSameTrainingPlanAuthority(raw, proposal.after)
+  )
   return { plan: valid ? raw : null, valid }
 }
 

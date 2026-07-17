@@ -31,6 +31,7 @@ test('adapt view previews before apply and blocks hard failures', () => {
 
 test('adapt view consumes fail-closed evidence and lifecycle helpers', () => {
   const adapt = readSource('./TrainingAdaptView.jsx')
+  const adaptViewModel = readSource('./trainingAdaptViewModel.js')
 
   for (const helperName of [
     'normalizeTrainingAdaptProposal',
@@ -42,6 +43,7 @@ test('adapt view consumes fail-closed evidence and lifecycle helpers', () => {
   ]) {
     assert.match(adapt, new RegExp(helperName))
   }
+  assert.match(adaptViewModel, /hasSameTrainingPlanAuthority/)
   assert.match(adapt, /setProposal\(requestState\.proposal\)/)
   assert.match(adapt, /onRejected\?\.\(\)/)
 })

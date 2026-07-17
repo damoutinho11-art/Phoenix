@@ -30,12 +30,34 @@ const usableConstraint = {
   values: { date: '2026-07-20', from: 'back_squat', to: 'split_squat' },
 }
 
+const authorityFields = {
+  constitution_version: 'constitution-v1',
+  planner_version: 'adaptive-v1',
+  cycle_id: '2026-W30',
+  created_at: '2026-07-19T08:00:00Z',
+  input_hash: 'input-hash-1',
+  receipt_hash: 'receipt-hash-1',
+}
+
 const proposedSnapshot = (overrides = {}) => ({
   plan_id: 'proposal-1',
+  parent_plan_id: 'active-1',
   status: 'proposed',
   days: [afterDay],
   validations: [validation],
   constraints: [usableConstraint],
+  ...authorityFields,
+  ...overrides,
+})
+
+const activeParentSnapshot = (overrides = {}) => ({
+  plan_id: 'active-1',
+  parent_plan_id: null,
+  status: 'active',
+  days: [beforeDay],
+  validations: [validation],
+  constraints: [],
+  ...authorityFields,
   ...overrides,
 })
 
@@ -43,7 +65,7 @@ const proposalFixture = (overrides = {}) => {
   const after = proposedSnapshot()
   return {
     ...after,
-    before: { plan_id: 'active-1', status: 'active', days: [beforeDay] },
+    before: activeParentSnapshot(),
     after,
   interpreted_constraints: [usableConstraint],
   diff: {
@@ -148,6 +170,7 @@ test('semantic interpreted constraints accept every router kind and reject incom
   for (const constraint of [
     { kind: 'unknown', source: 'user', values: { date: '2026-07-20' } },
     { kind: 'skip_session', source: 'user', values: { date: '2026-02-30' } },
+    { kind: 'skip_session', source: 'user', values: { date: '0000-01-01' } },
     { kind: 'move_session', source: 'user', values: { source_date: '2026-07-20' } },
     { kind: 'replace_exercise', source: 'user', values: { date: '2026-07-20', from: 'back_squat' } },
     { kind: 'time_limit', source: 'user', values: { date: '2026-07-20', minutes: 15.5 } },
@@ -167,4 +190,55 @@ test('apply lifecycle evidence must be an active authoritative copy of the revie
   assert.equal(adapt.getAppliedTrainingPlanOutcome({ ...active, plan_id: 'proposal-2' }, proposal).valid, false)
   assert.equal(adapt.getAppliedTrainingPlanOutcome({ ...active, status: 'proposed' }, proposal).valid, false)
   assert.equal(adapt.getAppliedTrainingPlanOutcome({ ...active, days: [{ ...afterDay, date: '2026-02-30' }] }, proposal).valid, false)
+})
+
+test('applied plan authority only permits lifecycle differences from the reviewed after snapshot', () => {
+  const proposal = adapt.normalizeTrainingAdaptProposal(proposalFixture())
+  const active = { ...proposal.after, status: 'active', changed_at: '2026-07-20T09:00:00Z' }
+
+  assert.equal(adapt.hasSameTrainingPlanAuthority(active, proposal.after), true)
+  assert.equal(adapt.getAppliedTrainingPlanOutcome(active, proposal).valid, true)
+  assert.equal(adapt.getAppliedTrainingPlanOutcome({
+    ...active,
+    days: [{ ...afterDay, exercises: [{ name: 'front_squat' }] }],
+  }, proposal).valid, false)
+  assert.equal(adapt.getAppliedTrainingPlanOutcome({
+    ...active,
+    constraints: [{ ...usableConstraint, values: { date: '2026-07-20', from: 'back_squat', to: 'front_squat' } }],
+  }, proposal).valid, false)
+  assert.equal(adapt.getAppliedTrainingPlanOutcome({
+    ...active,
+    validations: [{ ...validation, detail: 'Different validation evidence' }],
+  }, proposal).valid, false)
+  assert.equal(adapt.getAppliedTrainingPlanOutcome({ ...active, cycle_id: '2026-W31' }, proposal).valid, false)
+  assert.equal(adapt.getAppliedTrainingPlanOutcome({ ...active, receipt_hash: 'receipt-hash-2' }, proposal).valid, false)
+})
+
+test('non-bootstrap proposals require a complete matching parent before snapshot', () => {
+  assert.equal(adapt.normalizeTrainingAdaptProposal(proposalFixture()).canApply, true)
+  assert.equal(adapt.normalizeTrainingAdaptProposal(proposalFixture({
+    before: activeParentSnapshot({ plan_id: 'different-parent' }),
+  })).canApply, false)
+  assert.equal(adapt.normalizeTrainingAdaptProposal(proposalFixture({
+    before: { plan_id: 'active-1', status: 'active', days: [beforeDay] },
+  })).canApply, false)
+})
+
+test('bootstrap proposals explicitly accept null parent and null before evidence', () => {
+  const after = proposedSnapshot({ parent_plan_id: null })
+  const proposal = adapt.normalizeTrainingAdaptProposal(proposalFixture({
+    ...after,
+    before: null,
+    after,
+    diff: {
+      changed_days: [{
+        date: afterDay.date,
+        before: null,
+        after: afterDay,
+        reason: afterDay.change_reason,
+      }],
+    },
+  }))
+
+  assert.equal(proposal.canApply, true)
 })
