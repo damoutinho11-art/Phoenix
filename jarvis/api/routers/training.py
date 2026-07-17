@@ -1,10 +1,11 @@
 """Training API routes. Routers call engines; no business logic lives here."""
 
 from datetime import date, timedelta
-from typing import Any, Literal
+import re
+from typing import Any, Literal, Mapping
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from jarvis.api.dependencies import get_training_constitution
 from jarvis.api import ai_gateway
@@ -12,6 +13,7 @@ from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.training import engine, joint_capacity, progression
+from jarvis.domains.training.adaptive_planner import generate_weekly_plan
 from jarvis.domains.training.data_contracts import (
     BodyAreaDiscomfort,
     PlannedSession,
@@ -19,6 +21,12 @@ from jarvis.domains.training.data_contracts import (
     TrainingConflict,
     TrainingStatus,
 )
+from jarvis.domains.training.plan_contracts import (
+    TrainingConstraint,
+    WeeklyPlanReceipt,
+    iso_cycle_id,
+)
+from jarvis.domains.training.plan_evidence import build_planning_snapshot
 
 router = APIRouter()
 
@@ -32,6 +40,118 @@ _SESSION_DISPLAY = {
     "peak": "PEAK SESSION",
     "attempt": "DUNK ATTEMPT",
 }
+
+MOVE_PATTERN = re.compile(
+    r"(?:move|train).*?(today|\d{4}-\d{2}-\d{2}).*?(tomorrow|\d{4}-\d{2}-\d{2})",
+    re.I,
+)
+SKIP_PATTERN = re.compile(r"skip.*?(today|tomorrow|\d{4}-\d{2}-\d{2})", re.I)
+
+ConstraintKind = Literal[
+    "unavailable",
+    "move_session",
+    "skip_session",
+    "replace_exercise",
+    "time_limit",
+    "equipment_available",
+    "exercise_preference",
+]
+PlanStatus = Literal["proposed", "active", "superseded", "completed", "rejected"]
+
+
+class TrainingConstraintRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: ConstraintKind
+    source: Literal["user", "phoenix", "safety"] = "user"
+    values: dict[str, Any]
+
+
+class TrainingPlanProposalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    constraints: list[TrainingConstraintRequest] = Field(default_factory=list, max_length=12)
+    intent: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def require_constraint_or_intent(self):
+        if not self.constraints and not (self.intent and self.intent.strip()):
+            raise ValueError("At least one training constraint or intent is required")
+        return self
+
+
+class TrainingConstraintResponse(BaseModel):
+    kind: ConstraintKind
+    source: Literal["user", "phoenix", "safety"]
+    values: dict[str, Any]
+
+
+class TrainingPlanDayResponse(BaseModel):
+    date: str
+    session_type: str
+    objective: str
+    exercises: list[dict[str, Any]]
+    estimated_minutes: int
+    change_reason: str | None = None
+
+
+class TrainingPlanValidationResponse(BaseModel):
+    rule: str
+    passed: bool
+    severity: Literal["hard", "warning", "info"]
+    detail: str
+
+
+class TrainingPlanResponse(BaseModel):
+    plan_id: str
+    parent_plan_id: str | None
+    constitution_version: str
+    planner_version: str
+    cycle_id: str
+    days: list[TrainingPlanDayResponse]
+    constraints: list[TrainingConstraintResponse]
+    validations: list[TrainingPlanValidationResponse]
+    created_at: str
+    status: PlanStatus
+    input_hash: str
+    receipt_hash: str
+    reason: str | None = None
+    changed_at: str | None = None
+    superseded_by: str | None = None
+
+
+class TrainingPlanChangedDayResponse(BaseModel):
+    date: str
+    before: TrainingPlanDayResponse | None
+    after: TrainingPlanDayResponse | None
+    reason: str | None = None
+
+
+class TrainingPlanDiffResponse(BaseModel):
+    changed_days: list[TrainingPlanChangedDayResponse]
+
+
+class TrainingPlanProposalResponse(TrainingPlanResponse):
+    before: TrainingPlanResponse | None
+    after: TrainingPlanResponse
+    diff: TrainingPlanDiffResponse
+    interpreted_constraints: list[TrainingConstraintResponse]
+
+
+class TrainingPlanHistoryResponse(BaseModel):
+    items: list[TrainingPlanResponse]
+
+
+class TrainingRulesResponse(BaseModel):
+    objective: str
+    planner_version: str
+    planner: dict[str, Any]
+    recovery_spacing: dict[str, int]
+    adaptation_limits: dict[str, int | float]
+    movement_families: dict[str, list[str]]
+    preferences: list[TrainingConstraintResponse]
+    temporary_constraints: list[TrainingConstraintResponse]
+    active_plan_id: str | None
 
 
 class ExerciseSetLog(BaseModel):
@@ -283,6 +403,304 @@ def _current_status(constitution: dict) -> tuple[TrainingStatus, dict]:
     return status, effective
 
 
+def _planning_horizon(today: date | None = None) -> tuple[date, date]:
+    current = today or clock.today()
+    week_start = current - timedelta(days=current.weekday())
+    return week_start, week_start + timedelta(days=6)
+
+
+def _current_cycle() -> str:
+    week_start, _ = _planning_horizon()
+    return iso_cycle_id(week_start)
+
+
+def _resolve_relative_date(value: str, today: date) -> date:
+    lowered = value.casefold()
+    if lowered == "today":
+        return today
+    if lowered == "tomorrow":
+        return today + timedelta(days=1)
+    try:
+        return date.fromisoformat(value)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid training date: {value}") from exc
+
+
+def compile_training_intent(intent: str, today: date) -> tuple[TrainingConstraint, ...]:
+    if match := MOVE_PATTERN.search(intent):
+        source = _resolve_relative_date(match.group(1), today)
+        target = _resolve_relative_date(match.group(2), today)
+        return (
+            TrainingConstraint.from_mapping(
+                "move_session",
+                "user",
+                {"source_date": source.isoformat(), "target_date": target.isoformat()},
+            ),
+        )
+    if match := SKIP_PATTERN.search(intent):
+        target = _resolve_relative_date(match.group(1), today)
+        return (
+            TrainingConstraint.from_mapping(
+                "skip_session", "user", {"date": target.isoformat()}
+            ),
+        )
+    raise HTTPException(
+        status_code=422,
+        detail="Request could not be translated into a supported training constraint",
+    )
+
+
+def _required_non_empty_string(values: Mapping[str, Any], field: str) -> str:
+    value = values.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise HTTPException(
+            status_code=422,
+            detail=f"Training constraint field '{field}' must be a non-empty string",
+        )
+    return value.strip()
+
+
+def _horizon_date(values: Mapping[str, Any], field: str, week_start: date, week_end: date) -> str:
+    raw = _required_non_empty_string(values, field)
+    try:
+        parsed = date.fromisoformat(raw)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Training constraint field '{field}' must be an ISO date",
+        ) from exc
+    if not week_start <= parsed <= week_end:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Training constraint date '{field}' must be within displayed planning "
+                f"horizon {week_start.isoformat()} to {week_end.isoformat()}"
+            ),
+        )
+    return parsed.isoformat()
+
+
+def _validated_constraint(constraint: TrainingConstraint, week_start: date, week_end: date) -> TrainingConstraint:
+    values = dict(constraint.values)
+    normalized = dict(values)
+
+    if constraint.kind == "move_session":
+        normalized["source_date"] = _horizon_date(values, "source_date", week_start, week_end)
+        normalized["target_date"] = _horizon_date(values, "target_date", week_start, week_end)
+    elif constraint.kind in {"unavailable", "skip_session", "time_limit", "replace_exercise"}:
+        normalized["date"] = _horizon_date(values, "date", week_start, week_end)
+    elif constraint.kind in {"equipment_available", "exercise_preference"} and "date" in values:
+        normalized["date"] = _horizon_date(values, "date", week_start, week_end)
+
+    if constraint.kind == "time_limit":
+        minutes = values.get("minutes")
+        if isinstance(minutes, bool) or not isinstance(minutes, int) or not 15 <= minutes <= 180:
+            raise HTTPException(
+                status_code=422,
+                detail="Training time limit must be between 15 and 180 minutes",
+            )
+        normalized["minutes"] = minutes
+    elif constraint.kind == "replace_exercise":
+        normalized["from"] = _required_non_empty_string(values, "from")
+        normalized["to"] = _required_non_empty_string(values, "to")
+    elif constraint.kind == "equipment_available":
+        equipment = values.get("equipment")
+        if (
+            not isinstance(equipment, (list, tuple))
+            or not equipment
+            or any(not isinstance(item, str) or not item.strip() for item in equipment)
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="Available equipment must be a non-empty list of non-empty strings",
+            )
+        normalized["equipment"] = [item.strip() for item in equipment]
+    elif constraint.kind == "exercise_preference":
+        normalized["exercise"] = _required_non_empty_string(values, "exercise")
+        preference = values.get("avoid_or_prefer")
+        if preference not in {"avoid", "prefer"}:
+            raise HTTPException(
+                status_code=422,
+                detail="Exercise preference must be either 'avoid' or 'prefer'",
+            )
+
+    return TrainingConstraint.from_mapping(constraint.kind, constraint.source, normalized)
+
+
+def _compile_proposal_constraints(request: TrainingPlanProposalRequest) -> tuple[TrainingConstraint, ...]:
+    week_start, week_end = _planning_horizon()
+    constraints = [
+        TrainingConstraint.from_mapping(item.kind, item.source, item.values)
+        for item in request.constraints
+    ]
+    if request.intent and request.intent.strip():
+        constraints.extend(compile_training_intent(request.intent.strip(), clock.today()))
+    if len(constraints) > 12:
+        raise HTTPException(status_code=422, detail="At most 12 training constraints are allowed")
+    return tuple(
+        _validated_constraint(constraint, week_start, week_end)
+        for constraint in constraints
+    )
+
+
+def _json_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_value(item) for item in value]
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
+
+
+def _serialize_plan_receipt(receipt: WeeklyPlanReceipt) -> dict[str, Any]:
+    return {
+        "plan_id": receipt.plan_id,
+        "parent_plan_id": receipt.parent_plan_id,
+        "constitution_version": receipt.constitution_version,
+        "planner_version": receipt.planner_version,
+        "cycle_id": receipt.cycle_id,
+        "days": [
+            {
+                "date": day.date.isoformat(),
+                "session_type": day.session_type,
+                "objective": day.objective,
+                "exercises": [_json_value(exercise) for exercise in day.exercises],
+                "estimated_minutes": day.estimated_minutes,
+                "change_reason": day.change_reason,
+            }
+            for day in receipt.days
+        ],
+        "constraints": [
+            {
+                "kind": constraint.kind,
+                "source": constraint.source,
+                "values": _json_value(dict(constraint.values)),
+            }
+            for constraint in receipt.constraints
+        ],
+        "validations": [
+            {
+                "rule": validation.rule,
+                "passed": validation.passed,
+                "severity": validation.severity,
+                "detail": validation.detail,
+            }
+            for validation in receipt.validations
+        ],
+        "created_at": receipt.created_at,
+        "status": receipt.status,
+        "input_hash": receipt.input_hash,
+        "receipt_hash": receipt.receipt_hash,
+    }
+
+
+def _with_parent(receipt: WeeklyPlanReceipt, parent_plan_id: str | None) -> WeeklyPlanReceipt:
+    if receipt.parent_plan_id == parent_plan_id:
+        return receipt
+    return WeeklyPlanReceipt.create(
+        parent_plan_id=parent_plan_id,
+        constitution_version=receipt.constitution_version,
+        planner_version=receipt.planner_version,
+        cycle_id=receipt.cycle_id,
+        days=receipt.days,
+        constraints=receipt.constraints,
+        validations=receipt.validations,
+        created_at=receipt.created_at,
+        status=receipt.status,
+    )
+
+
+def _plan_projection(record: Mapping[str, Any]) -> dict[str, Any]:
+    payload = dict(record["payload"])
+    payload.update(
+        {
+            "status": record["status"],
+            "reason": record.get("reason"),
+            "changed_at": record.get("changed_at"),
+            "superseded_by": record.get("superseded_by"),
+        }
+    )
+    return payload
+
+
+def _plan_diff(before: Mapping[str, Any] | None, after: Mapping[str, Any]) -> dict[str, Any]:
+    before_days = {
+        item["date"]: item for item in (before.get("days", []) if before else [])
+    }
+    after_days = {item["date"]: item for item in after.get("days", [])}
+    changed_days = []
+    for day_value in sorted(set(before_days) | set(after_days)):
+        prior = before_days.get(day_value)
+        current = after_days.get(day_value)
+        if prior != current:
+            changed_days.append(
+                {
+                    "date": day_value,
+                    "before": prior,
+                    "after": current,
+                    "reason": current.get("change_reason") if current else None,
+                }
+            )
+    return {"changed_days": changed_days}
+
+
+def _proposal_projection(
+    proposal: Mapping[str, Any], parent: Mapping[str, Any] | None
+) -> dict[str, Any]:
+    after = _plan_projection(proposal)
+    before = _plan_projection(parent) if parent else None
+    return {
+        **after,
+        "before": before,
+        "after": after,
+        "diff": _plan_diff(before, after),
+        "interpreted_constraints": after["constraints"],
+    }
+
+
+def _active_constraint_groups(active: Mapping[str, Any] | None) -> tuple[list[dict], list[dict]]:
+    constraints = list(active["payload"].get("constraints", [])) if active else []
+    preferences = [item for item in constraints if item.get("kind") == "exercise_preference"]
+    temporary = [item for item in constraints if item.get("kind") != "exercise_preference"]
+    return preferences, temporary
+
+
+def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[str, Any] | None):
+    week_start, _ = _planning_horizon()
+    preferences, _ = _active_constraint_groups(active)
+    preference_map = {
+        f"{item['values'].get('avoid_or_prefer', 'prefer')}:{item['values'].get('exercise', '')}": True
+        for item in preferences
+    }
+    configured_equipment = {
+        equipment
+        for requirements in constitution["adaptive_planner"]["exercise_equipment"].values()
+        for equipment in requirements
+    }
+    return build_planning_snapshot(
+        week_start=week_start,
+        created_at=clock.utc_now_iso(),
+        sessions=database.get_sessions(),
+        readiness=database.get_latest_training_readiness_scan(),
+        calendar_events=LIVE_SNAPSHOT_RAW.get("events", []),
+        equipment=sorted(configured_equipment),
+        preferences=preference_map,
+    )
+
+
+def _training_plan_record_or_404(plan_id: str) -> dict[str, Any]:
+    try:
+        record = database.get_training_plan_receipt(plan_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    if record is None:
+        raise HTTPException(status_code=404, detail="Training plan proposal not found")
+    return record
+
+
 def _build_brief_user_message(status: dict) -> str:
     g = status["dunk_goal"]
     c = status["cut_status"]
@@ -321,6 +739,194 @@ def _build_brief_user_message(status: dict) -> str:
 
     lines += ["", "Provide a brief, direct training summary for today."]
     return "\n".join(lines)
+
+
+@router.get("/plan/current", response_model=TrainingPlanResponse)
+def current_training_plan() -> dict[str, Any]:
+    try:
+        active = database.get_active_training_plan(_current_cycle())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    if active is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No active training plan for the current horizon",
+        )
+    return _plan_projection(active)
+
+
+@router.post("/plan/proposals", response_model=TrainingPlanProposalResponse)
+def propose_training_plan(
+    request: TrainingPlanProposalRequest,
+    constitution: dict = Depends(get_training_constitution),
+) -> dict[str, Any]:
+    constraints = _compile_proposal_constraints(request)
+    try:
+        active = database.get_active_training_plan(_current_cycle())
+        snapshot = _current_planning_snapshot(constitution, active)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+
+    try:
+        proposal = generate_weekly_plan(constitution, snapshot, constraints)
+        proposal = _with_parent(
+            proposal, active["plan_id"] if active is not None else None
+        )
+    except ValueError as exc:
+        if "hard rules" in str(exc).lower():
+            raise HTTPException(
+                status_code=409,
+                detail=f"No valid training plan could be generated: {exc}",
+            ) from exc
+        raise HTTPException(
+            status_code=422, detail=f"Invalid training constraints: {exc}"
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training planner unavailable"
+        ) from exc
+
+    try:
+        stored = database.save_training_plan_receipt(_serialize_plan_receipt(proposal))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    return _proposal_projection(stored, active)
+
+
+@router.get(
+    "/plan/proposals/{proposal_id}",
+    response_model=TrainingPlanProposalResponse,
+)
+def training_plan_proposal(proposal_id: str) -> dict[str, Any]:
+    proposal = _training_plan_record_or_404(proposal_id)
+    parent = None
+    parent_plan_id = proposal["parent_plan_id"]
+    if parent_plan_id:
+        try:
+            parent = database.get_training_plan_receipt(parent_plan_id)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503, detail="Training plan storage unavailable"
+            ) from exc
+        if parent is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Training plan proposal parent is unavailable",
+            )
+    return _proposal_projection(proposal, parent)
+
+
+@router.post(
+    "/plan/proposals/{proposal_id}/apply",
+    response_model=TrainingPlanResponse,
+)
+def apply_training_plan(proposal_id: str) -> dict[str, Any]:
+    proposal = _training_plan_record_or_404(proposal_id)
+    if proposal["status"] == "active":
+        return _plan_projection(proposal)
+    if proposal["status"] != "proposed":
+        raise HTTPException(
+            status_code=409,
+            detail="Only proposed training plans can be applied",
+        )
+    hard_failures = [
+        validation
+        for validation in proposal["payload"].get("validations", [])
+        if validation.get("severity") == "hard" and validation.get("passed") is False
+    ]
+    if hard_failures:
+        details = "; ".join(str(item.get("detail", "")) for item in hard_failures)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Hard safety validation failed; proposal cannot be applied: {details}",
+        )
+    try:
+        applied = database.apply_training_plan_proposal(proposal_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    return _plan_projection(applied)
+
+
+@router.post(
+    "/plan/proposals/{proposal_id}/reject",
+    response_model=TrainingPlanResponse,
+)
+def reject_training_plan(proposal_id: str) -> dict[str, Any]:
+    proposal = _training_plan_record_or_404(proposal_id)
+    if proposal["status"] == "rejected":
+        return _plan_projection(proposal)
+    if proposal["status"] != "proposed":
+        raise HTTPException(
+            status_code=409,
+            detail="Only proposed training plans can be rejected",
+        )
+    try:
+        rejected = database.reject_training_plan_proposal(proposal_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    return _plan_projection(rejected)
+
+
+@router.get("/plans/history", response_model=TrainingPlanHistoryResponse)
+def training_plan_history() -> dict[str, Any]:
+    try:
+        records = database.list_training_plan_receipts()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    return {"items": [_plan_projection(record) for record in records]}
+
+
+@router.get("/rules", response_model=TrainingRulesResponse)
+def training_rules(
+    constitution: dict = Depends(get_training_constitution),
+) -> dict[str, Any]:
+    try:
+        active = database.get_active_training_plan(_current_cycle())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    preferences, temporary_constraints = _active_constraint_groups(active)
+    policy = constitution["adaptive_planner"]
+    return {
+        "objective": constitution["goal"],
+        "planner_version": str(policy["version"]),
+        "planner": policy,
+        "recovery_spacing": dict(policy["minimum_recovery_hours"]),
+        "adaptation_limits": {
+            "maximum_weekly_volume_increase_pct": policy[
+                "maximum_weekly_volume_increase_pct"
+            ],
+            "maximum_session_volume_reduction_pct": policy[
+                "maximum_session_volume_reduction_pct"
+            ],
+        },
+        "movement_families": {
+            name: list(exercises)
+            for name, exercises in policy["movement_families"].items()
+        },
+        "preferences": preferences,
+        "temporary_constraints": temporary_constraints,
+        "active_plan_id": active["plan_id"] if active else None,
+    }
 
 
 @router.get("/status")
