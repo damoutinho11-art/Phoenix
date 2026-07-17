@@ -7,8 +7,8 @@ Implemented. The owned frontend client and view-model changes are ready for the 
 ## Files
 
 - `pwa/src/api/client.js`
-- `pwa/src/components/training/trainingPlannerViewModel.js`
-- `pwa/src/components/training/trainingPlannerViewModel.test.js`
+- `pwa/src/components/holo/subs/trainingPlannerViewModel.js`
+- `pwa/src/components/holo/subs/trainingPlannerViewModel.test.js`
 
 ## RED Evidence
 
