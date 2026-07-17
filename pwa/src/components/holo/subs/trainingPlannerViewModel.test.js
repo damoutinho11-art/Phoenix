@@ -49,11 +49,22 @@ test('proposed plans require a non-empty, well-formed validations array to apply
     assert.equal(plan.canApply, false)
   }
 
-  const plan = normalizeTrainingPlan({ status: 'proposed', validations: [
+  const plan = normalizeTrainingPlan({ plan_id: 'p1', status: 'proposed', validations: [
     { rule: 'recovery_spacing', passed: true, severity: 'hard', detail: 'Spacing is valid' },
   ] })
 
   assert.equal(plan.canApply, true)
+  assert.equal(plan.plan_id, 'p1')
+})
+
+test('proposed plans with invalid plan IDs cannot apply', () => {
+  for (const plan_id of [undefined, '', '   ', 42, null, {}]) {
+    const plan = normalizeTrainingPlan({ plan_id, status: 'proposed', validations: [
+      { rule: 'recovery_spacing', passed: true, severity: 'hard', detail: 'Spacing is valid' },
+    ] })
+
+    assert.equal(plan.canApply, false, `plan_id ${String(plan_id)} should be ineligible`)
+  }
 })
 
 test('active and non-proposed plans remain ineligible when validation payloads are malformed', () => {

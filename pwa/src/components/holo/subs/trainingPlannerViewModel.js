@@ -15,13 +15,15 @@ export function normalizeTrainingPlan(raw = {}) {
   const hasCompleteValidations = validations.length > 0 && validations.every(isPlanValidation)
   const hardFailures = validations.filter(row => row?.severity === 'hard' && row?.passed === false)
   const days = Array.isArray(plan.days) ? [...plan.days] : []
+  const planId = typeof plan.plan_id === 'string' ? plan.plan_id.trim() : plan.plan_id
 
   return {
     ...plan,
+    plan_id: planId,
     days: days.sort((a, b) => String(a?.date).localeCompare(String(b?.date))),
     validations,
     hardFailures,
-    canApply: plan.status === 'proposed' && hasCompleteValidations && hardFailures.length === 0,
+    canApply: plan.status === 'proposed' && typeof planId === 'string' && planId.length > 0 && hasCompleteValidations && hardFailures.length === 0,
   }
 }
 
