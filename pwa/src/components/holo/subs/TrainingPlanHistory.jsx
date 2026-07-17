@@ -1,3 +1,9 @@
+import {
+  getLifecyclePresentation,
+  getTrainingViewState,
+  getValidationPresentation,
+} from './trainingControlRoomViewModel.js'
+
 const labelize = value => String(value || '')
   .replaceAll('_', ' ')
   .replaceAll('-', ' ')
@@ -34,6 +40,7 @@ function PlanLink({ planId, emptyLabel = 'ROOT PLAN' }) {
 
 export default function TrainingPlanHistory({ items = [], loading = false, error = '' }) {
   const plans = Array.isArray(items) ? items : []
+  const viewState = getTrainingViewState({ loading, error, hasData: plans.length > 0 })
 
   return (
     <div className="training-history-view">
@@ -42,18 +49,19 @@ export default function TrainingPlanHistory({ items = [], loading = false, error
           <span>IMMUTABLE REVISION LEDGER</span>
           <h2>PLAN HISTORY</h2>
         </div>
-        <span className="training-view-count">{String(plans.length).padStart(2, '0')} VERSIONS</span>
+        <span className="training-view-count">{String(plans.length).padStart(2, '0')} PLANS</span>
       </div>
 
-      {!loading && !error && plans.length === 0 && (
-        <div className="training-empty-state" role="status">NO PLAN HISTORY</div>
+      {viewState.kind === 'empty' && (
+        <div className={viewState.className} role={viewState.role}>NO PLAN HISTORY</div>
       )}
 
       {plans.length > 0 && (
         <div className="training-history-list">
           {plans.map((plan, index) => {
             const validations = Array.isArray(plan?.validations) ? plan.validations : []
-            const failed = validations.filter(row => !row?.passed).length
+            const validation = getValidationPresentation(validations)
+            const lifecycle = getLifecyclePresentation(plan)
             return (
               <article
                 key={plan?.plan_id || `plan-history-${index}`}
@@ -62,11 +70,11 @@ export default function TrainingPlanHistory({ items = [], loading = false, error
               >
                 <header>
                   <div className="training-history-version">
-                    <span>VERSION {String(plans.length - index).padStart(2, '0')}</span>
+                    <span>PLAN ID</span>
                     <strong>{plan?.plan_id || 'UNASSIGNED'}</strong>
                   </div>
-                  <span className={`training-lifecycle-status ${plan?.status || 'unknown'}`}>
-                    {labelize(plan?.status || 'unknown')}
+                  <span className={`training-lifecycle-status ${lifecycle.status}`}>
+                    {lifecycle.statusLabel}
                   </span>
                 </header>
 
@@ -74,7 +82,14 @@ export default function TrainingPlanHistory({ items = [], loading = false, error
                   <div><dt>CREATED</dt><dd>{formatDateTime(plan?.created_at)}</dd></div>
                   <div><dt>CHANGED</dt><dd>{formatDateTime(plan?.changed_at)}</dd></div>
                   <div><dt>PARENT</dt><dd><PlanLink planId={plan?.parent_plan_id} /></dd></div>
-                  <div><dt>SUPERSEDED BY</dt><dd><PlanLink planId={plan?.superseded_by} emptyLabel="CURRENT HEAD" /></dd></div>
+                  <div>
+                    <dt>{lifecycle.relationLabel}</dt>
+                    <dd>
+                      {lifecycle.relationPlanId
+                        ? <PlanLink planId={lifecycle.relationPlanId} />
+                        : <span>{lifecycle.relationText}</span>}
+                    </dd>
+                  </div>
                   <div><dt>PLANNER</dt><dd>{plan?.planner_version || 'UNAVAILABLE'}</dd></div>
                   <div><dt>CYCLE</dt><dd>{plan?.cycle_id || 'UNAVAILABLE'}</dd></div>
                 </dl>
@@ -84,8 +99,10 @@ export default function TrainingPlanHistory({ items = [], loading = false, error
                   <p>{plan?.reason || 'No lifecycle reason recorded.'}</p>
                 </div>
 
-                <div className={`training-history-validation ${failed ? 'blocked' : 'passed'}`}>
-                  {validations.length ? `${validations.length - failed}/${validations.length} VALIDATIONS CLEAR` : 'NO VALIDATION RECORD'}
+                <div className={`training-history-validation ${validation.tone}`}>
+                  {validations.length
+                    ? `${validation.passed}/${validation.total} VALIDATIONS CLEAR // ${validation.label}`
+                    : 'NO VALIDATION RECORD'}
                 </div>
               </article>
             )
@@ -141,6 +158,7 @@ export function TrainingRulesView({ rules, loading = false, error = '' }) {
   const families = rules?.movement_families && typeof rules.movement_families === 'object'
     ? Object.entries(rules.movement_families)
     : []
+  const viewState = getTrainingViewState({ loading, error, hasData: Boolean(rules) })
 
   return (
     <div className="training-rules-view">
@@ -152,8 +170,8 @@ export function TrainingRulesView({ rules, loading = false, error = '' }) {
         <span className="training-view-count">{rules?.planner_version || 'NO VERSION'}</span>
       </div>
 
-      {!loading && !error && !rules && (
-        <div className="training-empty-state" role="status">NO PUBLIC RULES AVAILABLE</div>
+      {viewState.kind === 'empty' && (
+        <div className={viewState.className} role={viewState.role}>NO PUBLIC RULES AVAILABLE</div>
       )}
 
       {rules && (

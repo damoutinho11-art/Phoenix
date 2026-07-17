@@ -1,4 +1,9 @@
-const WEEK_CELL_COUNT = 7
+import {
+  WEEK_CELL_COUNT,
+  buildWeekSlots,
+  getTrainingViewState,
+  getValidationPresentation,
+} from './trainingControlRoomViewModel.js'
 
 const DAY_FORMAT = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
@@ -22,36 +27,9 @@ const isoDate = value => {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-const addUtcDays = (date, days) => {
-  const next = new Date(date)
-  next.setUTCDate(next.getUTCDate() + days)
-  return next.toISOString().slice(0, 10)
-}
-
-const buildWeekSlots = plan => {
-  const days = Array.isArray(plan?.days) ? plan.days.slice(0, WEEK_CELL_COUNT) : []
-  const firstDate = isoDate(days[0]?.date)
-  const byDate = new Map(days.map(day => [day?.date, day]))
-
-  return Array.from({ length: WEEK_CELL_COUNT }, (_, index) => {
-    const date = firstDate ? addUtcDays(firstDate, index) : days[index]?.date || ''
-    return {
-      index,
-      date,
-      day: (date && byDate.get(date)) || days[index] || null,
-    }
-  })
-}
-
 const displayDate = (value, formatter, fallback) => {
   const date = isoDate(value)
   return date ? formatter.format(date).toUpperCase() : fallback
-}
-
-const validationTone = validation => {
-  if (!validation?.passed && validation?.severity === 'hard') return 'blocked'
-  if (!validation?.passed || validation?.severity === 'warning') return 'warning'
-  return 'passed'
 }
 
 function PlanMetadata({ plan }) {
@@ -73,19 +51,23 @@ function PlanMetadata({ plan }) {
 
 function ValidationSummary({ validations = [] }) {
   const rows = Array.isArray(validations) ? validations : []
-  const passed = rows.filter(row => row?.passed).length
-  const failed = rows.length - passed
+  const presentation = getValidationPresentation(rows)
 
   return (
     <section className="training-validation-summary" aria-labelledby="training-validation-title">
       <div className="training-section-heading">
         <span id="training-validation-title">VALIDATION SUMMARY</span>
-        <b className={failed ? 'blocked' : 'passed'}>{rows.length ? `${passed}/${rows.length} CLEAR` : 'NO VALIDATIONS'}</b>
+        <b className={presentation.tone}>
+          {rows.length ? `${presentation.passed}/${presentation.total} CLEAR // ${presentation.label}` : 'NO VALIDATIONS'}
+        </b>
       </div>
       {rows.length > 0 && (
         <ul className="training-validation-list">
           {rows.map((validation, index) => (
-            <li key={`${validation?.rule || 'validation'}-${index}`} className={validationTone(validation)}>
+            <li
+              key={`${validation?.rule || 'validation'}-${index}`}
+              className={getValidationPresentation([validation]).tone}
+            >
               <i aria-hidden="true" />
               <span>{labelize(validation?.rule)}</span>
               <strong>{validation?.detail || (validation?.passed ? 'CHECK PASSED' : 'CHECK FAILED')}</strong>
@@ -99,6 +81,8 @@ function ValidationSummary({ validations = [] }) {
 
 export default function TrainingWeekView({ plan, loading = false, error = '' }) {
   const slots = buildWeekSlots(plan)
+  const viewState = getTrainingViewState({ loading, error, hasData: Boolean(plan) })
+  const planValidation = getValidationPresentation(plan?.validations)
 
   return (
     <div className="training-week-view">
@@ -112,8 +96,8 @@ export default function TrainingWeekView({ plan, loading = false, error = '' }) 
 
       <PlanMetadata plan={plan} />
 
-      {!loading && !error && !plan && (
-        <div className="training-empty-state" role="status">NO ACTIVE PLAN</div>
+      {viewState.kind === 'empty' && (
+        <div className={viewState.className} role={viewState.role}>NO ACTIVE PLAN</div>
       )}
 
       <div className="training-week-scroll" tabIndex={0} aria-label="Seven-day training plan">
@@ -124,7 +108,7 @@ export default function TrainingWeekView({ plan, loading = false, error = '' }) 
             return (
               <article
                 key={date || `training-day-${index}`}
-                className={`training-week-day${changed ? ' changed' : ''}${day ? '' : ' empty'}`}
+                className={`training-week-day${changed ? ` changed ${planValidation.tone}` : ''}${day ? '' : ' empty'}`}
               >
                 <header>
                   <div>

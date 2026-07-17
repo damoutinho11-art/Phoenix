@@ -7,9 +7,21 @@ import {
 import { normalizeTrainingPlan } from './trainingPlannerViewModel.js'
 import TrainingWeekView from './TrainingWeekView.jsx'
 import TrainingPlanHistory, { TrainingRulesView } from './TrainingPlanHistory.jsx'
+import {
+  getNextModalFocus,
+  getTrainingViewState,
+} from './trainingControlRoomViewModel.js'
 
 const TABS = ['WEEK', 'ADAPT', 'HISTORY', 'RULES']
 const EMPTY_CURRENT_PLAN_MESSAGE = 'No active training plan for the current horizon'
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled]):not([tabindex="-1"])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
 
 const TAB_DATA_KEY = {
   WEEK: 'plan',
@@ -30,6 +42,9 @@ export default function TrainingControlRoom({ onClose }) {
   const [loading, setLoading] = useState(true)
   const [errors, setErrors] = useState({ plan: '', history: '', rules: '' })
   const tabRefs = useRef([])
+  const roomRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     let alive = true
@@ -70,13 +85,47 @@ export default function TrainingControlRoom({ onClose }) {
   }, [])
 
   useEffect(() => {
-    const closeOnEscape = event => {
-      if (event.key === 'Escape') onClose?.()
+    const previousFocus = document.activeElement
+    const previousBodyOverflow = document.body.style.overflow
+
+    const modalFocusables = () => Array.from(
+      roomRef.current?.querySelectorAll(FOCUSABLE_SELECTOR) || [],
+    ).filter(element => (
+      element.tabIndex >= 0 &&
+      element.getAttribute('aria-hidden') !== 'true' &&
+      !element.closest('[inert]')
+    ))
+
+    const handleModalKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCloseRef.current?.()
+        return
+      }
+      if (event.key === 'Tab') {
+        const nextFocus = getNextModalFocus(
+          modalFocusables(),
+          document.activeElement,
+          event.shiftKey,
+        )
+        if (nextFocus) {
+          event.preventDefault()
+          nextFocus.focus()
+        }
+      }
     }
-    window.addEventListener('keydown', closeOnEscape)
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleModalKeyDown)
     tabRefs.current[0]?.focus()
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onClose])
+    return () => {
+      window.removeEventListener('keydown', handleModalKeyDown)
+      document.body.style.overflow = previousBodyOverflow
+      if (previousFocus?.isConnected && typeof previousFocus.focus === 'function') {
+        previousFocus.focus()
+      }
+    }
+  }, [])
 
   const activateTab = index => {
     const nextIndex = (index + TABS.length) % TABS.length
@@ -101,8 +150,17 @@ export default function TrainingControlRoom({ onClose }) {
   }
 
   const activeError = errors[TAB_DATA_KEY[tab]] || ''
+  const activeHasData = tab === 'WEEK'
+    ? Boolean(plan)
+    : tab === 'HISTORY'
+      ? history.length > 0
+      : tab === 'RULES'
+        ? Boolean(rules)
+        : true
+  const activeState = getTrainingViewState({ loading, error: activeError, hasData: activeHasData })
   const panelId = `training-panel-${tab.toLowerCase()}`
   const tabId = `training-tab-${tab.toLowerCase()}`
+  const closeRoom = () => onCloseRef.current?.()
 
   return (
     <div className="phx-scope-training training-control-room-layer">
@@ -111,10 +169,11 @@ export default function TrainingControlRoom({ onClose }) {
         className="training-control-room-scrim"
         aria-label="Close Training Control Room"
         tabIndex={-1}
-        onClick={onClose}
+        onClick={closeRoom}
       />
 
       <section
+        ref={roomRef}
         className="training-control-room"
         role="dialog"
         aria-modal="true"
@@ -137,7 +196,7 @@ export default function TrainingControlRoom({ onClose }) {
               className="training-control-close"
               aria-label="Close Training Control Room"
               title="Close"
-              onClick={onClose}
+              onClick={closeRoom}
             >
               X
             </button>
@@ -168,13 +227,13 @@ export default function TrainingControlRoom({ onClose }) {
             ))}
           </nav>
 
-          {loading && (
-            <div className="training-plan-loading" role="status" aria-live="polite">
+          {activeState.kind === 'loading' && (
+            <div className={activeState.className} role={activeState.role} aria-live="polite">
               SYNCING TRAINING PLAN LEDGER
             </div>
           )}
-          {!loading && activeError && (
-            <div className="training-plan-error" role="alert">
+          {activeState.kind === 'error' && (
+            <div className={activeState.className} role={activeState.role}>
               {activeError}
             </div>
           )}

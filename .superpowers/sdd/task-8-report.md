@@ -84,3 +84,50 @@ Result: 69 passed, 1 failed. The sole failure is the known Finance contract at `
 
 - The full PWA remains red only for the documented pre-existing Finance contract failure.
 - Task 9 must wire the cockpit entry and replace the inert ADAPT panel with the proposal/apply flow.
+
+## Review Fix
+
+### Status
+
+Resolved all Task 8 review findings within the Task 8 components, behavioral contract test, pure view-model helper, and scoped Training CSS. Task 9 wiring and `ActiveSession.jsx` remain untouched.
+
+### Behavior Changes
+
+- Validation presentation now derives from failed checks: failed hard checks are blocked/red, other failed checks are warning/yellow, and plans without failures are validated/green. Passed warning-severity checks remain green.
+- Changed days retain an explicit change marker while their border, marker, and reason color follow the plan validation tone instead of becoming green merely because they changed.
+- History displays stable `plan_id` values rather than invented ordinal versions. Active is the only lifecycle labeled current; proposed, rejected, completed, and superseded rows use status-aware lineage copy, and superseded links come only from persisted `superseded_by` values.
+- The dialog now contains Tab and Shift+Tab focus, closes on Escape, restores the previously focused trigger on unmount, locks body scrolling while open, and restores the previous body overflow value.
+- Week normalization returns exactly seven slots without duplicating a dated day into a missing date.
+- Loading, error, empty, and ready selectors come from one pure view-state model so error and empty presentations remain mutually exclusive.
+
+### TDD Evidence
+
+The revised contract suite began with 9 expected failures for missing helper behavior and integration. After adding the pure helper module, 6 behavioral tests passed while 3 source integration/CSS contracts remained red. Wiring the components and scoped CSS produced 9 passed, 0 failed.
+
+Focused Training verification:
+
+```text
+node --test src/components/training/trainingViewModel.test.js src/components/training/trainingUiContract.test.js src/components/holo/subs/trainingPlannerViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js
+```
+
+Result: 28 passed, 0 failed.
+
+Build verification:
+
+```text
+npm run build
+```
+
+Result: PASS. Vite transformed 313 modules and generated the PWA service worker. The existing 670.52 kB chunk-size warning remains.
+
+Full PWA verification:
+
+```text
+npm test
+```
+
+Result: 71 passed, 1 failed. The unchanged failure is the pre-existing Finance `orbitSize` source contract at `src/components/holo/financeControlRoomContract.test.js:117`.
+
+### Browser QA
+
+Browser QA scaffolding was created locally, but interactive verification was stopped before completion at the user's direction. All temporary QA entries, config, logs, and QA server processes were removed before staging.
