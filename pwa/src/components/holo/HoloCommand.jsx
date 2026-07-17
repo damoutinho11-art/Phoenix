@@ -11,6 +11,7 @@ import HoloWings from './HoloWings'
 import HoloFocus from './HoloFocus'
 import HoloDock, { DOCK_ORDER } from './HoloDock'
 import FinanceControlRoom from './subs/FinanceControlRoom'
+import TrainingControlRoom from './subs/TrainingControlRoom'
 import { LogMealSub, DinnerSub, PlanDaySub } from './subs/NutritionSubs'
 import { SessionSub, ReadinessSub, SleepSub } from './subs/TrainingSubs'
 import { TodaySub, WeekMapSub, FeedsSub } from './subs/CalendarSubs'
@@ -372,6 +373,7 @@ export default function HoloCommand({ startTab = 'home' }) {
           finance={live.finance}
         />
       )}
+      {sub === 'training-room' && <TrainingControlRoom {...subProps} />}
       {sub === 'logmeal' && (
         <LogMealSub
           {...subProps}

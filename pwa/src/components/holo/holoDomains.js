@@ -134,6 +134,7 @@ export function buildDomains(dayPart) {
       heroBrief: 'Max-intent jumps + heavy strength today. Recovery at 82% — run the readiness scan before heavy lower-body work.',
       heroActions: [
         { label: '▶ START SESSION', sub: 'session', primary: true },
+        { label: 'ADAPT WEEK', sub: 'training-room' },
         { label: 'READINESS', sub: 'readiness' },
         { label: 'LOG SLEEP', sub: 'sleep' },
       ],

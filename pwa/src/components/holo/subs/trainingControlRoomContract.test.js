@@ -10,6 +10,25 @@ const helper = name => {
   return helpers[name]
 }
 
+test('cockpit keeps start primary and adds adapt week second', () => {
+  const domains = readFileSync(new URL('../holoDomains.js', import.meta.url), 'utf8')
+  const start = domains.indexOf('▶ START SESSION')
+  const adapt = domains.indexOf('ADAPT WEEK')
+
+  assert.ok(start >= 0 && adapt > start)
+  assert.match(domains, /ADAPT WEEK[^\n]*training-room/)
+})
+
+test('adapt view previews before apply and blocks hard failures', () => {
+  const adapt = readSource('./TrainingAdaptView.jsx')
+
+  assert.match(adapt, /BEFORE/)
+  assert.match(adapt, /AFTER/)
+  assert.match(adapt, /interpreted_constraints/)
+  assert.match(adapt, /disabled={!proposal\.canApply/)
+  assert.match(adapt, /APPLY PLAN/)
+})
+
 test('validation presentation is unverified without complete validation evidence', () => {
   const getValidationPresentation = helper('getValidationPresentation')
 
@@ -198,7 +217,7 @@ test('modal focus navigation wraps in both directions and recovers escaped focus
   assert.equal(getNextModalFocus([], first), null)
 })
 
-test('components wire behavioral helpers without introducing Task 9 actions', () => {
+test('components wire behavioral helpers and the Task 9 adaptation view', () => {
   const room = readSource('./TrainingControlRoom.jsx')
   const week = readSource('./TrainingWeekView.jsx')
   const history = readSource('./TrainingPlanHistory.jsx')
@@ -214,7 +233,8 @@ test('components wire behavioral helpers without introducing Task 9 actions', ()
   assert.match(room, /<TrainingPlanHistory\s+items=\{history\}\s+currentPlanId=\{plan\?\.plan_id\}/)
   assert.match(history, /function TrainingPlanHistory\(\{ items = \[\], currentPlanId/)
   assert.doesNotMatch(history, /CURRENT HEAD|VERSION\s+\{String/)
-  assert.doesNotMatch(room, /TrainingAdaptView|postTrainingPlanProposal|applyTrainingPlanProposal|rejectTrainingPlanProposal/)
+  assert.match(room, /TrainingAdaptView/)
+  assert.doesNotMatch(room, /postTrainingPlanProposal|applyTrainingPlanProposal|rejectTrainingPlanProposal/)
 })
 
 test('dialog source wires focus containment scroll lock escape and focus restoration', () => {
@@ -244,6 +264,16 @@ test('training CSS keeps stable scoped geometry, validation tones, and neutral u
   assert.match(trainingCss, /\.training-history-validation\.warning/)
   assert.match(trainingCss, /@media\s*\(max-width:\s*760px\)[^}]*\{[\s\S]*grid-template-columns:\s*repeat\(7,\s*118px\)/)
   assert.doesNotMatch(trainingCss, /--phx-finance|--phx-calendar|#00bbdd|#9f7dff/i)
+})
+
+test('training adaptation fields stack at the mobile breakpoint', () => {
+  const css = readSource('../holo.css')
+  const trainingCss = css.slice(css.indexOf('/* Training Control Room'))
+
+  assert.match(
+    trainingCss,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*\.training-adapt-quick-form,\s*\.training-adapt-intent-form\s*\{[^}]*grid-template-columns:\s*1fr/,
+  )
 })
 
 test('training CSS reserves green yellow and red for validation rather than lifecycle states', () => {

@@ -7,6 +7,7 @@ import {
 import { normalizeTrainingPlan } from './trainingPlannerViewModel.js'
 import TrainingWeekView from './TrainingWeekView.jsx'
 import TrainingPlanHistory, { TrainingRulesView } from './TrainingPlanHistory.jsx'
+import TrainingAdaptView from './TrainingAdaptView.jsx'
 import {
   getNextModalFocus,
   getTrainingViewState,
@@ -249,12 +250,7 @@ export default function TrainingControlRoom({ onClose }) {
             {tab === 'WEEK' && <TrainingWeekView plan={plan} loading={loading} error={errors.plan} />}
             {tab === 'HISTORY' && <TrainingPlanHistory items={history} currentPlanId={plan?.plan_id} loading={loading} error={errors.history} />}
             {tab === 'RULES' && <TrainingRulesView rules={rules} loading={loading} error={errors.rules} />}
-            {tab === 'ADAPT' && (
-              <div className="training-adapt-placeholder" role="status">
-                <strong>ADAPTATION CHANNEL NOT CONNECTED</strong>
-                <span>READ-ONLY CONTROL ROOM</span>
-              </div>
-            )}
+            {tab === 'ADAPT' && <TrainingAdaptView activePlan={plan} onApplied={active => { setPlan(active); setTab('WEEK') }} />}
           </section>
         </div>
       </section>

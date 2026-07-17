@@ -749,21 +749,133 @@
 
 .training-rule-empty { margin: 0; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 8px; letter-spacing: .08em; }
 
-.training-adapt-placeholder {
+.training-adapt-view { min-width: 0; }
+
+.training-adapt-actions {
   display: grid;
-  min-height: 320px;
-  place-content: center;
-  gap: 8px;
-  border: 1px dashed color-mix(in srgb, var(--training-accent) 34%, transparent);
-  color: var(--training-accent);
-  background:
-    repeating-linear-gradient(135deg, color-mix(in srgb, var(--training-accent) 4%, transparent) 0 1px, transparent 1px 12px),
-    color-mix(in srgb, var(--training-accent) 3%, transparent);
-  text-align: center;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 10px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--training-accent) 14%, transparent);
 }
 
-.training-adapt-placeholder strong { font-family: var(--phx-font-display); font-size: 19px; font-weight: 600; letter-spacing: 0; }
-.training-adapt-placeholder span { color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 8px; letter-spacing: .14em; }
+.training-adapt-actions button,
+.training-adapt-quick-form button,
+.training-adapt-intent-form button,
+.training-adapt-commands button {
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 44%, transparent);
+  color: var(--training-accent);
+  background: color-mix(in srgb, var(--phx-bg) 90%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+
+.training-adapt-actions button { border: 0; }
+.training-adapt-actions button[aria-pressed="true"],
+.training-adapt-apply { color: var(--phx-bg); background: var(--training-accent); }
+.training-adapt-actions button:focus-visible,
+.training-adapt-quick-form input:focus-visible,
+.training-adapt-intent-form input:focus-visible,
+.training-adapt-commands button:focus-visible,
+.training-adapt-preview h2:focus-visible { outline: 2px solid color-mix(in srgb, var(--training-accent) 88%, white 12%); outline-offset: 2px; }
+.training-adapt-actions button:disabled,
+.training-adapt-quick-form button:disabled,
+.training-adapt-intent-form button:disabled,
+.training-adapt-commands button:disabled { cursor: not-allowed; opacity: .42; }
+
+.training-adapt-quick-form,
+.training-adapt-intent-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.training-adapt-quick-form label,
+.training-adapt-intent-form label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.training-adapt-quick-form input,
+.training-adapt-intent-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 25%, transparent);
+  color: var(--phx-text);
+  background: color-mix(in srgb, var(--phx-bg) 88%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
+}
+
+.training-adapt-quick-form button { align-self: end; }
+.training-adapt-intent-form { grid-template-columns: minmax(150px, .65fr) minmax(0, 2fr) auto; }
+.training-adapt-intent-form button { min-width: 148px; }
+
+.training-adapt-error,
+.training-adapt-empty {
+  margin: 9px 0 0;
+  padding: 9px 10px;
+  border-left: 2px solid var(--training-accent);
+  color: var(--phx-muted);
+  background: color-mix(in srgb, var(--training-accent) 5%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .08em;
+  line-height: 1.45;
+}
+
+.training-adapt-preview { margin-top: 14px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--training-accent) 28%, transparent); }
+.training-adapt-status { flex: 0 0 auto; padding: 5px 7px; border: 1px solid currentColor; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .1em; }
+.training-adapt-status.passed { color: var(--phx-positive); }
+.training-adapt-status.warning { color: var(--phx-caution); }
+
+.training-adapt-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 10px;
+  background: color-mix(in srgb, var(--training-accent) 14%, transparent);
+}
+
+.training-adapt-summary div { min-width: 0; padding: 9px 10px; background: color-mix(in srgb, var(--phx-bg) 90%, transparent); }
+.training-adapt-summary span { display: block; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .1em; }
+.training-adapt-summary strong { display: block; margin-top: 4px; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; font-weight: 400; }
+
+.training-adapt-constraints,
+.training-adapt-diff,
+.training-adapt-validations { margin-top: 12px; }
+.training-adapt-constraint-list { display: grid; gap: 1px; margin: 8px 0 0; padding: 0; list-style: none; background: color-mix(in srgb, var(--training-accent) 12%, transparent); }
+.training-adapt-constraint-list li { display: grid; min-width: 0; grid-template-columns: minmax(120px, .65fr) minmax(0, 2fr); gap: 8px; padding: 8px 9px; background: color-mix(in srgb, var(--phx-bg) 92%, transparent); }
+.training-adapt-constraint-list strong { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 7px; font-weight: 400; letter-spacing: .08em; }
+.training-adapt-constraint-list span { overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; letter-spacing: .04em; }
+
+.training-adapt-diff-scroll { margin-top: 8px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--training-accent) 48%, transparent) transparent; }
+.training-adapt-diff-grid { min-width: 760px; border: 1px solid color-mix(in srgb, var(--training-accent) 18%, transparent); }
+.training-adapt-diff-head,
+.training-adapt-diff-row { display: grid; grid-template-columns: 104px minmax(150px, 1fr) minmax(150px, 1fr) minmax(170px, 1.2fr) 100px; gap: 1px; background: color-mix(in srgb, var(--training-accent) 12%, transparent); }
+.training-adapt-diff-head span { padding: 7px 8px; color: var(--training-accent); background: color-mix(in srgb, var(--phx-bg) 90%, transparent); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .09em; }
+.training-adapt-diff-row > * { min-width: 0; padding: 8px; overflow-wrap: anywhere; color: var(--phx-body); background: color-mix(in srgb, var(--phx-bg) 94%, transparent); font-family: var(--phx-font-mono); font-size: 8px; line-height: 1.4; }
+.training-adapt-diff-row b { display: block; margin-bottom: 3px; color: var(--phx-muted); font-size: 6px; font-weight: 400; letter-spacing: .08em; }
+.training-adapt-day-status { color: var(--phx-muted) !important; }
+.training-adapt-day-status.passed { color: var(--phx-positive) !important; }
+.training-adapt-day-status.warning { color: var(--phx-caution) !important; }
+
+.training-adapt-commands { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.training-adapt-commands button { min-width: 118px; }
+.training-adapt-reject { color: var(--phx-muted) !important; }
 
 @media (max-width: 760px) {
   .training-control-room {
@@ -792,6 +904,9 @@
   .training-week-day { min-height: 230px; }
   .training-validation-list { grid-template-columns: 1fr; }
   .training-validation-list li { grid-template-columns: 5px minmax(80px, .7fr) minmax(120px, 1.3fr); }
+  .training-adapt-quick-form,
+  .training-adapt-intent-form { grid-template-columns: 1fr; }
+  .training-adapt-intent-form button { min-width: 0; }
   .training-history-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .training-history-reason { grid-template-columns: 1fr; gap: 5px; }
   .training-rules-objective { grid-template-columns: 1fr; gap: 5px; }
