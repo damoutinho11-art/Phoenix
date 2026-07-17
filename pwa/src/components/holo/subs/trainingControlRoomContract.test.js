@@ -29,6 +29,22 @@ test('adapt view previews before apply and blocks hard failures', () => {
   assert.match(adapt, /APPLY PLAN/)
 })
 
+test('adapt view consumes fail-closed evidence and lifecycle helpers', () => {
+  const adapt = readSource('./TrainingAdaptView.jsx')
+
+  for (const helperName of [
+    'normalizeTrainingAdaptProposal',
+    'getAdaptValidationTone',
+    'getProposalRequestState',
+    'getProposalLifecycleState',
+    'describeTrainingPlanDay',
+  ]) {
+    assert.match(adapt, new RegExp(helperName))
+  }
+  assert.match(adapt, /setProposal\(requestState\.proposal\)/)
+  assert.match(adapt, /onRejected\?\.\(\)/)
+})
+
 test('validation presentation is unverified without complete validation evidence', () => {
   const getValidationPresentation = helper('getValidationPresentation')
 
@@ -217,6 +233,14 @@ test('modal focus navigation wraps in both directions and recovers escaped focus
   assert.equal(getNextModalFocus([], first), null)
 })
 
+test('training tab index helper gives lifecycle outcomes deterministic tab focus targets', () => {
+  const getTrainingTabIndex = helper('getTrainingTabIndex')
+
+  assert.equal(getTrainingTabIndex('WEEK'), 0)
+  assert.equal(getTrainingTabIndex('ADAPT'), 1)
+  assert.equal(getTrainingTabIndex('MISSING'), 0)
+})
+
 test('components wire behavioral helpers and the Task 9 adaptation view', () => {
   const room = readSource('./TrainingControlRoom.jsx')
   const week = readSource('./TrainingWeekView.jsx')
@@ -234,6 +258,8 @@ test('components wire behavioral helpers and the Task 9 adaptation view', () => 
   assert.match(history, /function TrainingPlanHistory\(\{ items = \[\], currentPlanId/)
   assert.doesNotMatch(history, /CURRENT HEAD|VERSION\s+\{String/)
   assert.match(room, /TrainingAdaptView/)
+  assert.match(room, /getTrainingTabIndex/)
+  assert.match(room, /tabRefs\.current\[getTrainingTabIndex\('WEEK'\)\]\?\.focus\(\)/)
   assert.doesNotMatch(room, /postTrainingPlanProposal|applyTrainingPlanProposal|rejectTrainingPlanProposal/)
 })
 

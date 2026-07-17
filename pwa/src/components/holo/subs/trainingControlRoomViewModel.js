@@ -1,4 +1,5 @@
 const WEEK_CELL_COUNT = 7
+const TRAINING_TAB_ORDER = ['WEEK', 'ADAPT', 'HISTORY', 'RULES']
 
 const isCompleteValidation = row => (
   row &&
@@ -170,6 +171,11 @@ export function getNextModalFocus(focusables, activeElement, reverse = false) {
   const direction = reverse ? -1 : 1
   const nextIndex = (activeIndex + direction + elements.length) % elements.length
   return elements[nextIndex]
+}
+
+export function getTrainingTabIndex(tab) {
+  const index = TRAINING_TAB_ORDER.indexOf(tab)
+  return index >= 0 ? index : 0
 }
 
 export { WEEK_CELL_COUNT }

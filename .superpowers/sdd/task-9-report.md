@@ -80,3 +80,81 @@ Implemented and committed after scoped verification. The Task 7 report modificat
 - The known Finance `orbitSize` contract failure remains outside Task 9 scope.
 - The Vite build emits its existing chunk-size warning for a minified chunk larger than 500 kB.
 - Desktop/mobile screenshot QA could not run because of the in-app browser localhost network boundary, not an application runtime/build failure.
+
+## Review Fix
+
+### Scope
+
+- Added the scoped `trainingAdaptViewModel.js` and `trainingAdaptViewModel.test.js` files for fail-closed proposal evidence, lifecycle transitions, and inspectable changed-day descriptions.
+- Updated `TrainingAdaptView.jsx`, `TrainingControlRoom.jsx`, `trainingControlRoomViewModel.js`, and the existing Task 9 control-room contract test. No SessionSub, ActiveSession, Finance, `progress.md`, or Task 7 report file was changed or staged.
+
+### RED Evidence
+
+1. Added `pwa/src/components/holo/subs/trainingAdaptViewModel.test.js`, then ran:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js
+   ```
+
+   - Result: expected RED, `ERR_MODULE_NOT_FOUND` for `trainingAdaptViewModel.js`.
+   - The new tests covered malformed `[null]` validations, non-empty usable interpreted constraints, reconciled non-empty changed-day evidence, stale preview reset, apply/reject success and failure lifecycle state, and REPLACE exercise details.
+2. Added the component wiring and tab-focus contracts, then ran:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingControlRoomContract.test.js
+   ```
+
+   - Result: expected RED, `14 passed, 3 failed`.
+   - Failures required `normalizeTrainingAdaptProposal` lifecycle wiring, `getTrainingTabIndex`, and deterministic WEEK tab focus after apply.
+
+### GREEN Evidence
+
+1. Focused review-fix contracts:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js
+   ```
+
+   - Result: `22 passed, 0 failed`.
+2. Full Training PWA tests:
+
+   ```powershell
+   cd pwa
+   node --test src/components/training/trainingViewModel.test.js src/components/training/trainingUiContract.test.js src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js src/components/holo/subs/trainingPlannerViewModel.test.js
+   ```
+
+   - Result: `41 passed, 0 failed`.
+3. Full PWA suite:
+
+   ```powershell
+   cd pwa
+   npm test
+   ```
+
+   - Result: `84 passed, 1 failed`.
+   - Sole failure: the known unrelated Finance contract at `src/components/holo/financeControlRoomContract.test.js:129`, which expects `orbitSize` while `HoloWings.jsx` declares `donutSize`.
+4. Production build and whitespace check:
+
+   ```powershell
+   cd pwa
+   npm run build
+   git -C .. diff --check
+   ```
+
+   - Result: Vite production build succeeded; `git diff --check` was clean. The build retained only the pre-existing chunk-size warning.
+
+### Behavior Fixed
+
+- Proposal normalization filters unusable validation, constraint, and changed-day rows, renders only safe arrays, and marks malformed evidence unverified. Apply is fail-closed unless Task 7 eligibility, complete validations, at least one usable interpreted constraint, and a non-empty before/after-reconciled changed-day diff all hold.
+- A new proposal request clears the current preview before the network call, so a failed retry cannot leave an earlier proposal actionable.
+- REPLACE preview cells now show objective, duration, and the explicit before/after exercise names.
+- Successful Apply moves focus to the WEEK tab; successful Reject restores focus to the ADAPT tab. Failed apply/reject requests retain the proposal for review and show their existing error states.
+
+### Review Self-Check
+
+- Confirmed every preview collection is guarded before rendering and `[null]` validation evidence cannot reach `.some` or `.map` unsafely.
+- Confirmed missing diff evidence is no longer synthesized into an eligible preview; Task 7 client routes remain unchanged.
+- Confirmed the focused tests exercise the pure state transitions that the two views consume, plus source contracts that verify those helpers are wired into the UI.

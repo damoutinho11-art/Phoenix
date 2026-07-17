@@ -10,6 +10,7 @@ import TrainingPlanHistory, { TrainingRulesView } from './TrainingPlanHistory.js
 import TrainingAdaptView from './TrainingAdaptView.jsx'
 import {
   getNextModalFocus,
+  getTrainingTabIndex,
   getTrainingViewState,
 } from './trainingControlRoomViewModel.js'
 
@@ -250,7 +251,20 @@ export default function TrainingControlRoom({ onClose }) {
             {tab === 'WEEK' && <TrainingWeekView plan={plan} loading={loading} error={errors.plan} />}
             {tab === 'HISTORY' && <TrainingPlanHistory items={history} currentPlanId={plan?.plan_id} loading={loading} error={errors.history} />}
             {tab === 'RULES' && <TrainingRulesView rules={rules} loading={loading} error={errors.rules} />}
-            {tab === 'ADAPT' && <TrainingAdaptView activePlan={plan} onApplied={active => { setPlan(active); setTab('WEEK') }} />}
+            {tab === 'ADAPT' && (
+              <TrainingAdaptView
+                activePlan={plan}
+                onApplied={active => {
+                  setPlan(active)
+                  setTab('WEEK')
+                  requestAnimationFrame(() => tabRefs.current[getTrainingTabIndex('WEEK')]?.focus())
+                }}
+                onRejected={() => {
+                  setTab('ADAPT')
+                  requestAnimationFrame(() => tabRefs.current[getTrainingTabIndex('ADAPT')]?.focus())
+                }}
+              />
+            )}
           </section>
         </div>
       </section>

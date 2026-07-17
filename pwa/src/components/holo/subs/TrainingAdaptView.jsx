@@ -4,7 +4,14 @@ import {
   postTrainingPlanProposal,
   rejectTrainingPlanProposal,
 } from '../../../api/client.js'
-import { buildPlanDiff, normalizeTrainingPlan } from './trainingPlannerViewModel.js'
+import { normalizeTrainingPlan } from './trainingPlannerViewModel.js'
+import {
+  describeTrainingPlanDay,
+  getAdaptValidationTone,
+  getProposalLifecycleState,
+  getProposalRequestState,
+  normalizeTrainingAdaptProposal,
+} from './trainingAdaptViewModel.js'
 
 const MODES = ['MOVE', 'SKIP', 'REPLACE']
 
@@ -13,13 +20,6 @@ const labelize = value => String(value || '')
   .replaceAll('-', ' ')
   .toUpperCase()
 
-const sessionLabel = day => {
-  if (!day) return 'NO SESSION'
-  const objective = labelize(day.objective || day.session_type || 'SESSION')
-  const duration = Number.isFinite(day.estimated_minutes) ? ` // ${day.estimated_minutes} MIN` : ''
-  return `${objective}${duration}`
-}
-
 const readableValues = values => {
   if (!values || typeof values !== 'object') return 'NO VALUES'
   return Object.entries(values)
@@ -27,45 +27,17 @@ const readableValues = values => {
     .join(' // ')
 }
 
-const normalizeProposal = raw => {
-  const proposal = normalizeTrainingPlan(raw)
-  const before = raw?.before ? normalizeTrainingPlan(raw.before) : null
-  const after = raw?.after ? normalizeTrainingPlan(raw.after) : proposal
-  const changedDays = Array.isArray(raw?.diff?.changed_days)
-    ? raw.diff.changed_days
-    : buildPlanDiff(before || {}, after).changedDays.map(day => ({
-      date: day.date,
-      before: before?.days?.find(item => item.date === day.date) || null,
-      after: day.removed ? null : day,
-      reason: day.change_reason || null,
-    }))
-
-  return {
-    ...proposal,
-    before,
-    after,
-    changedDays,
-    interpreted_constraints: Array.isArray(raw?.interpreted_constraints)
-      ? raw.interpreted_constraints
-      : [],
-  }
-}
-
-const validationTone = validations => {
-  if (!Array.isArray(validations) || validations.length === 0) return 'unverified'
-  if (validations.some(row => row?.severity === 'hard' && !row?.passed)) return 'blocked'
-  if (validations.some(row => !row?.passed)) return 'warning'
-  return 'passed'
-}
-
 function TrainingPlanPreview({ proposal, onReject, onApply, applyDisabled, busy }) {
   const headingRef = useRef(null)
-  const tone = validationTone(proposal.validations)
+  const validations = Array.isArray(proposal?.validations) ? proposal.validations : []
+  const constraints = Array.isArray(proposal?.interpreted_constraints) ? proposal.interpreted_constraints : []
+  const changedDays = Array.isArray(proposal?.changedDays) ? proposal.changedDays : []
+  const tone = getAdaptValidationTone(validations, proposal?.validationEvidenceComplete)
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => headingRef.current?.focus())
     return () => cancelAnimationFrame(frame)
-  }, [proposal.plan_id])
+  }, [proposal?.plan_id])
 
   return (
     <section className="training-adapt-preview" aria-labelledby="training-adapt-preview-title">
@@ -78,21 +50,21 @@ function TrainingPlanPreview({ proposal, onReject, onApply, applyDisabled, busy 
       </header>
 
       <div className="training-adapt-summary">
-        <div><span>PROPOSAL ID</span><strong>{proposal.plan_id || 'UNASSIGNED'}</strong></div>
-        <div><span>PARENT PLAN</span><strong>{proposal.parent_plan_id || 'ROOT PLAN'}</strong></div>
-        <div><span>CHANGED DAYS</span><strong>{String(proposal.changedDays.length).padStart(2, '0')}</strong></div>
+        <div><span>PROPOSAL ID</span><strong>{proposal?.plan_id || 'UNASSIGNED'}</strong></div>
+        <div><span>PARENT PLAN</span><strong>{proposal?.parent_plan_id || 'ROOT PLAN'}</strong></div>
+        <div><span>CHANGED DAYS</span><strong>{String(changedDays.length).padStart(2, '0')}</strong></div>
       </div>
 
       <section className="training-adapt-constraints" aria-labelledby="training-adapt-constraints-title">
         <div className="training-section-heading">
           <span id="training-adapt-constraints-title">INTERPRETED CONSTRAINTS</span>
-          <b className={proposal.interpreted_constraints.length ? 'passed' : 'unverified'}>
-            {proposal.interpreted_constraints.length ? 'PLANNER INPUT LOCKED' : 'NO INTERPRETATION RETURNED'}
+          <b className={proposal?.constraintEvidenceComplete ? 'passed' : 'unverified'}>
+            {proposal?.constraintEvidenceComplete ? 'PLANNER INPUT LOCKED' : 'NO USABLE INTERPRETATION'}
           </b>
         </div>
-        {proposal.interpreted_constraints.length > 0 ? (
+        {constraints.length > 0 ? (
           <ul className="training-adapt-constraint-list">
-            {proposal.interpreted_constraints.map((constraint, index) => (
+            {constraints.map((constraint, index) => (
               <li key={`${constraint?.kind || 'constraint'}-${index}`}>
                 <strong>{labelize(constraint?.kind || 'constraint')}</strong>
                 <span>{readableValues(constraint?.values)}</span>
@@ -105,18 +77,18 @@ function TrainingPlanPreview({ proposal, onReject, onApply, applyDisabled, busy 
       <section className="training-adapt-diff" aria-labelledby="training-adapt-diff-title">
         <div className="training-section-heading">
           <span id="training-adapt-diff-title">CHANGED DAYS // BEFORE AND AFTER</span>
-          <b className={tone}>{proposal.changedDays.length ? 'REVIEW REQUIRED' : 'NO DAY CHANGES'}</b>
+          <b className={proposal?.diffEvidenceComplete ? tone : 'unverified'}>{changedDays.length ? 'REVIEW REQUIRED' : 'NO USABLE DAY EVIDENCE'}</b>
         </div>
         <div className="training-adapt-diff-scroll">
           <div className="training-adapt-diff-grid" role="table" aria-label="Changed training days">
             <div className="training-adapt-diff-head" role="row">
               <span role="columnheader">DATE</span><span role="columnheader">BEFORE</span><span role="columnheader">AFTER</span><span role="columnheader">REASON</span><span role="columnheader">VALIDATION</span>
             </div>
-            {proposal.changedDays.map((row, index) => (
+            {changedDays.map((row, index) => (
               <div className="training-adapt-diff-row" role="row" key={`${row?.date || 'day'}-${index}`}>
                 <time role="cell" dateTime={row?.date || undefined}>{row?.date || 'UNSET'}</time>
-                <span role="cell"><b>BEFORE</b>{sessionLabel(row?.before)}</span>
-                <span role="cell"><b>AFTER</b>{sessionLabel(row?.after)}</span>
+                <span role="cell"><b>BEFORE</b>{describeTrainingPlanDay(row?.before)}</span>
+                <span role="cell"><b>AFTER</b>{describeTrainingPlanDay(row?.after)}</span>
                 <span role="cell">{row?.reason || row?.after?.change_reason || 'PLANNER RECALCULATION'}</span>
                 <span role="cell" className={`training-adapt-day-status ${tone}`}>{labelize(tone)}</span>
               </div>
@@ -131,13 +103,19 @@ function TrainingPlanPreview({ proposal, onReject, onApply, applyDisabled, busy 
           <b className={tone}>{labelize(tone)}</b>
         </div>
         <ul className="training-validation-list">
-          {proposal.validations.map((validation, index) => (
+          {validations.length > 0 ? validations.map((validation, index) => (
             <li key={`${validation?.rule || 'validation'}-${index}`} className={validation?.passed ? 'passed' : validation?.severity === 'hard' ? 'blocked' : 'warning'}>
               <i aria-hidden="true" />
               <span>{labelize(validation?.rule || 'validation')}</span>
               <strong>{validation?.detail || (validation?.passed ? 'CHECK PASSED' : 'CHECK FAILED')}</strong>
             </li>
-          ))}
+          )) : (
+            <li className="unverified">
+              <i aria-hidden="true" />
+              <span>VALIDATION EVIDENCE</span>
+              <strong>NO USABLE VALIDATION RECORD</strong>
+            </li>
+          )}
         </ul>
       </section>
 
@@ -149,7 +127,7 @@ function TrainingPlanPreview({ proposal, onReject, onApply, applyDisabled, busy 
   )
 }
 
-export default function TrainingAdaptView({ activePlan, onApplied }) {
+export default function TrainingAdaptView({ activePlan, onApplied, onRejected }) {
   const [mode, setMode] = useState('MOVE')
   const [intent, setIntent] = useState('')
   const [sourceDate, setSourceDate] = useState('')
@@ -162,10 +140,12 @@ export default function TrainingAdaptView({ activePlan, onApplied }) {
   const [error, setError] = useState('')
 
   async function propose(payload) {
-    setBusy(true)
-    setError('')
+    const requestState = getProposalRequestState()
+    setProposal(requestState.proposal)
+    setBusy(requestState.busy)
+    setError(requestState.error)
     try {
-      setProposal(normalizeProposal(await postTrainingPlanProposal(payload)))
+      setProposal(normalizeTrainingAdaptProposal(await postTrainingPlanProposal(payload)))
     } catch (err) {
       setError(err?.message || 'PHOENIX could not build a valid replan.')
     } finally {
@@ -175,14 +155,17 @@ export default function TrainingAdaptView({ activePlan, onApplied }) {
 
   async function apply() {
     if (!proposal?.canApply || busy) return
+    const currentProposal = proposal
     setBusy(true)
     setError('')
     try {
-      const active = normalizeTrainingPlan(await applyTrainingPlanProposal(proposal.plan_id))
+      const active = normalizeTrainingPlan(await applyTrainingPlanProposal(currentProposal.plan_id))
+      const lifecycle = getProposalLifecycleState('apply', true, currentProposal)
       onApplied?.(active)
-      setProposal(null)
+      setProposal(lifecycle.proposal)
       setIntent('')
     } catch (err) {
+      setProposal(getProposalLifecycleState('apply', false, currentProposal).proposal)
       setError(err?.message || 'Plan apply failed. The active plan was not changed.')
     } finally {
       setBusy(false)
@@ -191,12 +174,16 @@ export default function TrainingAdaptView({ activePlan, onApplied }) {
 
   async function reject() {
     if (!proposal || busy) return
+    const currentProposal = proposal
     setBusy(true)
     setError('')
     try {
-      await rejectTrainingPlanProposal(proposal.plan_id)
-      setProposal(null)
+      await rejectTrainingPlanProposal(currentProposal.plan_id)
+      const lifecycle = getProposalLifecycleState('reject', true, currentProposal)
+      setProposal(lifecycle.proposal)
+      onRejected?.()
     } catch (err) {
+      setProposal(getProposalLifecycleState('reject', false, currentProposal).proposal)
       setError(err?.message || 'Plan rejection failed. The proposal remains available for review.')
     } finally {
       setBusy(false)
@@ -232,7 +219,7 @@ export default function TrainingAdaptView({ activePlan, onApplied }) {
     propose({ constraints: [constraint] })
   }
 
-  const hardFailure = proposal?.validations?.some(row => row.severity === 'hard' && !row.passed)
+  const hardFailure = !proposal?.validationEvidenceComplete || proposal.validations.some(row => row.severity === 'hard' && !row.passed)
 
   return (
     <section className="training-adapt-view">
