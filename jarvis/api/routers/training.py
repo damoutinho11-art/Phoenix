@@ -29,6 +29,7 @@ from jarvis.domains.training.plan_contracts import (
 )
 from jarvis.domains.training.plan_evidence import build_planning_snapshot
 from jarvis.domains.training.plan_acceptance import (
+    EXPECTED_HARD_VALIDATIONS,
     training_planner_acceptance_status,
     training_planner_mode,
 )
@@ -567,56 +568,8 @@ def _compile_proposal_constraints(request: TrainingPlanProposalRequest) -> tuple
     )
 
 
-def _json_value(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {key: _json_value(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_value(item) for item in value]
-    if isinstance(value, date):
-        return value.isoformat()
-    return value
-
-
 def _serialize_plan_receipt(receipt: WeeklyPlanReceipt) -> dict[str, Any]:
-    return {
-        "plan_id": receipt.plan_id,
-        "parent_plan_id": receipt.parent_plan_id,
-        "constitution_version": receipt.constitution_version,
-        "planner_version": receipt.planner_version,
-        "cycle_id": receipt.cycle_id,
-        "days": [
-            {
-                "date": day.date.isoformat(),
-                "session_type": day.session_type,
-                "objective": day.objective,
-                "exercises": [_json_value(exercise) for exercise in day.exercises],
-                "estimated_minutes": day.estimated_minutes,
-                "change_reason": day.change_reason,
-            }
-            for day in receipt.days
-        ],
-        "constraints": [
-            {
-                "kind": constraint.kind,
-                "source": constraint.source,
-                "values": _json_value(dict(constraint.values)),
-            }
-            for constraint in receipt.constraints
-        ],
-        "validations": [
-            {
-                "rule": validation.rule,
-                "passed": validation.passed,
-                "severity": validation.severity,
-                "detail": validation.detail,
-            }
-            for validation in receipt.validations
-        ],
-        "created_at": receipt.created_at,
-        "status": receipt.status,
-        "input_hash": receipt.input_hash,
-        "receipt_hash": receipt.receipt_hash,
-    }
+    return receipt.to_mapping()
 
 
 def _with_parent(receipt: WeeklyPlanReceipt, parent_plan_id: str | None) -> WeeklyPlanReceipt:
@@ -630,6 +583,7 @@ def _with_parent(receipt: WeeklyPlanReceipt, parent_plan_id: str | None) -> Week
         days=receipt.days,
         constraints=receipt.constraints,
         validations=receipt.validations,
+        replay_inputs=receipt.replay_inputs,
         created_at=receipt.created_at,
         status=receipt.status,
     )
@@ -674,17 +628,73 @@ def _proposal_projection(
 ) -> dict[str, Any]:
     after = _plan_projection(proposal)
     before = _plan_projection(parent) if parent else None
+    acceptance = training_planner_acceptance_status()
     return {
         **after,
         "authoritative": (
             training_planner_mode() == "live"
-            and training_planner_acceptance_status()["accepted"] is True
+            and acceptance["accepted"] is True
+            and _proposal_is_allowlisted(after, acceptance)
         ),
         "before": before,
         "after": after,
         "diff": _plan_diff(before, after),
         "interpreted_constraints": after["constraints"],
     }
+
+
+_PROPOSAL_IDENTITY_FIELDS = (
+    "plan_id",
+    "planner_version",
+    "constitution_version",
+    "input_hash",
+    "receipt_hash",
+)
+
+
+def _proposal_is_allowlisted(
+    proposal: Mapping[str, Any], acceptance: Mapping[str, Any]
+) -> bool:
+    identity = {field: proposal.get(field) for field in _PROPOSAL_IDENTITY_FIELDS}
+    allowlist = acceptance.get("accepted_proposals")
+    return isinstance(allowlist, list) and any(
+        isinstance(row, Mapping)
+        and set(row) == set(_PROPOSAL_IDENTITY_FIELDS)
+        and all(row.get(field) == identity[field] for field in _PROPOSAL_IDENTITY_FIELDS)
+        for row in allowlist
+    )
+
+
+def _validated_apply_rows(rows: Any) -> tuple[bool, list[Mapping[str, Any]]]:
+    if not isinstance(rows, list) or not rows:
+        return False, []
+    expected_fields = {"rule", "passed", "severity", "detail"}
+    rules = []
+    hard_rules = set()
+    hard_failures = []
+    for row in rows:
+        if not isinstance(row, Mapping) or set(row) != expected_fields:
+            return False, []
+        rule = row.get("rule")
+        severity = row.get("severity")
+        if (
+            not isinstance(rule, str)
+            or not rule.strip()
+            or type(row.get("passed")) is not bool
+            or severity not in {"hard", "warning", "info"}
+            or not isinstance(row.get("detail"), str)
+        ):
+            return False, []
+        rules.append(rule)
+        if severity == "hard":
+            hard_rules.add(rule)
+            if row["passed"] is not True:
+                hard_failures.append(row)
+    well_formed = (
+        len(rules) == len(set(rules))
+        and hard_rules == EXPECTED_HARD_VALIDATIONS
+    )
+    return well_formed, hard_failures
 
 
 def _active_constraint_groups(active: Mapping[str, Any] | None) -> tuple[list[dict], list[dict]]:
@@ -919,16 +929,6 @@ def training_plan_proposal(proposal_id: str) -> dict[str, Any]:
 )
 def apply_training_plan(proposal_id: str) -> dict[str, Any]:
     proposal = _training_plan_record_or_404(proposal_id)
-    if training_planner_mode() != "live":
-        raise HTTPException(
-            status_code=409,
-            detail="Training planner is in shadow mode; proposal cannot be applied",
-        )
-    if training_planner_acceptance_status()["accepted"] is not True:
-        raise HTTPException(
-            status_code=503,
-            detail="Training planner live acceptance evidence is unavailable",
-        )
     if proposal["status"] == "active":
         return _plan_projection(proposal)
     if proposal["status"] != "proposed":
@@ -936,16 +936,35 @@ def apply_training_plan(proposal_id: str) -> dict[str, Any]:
             status_code=409,
             detail="Only proposed training plans can be applied",
         )
-    hard_failures = [
-        validation
-        for validation in proposal["payload"].get("validations", [])
-        if validation.get("severity") == "hard" and validation.get("passed") is False
-    ]
+    validations_ok, hard_failures = _validated_apply_rows(
+        proposal["payload"].get("validations")
+    )
+    if not validations_ok:
+        raise HTTPException(
+            status_code=409,
+            detail="Training plan validation evidence is malformed; proposal cannot be applied",
+        )
     if hard_failures:
         details = "; ".join(str(item.get("detail", "")) for item in hard_failures)
         raise HTTPException(
             status_code=409,
             detail=f"Hard safety validation failed; proposal cannot be applied: {details}",
+        )
+    if training_planner_mode() != "live":
+        raise HTTPException(
+            status_code=409,
+            detail="Training planner is in shadow mode; proposal cannot be applied",
+        )
+    acceptance = training_planner_acceptance_status()
+    if acceptance["accepted"] is not True:
+        raise HTTPException(
+            status_code=503,
+            detail="Training planner live acceptance evidence is unavailable",
+        )
+    if not _proposal_is_allowlisted(proposal["payload"], acceptance):
+        raise HTTPException(
+            status_code=503,
+            detail="Training planner acceptance evidence does not cover this proposal",
         )
     try:
         applied = database.apply_training_plan_proposal(proposal_id)

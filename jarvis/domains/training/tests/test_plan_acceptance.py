@@ -1,266 +1,408 @@
 import json
+from dataclasses import replace
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
+import jarvis.domains.training.plan_acceptance as acceptance_module
+from jarvis.domains.training.adaptive_planner import PlanningSnapshot, generate_weekly_plan
 from jarvis.domains.training.plan_acceptance import (
+    REQUIRED_FIXTURE_CATEGORIES,
+    decode_training_evidence_receipts,
     evaluate_training_shadow,
     replay_training_plan,
     training_planner_acceptance_status,
     training_planner_mode,
 )
 from jarvis.domains.training.plan_contracts import (
-    PlanDay,
     PlanValidation,
     TrainingConstraint,
     WeeklyPlanReceipt,
-    iso_cycle_id,
 )
 
 
-REQUIRED_FIXTURE_CATEGORIES = (
-    "move",
-    "skip",
-    "equipment-limited",
-    "fatigue-reduced",
-    "calendar-blocked",
-    "pain-blocked",
-)
+@pytest.fixture
+def training_constitution():
+    path = Path(__file__).parent.parent / "constitution.json"
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _serialize_receipt(receipt: WeeklyPlanReceipt, *, fixture_category: str) -> dict:
-    return {
-        "plan_id": receipt.plan_id,
-        "parent_plan_id": receipt.parent_plan_id,
-        "constitution_version": receipt.constitution_version,
-        "planner_version": receipt.planner_version,
-        "cycle_id": receipt.cycle_id,
-        "days": [
-            {
-                "date": day.date.isoformat(),
-                "session_type": day.session_type,
-                "objective": day.objective,
-                "exercises": [dict(exercise) for exercise in day.exercises],
-                "estimated_minutes": day.estimated_minutes,
-                "change_reason": day.change_reason,
-            }
-            for day in receipt.days
-        ],
-        "constraints": [
-            {
-                "kind": constraint.kind,
-                "source": constraint.source,
-                "values": dict(constraint.values),
-            }
-            for constraint in receipt.constraints
-        ],
-        "validations": [
-            {
-                "rule": validation.rule,
-                "passed": validation.passed,
-                "severity": validation.severity,
-                "detail": validation.detail,
-            }
-            for validation in receipt.validations
-        ],
-        "created_at": receipt.created_at,
-        "status": receipt.status,
-        "input_hash": receipt.input_hash,
-        "receipt_hash": receipt.receipt_hash,
-        "fixture_category": fixture_category,
-        "side_effects": {
-            "direct_execution_count": 0,
-            "session_log_write_count": 0,
-            "calendar_action_write_count": 0,
-        },
+def _snapshot(week_start: date, **overrides) -> PlanningSnapshot:
+    values = {
+        "week_start": week_start,
+        "created_at": f"{week_start.isoformat()}T06:00:00Z",
+        "completed_sessions": (),
+        "readiness": None,
+        "calendar_events": (),
+        "progression": {},
+        "equipment": ("barbell", "rack", "hex_bar", "bench"),
+        "preferences": (),
+        "safety_blocks": (),
     }
+    values.update(overrides)
+    return PlanningSnapshot(**values)
 
 
-def shadow_receipt(
-    *,
-    fixture_category: str = "move",
-    week_start: date = date(2026, 7, 20),
-    hard_failure: bool = False,
-    hard_validation_passed=None,
-    status: str = "proposed",
-    planner_version: str = "adaptive-v1",
-    constitution_version: str = "1",
-    pain_blocked_work: bool = False,
-    recovery_violation: bool = False,
-) -> dict:
-    high_neural_offsets = {0, 2, 5}
-    if recovery_violation:
-        high_neural_offsets.add(1)
-    constraints_by_category = {
-        "move": TrainingConstraint.from_mapping(
-            "move_session",
-            "user",
-            {
-                "source_date": week_start.isoformat(),
-                "target_date": (week_start + timedelta(days=1)).isoformat(),
-            },
-        ),
-        "skip": TrainingConstraint.from_mapping(
-            "skip_session", "user", {"date": week_start.isoformat()}
-        ),
-        "equipment-limited": TrainingConstraint.from_mapping(
-            "equipment_available",
-            "user",
-            {"date": week_start.isoformat(), "equipment": ("barbell",)},
-        ),
-        "fatigue-reduced": TrainingConstraint.from_mapping(
-            "time_limit", "phoenix", {"date": week_start.isoformat(), "minutes": 30}
-        ),
-    }
-
-    def plan_day(offset: int) -> PlanDay:
-        day = week_start + timedelta(days=offset)
-        if fixture_category == "pain-blocked" and not pain_blocked_work:
-            return PlanDay(
-                date=day,
-                session_type="recovery",
-                objective="pain_safe_recovery",
-                exercises=(),
-                estimated_minutes=0,
-                change_reason="hard_pain_block" if offset == 0 else None,
-            )
-        if fixture_category == "pain-blocked" and pain_blocked_work and offset == 0:
-            return PlanDay(
-                date=day,
-                session_type="general",
-                objective="general_strength",
-                exercises=({"name": "bench_press", "load_kg": 40},),
-                estimated_minutes=60,
-                change_reason="hard_pain_block",
-            )
-        if fixture_category == "calendar-blocked" and offset == 0:
-            return PlanDay(
-                date=day,
-                session_type="recovery",
-                objective="calendar_recovery",
-                exercises=(),
-                estimated_minutes=0,
-                change_reason="calendar_hard_conflict",
-            )
-        if offset in high_neural_offsets:
-            return PlanDay(
-                date=day,
-                session_type="high_intensity" if offset != 5 else "jump",
-                objective="jump_strength",
-                exercises=({"name": "hex_bar_jump"},),
-                estimated_minutes=60,
-            )
-        return PlanDay(
-            date=day,
-            session_type="rest",
-            objective="recovery",
-            exercises=(),
-            estimated_minutes=0,
-        )
-
-    receipt = WeeklyPlanReceipt.create(
-        parent_plan_id=None,
-        constitution_version=constitution_version,
-        planner_version=planner_version,
-        cycle_id=iso_cycle_id(week_start),
-        days=tuple(plan_day(offset) for offset in range(7)),
-        constraints=(constraints_by_category[fixture_category],)
-        if fixture_category in constraints_by_category
-        else (),
-        validations=(
-            PlanValidation(
-                rule="seven_unique_days",
-                passed=(
-                    not hard_failure
-                    if hard_validation_passed is None
-                    else hard_validation_passed
-                ),
-                severity="hard",
-                detail="Plan contains seven unique dates",
+def _scenario_receipt(constitution, category: str, week_start: date) -> WeeklyPlanReceipt:
+    snapshot = _snapshot(week_start)
+    constraints = ()
+    if category == "move":
+        constraints = (
+            TrainingConstraint.from_mapping(
+                "move_session",
+                "user",
+                {
+                    "source_date": week_start.isoformat(),
+                    "target_date": (week_start + timedelta(days=1)).isoformat(),
+                },
             ),
-        ),
-        created_at="2026-07-20T06:00:00+00:00",
-        status=status,
-    )
-    return _serialize_receipt(receipt, fixture_category=fixture_category)
-
-
-def required_shadow_receipts() -> list[dict]:
-    return [
-        shadow_receipt(
-            fixture_category=category,
-            week_start=date(2026, 7, 20) + timedelta(weeks=index),
         )
+    elif category == "skip":
+        constraints = (
+            TrainingConstraint.from_mapping(
+                "skip_session", "user", {"date": week_start.isoformat()}
+            ),
+        )
+    elif category == "equipment-limited":
+        constraints = (
+            TrainingConstraint.from_mapping(
+                "equipment_available",
+                "user",
+                {
+                    "date": week_start.isoformat(),
+                    "equipment": ("barbell", "seated_calf_raise"),
+                },
+            ),
+        )
+    elif category == "fatigue-reduced":
+        snapshot = replace(
+            snapshot,
+            progression={
+                "Bench Press": {
+                    "suggested_kg": 55,
+                    "basis": "Two consecutive misses require a deload.",
+                    "deload": True,
+                }
+            },
+        )
+    elif category == "calendar-blocked":
+        snapshot = replace(
+            snapshot,
+            calendar_events=(
+                {
+                    "event_type": "performance",
+                    "date": (week_start + timedelta(days=2)).isoformat(),
+                },
+            ),
+        )
+    elif category == "pain-blocked":
+        snapshot = replace(
+            snapshot,
+            readiness={"pain": True, "knee": 5, "sharp_pain": True},
+            safety_blocks=("knee",),
+        )
+    else:
+        raise AssertionError(f"Unknown scenario: {category}")
+    return generate_weekly_plan(constitution, snapshot, constraints)
+
+
+def _required_receipts(constitution) -> list[dict]:
+    return [
+        _scenario_receipt(
+            constitution,
+            category,
+            date(2026, 7, 20) + timedelta(weeks=index),
+        ).to_mapping()
         for index, category in enumerate(REQUIRED_FIXTURE_CATEGORIES)
     ]
 
 
-def acceptance_evidence(**overrides) -> dict:
-    evidence = {
-        "accepted": True,
-        "planner_version": "adaptive-v1",
-        "constitution_version": "1",
-        "evidence_id": "training-shadow-2026-07-17",
-        "fixture_summary": {category: 1 for category in REQUIRED_FIXTURE_CATEGORIES},
+def _with_receipt_values(receipt: WeeklyPlanReceipt, **overrides) -> WeeklyPlanReceipt:
+    values = {
+        "parent_plan_id": receipt.parent_plan_id,
+        "constitution_version": receipt.constitution_version,
+        "planner_version": receipt.planner_version,
+        "cycle_id": receipt.cycle_id,
+        "days": receipt.days,
+        "constraints": receipt.constraints,
+        "validations": receipt.validations,
+        "replay_inputs": receipt.replay_inputs,
+        "created_at": receipt.created_at,
+        "status": receipt.status,
     }
-    evidence.update(overrides)
-    return evidence
+    values.update(overrides)
+    return WeeklyPlanReceipt.create(**values)
 
 
-@pytest.fixture
-def active_plan_fixture() -> dict:
-    return shadow_receipt(status="active")
+def test_serialized_plan_reruns_actual_planner_to_identical_identities(
+    monkeypatch, training_constitution
+):
+    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    active = _with_receipt_values(receipt, status="active")
+    calls = []
+    real_generate = acceptance_module.generate_weekly_plan
+
+    def spy(constitution, snapshot, constraints=()):
+        calls.append((constitution, snapshot, tuple(constraints)))
+        return real_generate(constitution, snapshot, constraints)
+
+    monkeypatch.setattr(acceptance_module, "generate_weekly_plan", spy)
+
+    replayed = replay_training_plan(json.loads(json.dumps(active.to_mapping())))
+
+    assert len(calls) == 1
+    assert calls[0][1] == active.replay_inputs.snapshot
+    assert calls[0][2] == active.replay_inputs.constraints
+    assert replayed.plan_id == active.plan_id
+    assert replayed.input_hash == active.input_hash
+    assert replayed.receipt_hash == active.receipt_hash
 
 
-def test_serialized_plan_replays_to_identical_hash(active_plan_fixture):
-    replayed = replay_training_plan(json.loads(json.dumps(active_plan_fixture)))
-    assert replayed.receipt_hash == active_plan_fixture["receipt_hash"]
-    assert replayed.input_hash == active_plan_fixture["input_hash"]
+def test_replay_rejects_legacy_receipt_without_replay_inputs(training_constitution):
+    serialized = _scenario_receipt(
+        training_constitution, "move", date(2026, 7, 20)
+    ).to_mapping()
+    serialized.pop("replay_inputs")
+
+    with pytest.raises(ValueError, match="replay inputs"):
+        replay_training_plan(serialized)
 
 
-def test_replay_rejects_tampered_serialized_receipt(active_plan_fixture):
-    active_plan_fixture["days"][0]["objective"] = "tampered"
+def test_replay_rejects_tampered_canonical_inputs(training_constitution):
+    serialized = _scenario_receipt(
+        training_constitution, "move", date(2026, 7, 20)
+    ).to_mapping()
+    serialized["replay_inputs"]["snapshot"]["readiness"] = {"knee": 4}
 
-    with pytest.raises(ValueError, match="canonical replay"):
-        replay_training_plan(active_plan_fixture)
-
-
-def test_live_mode_requires_accepted_current_versions(monkeypatch):
-    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
-    monkeypatch.delenv("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON", raising=False)
-    assert training_planner_acceptance_status()["accepted"] is False
+    with pytest.raises(ValueError, match="identity|replay"):
+        replay_training_plan(serialized)
 
 
-@pytest.mark.parametrize(
-    "evidence",
-    (
-        "not-json",
-        "{}",
-        "[]",
-        json.dumps(acceptance_evidence(accepted=False)),
-        json.dumps(acceptance_evidence(planner_version="adaptive-v0")),
-        json.dumps(acceptance_evidence(constitution_version="0")),
-        json.dumps(acceptance_evidence(evidence_id=" ")),
-        json.dumps(acceptance_evidence(fixture_summary={})),
-        json.dumps(acceptance_evidence(fixture_summary={"move": 0})),
-    ),
-)
-def test_acceptance_json_fails_closed_for_invalid_evidence(monkeypatch, evidence):
-    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON", evidence)
+def test_replay_rejects_resigned_output_not_generated_from_inputs(training_constitution):
+    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    tampered_day = replace(receipt.days[0], objective="self_attested_output")
+    resigned = _with_receipt_values(
+        receipt,
+        days=(tampered_day, *receipt.days[1:]),
+    )
 
-    assert training_planner_acceptance_status()["accepted"] is False
+    with pytest.raises(ValueError, match="planner replay"):
+        replay_training_plan(resigned.to_mapping())
 
 
-def test_acceptance_json_accepts_exact_current_evidence(monkeypatch):
+def test_replay_rejects_planner_drift_or_nondeterminism(
+    monkeypatch, training_constitution
+):
+    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    real_generate = acceptance_module.generate_weekly_plan
+
+    def drifted_generate(constitution, snapshot, constraints=()):
+        generated = real_generate(constitution, snapshot, constraints)
+        drifted_day = replace(generated.days[-1], objective="drifted")
+        return _with_receipt_values(
+            generated,
+            days=(*generated.days[:-1], drifted_day),
+        )
+
+    monkeypatch.setattr(
+        acceptance_module,
+        "generate_weekly_plan",
+        drifted_generate,
+    )
+
+    with pytest.raises(ValueError, match="planner replay"):
+        replay_training_plan(receipt.to_mapping())
+
+
+def test_shadow_gate_infers_real_fixture_behavior_and_ignores_caller_labels(
+    training_constitution,
+):
+    receipts = _required_receipts(training_constitution)
+    for receipt in receipts:
+        receipt["fixture_category"] = "caller-controlled-lie"
+        receipt["side_effects"] = {"direct_execution_count": 999}
+
+    result = evaluate_training_shadow(receipts)
+
+    assert result["accepted"] is True
+    assert result["fixture_summary"] == {
+        category: 1 for category in REQUIRED_FIXTURE_CATEGORIES
+    }
+    assert result["side_effect_proof"]["passed"] is True
+    assert result["side_effect_proof"]["replay_count"] == 6
+    assert all(
+        row["input_hash_before"] == row["input_hash_after"]
+        for row in result["side_effect_proof"]["immutable_inputs"]
+    )
+
+
+def test_caller_labels_cannot_fake_required_fixture_coverage(training_constitution):
+    receipts = []
+    for index, label in enumerate(REQUIRED_FIXTURE_CATEGORIES):
+        receipt = _scenario_receipt(
+            training_constitution,
+            "move",
+            date(2026, 9, 7) + timedelta(weeks=index),
+        ).to_mapping()
+        receipt["fixture_category"] = label
+        receipts.append(receipt)
+
+    result = evaluate_training_shadow(receipts)
+
+    assert result["accepted"] is False
+    assert result["fixture_summary"] == {"move": 6}
+    assert "fixture_coverage" in result["reasons"]
+
+
+def test_shadow_gate_emits_exact_proposal_identity_allowlist(training_constitution):
+    receipts = _required_receipts(training_constitution)
+
+    result = evaluate_training_shadow(receipts)
+
+    assert result["accepted_proposals"] == sorted(
+        [
+            {
+                "plan_id": receipt["plan_id"],
+                "planner_version": receipt["planner_version"],
+                "constitution_version": receipt["constitution_version"],
+                "input_hash": receipt["input_hash"],
+                "receipt_hash": receipt["receipt_hash"],
+            }
+            for receipt in receipts
+        ],
+        key=lambda row: row["plan_id"],
+    )
+    assert decode_training_evidence_receipts(result) == sorted(
+        receipts, key=lambda row: row["plan_id"]
+    )
+    assert len(json.dumps(result)) < 32767
+
+
+def test_shadow_gate_rejects_non_current_constitution(training_constitution):
+    stale_constitution = json.loads(json.dumps(training_constitution))
+    stale_constitution["version"] = "0"
+    receipts = _required_receipts(training_constitution)
+    receipts[0] = _scenario_receipt(
+        stale_constitution, "move", date(2026, 7, 20)
+    ).to_mapping()
+
+    result = evaluate_training_shadow(receipts)
+
+    assert result["accepted"] is False
+    assert "version_mismatch" in result["reasons"]
+
+
+def test_shadow_gate_rejects_failed_pure_replay_boundary_audit(
+    training_constitution, monkeypatch
+):
+    monkeypatch.setattr(
+        acceptance_module,
+        "_source_side_effect_audit",
+        lambda: ({"planner.py": "source-hash"}, ["planner.py:call:commit"]),
+    )
+
+    result = evaluate_training_shadow(_required_receipts(training_constitution))
+
+    assert result["accepted"] is False
+    assert result["side_effect_proof"]["passed"] is False
+    assert "side_effect_proof_failed" in result["reasons"]
+
+
+def test_acceptance_status_recomputes_complete_evidence(training_constitution, monkeypatch):
+    evidence = evaluate_training_shadow(_required_receipts(training_constitution))
     monkeypatch.setenv(
         "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
-        json.dumps(acceptance_evidence()),
+        json.dumps(evidence),
     )
 
     status = training_planner_acceptance_status()
 
     assert status["accepted"] is True
-    assert status["evidence_id"] == "training-shadow-2026-07-17"
+    assert status["evidence_id"] == evidence["evidence_id"]
+    assert status["accepted_proposals"] == evidence["accepted_proposals"]
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    (
+        lambda evidence: evidence.update(accepted=False),
+        lambda evidence: evidence["fixture_summary"].update(move=99),
+        lambda evidence: evidence["accepted_proposals"].pop(),
+        lambda evidence: evidence["side_effect_proof"].update(passed=False),
+        lambda evidence: evidence.update(evidence_id="attacker-supplied"),
+        lambda evidence: evidence["receipt_bundle"].update(payload="tampered"),
+    ),
+)
+def test_acceptance_status_rejects_any_tampered_evidence(
+    training_constitution, monkeypatch, tamper
+):
+    evidence = evaluate_training_shadow(_required_receipts(training_constitution))
+    tamper(evidence)
+    monkeypatch.setenv(
+        "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
+        json.dumps(evidence),
+    )
+
+    status = training_planner_acceptance_status()
+
+    assert status["accepted"] is False
+    assert "evidence_recompute_failed" in status["reasons"]
+
+
+@pytest.mark.parametrize("passed", (0, 1, "true", None, [], {}))
+def test_shadow_gate_rejects_malformed_hard_validation_rows(
+    training_constitution, passed
+):
+    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    malformed = tuple(
+        PlanValidation(row.rule, passed, row.severity, row.detail)
+        if row.severity == "hard"
+        else row
+        for row in receipt.validations
+    )
+    signed = _with_receipt_values(receipt, validations=malformed).to_mapping()
+
+    result = evaluate_training_shadow([signed])
+
+    assert result["accepted"] is False
+    assert "malformed_validations" in result["reasons"]
+
+
+def test_shadow_gate_rejects_empty_validation_set(training_constitution):
+    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    signed = _with_receipt_values(receipt, validations=()).to_mapping()
+
+    result = evaluate_training_shadow([signed])
+
+    assert result["accepted"] is False
+    assert "malformed_validations" in result["reasons"]
+
+
+def test_shadow_gate_requires_all_expected_hard_rules(training_constitution):
+    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    validations = tuple(
+        row for row in receipt.validations if row.rule != "pain_block"
+    )
+    signed = _with_receipt_values(receipt, validations=validations).to_mapping()
+
+    result = evaluate_training_shadow([signed])
+
+    assert result["accepted"] is False
+    assert "malformed_validations" in result["reasons"]
+
+
+def test_shadow_gate_rejects_multiple_plans_for_one_cycle(training_constitution):
+    receipts = _required_receipts(training_constitution)
+    same_cycle = date(2026, 7, 20)
+    receipts[1] = _scenario_receipt(
+        training_constitution, "skip", same_cycle
+    ).to_mapping()
+
+    result = evaluate_training_shadow(receipts)
+
+    assert result["accepted"] is False
+    assert "multiple_plans_per_cycle" in result["reasons"]
 
 
 def test_training_planner_mode_defaults_and_fails_closed_to_shadow(monkeypatch):
@@ -274,120 +416,11 @@ def test_training_planner_mode_defaults_and_fails_closed_to_shadow(monkeypatch):
     assert training_planner_mode() == "live"
 
 
-def test_shadow_gate_rejects_hard_rule_violation():
-    result = evaluate_training_shadow([shadow_receipt(hard_failure=True)])
-    assert result["accepted"] is False
-    assert "hard_rule_violations" in result["reasons"]
+@pytest.mark.parametrize("raw", (None, "not-json", "{}", "[]"))
+def test_acceptance_status_fails_closed_without_recomputable_evidence(monkeypatch, raw):
+    if raw is None:
+        monkeypatch.delenv("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON", raising=False)
+    else:
+        monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON", raw)
 
-
-def test_shadow_gate_requires_literal_true_for_hard_validation():
-    receipts = required_shadow_receipts()
-    receipts[0] = shadow_receipt(hard_validation_passed=0)
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "hard_rule_violations" in result["reasons"]
-
-
-def test_shadow_gate_accepts_complete_current_side_effect_free_evidence():
-    result = evaluate_training_shadow(required_shadow_receipts())
-
-    assert result["accepted"] is True
-    assert result["reasons"] == []
-    assert result["fixture_summary"] == {
-        category: 1 for category in REQUIRED_FIXTURE_CATEGORIES
-    }
-    assert result["evidence_id"]
-
-
-def test_shadow_gate_requires_all_fixture_categories():
-    result = evaluate_training_shadow(required_shadow_receipts()[:-1])
-
-    assert result["accepted"] is False
-    assert "fixture_coverage" in result["reasons"]
-
-
-def test_shadow_gate_rejects_non_current_versions():
-    receipts = required_shadow_receipts()
-    receipts[0] = shadow_receipt(planner_version="adaptive-v0")
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "version_mismatch" in result["reasons"]
-
-
-def test_shadow_gate_rejects_pain_blocked_loaded_work():
-    receipts = required_shadow_receipts()
-    receipts[-1] = shadow_receipt(
-        fixture_category="pain-blocked",
-        week_start=date(2026, 8, 24),
-        pain_blocked_work=True,
-    )
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "pain_blocked_work" in result["reasons"]
-
-
-def test_shadow_gate_rejects_insufficient_recovery_spacing():
-    receipts = required_shadow_receipts()
-    receipts[0] = shadow_receipt(recovery_violation=True)
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "recovery_spacing" in result["reasons"]
-
-
-def test_shadow_gate_rejects_multiple_plans_for_one_cycle():
-    receipts = required_shadow_receipts()
-    receipts[1] = shadow_receipt(
-        fixture_category="skip",
-        week_start=date(2026, 7, 20),
-    )
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "multiple_plans_per_cycle" in result["reasons"]
-
-
-@pytest.mark.parametrize(
-    "side_effect_field",
-    (
-        "direct_execution_count",
-        "session_log_write_count",
-        "calendar_action_write_count",
-    ),
-)
-def test_shadow_gate_rejects_side_effect_evidence(side_effect_field):
-    receipts = required_shadow_receipts()
-    receipts[0]["side_effects"][side_effect_field] = 1
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "side_effects_detected" in result["reasons"]
-
-
-def test_shadow_gate_fails_closed_without_side_effect_evidence():
-    receipts = required_shadow_receipts()
-    receipts[0].pop("side_effects")
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "side_effects_detected" in result["reasons"]
-
-
-def test_shadow_gate_rejects_receipt_that_cannot_replay():
-    receipts = required_shadow_receipts()
-    receipts[0]["input_hash"] = "tampered"
-
-    result = evaluate_training_shadow(receipts)
-
-    assert result["accepted"] is False
-    assert "deterministic_replay_failed" in result["reasons"]
+    assert training_planner_acceptance_status()["accepted"] is False

@@ -93,6 +93,36 @@ class DatabaseTests(unittest.TestCase):
             receipt["receipt_hash"],
         )
 
+    def test_training_plan_receipt_round_trips_canonical_replay_inputs(self):
+        replay_inputs = {
+            "constitution": {
+                "version": "1",
+                "adaptive_planner": {"version": "adaptive-v1"},
+            },
+            "snapshot": {
+                "week_start": "2026-07-20",
+                "created_at": "2026-07-20T06:00:00Z",
+                "completed_sessions": [],
+                "readiness": {"knee": 0},
+                "calendar_events": [],
+                "progression": {},
+                "equipment": ["barbell", "rack"],
+                "preferences": [],
+                "safety_blocks": [],
+            },
+            "constraints": [],
+        }
+        receipt = self._training_plan_receipt(replay_inputs=replay_inputs)
+
+        database.save_training_plan_receipt(receipt)
+        replay_inputs["snapshot"]["readiness"]["knee"] = 5
+
+        stored = database.get_training_plan_receipt("plan-1")
+
+        assert stored["payload"]["replay_inputs"]["snapshot"]["readiness"] == {
+            "knee": 0
+        }
+
     def test_training_plan_apply_atomically_supersedes_parent_and_is_idempotent(self):
         database.save_training_plan_receipt(
             self._training_plan_receipt(plan_id="plan-1", status="active")

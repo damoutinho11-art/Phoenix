@@ -84,6 +84,21 @@ def test_identical_snapshot_produces_identical_receipt(training_constitution):
     assert first.receipt_hash == second.receipt_hash
 
 
+def test_receipt_input_hash_tracks_snapshot_even_when_output_is_unchanged(
+    training_constitution,
+):
+    baseline = generate_weekly_plan(training_constitution, snapshot())
+    readiness_only = generate_weekly_plan(
+        training_constitution,
+        replace(snapshot(), readiness={"knee": 0, "sharp_pain": False}),
+    )
+
+    assert baseline.days == readiness_only.days
+    assert baseline.input_hash != readiness_only.input_hash
+    assert baseline.replay_inputs.snapshot.readiness is None
+    assert readiness_only.replay_inputs.snapshot.readiness["knee"] == 0
+
+
 def test_pain_block_routes_high_neural_days_to_recovery(training_constitution):
     unsafe = replace(
         snapshot(),
@@ -335,6 +350,26 @@ def test_progression_enriches_safe_exercise_payloads(training_constitution):
     assert bench_press["progression_basis"] == "All sets hit target reps; add 2.5kg."
     assert bench_press["deload"] is False
     assert plan.days[1].change_reason == "progression_applied:bench_press:62.5kg"
+
+
+def test_progression_deload_reduces_session_volume_with_explicit_reason(
+    training_constitution,
+):
+    evidence = replace(
+        snapshot(),
+        progression={
+            "Bench Press": {
+                "suggested_kg": 55,
+                "basis": "Two consecutive misses require a deload.",
+                "deload": True,
+            }
+        },
+    )
+
+    plan = generate_weekly_plan(training_constitution, evidence)
+
+    assert plan.days[1].estimated_minutes == 36
+    assert plan.days[1].change_reason == "fatigue_reduced:progression_deload"
 
 
 def test_progression_alias_order_does_not_change_receipt(training_constitution):

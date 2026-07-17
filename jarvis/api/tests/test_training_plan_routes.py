@@ -57,11 +57,21 @@ def _receipt(
         "constraints": constraints or [],
         "validations": [
             {
-                "rule": "pain_block" if hard_failure else "seven_unique_days",
-                "passed": not hard_failure,
+                "rule": rule,
+                "passed": not (hard_failure and rule == "pain_block"),
                 "severity": "hard",
-                "detail": "Hard safety block remains" if hard_failure else "Plan contains seven unique dates",
+                "detail": (
+                    "Hard safety block remains"
+                    if hard_failure and rule == "pain_block"
+                    else f"{rule} passed"
+                ),
             }
+            for rule in (
+                "seven_unique_days",
+                "pain_block",
+                "calendar_conflicts",
+                "recovery_spacing",
+            )
         ],
         "created_at": "2026-07-20T06:00:00+00:00",
         "status": status,
@@ -70,23 +80,35 @@ def _receipt(
     }
 
 
-def _accepted_planner_evidence() -> str:
-    return json.dumps(
-        {
+def _proposal_identity(plan_id: str) -> dict:
+    payload = database.get_training_plan_receipt(plan_id)["payload"]
+    return {
+        "plan_id": payload["plan_id"],
+        "planner_version": payload["planner_version"],
+        "constitution_version": payload["constitution_version"],
+        "input_hash": payload["input_hash"],
+        "receipt_hash": payload["receipt_hash"],
+    }
+
+
+def _enable_live_planner(
+    monkeypatch: pytest.MonkeyPatch, *accepted_plan_ids: str
+) -> None:
+    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
+    monkeypatch.setattr(
+        training_router,
+        "training_planner_acceptance_status",
+        lambda: {
             "accepted": True,
+            "reasons": [],
             "planner_version": "adaptive-v1",
             "constitution_version": "1",
-            "evidence_id": "training-shadow-2026-07-17",
-            "fixture_summary": {"move": 1},
-        }
-    )
-
-
-def _enable_live_planner(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
-    monkeypatch.setenv(
-        "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
-        _accepted_planner_evidence(),
+            "evidence_id": "recomputed-test-evidence",
+            "fixture_summary": {},
+            "accepted_proposals": [
+                _proposal_identity(plan_id) for plan_id in accepted_plan_ids
+            ],
+        },
     )
 
 
@@ -755,9 +777,10 @@ def test_apply_makes_proposal_authoritative_and_is_idempotent(
     seeded_proposal: str,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    _enable_live_planner(monkeypatch)
+    _enable_live_planner(monkeypatch, seeded_proposal)
 
     first = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
+    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "shadow")
     second = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
 
     assert first.status_code == second.status_code == 200
@@ -770,7 +793,7 @@ def test_hard_safety_block_disables_apply(
     pain_blocked_proposal: str,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    _enable_live_planner(monkeypatch)
+    _enable_live_planner(monkeypatch, pain_blocked_proposal)
 
     response = client.post(f"/training/plan/proposals/{pain_blocked_proposal}/apply")
 
@@ -799,6 +822,53 @@ def test_terminal_lifecycle_conflicts_return_409(client: TestClient, seeded_prop
 def test_missing_lifecycle_target_returns_404(client: TestClient):
     assert client.post("/training/plan/proposals/missing/apply").status_code == 404
     assert client.post("/training/plan/proposals/missing/reject").status_code == 404
+
+
+def test_live_apply_rejects_evidence_allowlisted_for_a_different_proposal(
+    client: TestClient,
+    seeded_active_plan: str,
+    seeded_proposal: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _enable_live_planner(monkeypatch, seeded_active_plan)
+
+    response = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
+
+    assert response.status_code == 503
+    assert "does not cover this proposal" in response.json()["detail"]
+    assert database.get_training_plan_receipt(seeded_proposal)["status"] == "proposed"
+
+
+@pytest.mark.parametrize(
+    "malformation",
+    ("empty", "integer_false", "integer_true", "missing_detail"),
+)
+def test_live_apply_rejects_malformed_validation_rows(
+    client: TestClient,
+    seeded_active_plan: str,
+    monkeypatch: pytest.MonkeyPatch,
+    malformation: str,
+):
+    receipt = _receipt(
+        f"malformed-{malformation}",
+        parent_plan_id=seeded_active_plan,
+    )
+    if malformation == "empty":
+        receipt["validations"] = []
+    elif malformation.startswith("integer_"):
+        receipt["validations"][0]["passed"] = (
+            1 if malformation == "integer_true" else 0
+        )
+    else:
+        receipt["validations"][0].pop("detail")
+    database.save_training_plan_receipt(receipt)
+    _enable_live_planner(monkeypatch, receipt["plan_id"])
+
+    response = client.post(f"/training/plan/proposals/{receipt['plan_id']}/apply")
+
+    assert response.status_code == 409
+    assert "validation evidence is malformed" in response.json()["detail"].lower()
+    assert database.get_training_plan_receipt(receipt["plan_id"])["status"] == "proposed"
 
 
 def test_history_and_rules_return_readable_detail(
@@ -918,7 +988,7 @@ def test_apply_storage_failure_returns_503_without_changing_active_plan(
     seeded_proposal: str,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    _enable_live_planner(monkeypatch)
+    _enable_live_planner(monkeypatch, seeded_proposal)
 
     def fail_apply(_: str):
         raise OSError("storage offline")
@@ -965,7 +1035,7 @@ def test_live_apply_returns_503_without_accepted_evidence(
     assert database.get_training_plan_receipt(seeded_proposal)["status"] == "proposed"
 
 
-def test_live_proposal_is_authoritative_only_with_accepted_evidence(
+def test_live_proposal_is_authoritative_only_when_exactly_allowlisted(
     client: TestClient,
     seeded_active_plan: str,
     monkeypatch: pytest.MonkeyPatch,
@@ -983,11 +1053,10 @@ def test_live_proposal_is_authoritative_only_with_accepted_evidence(
         },
     )
 
-    monkeypatch.setenv(
-        "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
-        _accepted_planner_evidence(),
-    )
-    accepted = client.post(
+    proposal_id = rejected.json()["plan_id"]
+    _enable_live_planner(monkeypatch, proposal_id)
+    accepted = client.get(f"/training/plan/proposals/{proposal_id}")
+    different = client.post(
         "/training/plan/proposals",
         json={
             "constraints": [
@@ -999,9 +1068,10 @@ def test_live_proposal_is_authoritative_only_with_accepted_evidence(
         },
     )
 
-    assert rejected.status_code == accepted.status_code == 200
+    assert rejected.status_code == accepted.status_code == different.status_code == 200
     assert rejected.json()["authoritative"] is False
     assert accepted.json()["authoritative"] is True
+    assert different.json()["authoritative"] is False
     assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
 
 
@@ -1010,7 +1080,6 @@ def test_propose_and_live_apply_have_no_session_or_calendar_write_side_effects(
     seeded_active_plan: str,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    _enable_live_planner(monkeypatch)
     session_writes = []
     calendar_writes = []
     monkeypatch.setattr(
@@ -1035,6 +1104,7 @@ def test_propose_and_live_apply_have_no_session_or_calendar_write_side_effects(
             ]
         },
     )
+    _enable_live_planner(monkeypatch, proposed.json()["plan_id"])
     applied = client.post(
         f"/training/plan/proposals/{proposed.json()['plan_id']}/apply"
     )

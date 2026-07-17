@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import date, timedelta
 from typing import Any, Mapping
 
@@ -6,7 +6,9 @@ from .engine import plan_week_sessions
 from .plan_contracts import (
     PlanDay,
     PlanValidation,
+    PlannerInputSnapshot,
     TrainingConstraint,
+    TrainingPlanReplayInputs,
     WeeklyPlanReceipt,
     iso_cycle_id,
 )
@@ -28,17 +30,7 @@ _RECOVERY_EXERCISE_MARKERS = frozenset({"isometric", "mobility", "flexibility", 
 _EXPLICIT_LOAD_FIELDS = ("load_kg", "weight_kg", "weight", "load")
 
 
-@dataclass(frozen=True)
-class PlanningSnapshot:
-    week_start: date
-    created_at: str
-    completed_sessions: tuple[dict[str, Any], ...]
-    readiness: dict[str, Any] | None
-    calendar_events: tuple[dict[str, Any], ...]
-    progression: Mapping[str, dict[str, Any]]
-    equipment: tuple[str, ...]
-    preferences: tuple[tuple[str, Any], ...]
-    safety_blocks: tuple[str, ...] = ()
+PlanningSnapshot = PlannerInputSnapshot
 
 
 def _objective(session_type: str) -> str:
@@ -422,7 +414,7 @@ def _progression_key(value):
     return "".join(character for character in str(value).casefold() if character.isalnum())
 
 
-def _apply_progression(days, progression):
+def _apply_progression(days, progression, policy):
     by_exercise = {}
     for name, values in sorted(
         progression.items(), key=lambda item: (_progression_key(item[0]), str(item[0]))
@@ -435,6 +427,7 @@ def _apply_progression(days, progression):
             continue
         exercises = []
         reasons = []
+        deload = False
         for exercise in day.exercises:
             suggestion = by_exercise.get(_progression_key(exercise.get("name", "")))
             if not suggestion or "suggested_kg" not in suggestion:
@@ -449,10 +442,24 @@ def _apply_progression(days, progression):
             }
             exercises.append(updated)
             if updated != exercise:
-                reasons.append(
-                    f"progression_applied:{exercise['name']}:{_format_number(float(suggested_kg))}kg"
-                )
-        planned.append(_apply_exercise_updates(day, tuple(exercises), reasons))
+                if updated["deload"]:
+                    deload = True
+                else:
+                    reasons.append(
+                        f"progression_applied:{exercise['name']}:{_format_number(float(suggested_kg))}kg"
+                    )
+        updated_day = _apply_exercise_updates(day, tuple(exercises), reasons)
+        if deload:
+            reduction = min(
+                100.0,
+                max(0.0, float(policy.get("maximum_session_volume_reduction_pct", 40))),
+            )
+            updated_day = _update_for_change(
+                updated_day,
+                "fatigue_reduced:progression_deload",
+                estimated_minutes=int(round(updated_day.estimated_minutes * (1 - reduction / 100))),
+            )
+        planned.append(updated_day)
     return tuple(planned)
 
 
@@ -598,6 +605,12 @@ def _session_exercises(session, constitution):
 
 
 def generate_weekly_plan(constitution, snapshot, constraints=()):
+    constraints = tuple(constraints)
+    replay_inputs = TrainingPlanReplayInputs(
+        constitution=constitution,
+        snapshot=snapshot,
+        constraints=constraints,
+    )
     sessions = plan_week_sessions(constitution, snapshot.week_start)
     days = tuple(
         PlanDay(
@@ -623,7 +636,7 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
     calendar_conflict_dates = _calendar_hard_conflict_dates(days, snapshot.calendar_events)
     days = _apply_calendar_hard_conflicts(days, calendar_conflict_dates, pain_routed_dates)
     days = _apply_recovery_spacing(days, policy)
-    days = _apply_progression(days, snapshot.progression)
+    days = _apply_progression(days, snapshot.progression, policy)
     validations = validate_plan(
         days,
         policy,
@@ -642,8 +655,9 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
         planner_version=PLANNER_VERSION,
         cycle_id=iso_cycle_id(snapshot.week_start),
         days=days,
-        constraints=tuple(constraints),
+        constraints=constraints,
         validations=validations,
+        replay_inputs=replay_inputs,
         created_at=snapshot.created_at,
         status="proposed",
     )

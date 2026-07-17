@@ -295,6 +295,20 @@ test('training CSS keeps stable scoped geometry, validation tones, and neutral u
   assert.doesNotMatch(trainingCss, /--phx-finance|--phx-calendar|#00bbdd|#9f7dff/i)
 })
 
+test('fixed Training room stacks above the global bottom navigation', () => {
+  const css = readSource('../holo.css')
+  const dock = readSource('../HoloDock.jsx')
+  const roomLayer = css.match(/\.training-control-room-layer\s*\{[^}]*z-index:\s*(\d+)/s)
+  const bottomNavigation = dock.match(/bottom:\s*0,\s*zIndex:\s*(\d+)/)
+
+  assert.ok(roomLayer, 'Training Control Room must declare an explicit z-index')
+  assert.ok(bottomNavigation, 'global bottom navigation must declare an explicit z-index')
+  assert.ok(
+    Number(roomLayer[1]) > Number(bottomNavigation[1]),
+    `Training room layer ${roomLayer[1]} must be above bottom navigation ${bottomNavigation[1]}`,
+  )
+})
+
 test('training adaptation fields stack at the mobile breakpoint', () => {
   const css = readSource('../holo.css')
   const trainingCss = css.slice(css.indexOf('/* Training Control Room'))
