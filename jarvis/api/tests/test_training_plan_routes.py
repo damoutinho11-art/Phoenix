@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+import json
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,11 @@ from jarvis.api.main import app
 from jarvis.api.routers import training as training_router
 from jarvis.core import clock
 from jarvis.data import database
+from jarvis.domains.calendar.tests.fixtures import (
+    LIVE_SNAPSHOT_RAW,
+    make_event,
+    make_snapshot_raw,
+)
 
 
 TODAY = date(2026, 7, 20)
@@ -69,6 +75,7 @@ def isolated_training_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "training-plan-routes.db")
     monkeypatch.setattr(clock, "today", lambda: TODAY)
     monkeypatch.setattr(clock, "utc_now_iso", lambda: "2026-07-20T06:00:00+00:00")
+    monkeypatch.setenv("PHOENIX_PLAAN_SNAPSHOT_JSON", json.dumps(LIVE_SNAPSHOT_RAW))
     database.init_db()
 
 
@@ -236,22 +243,41 @@ def test_supported_intent_compiles_to_constraint_but_never_applies(
     assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
 
 
-def test_proposal_routes_resolved_performance_and_hard_calendar_events(
+def test_proposal_passes_latest_import_to_real_resolver_and_uses_its_performance_events(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
-    resolved_events = [
-        {"event_type": "performance", "date": "2026-07-20"},
-        {"event_type": "calendar", "date": "2026-07-21", "hard_conflict": True},
-    ]
+    monkeypatch.delenv("PHOENIX_PLAAN_SNAPSHOT_JSON")
+    database.save_calendar_snapshot_import(
+        make_snapshot_raw([], as_of="2026-07-19T06:00:00"),
+        label="older import",
+    )
+    latest_snapshot = make_snapshot_raw(
+        [
+            make_event(
+                "performance-1",
+                "performance",
+                "Imported performance",
+                "2026-07-21",
+                "19:00",
+                "22:00",
+            )
+        ],
+        as_of="2026-07-20T05:00:00",
+    )
+    database.save_calendar_snapshot_import(latest_snapshot, label="latest import")
+    real_resolver = training_router.plaan_live.resolve_snapshot_raw
+    passed_imports: list[dict | None] = []
 
-    def resolve_calendar_snapshot(default_raw: dict):
-        return {"events": resolved_events}, {"active_source": "manual_import"}
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        passed_imports.append(imported_snapshot)
+        return real_resolver(default_raw, imported_snapshot=imported_snapshot)
 
     monkeypatch.setattr(
-        training_router,
-        "plaan_live",
-        type("CalendarResolver", (), {"resolve_snapshot_raw": resolve_calendar_snapshot}),
-        raising=False,
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
     )
 
     response = client.post(
@@ -267,18 +293,141 @@ def test_proposal_routes_resolved_performance_and_hard_calendar_events(
     )
 
     assert response.status_code == 200
+    assert passed_imports == [latest_snapshot]
     days_by_date = {day["date"]: day for day in response.json()["days"]}
     assert days_by_date["2026-07-20"]["session_type"] == "recovery"
-    assert days_by_date["2026-07-21"]["session_type"] == "recovery"
-    assert {day["change_reason"] for day in days_by_date.values()} >= {
-        "calendar_hard_conflict"
-    }
+    assert days_by_date["2026-07-20"]["change_reason"] == "calendar_hard_conflict"
+
+
+@pytest.mark.parametrize("active_source", ["fixture_fallback", "fixture", "stale_cache"])
+def test_proposal_fails_closed_for_non_current_calendar_source_status(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    active_source: str,
+):
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return {"events": []}, {"active_source": active_source}
+
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+
+
+@pytest.mark.parametrize(
+    "active_source",
+    ["env_json", "local_file", "manual_import", "read_only_url"],
+)
+def test_proposal_preserves_configured_current_calendar_sources(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    active_source: str,
+):
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return {"events": []}, {"active_source": active_source}
+
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "resolver_output",
+    [
+        pytest.param(None, id="not-a-tuple"),
+        pytest.param(({"events": []},), id="short-tuple"),
+        pytest.param(
+            ({"events": []}, {"active_source": "env_json"}, None),
+            id="long-tuple",
+        ),
+        pytest.param(
+            [{"events": []}, {"active_source": "env_json"}],
+            id="list-boundary",
+        ),
+        pytest.param(([], {"active_source": "env_json"}), id="snapshot-not-mapping"),
+        pytest.param(({}, {"active_source": "env_json"}), id="events-missing"),
+        pytest.param(
+            ({"events": {}}, {"active_source": "env_json"}),
+            id="events-not-list",
+        ),
+        pytest.param(({"events": []}, []), id="status-not-mapping"),
+        pytest.param(({"events": []}, {}), id="active-source-missing"),
+    ],
+)
+def test_proposal_rejects_malformed_calendar_resolver_boundary_with_calendar_503(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    resolver_output: object,
+):
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return resolver_output
+
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
 
 
 def test_proposal_returns_explicit_503_when_calendar_resolver_fails(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
-    def fail_to_resolve_calendar_snapshot(default_raw: dict):
+    def fail_to_resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
         raise OSError("calendar evidence unavailable")
 
     monkeypatch.setattr(

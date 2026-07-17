@@ -67,6 +67,9 @@ _PUBLIC_ADAPTIVE_PLANNER_FIELDS = (
     "movement_families",
     "exercise_equipment",
 )
+_AUTHORITATIVE_CALENDAR_SOURCES = frozenset(
+    {"env_json", "local_file", "manual_import", "read_only_url"}
+)
 
 
 class CalendarEvidenceUnavailable(RuntimeError):
@@ -684,6 +687,33 @@ def _public_adaptive_planner_policy(policy: Mapping[str, Any]) -> dict[str, Any]
     return {field: policy[field] for field in _PUBLIC_ADAPTIVE_PLANNER_FIELDS}
 
 
+def _current_calendar_events() -> list[dict[str, Any]]:
+    try:
+        latest_import = database.get_latest_calendar_snapshot_import()
+        imported_snapshot = latest_import.get("snapshot") if latest_import else None
+        resolved = plaan_live.resolve_snapshot_raw(
+            LIVE_SNAPSHOT_RAW,
+            imported_snapshot=imported_snapshot,
+        )
+        if not isinstance(resolved, tuple) or len(resolved) != 2:
+            raise CalendarEvidenceUnavailable
+        calendar_snapshot_raw, source_status = resolved
+        if not isinstance(calendar_snapshot_raw, Mapping):
+            raise CalendarEvidenceUnavailable
+        calendar_events = calendar_snapshot_raw.get("events")
+        if not isinstance(calendar_events, list):
+            raise CalendarEvidenceUnavailable
+        if not isinstance(source_status, Mapping):
+            raise CalendarEvidenceUnavailable
+        if source_status.get("active_source") not in _AUTHORITATIVE_CALENDAR_SOURCES:
+            raise CalendarEvidenceUnavailable
+        return calendar_events
+    except CalendarEvidenceUnavailable:
+        raise
+    except Exception as exc:
+        raise CalendarEvidenceUnavailable from exc
+
+
 def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[str, Any] | None):
     week_start, _ = _planning_horizon()
     preferences, _ = _active_constraint_groups(active)
@@ -696,13 +726,7 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         for requirements in constitution["adaptive_planner"]["exercise_equipment"].values()
         for equipment in requirements
     }
-    try:
-        calendar_snapshot_raw, _ = plaan_live.resolve_snapshot_raw(LIVE_SNAPSHOT_RAW)
-    except Exception as exc:
-        raise CalendarEvidenceUnavailable from exc
-    calendar_events = calendar_snapshot_raw.get("events")
-    if not isinstance(calendar_events, list):
-        raise CalendarEvidenceUnavailable
+    calendar_events = _current_calendar_events()
     return build_planning_snapshot(
         week_start=week_start,
         created_at=clock.utc_now_iso(),
