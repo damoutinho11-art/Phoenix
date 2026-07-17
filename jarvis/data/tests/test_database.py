@@ -118,6 +118,131 @@ class DatabaseTests(unittest.TestCase):
             connection.close()
         assert event_count == 4
 
+    def test_training_plan_apply_rejects_parentless_proposal_when_active_plan_exists(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-2", status="proposed")
+        )
+
+        with self.assertRaisesRegex(ValueError, "active plan as its parent"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+
+    def test_training_plan_apply_rejects_orphan_parent_atomically(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="missing-plan", status="proposed"
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "declared parent"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30") is None
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            event_count = connection.execute(
+                "SELECT COUNT(*) FROM training_plan_lifecycle_events"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert event_count == 1
+
+    def test_training_plan_apply_rejects_cross_cycle_parent_atomically(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-1", cycle_id="2026-W31", status="active"
+            )
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "same cycle"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30") is None
+        assert database.get_active_training_plan("2026-W31")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+
+    def test_training_plan_apply_rejects_stale_parent_atomically(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+        database.apply_training_plan_proposal("plan-2")
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-3", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "current active plan"):
+            database.apply_training_plan_proposal("plan-3")
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-2"
+        assert database.get_training_plan_receipt("plan-1")["status"] == "superseded"
+        assert database.get_training_plan_receipt("plan-3")["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            event_count = connection.execute(
+                "SELECT COUNT(*) FROM training_plan_lifecycle_events"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert event_count == 5
+
+    def test_training_plan_apply_rolls_back_parent_supersession_when_activation_fails(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+        connection = sqlite3.connect(self.db_path)
+        try:
+            connection.execute(
+                """
+                CREATE TRIGGER fail_training_plan_activation
+                BEFORE INSERT ON training_plan_lifecycle_events
+                WHEN NEW.plan_id = 'plan-2' AND NEW.status = 'active'
+                BEGIN
+                    SELECT RAISE(ABORT, 'forced activation failure');
+                END;
+                """
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "forced activation failure"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-1")["status"] == "active"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            events = connection.execute(
+                "SELECT plan_id, status FROM training_plan_lifecycle_events ORDER BY id"
+            ).fetchall()
+        finally:
+            connection.close()
+        assert events == [("plan-1", "active"), ("plan-2", "proposed")]
+
     def test_training_plan_rejection_preserves_active_parent(self):
         database.save_training_plan_receipt(
             self._training_plan_receipt(plan_id="plan-1", status="active")
@@ -175,6 +300,28 @@ class DatabaseTests(unittest.TestCase):
 
         assert database.get_training_plan_receipt(receipt["plan_id"])["payload"] == receipt
 
+    def test_training_plan_lifecycle_events_are_append_only(self):
+        receipt = self._training_plan_receipt()
+        database.save_training_plan_receipt(receipt)
+
+        connection = sqlite3.connect(self.db_path)
+        try:
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
+                connection.execute(
+                    "UPDATE training_plan_lifecycle_events SET reason = 'changed' WHERE plan_id = ?",
+                    (receipt["plan_id"],),
+                )
+            connection.rollback()
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
+                connection.execute(
+                    "DELETE FROM training_plan_lifecycle_events WHERE plan_id = ?",
+                    (receipt["plan_id"],),
+                )
+        finally:
+            connection.close()
+
+        assert database.get_training_plan_receipt(receipt["plan_id"])["status"] == "proposed"
+
     def test_training_plan_rejects_second_active_receipt_for_cycle(self):
         database.save_training_plan_receipt(
             self._training_plan_receipt(plan_id="plan-1", status="active")
@@ -210,6 +357,115 @@ class DatabaseTests(unittest.TestCase):
             "training_capacity_logs",
             "training_jump_balance_logs",
         } <= names
+
+    def test_init_db_migrates_populated_existing_schema_without_data_loss(self):
+        legacy_db_path = Path(self.temp_dir.name) / "legacy.db"
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            connection.executescript(
+                """
+                CREATE TABLE meal_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    log_date TEXT NOT NULL,
+                    logged_at TEXT NOT NULL,
+                    item_id TEXT NOT NULL,
+                    item_type TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    servings REAL NOT NULL,
+                    calories REAL NOT NULL,
+                    protein_g REAL NOT NULL,
+                    fat_g REAL NOT NULL,
+                    carbs_g REAL NOT NULL,
+                    source TEXT NOT NULL
+                );
+
+                CREATE TABLE training_readiness_scans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_date TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    knee INTEGER NOT NULL,
+                    ankle INTEGER NOT NULL,
+                    hip INTEGER NOT NULL,
+                    hamstring INTEGER NOT NULL,
+                    calf_achilles INTEGER NOT NULL,
+                    lower_back_pelvic INTEGER NOT NULL,
+                    note TEXT,
+                    sharp_pain INTEGER NOT NULL DEFAULT 0,
+                    limping INTEGER NOT NULL DEFAULT 0,
+                    next_day_worsening INTEGER NOT NULL DEFAULT 0,
+                    readiness_status TEXT NOT NULL
+                );
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO meal_log (
+                    log_date, logged_at, item_id, item_type, name, servings,
+                    calories, protein_g, fat_g, carbs_g, source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "2026-07-20",
+                    "2026-07-20T06:00:00Z",
+                    "legacy-meal",
+                    "recipe",
+                    "Legacy Meal",
+                    1.0,
+                    500.0,
+                    30.0,
+                    20.0,
+                    40.0,
+                    "manual",
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO training_readiness_scans (
+                    scan_date, created_at, knee, ankle, hip, hamstring,
+                    calf_achilles, lower_back_pelvic, readiness_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                ("2026-07-20", "2026-07-20T06:00:00Z", 1, 1, 1, 1, 1, 1, "clear"),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        with patch.object(database, "DB_PATH", legacy_db_path):
+            database.init_db()
+
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            }
+            triggers = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'trigger'"
+                ).fetchall()
+            }
+            meal = connection.execute(
+                "SELECT name, calories FROM meal_log WHERE item_id = 'legacy-meal'"
+            ).fetchone()
+            scan = connection.execute(
+                "SELECT readiness_status FROM training_readiness_scans WHERE scan_date = '2026-07-20'"
+            ).fetchone()
+        finally:
+            connection.close()
+
+        assert {"training_plan_receipts", "training_plan_lifecycle_events"} <= tables
+        assert {
+            "trg_training_plan_receipts_no_update",
+            "trg_training_plan_receipts_no_delete",
+            "trg_training_plan_lifecycle_events_no_update",
+            "trg_training_plan_lifecycle_events_no_delete",
+        } <= triggers
+        assert meal == ("Legacy Meal", 500.0)
+        assert scan == ("clear",)
 
     def test_training_readiness_scan_round_trip_is_newest_first(self):
         first = database.save_training_readiness_scan(

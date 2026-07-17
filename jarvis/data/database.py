@@ -218,6 +218,18 @@ BEGIN
     SELECT RAISE(ABORT, 'Training plan receipts are immutable');
 END;
 
+CREATE TRIGGER IF NOT EXISTS trg_training_plan_lifecycle_events_no_update
+BEFORE UPDATE ON training_plan_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'Training plan lifecycle events are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_training_plan_lifecycle_events_no_delete
+BEFORE DELETE ON training_plan_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'Training plan lifecycle events are append-only');
+END;
+
 CREATE TABLE IF NOT EXISTS brief_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
@@ -1507,10 +1519,30 @@ def apply_training_plan_proposal(plan_id: str) -> dict[str, Any]:
             raise ValueError("Only proposed training plans can be applied")
 
         active = _active_training_plan_for_cycle(connection, proposal["cycle_id"])
-        if active is not None:
+        parent_plan_id = proposal["parent_plan_id"]
+        if parent_plan_id is None:
+            if active is not None:
+                raise ValueError(
+                    "Training plan proposal must declare the current active plan as its parent"
+                )
+        else:
+            try:
+                parent = _training_plan_record_for_update(connection, parent_plan_id)
+            except ValueError as error:
+                raise ValueError(
+                    "Training plan proposal declared parent was not found"
+                ) from error
+            if parent["cycle_id"] != proposal["cycle_id"]:
+                raise ValueError(
+                    "Training plan proposal declared parent must be from the same cycle"
+                )
+            if active is None or active["plan_id"] != parent_plan_id:
+                raise ValueError(
+                    "Training plan proposal declared parent must be the current active plan"
+                )
             _insert_training_plan_event(
                 connection,
-                active["plan_id"],
+                parent_plan_id,
                 "superseded",
                 "Approved replacement",
                 superseded_by=plan_id,
