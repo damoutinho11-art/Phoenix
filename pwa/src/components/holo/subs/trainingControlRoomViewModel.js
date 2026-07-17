@@ -1,5 +1,18 @@
 const WEEK_CELL_COUNT = 7
 
+const isCompleteValidation = row => (
+  row &&
+  typeof row === 'object' &&
+  !Array.isArray(row) &&
+  typeof row.rule === 'string' &&
+  row.rule.length > 0 &&
+  typeof row.passed === 'boolean' &&
+  ['hard', 'warning', 'info'].includes(row.severity) &&
+  typeof row.detail === 'string'
+)
+
+const normalizedPlanId = value => typeof value === 'string' ? value.trim() : ''
+
 const isIsoDate = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const parsed = new Date(`${value}T00:00:00Z`)
@@ -42,6 +55,18 @@ export function buildWeekSlots(plan) {
 
 export function getValidationPresentation(validations) {
   const rows = Array.isArray(validations) ? validations : []
+  const hasCompleteEvidence = rows.length > 0 && rows.every(isCompleteValidation)
+
+  if (!hasCompleteEvidence) {
+    return {
+      tone: 'unverified',
+      label: 'UNVERIFIED',
+      passed: 0,
+      total: rows.length,
+      failures: 0,
+    }
+  }
+
   const failed = rows.filter(row => row?.passed !== true)
   const hasHardFailure = failed.some(row => row?.severity === 'hard')
   const tone = hasHardFailure ? 'blocked' : failed.length > 0 ? 'warning' : 'passed'
@@ -55,13 +80,29 @@ export function getValidationPresentation(validations) {
   }
 }
 
-export function getLifecyclePresentation(plan) {
+export function getLifecyclePresentation(plan, currentPlanId) {
   const status = typeof plan?.status === 'string' ? plan.status.toLowerCase() : 'unknown'
+  const isCurrent = (
+    status === 'active' &&
+    normalizedPlanId(plan?.plan_id).length > 0 &&
+    normalizedPlanId(plan?.plan_id) === normalizedPlanId(currentPlanId)
+  )
   const successor = typeof plan?.superseded_by === 'string' && plan.superseded_by.trim()
     ? plan.superseded_by.trim()
     : null
 
   if (status === 'active') {
+    if (!isCurrent) {
+      return {
+        status,
+        statusLabel: 'ACTIVE',
+        isCurrent: false,
+        relationLabel: 'LIFECYCLE',
+        relationText: 'ACTIVE PLAN',
+        relationPlanId: null,
+      }
+    }
+
     return {
       status,
       statusLabel: 'ACTIVE // CURRENT',

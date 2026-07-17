@@ -10,24 +10,37 @@ const helper = name => {
   return helpers[name]
 }
 
-test('validation presentation follows failed severity instead of severity alone', () => {
+test('validation presentation is unverified without complete validation evidence', () => {
   const getValidationPresentation = helper('getValidationPresentation')
+
+  for (const validations of [undefined, null, [], [{}], [{ rule: 'readiness', passed: true, severity: 'hard' }]]) {
+    assert.deepEqual(
+      getValidationPresentation(validations),
+      {
+        tone: 'unverified',
+        label: 'UNVERIFIED',
+        passed: 0,
+        total: Array.isArray(validations) ? validations.length : 0,
+        failures: 0,
+      },
+    )
+  }
 
   assert.deepEqual(
     getValidationPresentation([
-      { passed: true, severity: 'warning' },
-      { passed: true, severity: 'hard' },
+      { rule: 'fatigue', detail: 'within limit', passed: true, severity: 'warning' },
+      { rule: 'volume', detail: 'within limit', passed: true, severity: 'hard' },
     ]),
     { tone: 'passed', label: 'VALIDATED', passed: 2, total: 2, failures: 0 },
   )
   assert.deepEqual(
-    getValidationPresentation([{ passed: false, severity: 'warning' }]),
+    getValidationPresentation([{ rule: 'fatigue', detail: 'near limit', passed: false, severity: 'warning' }]),
     { tone: 'warning', label: 'WARNING', passed: 0, total: 1, failures: 1 },
   )
   assert.deepEqual(
     getValidationPresentation([
-      { passed: false, severity: 'warning' },
-      { passed: false, severity: 'hard' },
+      { rule: 'fatigue', detail: 'near limit', passed: false, severity: 'warning' },
+      { rule: 'volume', detail: 'over limit', passed: false, severity: 'hard' },
     ]),
     { tone: 'blocked', label: 'BLOCKED', passed: 0, total: 2, failures: 2 },
   )
@@ -58,10 +71,11 @@ test('week slot normalization always returns seven unique horizon slots', () => 
   assert.equal(slots.filter(slot => slot.day === wednesday).length, 1)
 })
 
-test('history lineage labels only an active plan as current', () => {
+test('history lineage labels only the active row matching the endpoint plan ID as current', () => {
   const getLifecyclePresentation = helper('getLifecyclePresentation')
 
-  const active = getLifecyclePresentation({ status: 'active' })
+  const currentPlanId = 'cycle-2026-07-plan'
+  const active = getLifecyclePresentation({ plan_id: currentPlanId, status: 'active' }, currentPlanId)
   assert.deepEqual(active, {
     status: 'active',
     statusLabel: 'ACTIVE // CURRENT',
@@ -71,11 +85,36 @@ test('history lineage labels only an active plan as current', () => {
     relationPlanId: null,
   })
 
+  const oldCycle = getLifecyclePresentation({ plan_id: 'cycle-2026-06-plan', status: 'active' }, currentPlanId)
+  assert.deepEqual(oldCycle, {
+    status: 'active',
+    statusLabel: 'ACTIVE',
+    isCurrent: false,
+    relationLabel: 'LIFECYCLE',
+    relationText: 'ACTIVE PLAN',
+    relationPlanId: null,
+  })
+
   for (const status of ['proposed', 'rejected', 'completed', 'superseded']) {
-    const presentation = getLifecyclePresentation({ status, superseded_by: status === 'superseded' ? 'plan-next' : null })
+    const presentation = getLifecyclePresentation({ status, superseded_by: status === 'superseded' ? 'plan-next' : null }, currentPlanId)
     assert.equal(presentation.isCurrent, false)
     assert.doesNotMatch(presentation.statusLabel, /CURRENT/)
   }
+})
+
+test('history current labeling is unique across multiple active lifecycle rows', () => {
+  const getLifecyclePresentation = helper('getLifecyclePresentation')
+  const currentPlanId = 'cycle-b-active'
+  const history = [
+    { plan_id: 'cycle-a-active', cycle_id: 'cycle-a', status: 'active' },
+    { plan_id: currentPlanId, cycle_id: 'cycle-b', status: 'active' },
+    { plan_id: 'cycle-c-active', cycle_id: 'cycle-c', status: 'active' },
+  ]
+  const labels = history.map(plan => getLifecyclePresentation(plan, currentPlanId))
+
+  assert.deepEqual(labels.map(item => item.isCurrent), [false, true, false])
+  assert.deepEqual(labels.map(item => item.statusLabel), ['ACTIVE', 'ACTIVE // CURRENT', 'ACTIVE'])
+  assert.deepEqual(labels.map(item => item.relationText), ['ACTIVE PLAN', 'CURRENT ACTIVE PLAN', 'ACTIVE PLAN'])
 })
 
 test('history lineage reflects every persisted terminal and pending lifecycle', () => {
@@ -172,6 +211,8 @@ test('components wire behavioral helpers without introducing Task 9 actions', ()
   assert.match(week, /getValidationPresentation/)
   assert.match(history, /getLifecyclePresentation/)
   assert.match(history, /getValidationPresentation/)
+  assert.match(room, /<TrainingPlanHistory\s+items=\{history\}\s+currentPlanId=\{plan\?\.plan_id\}/)
+  assert.match(history, /function TrainingPlanHistory\(\{ items = \[\], currentPlanId/)
   assert.doesNotMatch(history, /CURRENT HEAD|VERSION\s+\{String/)
   assert.doesNotMatch(room, /TrainingAdaptView|postTrainingPlanProposal|applyTrainingPlanProposal|rejectTrainingPlanProposal/)
 })
@@ -190,7 +231,7 @@ test('dialog source wires focus containment scroll lock escape and focus restora
   assert.match(room, /previousFocus.*\.focus\(\)/s)
 })
 
-test('training CSS keeps stable scoped geometry and semantic changed-day tones', () => {
+test('training CSS keeps stable scoped geometry, validation tones, and neutral unverified changed days', () => {
   const css = readSource('../holo.css')
   const trainingCss = css.slice(css.indexOf('/* Training Control Room'))
 
@@ -198,7 +239,22 @@ test('training CSS keeps stable scoped geometry and semantic changed-day tones',
   assert.match(trainingCss, /\.training-week-day\.changed\.passed/)
   assert.match(trainingCss, /\.training-week-day\.changed\.warning/)
   assert.match(trainingCss, /\.training-week-day\.changed\.blocked/)
+  assert.match(trainingCss, /\.training-week-day\.changed\.unverified\s*\{[^}]*var\(--phx-muted\)/)
+  assert.doesNotMatch(trainingCss, /\.training-week-day\.changed\.unverified\s*\{[^}]*var\(--phx-positive\)/)
   assert.match(trainingCss, /\.training-history-validation\.warning/)
   assert.match(trainingCss, /@media\s*\(max-width:\s*760px\)[^}]*\{[\s\S]*grid-template-columns:\s*repeat\(7,\s*118px\)/)
   assert.doesNotMatch(trainingCss, /--phx-finance|--phx-calendar|#00bbdd|#9f7dff/i)
+})
+
+test('training CSS reserves green yellow and red for validation rather than lifecycle states', () => {
+  const css = readSource('../holo.css')
+  const trainingCss = css.slice(css.indexOf('/* Training Control Room'))
+
+  assert.match(trainingCss, /\.training-lifecycle-status\.active\s*\{[^}]*var\(--training-accent\)/)
+  assert.match(trainingCss, /\.training-lifecycle-status\.rejected\s*\{[^}]*var\(--phx-muted\)/)
+  assert.match(trainingCss, /\.training-plan-live-state\.active\s*\{[^}]*var\(--training-accent\)/)
+  assert.doesNotMatch(
+    trainingCss,
+    /\.training-(?:lifecycle-status|plan-live-state)\.(?:active|proposed|rejected|completed|superseded)\s*\{[^}]*--phx-(?:positive|caution|danger)/,
+  )
 })

@@ -247,7 +247,7 @@ export default function TrainingControlRoom({ onClose }) {
             tabIndex={0}
           >
             {tab === 'WEEK' && <TrainingWeekView plan={plan} loading={loading} error={errors.plan} />}
-            {tab === 'HISTORY' && <TrainingPlanHistory items={history} loading={loading} error={errors.history} />}
+            {tab === 'HISTORY' && <TrainingPlanHistory items={history} currentPlanId={plan?.plan_id} loading={loading} error={errors.history} />}
             {tab === 'RULES' && <TrainingRulesView rules={rules} loading={loading} error={errors.rules} />}
             {tab === 'ADAPT' && (
               <div className="training-adapt-placeholder" role="status">

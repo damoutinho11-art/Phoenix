@@ -131,3 +131,60 @@ Result: 71 passed, 1 failed. The unchanged failure is the pre-existing Finance `
 ### Browser QA
 
 Browser QA scaffolding was created locally, but interactive verification was stopped before completion at the user's direction. All temporary QA entries, config, logs, and QA server processes were removed before staging.
+
+## Review Fix 2
+
+### Status
+
+Resolved the remaining Task 8 High and Medium findings within the Training Control Room view model, History view, Week validation presentation, scoped Training CSS, and contract test. Task 9 wiring and `ActiveSession.jsx` remain untouched.
+
+### Behavior Changes
+
+- Missing, empty, or malformed validation evidence now renders as neutral `UNVERIFIED`. Green `VALIDATED` requires at least one complete validation record and every validation to pass. Changed-day styling follows that neutral state until evidence is complete.
+- History now receives the current endpoint `plan_id` from `TrainingControlRoom`. Only the matching active history row receives current language; old active rows from other cycles remain `ACTIVE` with no current label.
+- Lifecycle status styling uses only the Training orange or neutral palette. Green, yellow, and red remain exclusive to passed, warning, and blocked validation evidence.
+- Existing modal focus containment, Escape handling, scroll lock, and focus restoration were preserved.
+
+### TDD Evidence
+
+The focused Task 8 contract was intentionally red with 6 expected failures: empty validation evidence appeared validated, active historical rows were all marked current, the current plan ID was not passed to History, unverified changed days had no neutral styling, and lifecycle selectors still used semantic colors.
+
+After the smallest view-model, component, and CSS changes, the focused contract passed 11/11.
+
+### Verification
+
+Focused Task 8:
+
+```text
+node --test src/components/holo/subs/trainingControlRoomContract.test.js
+```
+
+Result: 11 passed, 0 failed.
+
+Training scope:
+
+```text
+node --test src/components/training/trainingViewModel.test.js src/components/training/trainingUiContract.test.js src/components/holo/subs/trainingPlannerViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js
+```
+
+Result: 30 passed, 0 failed.
+
+Build:
+
+```text
+npm run build
+```
+
+Result: PASS. Vite transformed 313 modules and generated the PWA service worker. The existing 670.52 kB chunk-size warning remains.
+
+Full PWA:
+
+```text
+npm test
+```
+
+Result: 73 passed, 1 failed. The unchanged failure is the pre-existing Finance `orbitSize` source contract at `src/components/holo/financeControlRoomContract.test.js:117`.
+
+### Concerns
+
+- Task 10 follow-up, low priority: browser-level verification should exercise the Training Control Room through its real mount/unmount lifecycle alongside any nested overlay. The existing focus trap and restoration behavior remains covered by the Task 8 source contract; no QA temporary files were created for this review fix.

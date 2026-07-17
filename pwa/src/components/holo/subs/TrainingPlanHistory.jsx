@@ -38,7 +38,7 @@ function PlanLink({ planId, emptyLabel = 'ROOT PLAN' }) {
   return <a href={`#training-plan-${safePlanAnchor(planId)}`}>{planId}</a>
 }
 
-export default function TrainingPlanHistory({ items = [], loading = false, error = '' }) {
+export default function TrainingPlanHistory({ items = [], currentPlanId, loading = false, error = '' }) {
   const plans = Array.isArray(items) ? items : []
   const viewState = getTrainingViewState({ loading, error, hasData: plans.length > 0 })
 
@@ -61,7 +61,7 @@ export default function TrainingPlanHistory({ items = [], loading = false, error
           {plans.map((plan, index) => {
             const validations = Array.isArray(plan?.validations) ? plan.validations : []
             const validation = getValidationPresentation(validations)
-            const lifecycle = getLifecyclePresentation(plan)
+            const lifecycle = getLifecyclePresentation(plan, currentPlanId)
             return (
               <article
                 key={plan?.plan_id || `plan-history-${index}`}

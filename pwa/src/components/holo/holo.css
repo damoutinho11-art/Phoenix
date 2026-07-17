@@ -194,8 +194,8 @@
   letter-spacing: .12em;
 }
 
-.training-plan-live-state.active { color: var(--phx-positive); border-color: color-mix(in srgb, var(--phx-positive) 40%, transparent); }
-.training-plan-live-state.proposed { color: var(--phx-caution); border-color: color-mix(in srgb, var(--phx-caution) 40%, transparent); }
+.training-plan-live-state.active { color: var(--training-accent); border-color: color-mix(in srgb, var(--training-accent) 40%, transparent); }
+.training-plan-live-state.proposed { color: var(--phx-muted); border-color: color-mix(in srgb, var(--phx-muted) 40%, transparent); }
 .training-plan-live-state.empty { color: var(--phx-muted); }
 
 .training-control-esc {
@@ -353,8 +353,8 @@
   border-left: 3px solid var(--training-accent);
 }
 
-.training-plan-version.proposed { border-left-color: var(--phx-caution); }
-.training-plan-version.active { border-left-color: var(--phx-positive); }
+.training-plan-version.proposed,
+.training-plan-version.active { border-left-color: var(--training-accent); }
 
 .training-plan-version span,
 .training-plan-metadata dt,
@@ -393,8 +393,8 @@
   font-size: 9px;
 }
 
-.training-plan-metadata dd.active { color: var(--phx-positive); }
-.training-plan-metadata dd.proposed { color: var(--phx-caution); }
+.training-plan-metadata dd.active,
+.training-plan-metadata dd.proposed { color: var(--training-accent); }
 
 .training-empty-state {
   margin-top: 10px;
@@ -438,6 +438,7 @@
 .training-week-day.changed.passed { border-color: color-mix(in srgb, var(--phx-positive) 62%, transparent); }
 .training-week-day.changed.warning { border-color: color-mix(in srgb, var(--phx-caution) 72%, transparent); }
 .training-week-day.changed.blocked { border-color: color-mix(in srgb, var(--phx-danger) 72%, transparent); }
+.training-week-day.changed.unverified { border-color: color-mix(in srgb, var(--phx-muted) 62%, transparent); }
 
 .training-week-day.empty { background: color-mix(in srgb, var(--phx-panel) 68%, transparent); }
 
@@ -541,6 +542,8 @@
 .training-week-day.changed.warning .training-change-reason { color: var(--phx-caution); }
 .training-week-day.changed.blocked .training-change-marker,
 .training-week-day.changed.blocked .training-change-reason { color: var(--phx-danger); }
+.training-week-day.changed.unverified .training-change-marker,
+.training-week-day.changed.unverified .training-change-reason { color: var(--phx-muted); }
 
 .training-day-empty {
   display: grid;
@@ -570,6 +573,7 @@
 .training-section-heading .passed { color: var(--phx-positive); }
 .training-section-heading .warning { color: var(--phx-caution); }
 .training-section-heading .blocked { color: var(--phx-danger); }
+.training-section-heading .unverified { color: var(--phx-muted); }
 
 .training-validation-list {
   display: grid;
@@ -598,6 +602,7 @@
 .training-validation-list .passed { color: var(--phx-positive); }
 .training-validation-list .warning { color: var(--phx-caution); }
 .training-validation-list .blocked { color: var(--phx-danger); }
+.training-validation-list .unverified { color: var(--phx-muted); }
 
 .training-history-list {
   display: grid;
@@ -632,10 +637,10 @@
   letter-spacing: .1em;
 }
 
-.training-lifecycle-status.active { color: var(--phx-positive); }
-.training-lifecycle-status.proposed { color: var(--phx-caution); }
-.training-lifecycle-status.rejected { color: var(--phx-danger); }
-.training-lifecycle-status.completed { color: var(--phx-body); }
+.training-lifecycle-status.active { color: var(--training-accent); }
+.training-lifecycle-status.proposed { color: var(--training-accent); }
+.training-lifecycle-status.rejected { color: var(--phx-muted); }
+.training-lifecycle-status.completed { color: var(--phx-muted); }
 .training-lifecycle-status.superseded { color: color-mix(in srgb, var(--training-accent) 62%, var(--phx-muted) 38%); }
 
 .training-history-metadata {
@@ -671,6 +676,7 @@
 .training-history-validation.passed { color: var(--phx-positive); }
 .training-history-validation.warning { color: var(--phx-caution); }
 .training-history-validation.blocked { color: var(--phx-danger); }
+.training-history-validation.unverified { color: var(--phx-muted); }
 
 .training-rules-objective {
   display: grid;
