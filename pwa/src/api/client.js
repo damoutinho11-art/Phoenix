@@ -1,4 +1,4 @@
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+const BASE_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(`${BASE_URL}${path}`, options)
@@ -91,6 +91,24 @@ export async function getTrainingBrief() {
 export async function getTrainingHistory() {
   return apiFetch('/training/history')
 }
+
+export const getTrainingCurrentPlan = () => apiFetch('/training/plan/current')
+
+export const getTrainingPlanProposal = id => apiFetch(`/training/plan/proposals/${encodeURIComponent(id)}`)
+
+export const postTrainingPlanProposal = payload => apiFetch('/training/plan/proposals', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload),
+})
+
+export const applyTrainingPlanProposal = id => apiFetch(`/training/plan/proposals/${encodeURIComponent(id)}/apply`, { method: 'POST' })
+
+export const rejectTrainingPlanProposal = id => apiFetch(`/training/plan/proposals/${encodeURIComponent(id)}/reject`, { method: 'POST' })
+
+export const getTrainingPlanHistory = () => apiFetch('/training/plans/history')
+
+export const getTrainingRules = () => apiFetch('/training/rules')
 
 export async function getTrainingRoutedSession({ explicitReset = false } = {}) {
   return apiFetch(`/training/routed-session${explicitReset ? '?explicit_reset=true' : ''}`)
