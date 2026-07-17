@@ -7,7 +7,7 @@ import {
   planTone,
 } from './trainingPlannerViewModel.js'
 
-const trainingClient = await import('../../api/client.js')
+const trainingClient = await import('../../../api/client.js')
 
 const beforeFixture = {
   days: [
@@ -43,10 +43,41 @@ test('hard failed validation uses blocked tone and disables apply', () => {
   assert.equal(plan.canApply, false)
 })
 
+test('proposed plans require a non-empty, well-formed validations array to apply', () => {
+  for (const validations of [undefined, null, {}, [], [null], [{ rule: 'recovery_spacing', passed: true }]]) {
+    const plan = normalizeTrainingPlan({ status: 'proposed', validations })
+    assert.equal(plan.canApply, false)
+  }
+
+  const plan = normalizeTrainingPlan({ status: 'proposed', validations: [
+    { rule: 'recovery_spacing', passed: true, severity: 'hard', detail: 'Spacing is valid' },
+  ] })
+
+  assert.equal(plan.canApply, true)
+})
+
+test('active and non-proposed plans remain ineligible when validation payloads are malformed', () => {
+  assert.equal(normalizeTrainingPlan({ status: 'active', validations: null }).canApply, false)
+  assert.equal(normalizeTrainingPlan({ status: 'rejected', validations: [{}] }).canApply, false)
+})
+
 test('diff identifies moved and reduced days', () => {
   const diff = buildPlanDiff(beforeFixture, afterFixture)
 
   assert.deepEqual(diff.changedDays.map(day => day.date), ['2026-07-20', '2026-07-21', '2026-07-22'])
+})
+
+test('diff reports prior days removed from an absent or incomplete response', () => {
+  const absentAfter = buildPlanDiff(beforeFixture, {})
+  const malformedAfter = buildPlanDiff(beforeFixture, { days: 'not-a-list' })
+  const incompleteAfter = buildPlanDiff(beforeFixture, { days: [beforeFixture.days[0]] })
+
+  assert.deepEqual(absentAfter.changedDays.map(day => day.date), ['2026-07-20', '2026-07-21', '2026-07-22'])
+  assert.ok(absentAfter.changedDays.every(day => day.removed === true))
+  assert.deepEqual(malformedAfter.changedDays.map(day => day.date), ['2026-07-20', '2026-07-21', '2026-07-22'])
+  assert.ok(malformedAfter.changedDays.every(day => day.removed === true))
+  assert.deepEqual(incompleteAfter.changedDays.map(day => day.date), ['2026-07-21', '2026-07-22'])
+  assert.ok(incompleteAfter.changedDays.every(day => day.removed === true))
 })
 
 test('partial responses retain backend fields without inventing days or apply eligibility', () => {
@@ -60,7 +91,7 @@ test('partial responses retain backend fields without inventing days or apply el
   assert.equal(plan.canApply, false)
 })
 
-test('diff treats missing or malformed day collections as empty', () => {
+test('diff treats empty prior and malformed next day collections as empty', () => {
   assert.deepEqual(buildPlanDiff({ days: null }, { days: 'not-a-list' }), { changedDays: [] })
 })
 
