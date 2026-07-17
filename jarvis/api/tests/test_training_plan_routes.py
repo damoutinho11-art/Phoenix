@@ -422,6 +422,128 @@ def test_proposal_rejects_malformed_calendar_resolver_boundary_with_calendar_503
     assert response.json()["detail"] == "Training plan calendar evidence unavailable"
 
 
+@pytest.mark.parametrize(
+    "malformed_event",
+    [
+        pytest.param("not-an-event-mapping", id="non-mapping-entry"),
+        pytest.param({}, id="missing-date"),
+        pytest.param({"date": "2026-02-30"}, id="invalid-iso-date"),
+        pytest.param(
+            {"date": "2026-07-21", "event_type": ["performance"]},
+            id="event-type-not-string",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "event_type": ""},
+            id="event-type-empty",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "severity": {"level": "hard"}},
+            id="severity-not-string",
+        ),
+        pytest.param(
+            {"date": "2026-07-21", "severity": ""},
+            id="severity-empty",
+        ),
+    ],
+)
+def test_proposal_fails_closed_for_malformed_calendar_event_entries(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    malformed_event: object,
+):
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return {"events": [malformed_event]}, {"active_source": "env_json"}
+
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        pytest.param(
+            {
+                "date": "2026-07-21",
+                "event_type": "performance",
+                "source_metadata": {"assignment": "principal"},
+            },
+            id="performance-with-extra-fields",
+        ),
+        pytest.param(
+            {
+                "date": "2026-07-21",
+                "event_type": "gala",
+                "severity": "hard",
+                "source_metadata": {"venue": "main-stage"},
+            },
+            id="custom-event-type-with-hard-severity",
+        ),
+    ],
+)
+def test_proposal_preserves_valid_calendar_event_fields_at_planning_boundary(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    event: dict,
+):
+    captured_events: list[dict] = []
+    real_build_snapshot = training_router.build_planning_snapshot
+
+    def capture_planning_snapshot(**kwargs):
+        captured_events.extend(kwargs["calendar_events"])
+        return real_build_snapshot(**kwargs)
+
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return {"events": [event]}, {"active_source": "env_json"}
+
+    monkeypatch.setattr(
+        training_router,
+        "build_planning_snapshot",
+        capture_planning_snapshot,
+    )
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": "2026-07-23", "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured_events == [event]
+
+
 def test_proposal_returns_explicit_503_when_calendar_resolver_fails(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):

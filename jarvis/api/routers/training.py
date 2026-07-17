@@ -707,7 +707,21 @@ def _current_calendar_events() -> list[dict[str, Any]]:
             raise CalendarEvidenceUnavailable
         if source_status.get("active_source") not in _AUTHORITATIVE_CALENDAR_SOURCES:
             raise CalendarEvidenceUnavailable
-        return calendar_events
+        validated_events = []
+        for event in calendar_events:
+            if not isinstance(event, Mapping):
+                raise CalendarEvidenceUnavailable
+            event_date = event.get("training_date", event.get("date"))
+            if not isinstance(event_date, str):
+                raise CalendarEvidenceUnavailable
+            date.fromisoformat(event_date)
+            for field in ("event_type", "severity"):
+                if field in event and (
+                    not isinstance(event[field], str) or not event[field].strip()
+                ):
+                    raise CalendarEvidenceUnavailable
+            validated_events.append(dict(event))
+        return validated_events
     except CalendarEvidenceUnavailable:
         raise
     except Exception as exc:
