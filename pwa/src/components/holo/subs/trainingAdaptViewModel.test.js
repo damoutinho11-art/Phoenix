@@ -224,6 +224,15 @@ test('non-bootstrap proposals require a complete matching parent before snapshot
   })).canApply, false)
 })
 
+test('top-level parent authority must match the authoritative after snapshot', () => {
+  const after = proposedSnapshot({ parent_plan_id: 'active-1' })
+  assert.equal(adapt.normalizeTrainingAdaptProposal(proposalFixture({
+    parent_plan_id: 'different-parent',
+    before: activeParentSnapshot({ plan_id: 'different-parent' }),
+    after,
+  })).canApply, false)
+})
+
 test('bootstrap proposals explicitly accept null parent and null before evidence', () => {
   const after = proposedSnapshot({ parent_plan_id: null })
   const proposal = adapt.normalizeTrainingAdaptProposal(proposalFixture({
@@ -241,4 +250,24 @@ test('bootstrap proposals explicitly accept null parent and null before evidence
   }))
 
   assert.equal(proposal.canApply, true)
+})
+
+test('bootstrap top-level null parent rejects an after snapshot with a parent', () => {
+  const after = proposedSnapshot({ parent_plan_id: 'active-1' })
+  const proposal = adapt.normalizeTrainingAdaptProposal(proposalFixture({
+    ...after,
+    parent_plan_id: null,
+    before: null,
+    after,
+    diff: {
+      changed_days: [{
+        date: afterDay.date,
+        before: null,
+        after: afterDay,
+        reason: afterDay.change_reason,
+      }],
+    },
+  }))
+
+  assert.equal(proposal.canApply, false)
 })

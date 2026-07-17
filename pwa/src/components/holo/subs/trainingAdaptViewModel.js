@@ -162,10 +162,7 @@ const reconcilesChangedDays = (rows, before, after) => {
 const matchesAuthoritativeAfter = (proposal, after) => (
   isCompletePlanSnapshot(proposal, 'proposed') &&
   isCompletePlanSnapshot(after, 'proposed') &&
-  proposal.plan_id === after.plan_id &&
-  sameValue(proposal.days, after.days) &&
-  sameValue(proposal.validations, after.validations) &&
-  sameValue(proposal.constraints, after.constraints)
+  hasSameTrainingPlanAuthority(proposal, after)
 )
 
 const hasValidBeforeAuthority = source => {

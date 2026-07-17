@@ -310,3 +310,54 @@ Implemented and committed after scoped verification. The Task 7 report modificat
 
 - Confirmed the canonical comparison is a pure deterministic field-list helper with regressions for exercise, constraint, validation, cycle, hash, and allowed status-transition cases.
 - Confirmed no unrelated source, backend, SessionSub, ActiveSession, Finance, Task 7 report, or `progress.md` file was changed or staged.
+
+## Review Fix 4
+
+### RED Evidence
+
+1. Added the two parent-authority regressions, then ran:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js
+   ```
+
+   - Result: expected RED, `12 passed, 2 failed`.
+   - Both failures proved that a top-level `parent_plan_id` differing from `after.parent_plan_id`, including a bootstrap-shaped top-level null parent paired with a non-null after parent, still left Apply eligible.
+
+### GREEN Evidence
+
+1. Focused Task 9 review contracts:
+
+   ```powershell
+   cd pwa
+   node --test src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js
+   ```
+
+   - Result: `31 passed, 0 failed`.
+2. Full Training PWA suite:
+
+   ```powershell
+   cd pwa
+   node --test src/components/training/trainingViewModel.test.js src/components/training/trainingUiContract.test.js src/components/holo/subs/trainingAdaptViewModel.test.js src/components/holo/subs/trainingControlRoomContract.test.js src/components/holo/subs/trainingPlannerViewModel.test.js
+   ```
+
+   - Result: `50 passed, 0 failed`.
+3. Production build and whitespace check:
+
+   ```powershell
+   cd pwa
+   npm run build
+   git -C .. diff --check
+   ```
+
+   - Result: Vite production build succeeded and `git diff --check` was clean. The existing chunk-size warning remains.
+
+### Behavior Fixed
+
+- `matchesAuthoritativeAfter` now delegates to the full deterministic `hasSameTrainingPlanAuthority` comparator instead of comparing a partial subset. Top-level and `after` parent identity, versions, cycle, hashes, days, constraints, and validations must all agree before a preview can be eligible.
+- Added regressions for both mismatched non-bootstrap parent IDs and a null top-level bootstrap parent paired with a non-null `after` parent; both fail closed.
+
+### Review Self-Check 4
+
+- Confirmed this change touches only the scoped adaptation view-model, its regression test, and the Task 9 report. No other source or report file is staged.
