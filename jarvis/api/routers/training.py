@@ -194,11 +194,49 @@ class ExerciseLog(BaseModel):
 
 
 class SessionLogRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     date: date
-    session_type: Literal["Push", "Pull", "Legs", "Upper", "Lower"]
+    session_type: Literal[
+        "Push", "Pull", "Legs", "Upper", "Lower",
+        "high_intensity", "general", "jump", "iso_only", "recovery", "peak", "attempt",
+    ]
     week_number: int | None = Field(default=None, ge=1, le=10)
     exercises: list[ExerciseLog] = Field(min_length=1)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+    plan_id: str | None = Field(default=None, min_length=1)
+    receipt_hash: str | None = Field(default=None, min_length=1)
+    duration_seconds: int | None = Field(default=None, ge=0, le=86400)
+    rpe: int | None = Field(default=None, ge=1, le=10)
+    pain_confirmed: bool | None = None
+    pain_body_areas: list[
+        Literal[
+            "knee", "ankle", "hip", "hamstring", "calf_achilles",
+            "lower_back_pelvic",
+        ]
+    ] | None = Field(default=None, max_length=6)
+
+    @model_validator(mode="after")
+    def require_complete_planned_evidence(self):
+        planned_values = (
+            self.plan_id,
+            self.receipt_hash,
+            self.duration_seconds,
+            self.rpe,
+            self.pain_confirmed,
+            self.pain_body_areas,
+        )
+        if any(value is not None for value in planned_values):
+            if any(value is None for value in planned_values):
+                raise ValueError(
+                    "Planned completion requires plan provenance, duration, RPE, "
+                    "pain confirmation, and pain_body_areas"
+                )
+            if self.pain_confirmed and not self.pain_body_areas:
+                raise ValueError(
+                    "pain_body_areas is required when pain is confirmed"
+                )
+        return self
 
 
 class JumpLogRequest(BaseModel):
@@ -1146,6 +1184,67 @@ def routed_training_session(
 
 @router.post("/log/session")
 def create_session_log(request: SessionLogRequest) -> dict:
+    if request.plan_id is not None:
+        cycle_start = request.date - timedelta(days=request.date.weekday())
+        try:
+            active = database.get_active_training_plan(iso_cycle_id(cycle_start))
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503, detail="Training plan storage unavailable"
+            ) from exc
+        if active is None:
+            raise HTTPException(
+                status_code=409, detail="Training completion provenance mismatch"
+            )
+        payload = _plan_projection(active)
+        operational = project_plan_day(payload, request.date)
+        provenance = operational["plan_provenance"]
+        session = operational["session"]
+        if (
+            provenance is None
+            or provenance["plan_id"] != request.plan_id
+            or provenance["receipt_hash"] != request.receipt_hash
+        ):
+            raise HTTPException(
+                status_code=409, detail="Training completion provenance mismatch"
+            )
+        planned_names = [
+            str(exercise.get("name", "")).casefold().strip()
+            for exercise in session["exercises"]
+        ]
+        completed_names = [exercise.name.casefold().strip() for exercise in request.exercises]
+        if request.session_type != session["session_type"] or completed_names != planned_names:
+            raise HTTPException(
+                status_code=409, detail="Training completion does not match plan day"
+            )
+        try:
+            session_id, replay = database.log_planned_session(
+                session_date=request.date,
+                session_type=request.session_type,
+                week_number=request.week_number,
+                exercises=[
+                    exercise.model_dump(exclude_none=True)
+                    for exercise in request.exercises
+                ],
+                notes=request.notes,
+                plan_id=request.plan_id,
+                receipt_hash=request.receipt_hash,
+                plan_date=request.date,
+                duration_seconds=request.duration_seconds,
+                rpe=request.rpe,
+                pain_confirmed=request.pain_confirmed,
+                pain_body_areas=request.pain_body_areas,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            "status": "logged",
+            "session_id": session_id,
+            "date": request.date.isoformat(),
+            "idempotent_replay": replay,
+            "plan_provenance": provenance,
+        }
+
     session_id = database.log_session(
         session_date=request.date,
         session_type=request.session_type,

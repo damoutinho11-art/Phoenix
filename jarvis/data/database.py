@@ -120,6 +120,31 @@ CREATE TABLE IF NOT EXISTS session_log (
 
 CREATE INDEX IF NOT EXISTS idx_session_log_date ON session_log(date);
 
+CREATE TABLE IF NOT EXISTS training_session_evidence (
+    session_id INTEGER PRIMARY KEY,
+    plan_id TEXT NOT NULL,
+    receipt_hash TEXT NOT NULL,
+    plan_date TEXT NOT NULL,
+    duration_seconds INTEGER NOT NULL CHECK(duration_seconds >= 0),
+    rpe INTEGER NOT NULL CHECK(rpe BETWEEN 1 AND 10),
+    pain_confirmed INTEGER NOT NULL CHECK(pain_confirmed IN (0, 1)),
+    pain_body_areas_json TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    UNIQUE(plan_id, plan_date)
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_training_session_evidence_no_update
+BEFORE UPDATE ON training_session_evidence
+BEGIN
+    SELECT RAISE(ABORT, 'Training session evidence is immutable');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_training_session_evidence_no_delete
+BEFORE DELETE ON training_session_evidence
+BEGIN
+    SELECT RAISE(ABORT, 'Training session evidence is immutable');
+END;
+
 CREATE TABLE IF NOT EXISTS jump_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -1027,10 +1052,110 @@ def log_session(
         connection.close()
 
 
+def log_planned_session(
+    session_date: date | str,
+    session_type: str,
+    week_number: int | None,
+    exercises: list[dict[str, Any]],
+    plan_id: str,
+    receipt_hash: str,
+    plan_date: date | str,
+    duration_seconds: int,
+    rpe: int,
+    pain_confirmed: bool,
+    pain_body_areas: list[str],
+    notes: str | None = None,
+) -> tuple[int, bool]:
+    """Atomically persist one immutable completion per adaptive plan day."""
+    session_date_value = _date_value(session_date)
+    plan_date_value = _date_value(plan_date)
+    exercises_json = json.dumps(exercises, separators=(",", ":"))
+    pain_body_areas_json = json.dumps(
+        sorted(set(pain_body_areas)), separators=(",", ":")
+    )
+    expected = (
+        session_date_value,
+        session_type,
+        week_number,
+        exercises_json,
+        notes,
+        receipt_hash,
+        int(duration_seconds),
+        int(rpe),
+        int(pain_confirmed),
+        pain_body_areas_json,
+    )
+
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            """
+            SELECT s.id, s.date, s.session_type, s.week_number, s.exercises, s.notes,
+                   e.receipt_hash, e.duration_seconds, e.rpe, e.pain_confirmed,
+                   e.pain_body_areas_json
+            FROM training_session_evidence e
+            JOIN session_log s ON s.id = e.session_id
+            WHERE e.plan_id = ? AND e.plan_date = ?
+            """,
+            (plan_id, plan_date_value),
+        ).fetchone()
+        if existing is not None:
+            actual = tuple(existing[key] for key in existing.keys() if key != "id")
+            if actual != expected:
+                raise ValueError(
+                    "Training plan day completion already exists with different evidence"
+                )
+            connection.commit()
+            return int(existing["id"]), True
+
+        cursor = connection.execute(
+            """
+            INSERT INTO session_log (date, session_type, week_number, exercises, notes)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            expected[:5],
+        )
+        session_id = int(cursor.lastrowid)
+        connection.execute(
+            """
+            INSERT INTO training_session_evidence (
+                session_id, plan_id, receipt_hash, plan_date, duration_seconds,
+                rpe, pain_confirmed, pain_body_areas_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                plan_id,
+                receipt_hash,
+                plan_date_value,
+                int(duration_seconds),
+                int(rpe),
+                int(pain_confirmed),
+                pain_body_areas_json,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        connection.commit()
+        return session_id, False
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def get_sessions(limit: int | None = None) -> list[dict[str, Any]]:
     connection = get_db()
     try:
-        sql = "SELECT * FROM session_log ORDER BY date DESC, id DESC"
+        sql = """
+            SELECT s.*, e.plan_id, e.receipt_hash, e.plan_date,
+                   e.duration_seconds, e.rpe, e.pain_confirmed,
+                   e.pain_body_areas_json
+            FROM session_log s
+            LEFT JOIN training_session_evidence e ON e.session_id = s.id
+            ORDER BY s.date DESC, s.id DESC
+        """
         parameters: tuple[Any, ...] = ()
         if limit is not None:
             if limit < 1:
@@ -1042,6 +1167,25 @@ def get_sessions(limit: int | None = None) -> list[dict[str, Any]]:
         for row in rows:
             session = dict(row)
             session["exercises"] = json.loads(session["exercises"])
+            pain_body_areas_json = session.pop("pain_body_areas_json")
+            if session["plan_id"] is not None:
+                session["plan_provenance"] = {
+                    "plan_id": session.pop("plan_id"),
+                    "receipt_hash": session.pop("receipt_hash"),
+                    "date": session.pop("plan_date"),
+                }
+                session["completion_evidence"] = {
+                    "duration_seconds": session.pop("duration_seconds"),
+                    "rpe": session.pop("rpe"),
+                    "pain_confirmed": bool(session.pop("pain_confirmed")),
+                    "pain_body_areas": json.loads(pain_body_areas_json),
+                }
+            else:
+                for key in (
+                    "plan_id", "receipt_hash", "plan_date", "duration_seconds",
+                    "rpe", "pain_confirmed",
+                ):
+                    session.pop(key)
             sessions.append(session)
         return sessions
     finally:
