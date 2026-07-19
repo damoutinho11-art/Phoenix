@@ -49,7 +49,7 @@ export default function useHoloData() {
     const grab = (key, fn) =>
       fn()
         .then(data => { if (alive) setLive(s => ({ ...s, [key]: data })) })
-        .catch(() => {}) // fixture fallback
+        .catch(() => {}) // Non-critical domains retain their existing presentation state.
     grab('finance', getFinanceSummary)
     grab('holdings', getFinanceHoldings)
     grab('financePerformance', getFinancePerformanceHistory)
