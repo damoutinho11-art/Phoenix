@@ -126,3 +126,11 @@ Final local evidence after this correction:
 - `git diff --check` -> exit 0 with line-ending warnings only.
 
 Implementation and local verification are complete. External shadow deployment, production evidence collection, and live promotion remain pending; live Apply continues to fail closed until that evidence is accepted.
+
+## Public Shadow Rollout
+
+On 2026-07-19, commit `50fa38d8` was deployed from a detached clean worktree to Railway production with `PHOENIX_TRAINING_PLANNER_MODE=shadow` explicitly set. Deployment `cfe4c560-d51c-4cc5-9832-8930093a0430` reached `SUCCESS`; startup logs show a clean Uvicorn boot and the public OpenAPI document contains `/training/plan/proposals`.
+
+Vercel preview deployment `dpl_Gw3Zg71hKdbAtyjAaUj2QfVzjkqC` reached `READY` at `https://pwa-2vgy1bvia-phoenix123.vercel.app`. Its protected HTML contains the Phoenix root, its generated bundle contains the Railway API URL and the `authoritative` gate, and a browser-style preflight to the proposal endpoint returns the exact preview origin. Existing frontend origins were preserved in the Railway CORS allowlist.
+
+The first public proposal attempt failed closed with HTTP 503: `Training plan calendar evidence unavailable`. Production diagnostics show Plaan is using the non-authoritative recorded fixture, no manual import exists, and the read-only Google Calendar token returns `invalid_grant` because it expired or was revoked. No proposal, active plan, session log, or calendar mutation was created. Real shadow replay evidence and live promotion are blocked until the user reconnects the read-only Google Calendar or supplies a current authoritative manual calendar import. No synthetic empty calendar was installed.
