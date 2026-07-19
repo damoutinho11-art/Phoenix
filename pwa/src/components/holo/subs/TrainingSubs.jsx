@@ -1,22 +1,71 @@
 import { useEffect, useRef, useState } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep, pad2 } from '../holoTokens'
-import { SESSION_EXERCISES, READINESS_GAUGES } from '../holoDomains'
+import { logSession, postTrainingReadinessScan } from '../../../api/client'
 import SubShell, { SubLabel } from './SubShell'
+import {
+  buildCompletionPayload,
+  buildReadinessPayload,
+  canCompleteSession,
+  normalizePlanExercises,
+} from './trainingSessionModel.js'
 
-// ── TRAINING // LIVE SESSION — queue, set/rest ring, session clock ──
-// `exercises` (from holoLive.mapSessionExercises) replaces the fixture queue.
-export function SessionSub({ onClose, exercises, meta }) {
-  const EXERCISES = exercises || SESSION_EXERCISES
+const fieldStyle = {
+  width: '100%', minHeight: 42, padding: '0 11px', boxSizing: 'border-box',
+  fontFamily: FM, fontSize: 11, color: W, background: deep(65),
+  border: `1px solid ${a(ACC, '44')}`, outline: 'none',
+}
+
+const actionStyle = disabled => ({
+  minHeight: 48, width: '100%', fontFamily: FM, fontSize: 10,
+  letterSpacing: '.2em', color: disabled ? a(W, '55') : INK,
+  background: disabled ? deep(70) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`,
+  border: `1px solid ${disabled ? a(ACC, '22') : ACC}`,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  boxShadow: disabled ? 'none' : `0 0 24px ${a(ACC, '44')}`,
+})
+
+function ClosedState({ message }) {
+  return (
+    <div style={{ minHeight: 260, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+      <div>
+        <div style={{ fontFamily: FD, fontSize: 28, color: Y, letterSpacing: '.08em' }}>{message}</div>
+        <div style={{ marginTop: 12, fontFamily: FM, fontSize: 9, color: a(ACC, '88'), letterSpacing: '.16em' }}>
+          PHOENIX WILL NOT INFER A SESSION WITHOUT VERIFIED PLAN DATA
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function SessionSub({ onClose, training, refreshTraining, meta }) {
+  const routed = training?.routed
+  const exercises = normalizePlanExercises(routed)
   const [idx, setIdx] = useState(0)
-  const [done, setDone] = useState(EXERCISES.map(() => 0))
+  const [done, setDone] = useState(() => exercises.map(() => 0))
   const [elapsed, setElapsed] = useState(0)
   const [rest, setRest] = useState(0)
+  const [rpe, setRpe] = useState('')
+  const [painAnswered, setPainAnswered] = useState(false)
+  const [painConfirmed, setPainConfirmed] = useState(false)
+  const [painBodyAreas, setPainBodyAreas] = useState([])
+  const [notes, setNotes] = useState('')
+  const [posting, setPosting] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
   const restIv = useRef(null)
 
   useEffect(() => {
+    if (!exercises.length) return undefined
     const iv = setInterval(() => setElapsed(e => e + 1), 1000)
     return () => { clearInterval(iv); clearInterval(restIv.current) }
-  }, [])
+  }, [exercises.length])
+
+  if (training?.state !== 'ready') {
+    return <SubShell subKey="session" onClose={onClose} meta={meta}><ClosedState message={training?.message || 'SESSION CLOSED'} /></SubShell>
+  }
+  if (!exercises.length) {
+    return <SubShell subKey="session" onClose={onClose} meta={meta}><ClosedState message="PRESCRIPTION UNAVAILABLE" /></SubShell>
+  }
 
   const startRest = () => {
     clearInterval(restIv.current)
@@ -29,36 +78,58 @@ export function SessionSub({ onClose, exercises, meta }) {
     }, 1000)
   }
 
-  const allDone = idx >= EXERCISES.length
-  const cur = EXERCISES[Math.min(idx, EXERCISES.length - 1)]
+  const allDone = idx >= exercises.length
+  const cur = exercises[Math.min(idx, exercises.length - 1)]
 
   const mainAction = () => {
-    if (allDone) { onClose(); return }
+    if (allDone) return
     if (rest) { clearInterval(restIv.current); setRest(0); return }
     const d = done.slice()
     d[idx] += 1
     let nextIdx = idx
-    if (d[idx] >= EXERCISES[idx].sets) nextIdx += 1
-    const finished = nextIdx >= EXERCISES.length
+    if (d[idx] >= exercises[idx].sets) nextIdx += 1
+    const finished = nextIdx >= exercises.length
     setDone(d)
     setIdx(nextIdx)
-    setRest(finished ? 0 : 90)
+    setRest(finished ? 0 : exercises[nextIdx].restSeconds)
     if (!finished) startRest()
   }
 
+  const togglePainArea = area => setPainBodyAreas(items => (
+    items.includes(area) ? items.filter(item => item !== area) : [...items, area]
+  ))
+
+  const submit = async () => {
+    const valid = canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas })
+    if (!valid || posting) return
+    setPosting(true)
+    setError('')
+    try {
+      await logSession(buildCompletionPayload({
+        routed, exercises, elapsedSeconds: elapsed, rpe: Number(rpe),
+        painConfirmed, painBodyAreas, notes,
+      }))
+      setSaved(true)
+      await refreshTraining?.()
+    } catch (requestError) {
+      setError(requestError?.message || 'Session evidence was not accepted')
+    } finally {
+      setPosting(false)
+    }
+  }
+
   const ringColor = allDone ? G : rest ? Y : ACC
-  const ringOffset = allDone ? '0' : rest ? (389.6 * (1 - rest / 90)).toFixed(1) : '0'
+  const ringOffset = allDone ? '0' : rest ? (389.6 * (1 - rest / Math.max(rest, cur.restSeconds))).toFixed(1) : '0'
   const big = allDone ? '✓' : rest ? String(rest) : `${done[idx] + 1}/${cur.sets}`
-  const sub = allDone ? 'SESSION COMPLETE · RECOVERY WINDOW OPEN' : rest ? 'REST · SECONDS' : 'SET LIVE — ' + cur.name.toUpperCase()
+  const sub = allDone ? 'SETS COMPLETE - EVIDENCE REQUIRED' : rest ? 'REST - SECONDS' : 'SET LIVE - ' + cur.name.toUpperCase()
   const subColor = allDone ? G : rest ? Y : a(ACC, 'cc')
-  const cue = allDone ? 'LOG RPE + NOTES IN JOURNAL. PROTEIN WINDOW OPENS NOW — 860 KCAL STANDING BY.' : cur.cue
 
   return (
     <SubShell subKey="session" onClose={onClose} meta={meta}>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
         <div style={{ flex: 1.1, minWidth: 240 }}>
           <SubLabel>EXERCISE QUEUE</SubLabel>
-          {EXERCISES.map((ex, i) => {
+          {exercises.map((ex, i) => {
             const live = i === idx && !allDone
             const exDone = i < idx
             const st = exDone ? '✓ DONE' : live ? (rest ? '● REST' : '● LIVE') : 'QUEUED'
@@ -78,7 +149,9 @@ export function SessionSub({ onClose, exercises, meta }) {
                       <i key={j} style={{ width: 8, height: 8, border: `1px solid ${a(ACC, '44')}`, background: j < done[i] ? ACC : 'transparent', boxShadow: j < done[i] ? `0 0 7px ${a(ACC, '88')}` : 'none' }} />
                     ))}
                   </span>
-                  <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.1em', color: a(ACC, '99') }}>{ex.scheme}</span>
+                    <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.1em', color: a(ACC, '99') }}>
+                      {ex.sets} x {ex.reps}{ex.loadKg != null ? ` @ ${ex.loadKg}KG` : ''}
+                    </span>
                 </div>
               </div>
             )
@@ -94,9 +167,7 @@ export function SessionSub({ onClose, exercises, meta }) {
             <div style={{ fontFamily: FD, fontSize: 34, fontWeight: 700, color: W, textShadow: `0 0 16px ${a(ACC, '66')}`, lineHeight: 1 }}>{big}</div>
             <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.22em', color: subColor, marginTop: 5, maxWidth: 130, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>{sub}</div>
           </div>
-          <button onClick={mainAction} style={{ minHeight: 48, width: 'min(280px, 100%)', fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: 'pointer', boxShadow: `0 0 26px ${a(ACC, '66')}` }}>
-            {allDone ? 'CLOSE SESSION' : rest ? 'SKIP REST' : 'COMPLETE SET'}
-          </button>
+          {!allDone && <button onClick={mainAction} style={actionStyle(false)}>{rest ? 'SKIP REST' : 'COMPLETE SET'}</button>}
           <div style={{ marginTop: 9 }}>
             <button onClick={onClose} style={{ minHeight: 36, padding: '0 18px', fontFamily: FM, fontSize: '8.5px', letterSpacing: '.2em', color: a(ACC, '99'), background: 'none', border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>END SESSION</button>
           </div>
@@ -106,78 +177,97 @@ export function SessionSub({ onClose, exercises, meta }) {
           <div style={{ fontFamily: FD, fontSize: 40, fontWeight: 300, color: W, textShadow: `0 0 14px ${a(ACC, '66')}`, marginBottom: 14 }}>
             {pad2(Math.floor(elapsed / 60)) + ':' + pad2(elapsed % 60)}
           </div>
-          <div style={{ border: `1px solid ${a(ACC, '26')}`, background: deep(50), padding: '11px 13px', marginBottom: 10 }}>
-            <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.26em', color: a(ACC, 'cc'), marginBottom: 6 }}>COACH CUE</div>
-            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.08em', lineHeight: 1.8, color: mix(BODY, 96) }}>{cue}</div>
-          </div>
-          {[['REST PROTOCOL', '90S / SET', W], ['TARGET RPE', '9 · MAX INTENT', W], ['READINESS GATE', '82% · CLEAR', G]].map(([k, v, c], i, arr) => (
+          {[['PLAN ID', routed.plan_provenance?.plan_id || 'UNAVAILABLE', W], ['SESSION', routed.session?.display_name || routed.session?.session_type, W], ['ROUTE', String(routed.readiness_status || 'clear').toUpperCase(), G]].map(([k, v, c], i, arr) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < arr.length - 1 ? `1px solid ${a(ACC, '14')}` : 'none', fontFamily: FM, fontSize: 8, letterSpacing: '.12em' }}>
               <span style={{ color: a(ACC, '99') }}>{k}</span><span style={{ color: c }}>{v}</span>
             </div>
           ))}
+          {allDone && !saved && (
+            <div style={{ marginTop: 14, borderTop: `1px solid ${a(ACC, '33')}`, paddingTop: 12, textAlign: 'left' }}>
+              <SubLabel>COMPLETION EVIDENCE</SubLabel>
+              <label style={{ fontFamily: FM, fontSize: 8, color: a(ACC, 'aa'), letterSpacing: '.14em' }}>SESSION RPE - 1 TO 10</label>
+              <input aria-label="Session RPE" type="number" min="1" max="10" value={rpe} onChange={event => setRpe(event.target.value)} style={{ ...fieldStyle, margin: '6px 0 12px' }} />
+              <div style={{ fontFamily: FM, fontSize: 8, color: a(ACC, 'aa'), letterSpacing: '.14em', marginBottom: 7 }}>ANY PAIN DURING SESSION?</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                {[[false, 'NO'], [true, 'YES']].map(([value, label]) => (
+                  <button key={label} onClick={() => { setPainAnswered(true); setPainConfirmed(value); if (!value) setPainBodyAreas([]) }} style={{ ...actionStyle(false), minHeight: 38, color: painAnswered && painConfirmed === value ? INK : W, background: painAnswered && painConfirmed === value ? ACC : deep(65), boxShadow: 'none' }}>{label}</button>
+                ))}
+              </div>
+              {painConfirmed && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 10 }}>
+                {['knee', 'ankle', 'hip', 'hamstring', 'calf_achilles', 'lower_back_pelvic'].map(area => (
+                  <label key={area} style={{ fontFamily: FM, fontSize: 8, color: W, letterSpacing: '.08em' }}><input type="checkbox" checked={painBodyAreas.includes(area)} onChange={() => togglePainArea(area)} /> {area.replaceAll('_', ' ').toUpperCase()}</label>
+                ))}
+              </div>}
+              <textarea aria-label="Session notes" value={notes} onChange={event => setNotes(event.target.value)} placeholder="OPTIONAL SESSION NOTES" style={{ ...fieldStyle, minHeight: 68, paddingTop: 10, resize: 'vertical', marginBottom: 10 }} />
+              <button onClick={submit} disabled={!canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas }) || posting} style={actionStyle(!canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas }) || posting)}>{posting ? 'VERIFYING...' : 'COMMIT SESSION'}</button>
+              {error && <div role="alert" style={{ marginTop: 8, fontFamily: FM, fontSize: 8, color: R }}>{error}</div>}
+            </div>
+          )}
+          {saved && <button onClick={onClose} style={{ ...actionStyle(false), marginTop: 16 }}>SESSION VERIFIED - CLOSE</button>}
         </div>
       </div>
     </SubShell>
   )
 }
 
-// ── TRAINING // READINESS SCAN — constellation body + gauges ──
-export function ReadinessSub({ onClose }) {
+const READINESS_FIELDS = [
+  ['knee', 'KNEE'], ['ankle', 'ANKLE'], ['hip', 'HIP'],
+  ['hamstring', 'HAMSTRING'], ['calf_achilles', 'CALF / ACHILLES'],
+  ['lower_back_pelvic', 'LOWER BACK / PELVIC'],
+]
+
+export function ReadinessSub({ onClose, training, refreshTraining }) {
+  const [form, setForm] = useState({
+    knee: 0, ankle: 0, hip: 0, hamstring: 0, calf_achilles: 0,
+    lower_back_pelvic: 0, sharp_pain: false, limping: false,
+    next_day_worsening: false, note: '',
+  })
+  const [posting, setPosting] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+  const update = (key, value) => setForm(current => ({ ...current, [key]: value }))
+  const submit = async () => {
+    if (posting) return
+    setPosting(true)
+    setError('')
+    try {
+      const response = await postTrainingReadinessScan(buildReadinessPayload(form))
+      setResult(response)
+      await refreshTraining?.()
+    } catch (requestError) {
+      setError(requestError?.message || 'Readiness scan was not accepted')
+    } finally {
+      setPosting(false)
+    }
+  }
   return (
     <SubShell subKey="readiness" onClose={onClose}>
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ flex: 1, minWidth: 250, display: 'flex', justifyContent: 'center' }}>
-          <div style={{ position: 'relative', width: 'min(52vmin, 236px)' }}>
-            <svg viewBox="0 0 200 320" style={{ width: '100%', display: 'block' }}>
-              <ellipse cx="100" cy="298" rx="58" ry="10" fill="none" stroke={a(ACC, '33')} strokeWidth="1" />
-              <ellipse cx="100" cy="298" rx="38" ry="6" fill="none" stroke={a(ACC, '22')} strokeWidth="1" strokeDasharray="3 4" />
-              <g stroke={a(ACC, '55')} strokeWidth="1.1" fill="none">
-                <circle cx="100" cy="30" r="11" />
-                <path d="M 100 41 L 100 44" />
-                <path d="M 70 64 L 130 64" />
-                <path d="M 100 44 L 70 64 M 100 44 L 130 64" />
-                <path d="M 70 64 L 56 106 L 50 148" />
-                <path d="M 130 64 L 144 106 L 150 148" />
-                <path d="M 100 44 L 100 78 L 100 140" />
-                <path d="M 84 146 L 116 146" />
-                <path d="M 100 140 L 84 146 M 100 140 L 116 146" />
-                <path d="M 84 146 L 80 210 L 78 270 L 68 278" />
-                <path d="M 116 146 L 120 210 L 122 270 L 132 278" />
-              </g>
-              <g fill={ACC} style={{ filter: `drop-shadow(0 0 3px ${ACC})` }}>
-                {[[100, 44], [70, 64], [130, 64], [56, 106], [144, 106], [50, 148], [150, 148], [100, 78], [100, 140], [84, 146], [116, 146], [80, 210], [120, 210], [78, 270], [122, 270]].map(([cx, cy]) => (
-                  <circle key={cx + '-' + cy} cx={cx} cy={cy} r="2.6" />
-                ))}
-              </g>
-              <circle cx="82" cy="178" r="9" fill="none" stroke={Y} strokeWidth="1" strokeDasharray="3 3" style={{ transformOrigin: '82px 178px', animation: 'holo-ringSpin 8s linear infinite' }} />
-              <circle cx="82" cy="178" r="4.5" fill={Y} style={{ animation: 'holo-twinkle 1.6s ease-in-out infinite', filter: `drop-shadow(0 0 5px ${Y})` }} />
-              <path d="M 73 178 L 30 178" stroke={mix(Y, 33)} strokeWidth="1" />
-              <text x="4" y="172" fontFamily="Share Tech Mono, monospace" fontSize="7" letterSpacing="1" fill={Y}>QUADS</text>
-              <text x="4" y="182" fontFamily="Share Tech Mono, monospace" fontSize="5.5" letterSpacing="0.8" fill={mix(Y, 60)}>MODERATE LOAD</text>
-            </svg>
-            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-              <div style={{ position: 'absolute', left: '6%', right: '6%', height: '16%', background: `linear-gradient(180deg, transparent, ${a(ACC, '26')} 42%, ${mix(W, 13)} 50%, ${a(ACC, '26')} 58%, transparent)`, animation: 'holo-scanBand 4.8s linear infinite' }} />
-            </div>
-          </div>
-        </div>
-        <div style={{ flex: 1.2, minWidth: 270 }}>
-          {READINESS_GAUGES.map((rg, i) => (
-            <div key={i} style={{ padding: '7px 0 9px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-                <span style={{ fontFamily: FM, fontSize: '8.5px', letterSpacing: '.16em', color: mix(BODY, 72) }}>{rg.l}</span>
-                <span style={{ fontFamily: FD, fontSize: 21, fontWeight: 600, color: rg.c }}>{rg.v}</span>
-              </div>
-              <div style={{ height: 5, background: a(ACC, '14'), border: `1px solid ${a(ACC, '20')}`, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: rg.w, background: `linear-gradient(90deg, ${mix(rg.c, 53)}, ${rg.c})`, boxShadow: `0 0 8px ${mix(rg.c, 53)}` }} />
-              </div>
-            </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: 22 }}>
+        <div>
+          <SubLabel>DISCOMFORT - 0 NONE / 10 SEVERE</SubLabel>
+          {READINESS_FIELDS.map(([key, label]) => (
+            <label key={key} style={{ display: 'grid', gridTemplateColumns: '1fr minmax(120px, 1.4fr) 34px', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${a(ACC, '18')}`, fontFamily: FM, fontSize: 8, color: W, letterSpacing: '.12em' }}>
+              {label}
+              <input type="range" min="0" max="10" value={form[key]} onChange={event => update(key, Number(event.target.value))} style={{ accentColor: ACC }} />
+              <span style={{ fontFamily: FD, fontSize: 20, color: Number(form[key]) >= 5 ? R : Number(form[key]) >= 3 ? Y : G }}>{form[key]}</span>
+            </label>
           ))}
-          <div style={{ marginTop: 12, border: `1px solid ${mix(G, 27)}`, background: mix(G, 5), padding: '13px 15px' }}>
-            <div style={{ fontFamily: FM, fontSize: '9.5px', letterSpacing: '.26em', color: G, textShadow: `0 0 10px ${mix(G, 40)}`, marginBottom: 6 }}>▸ CLEAR FOR HIGH NEURAL</div>
-            <div style={{ fontFamily: FB, fontSize: 15, fontWeight: 300, lineHeight: 1.5, color: mix(BODY, 84) }}>
-              Readiness 82% — full session approved. Quads carry moderate soreness from Monday: cap depth drops at 3×5 and stop on any sharp signal.
-            </div>
-          </div>
+        </div>
+        <div>
+          <SubLabel>SAFETY SIGNALS</SubLabel>
+          {[['sharp_pain', 'SHARP PAIN'], ['limping', 'LIMPING'], ['next_day_worsening', 'WORSE THAN YESTERDAY']].map(([key, label]) => (
+            <label key={key} style={{ display: 'flex', gap: 10, alignItems: 'center', minHeight: 40, fontFamily: FM, fontSize: 9, color: form[key] ? R : W, letterSpacing: '.14em' }}>
+              <input type="checkbox" checked={form[key]} onChange={event => update(key, event.target.checked)} /> {label}
+            </label>
+          ))}
+          <textarea aria-label="Readiness note" value={form.note} onChange={event => update('note', event.target.value)} placeholder="OPTIONAL CONTEXT FOR PHOENIX" style={{ ...fieldStyle, minHeight: 84, paddingTop: 10, resize: 'vertical', margin: '10px 0' }} />
+          <button onClick={submit} disabled={posting} style={actionStyle(posting)}>{posting ? 'CLASSIFYING...' : 'SUBMIT READINESS'}</button>
+          {result && <div style={{ marginTop: 12, padding: 13, border: `1px solid ${mix(G, 27)}`, background: mix(G, 5) }}>
+            <div style={{ fontFamily: FM, fontSize: 10, color: G, letterSpacing: '.2em' }}>ROUTE RECORDED - {String(result.readiness_status).toUpperCase()}</div>
+            <div style={{ marginTop: 7, fontFamily: FB, fontSize: 14, color: BODY }}>Phoenix has recalculated today from the submitted body check.</div>
+          </div>}
+          {error && <div role="alert" style={{ marginTop: 9, fontFamily: FM, fontSize: 8, color: R }}>{error}</div>}
+          {!result && training?.routed?.readiness_scan && <div style={{ marginTop: 12, fontFamily: FM, fontSize: 8, color: a(ACC, '77'), letterSpacing: '.12em' }}>A SCAN EXISTS FOR TODAY. SUBMIT AGAIN ONLY TO REPLACE THE CURRENT ROUTE.</div>}
         </div>
       </div>
     </SubShell>

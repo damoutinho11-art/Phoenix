@@ -125,51 +125,18 @@ export function buildDomains(dayPart) {
       ],
     },
     training: {
-      bootLine: 'SYS.TRAINING // MISSION PROJECTION ACTIVE',
-      heroValue: '53',
-      heroUnit: 'DAYS',
-      heroLabel: 'TO DUNK ATTEMPT · AUG 2026',
-      reactorPct: 0.82,
-      heroChips: [chip('ON TRACK', G), chip('WEEK 3 OF 10', ACC), chip('HIGH NEURAL TODAY', Y)],
-      heroBrief: 'Max-intent jumps + heavy strength today. Recovery at 82% — run the readiness scan before heavy lower-body work.',
-      heroActions: [
-        { label: '▶ START SESSION', sub: 'session', primary: true },
-        { label: 'ADAPT WEEK', sub: 'training-room' },
-        { label: 'READINESS', sub: 'readiness' },
-        { label: 'LOG SLEEP', sub: 'sleep' },
-      ],
-      readout: [
-        { k: 'RECOVERY', v: '82%', w: '82%' }, { k: 'SLEEP', v: '7H 40M', w: '86%' },
-        { k: 'SORENESS', v: 'MODERATE', w: '58%' }, { k: 'SESSIONS', v: '14', w: '70%' },
-        { k: 'VERT', v: '31.5"', w: '78%' }, { k: 'BODYWEIGHT', v: '78.4KG', w: '65%' },
-      ],
-      feed: [
-        { t: '07:10', msg: 'READINESS SCAN CLEAR', tone: G },
-        { t: '07:00', msg: 'SLEEP LOGGED 7H 40M', tone: 'body' },
-        { t: 'YDAY', msg: 'TEMPO RUN COMPLETE', tone: 'body' },
-        { t: 'TUE', msg: 'VERT PB +0.4"', tone: G },
-        { t: 'MON', msg: 'SORENESS HIGH · QUADS', tone: Y },
-      ],
+      bootLine: 'SYS.TRAINING // SOURCE SYNC',
+      heroValue: 'SYNC', heroUnit: '', heroLabel: 'TRAINING DATA SYNC', reactorPct: 0.08,
+      heroChips: [chip('SYNCING TRAINING DATA', ACC)],
+      heroBrief: 'Phoenix is verifying the active plan, readiness route, and recorded history.',
+      heroActions: [{ label: 'ADAPT WEEK', sub: 'training-room', primary: true }],
+      readout: [{ k: 'SOURCE', v: 'SYNCING', w: '8%' }],
+      feed: [{ t: 'NOW', msg: 'VERIFYING TRAINING SOURCE', tone: 'soft' }],
       panels: [
-        { code: 'SESSION', meta: 'HIGH NEURAL', type: 'rows', rows: [
-          { title: 'Approach jumps', sub: 'MAX INTENT', value: '6 × 3', valueColor: W },
-          { title: 'Trap bar deadlift', sub: 'STRENGTH', value: '4×3 @85%', valueColor: W },
-          { title: 'Depth drops', sub: 'PLYOMETRIC', value: '3 × 5', valueColor: W },
-        ] },
-        { code: 'RECOVERY', meta: 'CHECK-IN', type: 'bars', bars: [
-          { label: 'READINESS', w: '82%', val: '82%', color: G },
-          { label: 'SLEEP QUALITY', w: '86%', val: '7H 40M', color: G },
-          { label: 'SORENESS LOAD', w: '58%', val: 'MED', color: Y },
-        ] },
-        Object.assign(
-          spark([29.2, 29.4, 29.9, 30.1, 30.0, 30.6, 31.1, 31.5], 'VERTICAL JUMP · INCHES', '31.5"', '+2.3" THIS BLOCK', G),
-          { code: 'TELEMETRY', meta: 'WK 1–3' },
-        ),
-        { code: 'MISSION', meta: 'DUNK · AUG 2026', type: 'rows', rows: [
-          { title: 'Phase', sub: 'ACCUMULATION', value: 'WK 3/10', valueColor: W },
-          { title: 'Gap to target', sub: 'RIM 305CM', value: '+4.5"', valueColor: Y },
-          { title: 'Projection', sub: 'CURRENT PACE', value: 'ON TRACK', valueColor: G },
-        ] },
+        { code: 'SESSION', meta: 'SYNCING', type: 'rows', rows: [] },
+        { code: 'READINESS', meta: 'SYNCING', type: 'rows', rows: [] },
+        { code: 'HISTORY', meta: 'SYNCING', type: 'rows', rows: [] },
+        { code: 'MISSION', meta: 'SYNCING', type: 'rows', rows: [] },
       ],
     },
     calendar: {
@@ -228,8 +195,8 @@ export const SUB_META = {
   logmeal: ['SYS.NUTRITION // MEAL COMPOSER', '860 KCAL OPEN', 'min(1020px, calc(100vw - 26px))'],
   dinner: ['SYS.NUTRITION // DINNER CANDIDATES', 'PROTEIN GAP 53G', 'min(1000px, calc(100vw - 26px))'],
   planday: ['SYS.NUTRITION // FUEL TIMELINE', 'TARGET 2,100 KCAL', 'min(1020px, calc(100vw - 26px))'],
-  session: ['SYS.TRAINING // LIVE SESSION', 'HIGH NEURAL · WEEK 3', 'min(1020px, calc(100vw - 26px))'],
-  readiness: ['SYS.TRAINING // READINESS SCAN', 'BIOMETRIC SWEEP', 'min(940px, calc(100vw - 26px))'],
+  session: ['SYS.TRAINING // LIVE SESSION', 'ACTIVE PLAN DAY', 'min(1020px, calc(100vw - 26px))'],
+  readiness: ['SYS.TRAINING // READINESS SCAN', 'BODY CHECK', 'min(940px, calc(100vw - 26px))'],
   sleep: ['SYS.TRAINING // SLEEP LOG', 'RECOVERY INPUT', 'min(860px, calc(100vw - 26px))'],
   today: ['SYS.CALENDAR // TODAY RAIL', 'FRI JUL 11 · READ ONLY', 'min(980px, calc(100vw - 26px))'],
   weekmap: ['SYS.CALENDAR // WEEK LOAD MAP', 'W28 · 24.5H', 'min(980px, calc(100vw - 26px))'],
@@ -285,20 +252,6 @@ export const FUEL_NODES = [
   { t: '22:00', h: 22, n: 'Casein · optional', k: 180, st: 'opt', up: true },
 ]
 export const FUEL_CURVE = [[6, 0], [8.5, 520], [12.08, 1060], [13.33, 1240], [19.5, 1860], [22, 2040], [24, 2040]]
-
-// ── TRAINING fixtures ──
-export const SESSION_EXERCISES = [
-  { name: 'Approach jumps', scheme: '6 × 3 · MAX INTENT', sets: 6, tag: 'PLYO', cue: 'FULL APPROACH · PENULTIMATE STEP LONG · STICK EVERY LANDING' },
-  { name: 'Trap bar deadlift', scheme: '4 × 3 @ 85%', sets: 4, tag: 'STRENGTH', cue: 'BAR SPEED OVER LOAD · BRACE HARD · KILL THE REP IF SPEED DROPS' },
-  { name: 'Depth drops', scheme: '3 × 5', sets: 3, tag: 'PLYO', cue: 'SOFT KNEES · MINIMAL GROUND TIME · WATCH QUAD SIGNAL' },
-]
-
-export const READINESS_GAUGES = [
-  { l: 'READINESS INDEX', v: '82%', w: '82%', c: G },
-  { l: 'SLEEP QUALITY · 7H 40M', v: '86%', w: '86%', c: G },
-  { l: 'HRV BALANCE', v: '64%', w: '64%', c: W },
-  { l: 'SORENESS LOAD · QUADS', v: '58%', w: '58%', c: Y },
-]
 
 // ── CALENDAR fixtures ──
 export const DAY_BLOCKS = [

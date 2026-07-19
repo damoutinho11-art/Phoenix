@@ -323,69 +323,6 @@ export function mapDinners(nut) {
   }))
 }
 
-// ── TRAINING ──
-export function applyTraining(d, tr) {
-  if (!tr || !tr.dunk_goal) return d
-  const goal = tr.dunk_goal
-  const cut = tr.cut_status || {}
-  const today = tr.today_session || {}
-  const attemptDate = new Date(goal.attempt_window_start || goal.deadline || Date.now())
-  const attemptMonth = attemptDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()
-  d.heroValue = String(goal.days_to_attempt)
-  d.heroUnit = 'DAYS'
-  d.heroLabel = 'TO DUNK ATTEMPT · ' + attemptMonth
-  d.reactorPct = Math.min(1, Math.max(0.05, 1 - goal.days_to_attempt / 90))
-  d.heroChips = [
-    { text: goal.on_track ? 'ON TRACK' : 'BEHIND PLAN', color: goal.on_track ? G : R },
-    { text: `${(goal.current_phase || '').replace(/_/g, ' ').toUpperCase()} · WK ${goal.current_mesocycle_week}`, color: ACC },
-    { text: (today.display_name || 'NO SESSION').toUpperCase(), color: Y },
-  ]
-  d.heroBrief = today.notes
-    ? `Today: ${today.display_name}. ${today.notes}`
-    : `Today's session: ${today.display_name || 'rest'}. ${goal.days_to_attempt} days to the attempt window.`
-  d.readout = [
-    { k: 'BODYWEIGHT', v: `${cut.current_bodyweight_kg ?? '—'}KG`, w: '65%' },
-    { k: 'BODY FAT', v: `${cut.current_bf_pct ?? '—'}%`, w: Math.min(100, (cut.current_bf_pct || 0) * 3) + '%' },
-    { k: 'TARGET BF', v: `${cut.target_bf_pct ?? '—'}%`, w: Math.min(100, (cut.target_bf_pct || 0) * 3) + '%' },
-    { k: 'FAT TO LOSE', v: `${cut.estimated_fat_to_lose_kg ?? '—'}KG`, w: '45%' },
-    { k: 'CUT DAYS LEFT', v: String(cut.days_remaining ?? '—'), w: Math.min(100, 100 - (cut.days_remaining || 0)) + '%' },
-    { k: 'WEEK SESSIONS', v: String((tr.week_sessions || []).length), w: Math.min(100, (tr.week_sessions || []).length * 15) + '%' },
-  ]
-  const exRows = (today.exercises || []).slice(0, 3).map(ex => ({
-    title: ex.name, sub: (today.session_type || '').replace(/_/g, ' ').toUpperCase(), value: ex.label || ex.sets_reps || '—', valueColor: W,
-  }))
-  d.panels[0] = { code: 'SESSION', meta: (today.display_name || '—').toUpperCase(), type: 'rows', rows: exRows.length ? exRows : [{ title: 'Rest day', sub: 'NO SESSION SCHEDULED', value: '—', valueColor: G }] }
-  d.panels[1] = { code: 'CUT STATUS', meta: cut.active ? 'ACTIVE' : 'OFF', type: 'bars', bars: [
-    { label: `BODY FAT · ${cut.current_bf_pct}% → ${cut.target_bf_pct}%`, w: Math.min(100, ((cut.current_bf_pct - cut.target_bf_pct) / Math.max(1, cut.current_bf_pct)) * 100 + 40).toFixed(0) + '%', val: `${cut.current_bf_pct}%`, color: Y },
-    { label: 'CUT RUNWAY', w: Math.min(100, 100 - (cut.days_remaining || 0)).toFixed(0) + '%', val: `${cut.days_remaining}D`, color: G },
-    { label: 'FAT TO LOSE', w: Math.min(100, (cut.estimated_fat_to_lose_kg || 0) * 18).toFixed(0) + '%', val: `${cut.estimated_fat_to_lose_kg}KG`, color: W },
-  ] }
-  d.panels[3] = { code: 'MISSION', meta: 'DUNK · ' + attemptMonth, type: 'rows', rows: [
-    { title: 'Phase', sub: (goal.current_phase || '').replace(/_/g, ' ').toUpperCase(), value: `WK ${goal.current_mesocycle_week}`, valueColor: W },
-    { title: 'Attempt window', sub: (goal.attempt_window_start || '').toUpperCase(), value: `${goal.days_to_attempt}D`, valueColor: Y },
-    { title: 'Projection', sub: 'CURRENT PACE', value: goal.on_track ? 'ON TRACK' : 'BEHIND', valueColor: goal.on_track ? G : R },
-  ] }
-  const week = tr.week_sessions || []
-  d.feed = week.slice(-5).reverse().map(s => ({
-    t: (s.date || '').slice(5).replace('-', '/'),
-    msg: (s.display_name || s.session_type || '').toUpperCase(),
-    tone: s.session_type === 'high_intensity' ? Y : 'body',
-  }))
-  if (!d.feed.length) d.feed = [{ t: tr.as_of || '', msg: 'NO SESSIONS THIS WEEK', tone: 'soft' }]
-  return d
-}
-
-export function mapSessionExercises(tr) {
-  const ex = tr?.today_session?.exercises
-  if (!ex || !ex.length) return null
-  const notes = (tr.today_session.notes || '').toUpperCase()
-  return ex.map(e => {
-    const label = e.label || e.sets_reps || '3 × 5'
-    const sets = Math.min(6, Math.max(2, parseInt(label, 10) || 3))
-    return { name: e.name, scheme: label.toUpperCase(), sets, tag: (tr.today_session.session_type || '').toUpperCase(), cue: notes || 'EXECUTE WITH INTENT · LOG RPE AFTER' }
-  })
-}
-
 // ── CALENDAR ──
 const evStart = e => e.start || e.start_time || e.begin || e.from
 const evEnd = e => e.end || e.end_time || e.finish || e.to

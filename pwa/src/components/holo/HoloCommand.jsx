@@ -4,7 +4,8 @@ import { ACC, G, Y, W, SCENE, RAISED, PANEL, BG, BODY, INK, FM, FB, HOME_ACCENT,
 import { buildDomains } from './holoDomains'
 import useHoloData from './useHoloData'
 import { logMeal as apiLogMeal, logSleepDuration } from '../../api/client'
-import { applyFinance, applyNutrition, applyTraining, applyCalendar, mapHoldings, mealBudget, mapDinners, mapSessionExercises, mapConnectorLanes, mapTodayRail } from './holoLive'
+import { applyFinance, applyNutrition, applyCalendar, mapHoldings, mealBudget, mapDinners, mapConnectorLanes, mapTodayRail } from './holoLive'
+import { buildTrainingDomain, normalizeTrainingLive } from './trainingLive'
 import HoloScene, { useHoloAtmosphere, HoloEdgeChrome, HoloBootLine, HoloDomainFlash, HoloBeams } from './HoloScene'
 import HoloCore from './HoloCore'
 import HoloWings from './HoloWings'
@@ -198,7 +199,7 @@ export default function HoloCommand({ startTab = 'home' }) {
       const parts = ['All modules nominal.']
       if (live.finance) parts.push(`Invested €${Math.round(live.finance.total_invested).toLocaleString('en-US')}`)
       if (live.nutrition) parts.push(`${Math.max(0, Math.round(live.nutrition.remaining_calories))} kcal open`)
-      if (live.training) parts.push(`${live.training.dunk_goal?.days_to_attempt} days to dunk attempt`)
+      if (live.training?.status?.dunk_goal?.days_to_attempt != null) parts.push(`${live.training.status.dunk_goal.days_to_attempt} days to dunk attempt`)
       if (live.calendar) parts.push(`${(live.calendar.events || []).length} events in the calendar window`)
       msg = parts.length > 1 ? parts[0] + ' ' + parts.slice(1).join(' · ') + '.' : 'All modules nominal. Portfolio €1,893 · 860 kcal open · 53 days to dunk attempt · next event 10:00.'
       hold = 5200
@@ -213,6 +214,7 @@ export default function HoloCommand({ startTab = 'home' }) {
 
   // ── live data + domain derivation + sub-screen feedback ──
   const live = useHoloData()
+  const trainingLive = useMemo(() => normalizeTrainingLive(live.training), [live.training])
   const budget = useMemo(() => mealBudget(live.nutrition), [live.nutrition])
   const liveDinners = useMemo(() => mapDinners(live.nutrition), [live.nutrition])
   const hour = new Date().getHours()
@@ -220,10 +222,10 @@ export default function HoloCommand({ startTab = 'home' }) {
   const D = useMemo(() => {
     const all = buildDomains(dayPart)
     let d = all[tab] || all.finance
-    // real sources override fixtures per-domain (fixtures remain the fallback)
+    // Real sources override display fixtures. Training always uses explicit source state.
     if (tab === 'finance') d = applyFinance(d, live.finance, live.financePerformance)
     if (tab === 'nutrition') d = applyNutrition(d, live.nutrition)
-    if (tab === 'training') d = applyTraining(d, live.training)
+    if (tab === 'training') d = buildTrainingDomain(d, trainingLive)
     if (tab === 'calendar') d = applyCalendar(d, live.calendar, live.connectors)
     if (tab === 'finance' && appStamped) {
       d.heroChips = [d.heroChips[0], d.heroChips[1], { text: 'W28 APPROVED ✓', color: G }]
@@ -253,7 +255,7 @@ export default function HoloCommand({ startTab = 'home' }) {
       d.feed = [{ t: 'NOW', msg: 'SLEEP UPDATED ' + Math.floor(slpMin / 60) + 'H ' + pad(slpMin % 60) + 'M', tone: G }].concat(d.feed)
     }
     return d
-  }, [tab, dayPart, appStamped, mealLog, dinnerLocked, dinnerSel, slpLogged, slpMin, live, budget, liveDinners])
+  }, [tab, dayPart, appStamped, mealLog, dinnerLocked, dinnerSel, slpLogged, slpMin, live, trainingLive, budget, liveDinners])
 
   const atmosphere = useHoloAtmosphere(tab, isMobile)
   const blips = useMemo(() => {
@@ -399,8 +401,8 @@ export default function HoloCommand({ startTab = 'home' }) {
         <DinnerSub {...subProps} sel={dinnerSel} locked={dinnerLocked} onPick={i => { setDinnerSel(i); setDinnerLocked(false) }} onLock={() => setDinnerLocked(true)} dinners={liveDinners} budget={budget} />
       )}
       {sub === 'planday' && <PlanDaySub {...subProps} />}
-      {sub === 'session' && <SessionSub {...subProps} exercises={mapSessionExercises(live.training)} meta={live.training ? (live.training.today_session?.display_name || '').toUpperCase() : undefined} />}
-      {sub === 'readiness' && <ReadinessSub {...subProps} />}
+      {sub === 'session' && <SessionSub {...subProps} training={trainingLive} refreshTraining={live.refreshTraining} />}
+      {sub === 'readiness' && <ReadinessSub {...subProps} training={trainingLive} refreshTraining={live.refreshTraining} />}
       {sub === 'sleep' && (
         <SleepSub
           {...subProps}

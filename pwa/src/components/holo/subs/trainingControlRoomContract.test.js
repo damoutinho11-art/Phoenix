@@ -11,12 +11,12 @@ const helper = name => {
 }
 
 test('cockpit keeps start primary and adds adapt week second', () => {
-  const domains = readFileSync(new URL('../holoDomains.js', import.meta.url), 'utf8')
-  const start = domains.indexOf('▶ START SESSION')
-  const adapt = domains.indexOf('ADAPT WEEK')
+  const live = readFileSync(new URL('../trainingLive.js', import.meta.url), 'utf8')
+  const start = live.indexOf('▶ START SESSION')
+  const adapt = live.indexOf('ADAPT WEEK', start)
 
   assert.ok(start >= 0 && adapt > start)
-  assert.match(domains, /ADAPT WEEK[^\n]*training-room/)
+  assert.match(live, /ADAPT WEEK[^\n]*training-room/)
 })
 
 test('adapt view previews before apply and blocks hard failures', () => {

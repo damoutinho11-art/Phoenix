@@ -24,9 +24,12 @@ test('training cockpit exposes readiness route and capacity language', () => {
   assert.doesNotMatch(metrics, /<StepBadge n={5}/)
 })
 
-test('active session contains the backend readiness gate', () => {
+test('active session delegates to the verified plan runner', () => {
   assert.match(active, /getTrainingRoutedSession/)
-  assert.match(active, /Complete Readiness Scan/)
+  assert.match(active, /getTrainingHistory/)
+  assert.match(active, /normalizeTrainingLive/)
+  assert.match(active, /<SessionSub/)
+  assert.doesNotMatch(active, /function buildExercises|SESSION_NAMES|await logSession/)
 })
 
 test('jump tracker exposes all four plant patterns and quality fields', () => {
