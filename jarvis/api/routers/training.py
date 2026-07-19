@@ -33,6 +33,7 @@ from jarvis.domains.training.plan_acceptance import (
     EXPECTED_HARD_VALIDATIONS,
     training_planner_acceptance_status,
     training_planner_mode,
+    validate_runtime_proposal,
 )
 
 router = APIRouter()
@@ -696,13 +697,15 @@ def _proposal_projection(
     after = _plan_projection(proposal)
     before = _plan_projection(parent) if parent else None
     acceptance = training_planner_acceptance_status()
+    runtime_authoritative = False
+    if training_planner_mode() == "live" and acceptance["accepted"] is True:
+        try:
+            runtime_authoritative, _ = _runtime_proposal_validation(after)
+        except Exception:
+            runtime_authoritative = False
     return {
         **after,
-        "authoritative": (
-            training_planner_mode() == "live"
-            and acceptance["accepted"] is True
-            and _proposal_is_allowlisted(after, acceptance)
-        ),
+        "authoritative": runtime_authoritative,
         "before": before,
         "after": after,
         "diff": _plan_diff(before, after),
@@ -710,25 +713,17 @@ def _proposal_projection(
     }
 
 
-_PROPOSAL_IDENTITY_FIELDS = (
-    "plan_id",
-    "planner_version",
-    "constitution_version",
-    "input_hash",
-    "receipt_hash",
-)
-
-
-def _proposal_is_allowlisted(
-    proposal: Mapping[str, Any], acceptance: Mapping[str, Any]
-) -> bool:
-    identity = {field: proposal.get(field) for field in _PROPOSAL_IDENTITY_FIELDS}
-    allowlist = acceptance.get("accepted_proposals")
-    return isinstance(allowlist, list) and any(
-        isinstance(row, Mapping)
-        and set(row) == set(_PROPOSAL_IDENTITY_FIELDS)
-        and all(row.get(field) == identity[field] for field in _PROPOSAL_IDENTITY_FIELDS)
-        for row in allowlist
+def _runtime_proposal_validation(
+    proposal: Mapping[str, Any],
+) -> tuple[bool, tuple[str, ...]]:
+    cycle_id = proposal.get("cycle_id")
+    if not isinstance(cycle_id, str) or not cycle_id.strip():
+        return False, ("malformed_receipt",)
+    active = database.get_active_training_plan(cycle_id)
+    active_parent_id = active["plan_id"] if active is not None else None
+    return validate_runtime_proposal(
+        proposal,
+        active_parent_id=active_parent_id,
     )
 
 
@@ -1028,10 +1023,22 @@ def apply_training_plan(proposal_id: str) -> dict[str, Any]:
             status_code=503,
             detail="Training planner live acceptance evidence is unavailable",
         )
-    if not _proposal_is_allowlisted(proposal["payload"], acceptance):
+    try:
+        runtime_ok, runtime_reasons = _runtime_proposal_validation(
+            proposal["payload"]
+        )
+    except Exception as exc:
         raise HTTPException(
             status_code=503,
-            detail="Training planner acceptance evidence does not cover this proposal",
+            detail="Training plan storage unavailable",
+        ) from exc
+    if not runtime_ok:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Training proposal runtime validation failed: "
+                + ", ".join(runtime_reasons)
+            ),
         )
     try:
         applied = database.apply_training_plan_proposal(proposal_id)

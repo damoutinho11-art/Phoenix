@@ -143,6 +143,36 @@ def replay_training_plan(receipt: Mapping[str, Any]) -> WeeklyPlanReceipt:
     return expected
 
 
+def validate_runtime_proposal(
+    receipt: Mapping[str, Any],
+    *,
+    active_parent_id: str | None,
+) -> tuple[bool, tuple[str, ...]]:
+    """Validate one persisted proposal at the authority boundary."""
+    if not isinstance(receipt, Mapping):
+        return False, ("malformed_receipt",)
+
+    reasons = []
+    if (
+        receipt.get("planner_version") != CURRENT_PLANNER_VERSION
+        or receipt.get("constitution_version") != CURRENT_CONSTITUTION_VERSION
+    ):
+        reasons.append("version_mismatch")
+    if receipt.get("status") != "proposed":
+        reasons.append("non_proposal_receipt")
+    if receipt.get("parent_plan_id") != active_parent_id:
+        reasons.append("parent_mismatch")
+    if not _validation_rows_are_acceptable(receipt):
+        reasons.append("validation_failed")
+    try:
+        replay_training_plan(receipt)
+    except (TypeError, ValueError):
+        reasons.append("runtime_replay_failed")
+
+    normalized = tuple(sorted(set(reasons)))
+    return not normalized, normalized
+
+
 def training_planner_acceptance_status() -> dict[str, Any]:
     """Recompute environment evidence and fail closed on any mismatch."""
     raw_evidence = os.environ.get("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON")
@@ -173,8 +203,6 @@ def training_planner_acceptance_status() -> dict[str, Any]:
         or not _valid_fixture_summary(recomputed.get("fixture_summary"))
         or not isinstance(recomputed.get("evidence_id"), str)
         or not recomputed["evidence_id"].strip()
-        or not isinstance(recomputed.get("accepted_proposals"), list)
-        or not recomputed["accepted_proposals"]
     ):
         return _closed_status(
             tuple(recomputed.get("reasons") or ("acceptance_not_granted",)),
@@ -187,7 +215,6 @@ def training_planner_acceptance_status() -> dict[str, Any]:
         "constitution_version": recomputed["constitution_version"],
         "evidence_id": recomputed["evidence_id"],
         "fixture_summary": recomputed["fixture_summary"],
-        "accepted_proposals": recomputed["accepted_proposals"],
     }
 
 
@@ -199,7 +226,6 @@ def _closed_status(reasons, *, evidence_id=None):
         "constitution_version": None,
         "evidence_id": evidence_id,
         "fixture_summary": None,
-        "accepted_proposals": [],
     }
 
 
@@ -550,7 +576,6 @@ def evaluate_training_shadow(receipts: list[Mapping[str, Any]]) -> dict[str, Any
     )
     fixture_counts: Counter[str] = Counter()
     cycle_counts: Counter[str] = Counter()
-    accepted_proposals = []
     immutable_inputs = []
     reasons = []
     replay_count = 0
@@ -587,17 +612,6 @@ def evaluate_training_shadow(receipts: list[Mapping[str, Any]]) -> dict[str, Any
         categories = _infer_fixture_categories(replayed)
         fixture_counts.update(categories)
         cycle_counts[replayed.cycle_id] += 1
-        if validations_ok:
-            accepted_proposals.append(
-                {
-                    "plan_id": replayed.plan_id,
-                    "planner_version": replayed.planner_version,
-                    "constitution_version": replayed.constitution_version,
-                    "input_hash": replayed.input_hash,
-                    "receipt_hash": replayed.receipt_hash,
-                }
-            )
-
     if any(count > 1 for count in cycle_counts.values()):
         reasons.append("multiple_plans_per_cycle")
     fixture_summary = {
@@ -611,7 +625,6 @@ def evaluate_training_shadow(receipts: list[Mapping[str, Any]]) -> dict[str, Any
     if not proof["passed"]:
         reasons.append("side_effect_proof_failed")
     reasons = sorted(set(reasons))
-    accepted_proposals.sort(key=lambda row: row["plan_id"])
     evidence = {
         "accepted": not reasons,
         "reasons": reasons,
@@ -619,7 +632,6 @@ def evaluate_training_shadow(receipts: list[Mapping[str, Any]]) -> dict[str, Any
         "constitution_version": CURRENT_CONSTITUTION_VERSION,
         "fixture_summary": fixture_summary,
         "receipt_bundle": _encode_receipt_bundle(sanitized_receipts),
-        "accepted_proposals": accepted_proposals,
         "side_effect_proof": proof,
     }
     evidence["evidence_id"] = canonical_hash(evidence)

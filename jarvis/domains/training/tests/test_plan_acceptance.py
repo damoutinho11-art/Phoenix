@@ -17,6 +17,7 @@ from jarvis.domains.training.plan_acceptance import (
     replay_training_plan,
     training_planner_acceptance_status,
     training_planner_mode,
+    validate_runtime_proposal,
 )
 from jarvis.domains.training.plan_contracts import (
     PlanValidation,
@@ -258,28 +259,65 @@ def test_caller_labels_cannot_fake_required_fixture_coverage(training_constituti
     assert "fixture_coverage" in result["reasons"]
 
 
-def test_shadow_gate_emits_exact_proposal_identity_allowlist(training_constitution):
+def test_shadow_gate_certifies_engine_without_embedding_proposal_ids(training_constitution):
     receipts = _required_receipts(training_constitution)
 
     result = evaluate_training_shadow(receipts)
 
-    assert result["accepted_proposals"] == sorted(
-        [
-            {
-                "plan_id": receipt["plan_id"],
-                "planner_version": receipt["planner_version"],
-                "constitution_version": receipt["constitution_version"],
-                "input_hash": receipt["input_hash"],
-                "receipt_hash": receipt["receipt_hash"],
-            }
-            for receipt in receipts
-        ],
-        key=lambda row: row["plan_id"],
-    )
+    assert result["accepted"] is True
+    assert "accepted_proposals" not in result
     assert decode_training_evidence_receipts(result) == sorted(
         receipts, key=lambda row: row["plan_id"]
     )
     assert len(json.dumps(result)) < 32767
+
+
+def test_runtime_validation_accepts_fresh_deterministic_receipt(training_constitution):
+    receipt = _scenario_receipt(
+        training_constitution, "move", date(2026, 7, 20)
+    ).to_mapping()
+
+    accepted, reasons = validate_runtime_proposal(receipt, active_parent_id=None)
+
+    assert accepted is True
+    assert reasons == ()
+
+
+def test_runtime_validation_rejects_tampered_days(training_constitution):
+    receipt = _scenario_receipt(
+        training_constitution, "move", date(2026, 7, 20)
+    ).to_mapping()
+    receipt["days"][0]["objective"] = "tampered"
+
+    accepted, reasons = validate_runtime_proposal(receipt, active_parent_id=None)
+
+    assert accepted is False
+    assert "runtime_replay_failed" in reasons
+
+
+def test_runtime_validation_rejects_stale_version(training_constitution):
+    receipt = _scenario_receipt(
+        training_constitution, "move", date(2026, 7, 20)
+    ).to_mapping()
+    receipt["planner_version"] = "adaptive-v0"
+
+    accepted, reasons = validate_runtime_proposal(receipt, active_parent_id=None)
+
+    assert accepted is False
+    assert "version_mismatch" in reasons
+
+
+def test_runtime_validation_rejects_parent_mismatch(training_constitution):
+    receipt = _scenario_receipt(
+        training_constitution, "move", date(2026, 7, 20)
+    ).to_mapping()
+
+    accepted, reasons = validate_runtime_proposal(
+        receipt, active_parent_id="different-active-plan"
+    )
+
+    assert accepted is False
+    assert "parent_mismatch" in reasons
 
 
 def test_evidence_decoder_avoids_unbounded_decompression(
@@ -349,7 +387,7 @@ def test_acceptance_status_recomputes_complete_evidence(training_constitution, m
 
     assert status["accepted"] is True
     assert status["evidence_id"] == evidence["evidence_id"]
-    assert status["accepted_proposals"] == evidence["accepted_proposals"]
+    assert "accepted_proposals" not in status
 
 
 @pytest.mark.parametrize(
@@ -357,7 +395,6 @@ def test_acceptance_status_recomputes_complete_evidence(training_constitution, m
     (
         lambda evidence: evidence.update(accepted=False),
         lambda evidence: evidence["fixture_summary"].update(move=99),
-        lambda evidence: evidence["accepted_proposals"].pop(),
         lambda evidence: evidence["side_effect_proof"].update(passed=False),
         lambda evidence: evidence.update(evidence_id="attacker-supplied"),
         lambda evidence: evidence["receipt_bundle"].update(payload="tampered"),

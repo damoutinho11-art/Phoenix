@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import date, timedelta
 import json
 from pathlib import Path
@@ -80,20 +81,7 @@ def _receipt(
     }
 
 
-def _proposal_identity(plan_id: str) -> dict:
-    payload = database.get_training_plan_receipt(plan_id)["payload"]
-    return {
-        "plan_id": payload["plan_id"],
-        "planner_version": payload["planner_version"],
-        "constitution_version": payload["constitution_version"],
-        "input_hash": payload["input_hash"],
-        "receipt_hash": payload["receipt_hash"],
-    }
-
-
-def _enable_live_planner(
-    monkeypatch: pytest.MonkeyPatch, *accepted_plan_ids: str
-) -> None:
+def _enable_live_certificate(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
     monkeypatch.setattr(
         training_router,
@@ -105,10 +93,19 @@ def _enable_live_planner(
             "constitution_version": "1",
             "evidence_id": "recomputed-test-evidence",
             "fixture_summary": {},
-            "accepted_proposals": [
-                _proposal_identity(plan_id) for plan_id in accepted_plan_ids
-            ],
         },
+    )
+
+
+def _enable_live_planner(
+    monkeypatch: pytest.MonkeyPatch, *_synthetic_plan_ids: str
+) -> None:
+    _enable_live_certificate(monkeypatch)
+    monkeypatch.setattr(
+        training_router,
+        "validate_runtime_proposal",
+        lambda *_args, **_kwargs: (True, ()),
+        raising=False,
     )
 
 
@@ -824,18 +821,24 @@ def test_missing_lifecycle_target_returns_404(client: TestClient):
     assert client.post("/training/plan/proposals/missing/reject").status_code == 404
 
 
-def test_live_apply_rejects_evidence_allowlisted_for_a_different_proposal(
+def test_live_apply_rejects_runtime_replay_failure(
     client: TestClient,
     seeded_active_plan: str,
     seeded_proposal: str,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    _enable_live_planner(monkeypatch, seeded_active_plan)
+    _enable_live_certificate(monkeypatch)
+    monkeypatch.setattr(
+        training_router,
+        "validate_runtime_proposal",
+        lambda *_args, **_kwargs: (False, ("runtime_replay_failed",)),
+        raising=False,
+    )
 
     response = client.post(f"/training/plan/proposals/{seeded_proposal}/apply")
 
-    assert response.status_code == 503
-    assert "does not cover this proposal" in response.json()["detail"]
+    assert response.status_code == 409
+    assert "runtime_replay_failed" in response.json()["detail"]
     assert database.get_training_plan_receipt(seeded_proposal)["status"] == "proposed"
 
 
@@ -1035,13 +1038,13 @@ def test_live_apply_returns_503_without_accepted_evidence(
     assert database.get_training_plan_receipt(seeded_proposal)["status"] == "proposed"
 
 
-def test_live_proposal_is_authoritative_only_when_exactly_allowlisted(
+def test_live_generated_proposals_are_authoritative_after_runtime_replay(
     client: TestClient,
     seeded_active_plan: str,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setenv("PHOENIX_TRAINING_PLANNER_MODE", "live")
-    rejected = client.post(
+    _enable_live_certificate(monkeypatch)
+    first = client.post(
         "/training/plan/proposals",
         json={
             "constraints": [
@@ -1053,10 +1056,9 @@ def test_live_proposal_is_authoritative_only_when_exactly_allowlisted(
         },
     )
 
-    proposal_id = rejected.json()["plan_id"]
-    _enable_live_planner(monkeypatch, proposal_id)
-    accepted = client.get(f"/training/plan/proposals/{proposal_id}")
-    different = client.post(
+    proposal_id = first.json()["plan_id"]
+    detail = client.get(f"/training/plan/proposals/{proposal_id}")
+    second = client.post(
         "/training/plan/proposals",
         json={
             "constraints": [
@@ -1068,10 +1070,74 @@ def test_live_proposal_is_authoritative_only_when_exactly_allowlisted(
         },
     )
 
-    assert rejected.status_code == accepted.status_code == different.status_code == 200
-    assert rejected.json()["authoritative"] is False
-    assert accepted.json()["authoritative"] is True
-    assert different.json()["authoritative"] is False
+    assert first.status_code == detail.status_code == second.status_code == 200
+    assert first.json()["authoritative"] is True
+    assert detail.json()["authoritative"] is True
+    assert second.json()["authoritative"] is True
+    assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
+
+
+def test_live_apply_replays_generated_proposal_without_exact_allowlist(
+    client: TestClient,
+    seeded_active_plan: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _enable_live_certificate(monkeypatch)
+    proposed = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "skip_session",
+                    "values": {"date": TODAY.isoformat()},
+                }
+            ]
+        },
+    )
+
+    applied = client.post(
+        f"/training/plan/proposals/{proposed.json()['plan_id']}/apply"
+    )
+
+    assert proposed.status_code == applied.status_code == 200
+    assert applied.json()["status"] == "active"
+    assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == proposed.json()[
+        "plan_id"
+    ]
+
+
+def test_live_apply_rejects_tampered_persisted_proposal(
+    client: TestClient,
+    seeded_active_plan: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _enable_live_certificate(monkeypatch)
+    proposed = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "skip_session",
+                    "values": {"date": TODAY.isoformat()},
+                }
+            ]
+        },
+    ).json()
+    original_get = database.get_training_plan_receipt
+
+    def tampered_get(plan_id):
+        record = original_get(plan_id)
+        if plan_id == proposed["plan_id"]:
+            record = deepcopy(record)
+            record["payload"]["days"][0]["objective"] = "tampered"
+        return record
+
+    monkeypatch.setattr(database, "get_training_plan_receipt", tampered_get)
+
+    response = client.post(f"/training/plan/proposals/{proposed['plan_id']}/apply")
+
+    assert response.status_code == 409
+    assert "runtime_replay_failed" in response.json()["detail"]
     assert database.get_active_training_plan(CYCLE_ID)["plan_id"] == seeded_active_plan
 
 
