@@ -40,6 +40,11 @@ function ClosedState({ message }) {
 export function SessionSub({ onClose, training, refreshTraining, meta }) {
   const routed = training?.routed
   const exercises = normalizePlanExercises(routed)
+  const planKey = [
+    routed?.plan_provenance?.plan_id,
+    routed?.plan_provenance?.receipt_hash,
+    routed?.session?.date,
+  ].join(':')
   const [idx, setIdx] = useState(0)
   const [done, setDone] = useState(() => exercises.map(() => 0))
   const [elapsed, setElapsed] = useState(0)
@@ -53,6 +58,21 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const restIv = useRef(null)
+
+  useEffect(() => {
+    clearInterval(restIv.current)
+    setIdx(0)
+    setDone(exercises.map(() => 0))
+    setElapsed(0)
+    setRest(0)
+    setRpe('')
+    setPainAnswered(false)
+    setPainConfirmed(false)
+    setPainBodyAreas([])
+    setNotes('')
+    setError('')
+    setSaved(false)
+  }, [planKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!exercises.length) return undefined

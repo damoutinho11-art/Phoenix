@@ -38,3 +38,11 @@ test('Training production modules expose no operational session or readiness fix
   }
   assert.doesNotMatch(live, /export function applyTraining|export function mapSessionExercises/)
 })
+
+
+test('live session initializes counters when an async verified plan arrives', async () => {
+  const subs = await source('./subs/TrainingSubs.jsx')
+
+  assert.match(subs, /planKey/)
+  assert.match(subs, /setDone\(exercises\.map/)
+})
