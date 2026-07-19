@@ -2,10 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  allSetResultsRecorded,
   buildCompletionPayload,
   buildReadinessPayload,
   canCompleteSession,
+  createSetResults,
   normalizePlanExercises,
+  recordSetResult,
 } from './trainingSessionModel.js'
 
 
@@ -56,11 +59,36 @@ test('completion remains closed until sets RPE and pain evidence are complete', 
 })
 
 
-test('builds immutable plan-linked completion evidence from completed prescriptions', () => {
+test('records actual set results immutably and requires every planned set', () => {
   const exercises = normalizePlanExercises(routed)
+  const empty = createSetResults(exercises)
+  const first = recordSetResult(empty, 0, 0, { reps: 2, weightKg: 57.5 })
+
+  assert.equal(empty[0][0], null)
+  assert.deepEqual(first[0][0], { reps: 2, weightKg: 57.5 })
+  assert.equal(allSetResultsRecorded(exercises, first), false)
+
+  let complete = first
+  complete = recordSetResult(complete, 0, 1, { reps: 3, weightKg: 60 })
+  complete = recordSetResult(complete, 0, 2, { reps: 3, weightKg: 60 })
+  complete = recordSetResult(complete, 1, 0, { reps: 6, weightKg: 24 })
+  complete = recordSetResult(complete, 1, 1, { reps: 5, weightKg: 24 })
+  assert.equal(allSetResultsRecorded(exercises, complete), true)
+})
+
+
+test('builds plan-linked completion evidence from actual set results', () => {
+  const exercises = normalizePlanExercises(routed)
+  let setResults = createSetResults(exercises)
+  setResults = recordSetResult(setResults, 0, 0, { reps: 2, weightKg: 57.5 })
+  setResults = recordSetResult(setResults, 0, 1, { reps: 3, weightKg: 60 })
+  setResults = recordSetResult(setResults, 0, 2, { reps: 3, weightKg: 60 })
+  setResults = recordSetResult(setResults, 1, 0, { reps: 6, weightKg: 24 })
+  setResults = recordSetResult(setResults, 1, 1, { reps: 5, weightKg: 24 })
   assert.deepEqual(buildCompletionPayload({
     routed,
     exercises,
+    setResults,
     elapsedSeconds: 1840,
     rpe: 8,
     painConfirmed: true,
@@ -71,13 +99,13 @@ test('builds immutable plan-linked completion evidence from completed prescripti
     session_type: 'high_intensity',
     exercises: [
       { name: 'hang_power_clean', target_reps: 3, sets: [
-        { reps: 3, weight_kg: 60, target_reps: 3 },
+        { reps: 2, weight_kg: 57.5, target_reps: 3 },
         { reps: 3, weight_kg: 60, target_reps: 3 },
         { reps: 3, weight_kg: 60, target_reps: 3 },
       ] },
       { name: 'split_squat', target_reps: 6, sets: [
         { reps: 6, weight_kg: 24, target_reps: 6 },
-        { reps: 6, weight_kg: 24, target_reps: 6 },
+        { reps: 5, weight_kg: 24, target_reps: 6 },
       ] },
     ],
     notes: 'Clean session',

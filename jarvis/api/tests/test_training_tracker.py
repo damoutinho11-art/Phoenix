@@ -239,6 +239,56 @@ class TrainingTrackerTests(unittest.TestCase):
             "date": "2026-07-20",
         }
 
+    def test_operational_flow_persists_readiness_route_and_actual_set_results(self):
+        actual_exercise = _exercise(reps=5)
+        actual_exercise["sets"][0] = {
+            "reps": 4,
+            "weight_kg": 57.5,
+            "target_reps": 5,
+        }
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_plan_record(),
+        ), patch(
+            "jarvis.api.routers.training.clock.today",
+            return_value=date(2026, 7, 20),
+        ):
+            readiness = client.post(
+                "/training/readiness-scan",
+                json={
+                    "knee": 0,
+                    "ankle": 0,
+                    "hip": 0,
+                    "hamstring": 0,
+                    "calf_achilles": 0,
+                    "lower_back_pelvic": 0,
+                    "sharp_pain": False,
+                    "limping": False,
+                    "next_day_worsening": False,
+                    "note": "Ready",
+                },
+            )
+            routed = client.get("/training/routed-session")
+            completion = client.post(
+                "/training/log/session",
+                json=_planned_api_payload(exercises=[actual_exercise]),
+            )
+            history = client.get("/training/history")
+
+        assert readiness.status_code == 200
+        assert readiness.json()["readiness_status"] == "clear"
+        assert routed.status_code == 200
+        assert routed.json()["high_neural_allowed"] is True
+        assert completion.status_code == 200
+        recorded = history.json()["sessions"][0]
+        assert recorded["exercises"][0]["sets"][0] == {
+            "reps": 4,
+            "weight_kg": 57.5,
+            "target_reps": 5,
+        }
+        assert recorded["completion_evidence"]["rpe"] == 8
+        assert recorded["plan_provenance"]["plan_id"] == "plan-2026-W30"
+
     def test_jump_log_create(self):
         response = client.post(
             "/training/log/jump",

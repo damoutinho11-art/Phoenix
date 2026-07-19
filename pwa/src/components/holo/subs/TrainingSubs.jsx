@@ -3,10 +3,13 @@ import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep, pad2 } from '../h
 import { logSession, postTrainingReadinessScan } from '../../../api/client'
 import SubShell, { SubLabel } from './SubShell'
 import {
+  allSetResultsRecorded,
   buildCompletionPayload,
   buildReadinessPayload,
   canCompleteSession,
+  createSetResults,
   normalizePlanExercises,
+  recordSetResult,
 } from './trainingSessionModel.js'
 
 const fieldStyle = {
@@ -47,6 +50,10 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
   ].join(':')
   const [idx, setIdx] = useState(0)
   const [done, setDone] = useState(() => exercises.map(() => 0))
+  const [setResults, setSetResults] = useState(() => createSetResults(exercises))
+  const [actualReps, setActualReps] = useState(() => exercises[0]?.reps ?? '')
+  const [actualLoad, setActualLoad] = useState(() => exercises[0]?.loadKg ?? 0)
+  const [setLogError, setSetLogError] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [rest, setRest] = useState(0)
   const [rpe, setRpe] = useState('')
@@ -55,7 +62,7 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
   const [painBodyAreas, setPainBodyAreas] = useState([])
   const [notes, setNotes] = useState('')
   const [posting, setPosting] = useState(false)
-  const [error, setError] = useState('')
+  const [completionError, setCompletionError] = useState('')
   const [saved, setSaved] = useState(false)
   const restIv = useRef(null)
 
@@ -63,6 +70,10 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
     clearInterval(restIv.current)
     setIdx(0)
     setDone(exercises.map(() => 0))
+    setSetResults(createSetResults(exercises))
+    setActualReps(exercises[0]?.reps ?? '')
+    setActualLoad(exercises[0]?.loadKg ?? 0)
+    setSetLogError('')
     setElapsed(0)
     setRest(0)
     setRpe('')
@@ -70,7 +81,7 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
     setPainConfirmed(false)
     setPainBodyAreas([])
     setNotes('')
-    setError('')
+    setCompletionError('')
     setSaved(false)
   }, [planKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,12 +109,19 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
     }, 1000)
   }
 
-  const allDone = idx >= exercises.length
+  const allDone = idx >= exercises.length && allSetResultsRecorded(exercises, setResults)
   const cur = exercises[Math.min(idx, exercises.length - 1)]
+  const validActual = Number.isInteger(Number(actualReps)) && Number(actualReps) >= 0
+    && Number.isFinite(Number(actualLoad)) && Number(actualLoad) >= 0
 
   const mainAction = () => {
     if (allDone) return
     if (rest) { clearInterval(restIv.current); setRest(0); return }
+    if (!validActual) { setSetLogError('Enter valid actual reps and load before logging this set.'); return }
+    setSetLogError('')
+    setSetResults(results => recordSetResult(results, idx, done[idx], {
+      reps: Number(actualReps), weightKg: Number(actualLoad),
+    }))
     const d = done.slice()
     d[idx] += 1
     let nextIdx = idx
@@ -112,6 +130,10 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
     setDone(d)
     setIdx(nextIdx)
     setRest(finished ? 0 : exercises[nextIdx].restSeconds)
+    if (!finished) {
+      setActualReps(exercises[nextIdx].reps)
+      setActualLoad(exercises[nextIdx].loadKg ?? 0)
+    }
     if (!finished) startRest()
   }
 
@@ -123,16 +145,16 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
     const valid = canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas })
     if (!valid || posting) return
     setPosting(true)
-    setError('')
+    setCompletionError('')
     try {
       await logSession(buildCompletionPayload({
-        routed, exercises, elapsedSeconds: elapsed, rpe: Number(rpe),
+        routed, exercises, setResults, elapsedSeconds: elapsed, rpe: Number(rpe),
         painConfirmed, painBodyAreas, notes,
       }))
       setSaved(true)
       await refreshTraining?.()
     } catch (requestError) {
-      setError(requestError?.message || 'Session evidence was not accepted')
+      setCompletionError(requestError?.message || 'Session evidence was not accepted')
     } finally {
       setPosting(false)
     }
@@ -152,6 +174,7 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
           {exercises.map((ex, i) => {
             const live = i === idx && !allDone
             const exDone = i < idx
+            const lastResult = done[i] > 0 ? setResults[i]?.[done[i] - 1] : null
             const st = exDone ? '✓ DONE' : live ? (rest ? '● REST' : '● LIVE') : 'QUEUED'
             const stColor = exDone ? G : live ? (rest ? Y : G) : a(ACC, '66')
             return (
@@ -173,6 +196,7 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
                       {ex.sets} x {ex.reps}{ex.loadKg != null ? ` @ ${ex.loadKg}KG` : ''}
                     </span>
                 </div>
+                {lastResult && <div style={{ marginTop: 6, fontFamily: FM, fontSize: 7, letterSpacing: '.1em', color: G, textAlign: 'right' }}>LAST ACTUAL · {lastResult.weightKg}KG x {lastResult.reps}</div>}
               </div>
             )
           })}
@@ -187,7 +211,19 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
             <div style={{ fontFamily: FD, fontSize: 34, fontWeight: 700, color: W, textShadow: `0 0 16px ${a(ACC, '66')}`, lineHeight: 1 }}>{big}</div>
             <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.22em', color: subColor, marginTop: 5, maxWidth: 130, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>{sub}</div>
           </div>
-          {!allDone && <button onClick={mainAction} style={actionStyle(false)}>{rest ? 'SKIP REST' : 'COMPLETE SET'}</button>}
+          {!allDone && !rest && <div style={{ marginBottom: 10, padding: 10, border: `1px solid ${a(ACC, '33')}`, background: deep(55), textAlign: 'left' }}>
+            <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), letterSpacing: '.16em', marginBottom: 8 }}>SET {done[idx] + 1} · PRESCRIBED {cur.loadKg ?? 0}KG x {cur.reps}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+              <label style={{ fontFamily: FM, fontSize: 7, color: W, letterSpacing: '.12em' }}>ACTUAL LOAD · KG
+                <input aria-label="Actual load" type="number" min="0" step="0.5" value={actualLoad} onChange={event => setActualLoad(event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
+              </label>
+              <label style={{ fontFamily: FM, fontSize: 7, color: W, letterSpacing: '.12em' }}>ACTUAL REPS
+                <input aria-label="Actual reps" type="number" min="0" step="1" value={actualReps} onChange={event => setActualReps(event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
+              </label>
+            </div>
+            {setLogError && <div role="alert" style={{ marginTop: 7, fontFamily: FM, fontSize: 7, color: R }}>{setLogError}</div>}
+          </div>}
+          {!allDone && <button onClick={mainAction} disabled={!rest && !validActual} style={actionStyle(!rest && !validActual)}>{rest ? 'SKIP REST' : 'LOG ACTUAL SET'}</button>}
           <div style={{ marginTop: 9 }}>
             <button onClick={onClose} style={{ minHeight: 36, padding: '0 18px', fontFamily: FM, fontSize: '8.5px', letterSpacing: '.2em', color: a(ACC, '99'), background: 'none', border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>END SESSION</button>
           </div>
@@ -220,7 +256,7 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
               </div>}
               <textarea aria-label="Session notes" value={notes} onChange={event => setNotes(event.target.value)} placeholder="OPTIONAL SESSION NOTES" style={{ ...fieldStyle, minHeight: 68, paddingTop: 10, resize: 'vertical', marginBottom: 10 }} />
               <button onClick={submit} disabled={!canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas }) || posting} style={actionStyle(!canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas }) || posting)}>{posting ? 'VERIFYING...' : 'COMMIT SESSION'}</button>
-              {error && <div role="alert" style={{ marginTop: 8, fontFamily: FM, fontSize: 8, color: R }}>{error}</div>}
+              {completionError && <div role="alert" style={{ marginTop: 8, fontFamily: FM, fontSize: 8, color: R }}>{completionError}</div>}
             </div>
           )}
           {saved && <button onClick={onClose} style={{ ...actionStyle(false), marginTop: 16 }}>SESSION VERIFIED - CLOSE</button>}

@@ -46,3 +46,14 @@ test('live session initializes counters when an async verified plan arrives', as
   assert.match(subs, /planKey/)
   assert.match(subs, /setDone\(exercises\.map/)
 })
+
+
+test('live session captures actual reps and load before completing each set', async () => {
+  const subs = await source('./subs/TrainingSubs.jsx')
+
+  assert.match(subs, /ACTUAL REPS/)
+  assert.match(subs, /ACTUAL LOAD/)
+  assert.match(subs, /recordSetResult/)
+  assert.match(subs, /setResults/)
+  assert.doesNotMatch(subs, /sets: Array\.from\(\{ length: exercise\.sets/)
+})
