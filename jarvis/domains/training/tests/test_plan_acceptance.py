@@ -1,4 +1,7 @@
+import base64
 import json
+from hashlib import sha256
+import zlib
 from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -277,6 +280,32 @@ def test_shadow_gate_emits_exact_proposal_identity_allowlist(training_constituti
         receipts, key=lambda row: row["plan_id"]
     )
     assert len(json.dumps(result)) < 32767
+
+
+def test_evidence_decoder_avoids_unbounded_decompression(
+    training_constitution, monkeypatch
+):
+    evidence = evaluate_training_shadow(_required_receipts(training_constitution))
+
+    def reject_unbounded_decompress(*_args, **_kwargs):
+        raise AssertionError("unbounded zlib.decompress must not be used")
+
+    monkeypatch.setattr(acceptance_module.zlib, "decompress", reject_unbounded_decompress)
+
+    assert len(decode_training_evidence_receipts(evidence)) == 6
+
+
+def test_evidence_decoder_rejects_oversized_expanded_payload():
+    raw = b"[" + (b" " * 2_000_000) + b"]"
+    bundle = {
+        "encoding": "zlib-base64-canonical-json-v1",
+        "sha256": sha256(raw).hexdigest(),
+        "count": 1,
+        "payload": base64.b64encode(zlib.compress(raw, level=9)).decode("ascii"),
+    }
+
+    with pytest.raises(ValueError, match="too large"):
+        decode_training_evidence_receipts({"receipt_bundle": bundle})
 
 
 def test_shadow_gate_rejects_non_current_constitution(training_constitution):

@@ -108,3 +108,7 @@ The fixed Training Control Room layer is now `z-index: 91`, above the global bot
 - `git diff --check` -> exit 0 after this report update.
 
 Browser QA, public shadow collection, deployment, Railway/Vercel variables, and live promotion remain controller-owned and pending; this report does not claim them. The unrelated generated `jarvis/domains/finance/portfolio_state.json` change was not edited, reverted, staged, or committed.
+
+## Controller Security Review
+
+The independent re-review could not complete because the reviewer quota was exhausted. A controller audit of the compressed acceptance envelope found that expanded size was checked only after unbounded `zlib.decompress`. Two RED tests proved the decoder used the unbounded API and did not identify the expanded-size boundary. The decoder now caps encoded input, uses bounded streaming decompression, rejects incomplete or concatenated streams, and enforces the 2 MB expanded limit before JSON parsing. The focused acceptance suite passes 33 tests after the fix.

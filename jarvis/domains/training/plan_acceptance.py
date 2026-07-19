@@ -58,6 +58,8 @@ _HIGH_NEURAL_SESSION_TYPES = frozenset({"high_intensity", "jump", "peak", "attem
 _RECOVERY_EXERCISE_MARKERS = frozenset({"isometric", "mobility", "flexibility", "rehab"})
 _EXPLICIT_LOAD_FIELDS = ("load_kg", "weight_kg", "weight", "load")
 _MINIMUM_RECOVERY_HOURS = 36
+_MAX_EVIDENCE_PAYLOAD_CHARS = 131_072
+_MAX_EVIDENCE_RAW_BYTES = 2_000_000
 _PURE_REPLAY_MODULES = (
     adaptive_planner,
     engine,
@@ -242,14 +244,25 @@ def decode_training_evidence_receipts(evidence: Mapping[str, Any]) -> list[dict[
         or bundle["count"] <= 0
         or not isinstance(bundle.get("sha256"), str)
         or not isinstance(bundle.get("payload"), str)
+        or len(bundle["payload"]) > _MAX_EVIDENCE_PAYLOAD_CHARS
     ):
         raise ValueError("Malformed Training evidence receipt bundle")
     try:
         compressed = base64.b64decode(bundle["payload"], validate=True)
-        raw = zlib.decompress(compressed)
+        inflater = zlib.decompressobj()
+        raw = inflater.decompress(compressed, _MAX_EVIDENCE_RAW_BYTES + 1)
+        if len(raw) > _MAX_EVIDENCE_RAW_BYTES or inflater.unconsumed_tail:
+            raise ValueError("Training evidence receipt bundle is too large")
+        raw += inflater.flush(_MAX_EVIDENCE_RAW_BYTES - len(raw) + 1)
     except (ValueError, zlib.error) as exc:
+        if isinstance(exc, ValueError) and "too large" in str(exc):
+            raise
         raise ValueError("Malformed Training evidence receipt bundle") from exc
-    if len(raw) > 2_000_000 or sha256(raw).hexdigest() != bundle["sha256"]:
+    if len(raw) > _MAX_EVIDENCE_RAW_BYTES:
+        raise ValueError("Training evidence receipt bundle is too large")
+    if not inflater.eof or inflater.unused_data:
+        raise ValueError("Malformed Training evidence receipt bundle")
+    if sha256(raw).hexdigest() != bundle["sha256"]:
         raise ValueError("Training evidence receipt bundle hash mismatch")
     try:
         receipts = json.loads(raw)
