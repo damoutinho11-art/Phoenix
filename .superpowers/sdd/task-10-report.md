@@ -112,3 +112,17 @@ Browser QA, public shadow collection, deployment, Railway/Vercel variables, and 
 ## Controller Security Review
 
 The independent re-review could not complete because the reviewer quota was exhausted. A controller audit of the compressed acceptance envelope found that expanded size was checked only after unbounded `zlib.decompress`. Two RED tests proved the decoder used the unbounded API and did not identify the expanded-size boundary. The decoder now caps encoded input, uses bounded streaming decompression, rejects incomplete or concatenated streams, and enforces the 2 MB expanded limit before JSON parsing. The focused acceptance suite passes 33 tests after the fix.
+
+## Controller Integration Review
+
+Browser QA exposed that the proposal API's `authoritative` rollout decision was not included in frontend Apply eligibility. A RED regression proved an otherwise valid shadow proposal remained applyable. The shared Training plan normalizer now requires literal `authoritative: true`; false or missing authority fails closed across the planner and Adapt views.
+
+Final local evidence after this correction:
+
+- Focused planner and Adapt view models -> `25 passed`.
+- Exact backend verification matrix -> `339 passed in 48.03s`.
+- Full PWA -> `95 passed, 1 failed`; the sole failure is the unchanged, unrelated Finance `orbitSize` contract documented above.
+- Production PWA build -> exit 0; 320 modules transformed and service worker generated.
+- `git diff --check` -> exit 0 with line-ending warnings only.
+
+Implementation and local verification are complete. External shadow deployment, production evidence collection, and live promotion remain pending; live Apply continues to fail closed until that evidence is accepted.

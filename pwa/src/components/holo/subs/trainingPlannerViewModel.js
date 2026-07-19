@@ -23,7 +23,7 @@ export function normalizeTrainingPlan(raw = {}) {
     days: days.sort((a, b) => String(a?.date).localeCompare(String(b?.date))),
     validations,
     hardFailures,
-    canApply: plan.status === 'proposed' && typeof planId === 'string' && planId.length > 0 && hasCompleteValidations && hardFailures.length === 0,
+    canApply: plan.status === 'proposed' && plan.authoritative === true && typeof planId === 'string' && planId.length > 0 && hasCompleteValidations && hardFailures.length === 0,
   }
 }
 

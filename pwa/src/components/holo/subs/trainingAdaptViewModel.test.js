@@ -65,6 +65,7 @@ const proposalFixture = (overrides = {}) => {
   const after = proposedSnapshot()
   return {
     ...after,
+    authoritative: true,
     before: activeParentSnapshot(),
     after,
   interpreted_constraints: [usableConstraint],
