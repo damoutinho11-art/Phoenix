@@ -134,3 +134,19 @@ On 2026-07-19, commit `50fa38d8` was deployed from a detached clean worktree to 
 Vercel preview deployment `dpl_Gw3Zg71hKdbAtyjAaUj2QfVzjkqC` reached `READY` at `https://pwa-2vgy1bvia-phoenix123.vercel.app`. Its protected HTML contains the Phoenix root, its generated bundle contains the Railway API URL and the `authoritative` gate, and a browser-style preflight to the proposal endpoint returns the exact preview origin. Existing frontend origins were preserved in the Railway CORS allowlist.
 
 The first public proposal attempt failed closed with HTTP 503: `Training plan calendar evidence unavailable`. Production diagnostics show Plaan is using the non-authoritative recorded fixture, no manual import exists, and the read-only Google Calendar token returns `invalid_grant` because it expired or was revoked. No proposal, active plan, session log, or calendar mutation was created. Real shadow replay evidence and live promotion are blocked until the user reconnects the read-only Google Calendar or supplies a current authoritative manual calendar import. No synthetic empty calendar was installed.
+
+## Training Integrity Loop Release
+
+On 2026-07-19, commit `7ebe6234` completed the active-plan execution loop. The Training session console now records actual load and repetitions for every prescribed set, keeps target repetitions as separate evidence, rejects incomplete set logs, and submits the exact deviations with plan provenance. An isolated API lifecycle test covers active plan -> readiness -> routed workout -> completion -> history and verifies the persisted actual values.
+
+Final automated evidence:
+
+- Focused Training frontend matrix -> `36 passed`.
+- Training backend matrix -> `365 passed in 46.04s`.
+- Final release gate -> `66` Training frontend tests and `339` backend tests passed.
+- Production PWA build -> exit 0; 322 modules transformed and service worker generated.
+- The unrelated Finance `orbitSize` full-suite contract remains the only known frontend baseline failure and was not changed.
+
+Railway deployment `558290c5-b8e8-431b-9a59-02eaf3281f6a` reached `SUCCESS`. Public `/health` returned `ok`, public `/training/status` returned the truthful `plan_required` operational state, and `PHOENIX_TRAINING_PLANNER_MODE` remained `shadow`. Vercel production deployment `dpl_ByyGfN1ZTzFzveZHwNwD4akJB9St` reached `READY` and was aliased to `https://pwa-ochre-theta.vercel.app`.
+
+The unrelated generated `jarvis/domains/finance/portfolio_state.json` change remained unstaged and was excluded from both clean deployment snapshots.
