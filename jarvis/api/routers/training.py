@@ -28,6 +28,7 @@ from jarvis.domains.training.plan_contracts import (
     iso_cycle_id,
 )
 from jarvis.domains.training.plan_evidence import build_planning_snapshot
+from jarvis.domains.training.operational_plan import project_plan_day
 from jarvis.domains.training.plan_acceptance import (
     EXPECTED_HARD_VALIDATIONS,
     training_planner_acceptance_status,
@@ -437,6 +438,34 @@ def _planning_horizon(today: date | None = None) -> tuple[date, date]:
 def _current_cycle() -> str:
     week_start, _ = _planning_horizon()
     return iso_cycle_id(week_start)
+
+
+def _current_operational_projection() -> tuple[dict[str, Any], dict[str, Any] | None]:
+    try:
+        active = database.get_active_training_plan(_current_cycle())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail="Training plan storage unavailable"
+        ) from exc
+    payload = _plan_projection(active) if active is not None else None
+    return project_plan_day(payload, clock.today()), payload
+
+
+def _project_plan_week(payload: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    if payload is None:
+        return []
+    projected = []
+    for item in payload.get("days", ()):
+        if not isinstance(item, Mapping):
+            continue
+        try:
+            day_date = date.fromisoformat(str(item.get("date", "")))
+        except ValueError:
+            continue
+        session = project_plan_day(payload, day_date)["session"]
+        if session is not None:
+            projected.append(session)
+    return projected
 
 
 def _resolve_relative_date(value: str, today: date) -> date:
@@ -1053,7 +1082,11 @@ def training_status(
 ) -> dict:
     status, constitution = _current_status(constitution)
     result = _serialize_status(status)
-    result["today_session"]["exercises"] = _resolve_exercises(result["today_session"], constitution)
+    operational, active_payload = _current_operational_projection()
+    result["operational_state"] = operational["operational_state"]
+    result["plan_provenance"] = operational["plan_provenance"]
+    result["today_session"] = operational["session"]
+    result["week_sessions"] = _project_plan_week(active_payload)
 
     weight_history_raw = database.get_weight_history(days=90)
     wh = [{"date": e["log_date"], "weight_kg": e["weight_kg"]} for e in weight_history_raw]
@@ -1096,13 +1129,17 @@ def routed_training_session(
     explicit_reset: bool = False,
     constitution: dict = Depends(get_training_constitution),
 ) -> dict:
-    status, effective = _current_status(constitution)
-    session = _serialize_session(status.today_session)
-    session["exercises"] = _resolve_exercises(session, effective)
+    operational, _ = _current_operational_projection()
+    session = operational["session"]
+    if session is None:
+        raise HTTPException(status_code=409, detail="Active training plan required")
     row = database.get_latest_training_readiness_scan(clock.today().isoformat())
     scan = _scan_from_values(row) if row else None
     route = joint_capacity.route_session(session, scan, explicit_reset=explicit_reset)
     result = _serialize_route(route)
+    result["operational_state"] = operational["operational_state"]
+    result["plan_provenance"] = operational["plan_provenance"]
+    result["session"] = session
     result["readiness_scan"] = row
     return result
 
