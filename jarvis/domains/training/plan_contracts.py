@@ -67,17 +67,12 @@ def _canonical(value: Any) -> Any:
 
 
 def canonical_hash(value: Mapping[str, Any]) -> str:
-    replay_inputs = value.get("replay_inputs") if isinstance(value, Mapping) else None
-    if isinstance(replay_inputs, TrainingPlanReplayInputs):
-        policy = replay_inputs.constitution.get("adaptive_planner", {})
-        schema = _select_contract_schema(
-            replay_inputs.constitution.get("version"),
-            policy.get("version") if isinstance(policy, Mapping) else None,
-            (),
-            replay_inputs.snapshot,
-        )
-        if schema == "legacy":
-            return _legacy_canonical_hash({"replay_inputs": _legacy_replay_inputs(replay_inputs)})
+    if (
+        isinstance(value, Mapping)
+        and set(value) == {"replay_inputs"}
+        and isinstance(value["replay_inputs"], TrainingPlanReplayInputs)
+    ):
+        return _receipt_input_hash(value["replay_inputs"])
     encoded = json.dumps(_canonical(value), sort_keys=True, separators=(",", ":"), allow_nan=False).encode("ascii")
     return sha256(encoded).hexdigest()
 
@@ -120,6 +115,22 @@ def _legacy_canonical(value: Any) -> Any:
 def _legacy_canonical_hash(value: Mapping[str, Any]) -> str:
     encoded = json.dumps(
         _legacy_canonical(value), sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("ascii")
+    return sha256(encoded).hexdigest()
+
+
+def _receipt_input_hash(inputs: TrainingPlanReplayInputs) -> str:
+    policy = inputs.constitution.get("adaptive_planner", {})
+    schema = _select_contract_schema(
+        inputs.constitution.get("version"),
+        policy.get("version") if isinstance(policy, Mapping) else None,
+        (),
+        inputs.snapshot,
+    )
+    if schema == "legacy":
+        return _legacy_canonical_hash({"replay_inputs": _legacy_replay_inputs(inputs)})
+    encoded = json.dumps(
+        _canonical({"replay_inputs": inputs}), sort_keys=True, separators=(",", ":"), allow_nan=False
     ).encode("ascii")
     return sha256(encoded).hexdigest()
 

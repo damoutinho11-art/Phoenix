@@ -20,6 +20,16 @@ def test_canonical_hash_is_order_independent_and_type_sensitive():
     assert canonical_hash({"days": ["mon"]}) != canonical_hash({"days": ("mon",)})
 
 
+def test_canonical_hash_includes_sibling_keys_beside_legacy_replay_inputs():
+    legacy_inputs = TrainingPlanReplayInputs.from_mapping(
+        legacy_v1_receipt_mapping()["replay_inputs"]
+    )
+
+    assert canonical_hash({"replay_inputs": legacy_inputs, "marker": 1}) != canonical_hash(
+        {"replay_inputs": legacy_inputs, "marker": 2}
+    )
+
+
 def test_replay_inputs_deeply_freeze_constitution_snapshot_and_constraints():
     constitution = {
         "version": "1",
