@@ -25,10 +25,6 @@ _CONSTRAINT_KINDS = frozenset(
     }
 )
 _CONSTRAINT_SOURCES = frozenset({"user", "phoenix", "safety"})
-_PLAN_DAY_HYBRID_FIELDS = frozenset(
-    {"session_intent", "sequence_position", "sequence_length", "decision_reasons", "high_neural"}
-)
-_SNAPSHOT_HYBRID_FIELDS = frozenset({"sequence_cursor", "sequence_source_plan_id"})
 
 
 def _freeze(value: Any) -> Any:
@@ -71,6 +67,17 @@ def _canonical(value: Any) -> Any:
 
 
 def canonical_hash(value: Mapping[str, Any]) -> str:
+    replay_inputs = value.get("replay_inputs") if isinstance(value, Mapping) else None
+    if isinstance(replay_inputs, TrainingPlanReplayInputs):
+        policy = replay_inputs.constitution.get("adaptive_planner", {})
+        schema = _select_contract_schema(
+            replay_inputs.constitution.get("version"),
+            policy.get("version") if isinstance(policy, Mapping) else None,
+            (),
+            replay_inputs.snapshot,
+        )
+        if schema == "legacy":
+            return _legacy_canonical_hash({"replay_inputs": _legacy_replay_inputs(replay_inputs)})
     encoded = json.dumps(_canonical(value), sort_keys=True, separators=(",", ":"), allow_nan=False).encode("ascii")
     return sha256(encoded).hexdigest()
 
@@ -117,89 +124,65 @@ def _legacy_canonical_hash(value: Mapping[str, Any]) -> str:
     return sha256(encoded).hexdigest()
 
 
-def _legacy_plan_day(item: Mapping[str, Any]) -> _LegacyRecord:
-    exercises = tuple(_freeze(exercise) for exercise in item.get("exercises", ()))
+def _legacy_plan_day(day: PlanDay) -> _LegacyRecord:
     return _legacy_record(
         "PlanDay",
         (
-            ("date", date.fromisoformat(item["date"])),
-            ("session_type", item["session_type"]),
-            ("objective", item["objective"]),
-            ("exercises", exercises),
-            ("estimated_minutes", item["estimated_minutes"]),
-            ("change_reason", item.get("change_reason")),
+            ("date", day.date),
+            ("session_type", day.session_type),
+            ("objective", day.objective),
+            ("exercises", day.exercises),
+            ("estimated_minutes", day.estimated_minutes),
+            ("change_reason", day.change_reason),
         ),
     )
 
 
-def _legacy_snapshot(value: Mapping[str, Any]) -> _LegacyRecord:
+def _legacy_snapshot(snapshot: PlannerInputSnapshot) -> _LegacyRecord:
     return _legacy_record(
         "PlannerInputSnapshot",
         (
-            ("week_start", date.fromisoformat(value["week_start"])),
-            ("created_at", value["created_at"]),
-            ("completed_sessions", tuple(_freeze(item) for item in value.get("completed_sessions", ()))),
-            ("readiness", _freeze(value.get("readiness"))),
-            ("calendar_events", tuple(_freeze(item) for item in value.get("calendar_events", ()))),
-            ("progression", _freeze(value.get("progression", {}))),
-            ("equipment", tuple(value.get("equipment", ()))),
+            ("week_start", snapshot.week_start),
+            ("created_at", snapshot.created_at),
+            ("completed_sessions", snapshot.completed_sessions),
+            ("readiness", snapshot.readiness),
+            ("calendar_events", snapshot.calendar_events),
+            ("progression", snapshot.progression),
+            ("equipment", snapshot.equipment),
             (
                 "preferences",
-                tuple((str(key), _freeze(item)) for key, item in value.get("preferences", ())),
+                snapshot.preferences,
             ),
-            ("safety_blocks", tuple(value.get("safety_blocks", ()))),
+            ("safety_blocks", snapshot.safety_blocks),
         ),
     )
 
 
-def _legacy_replay_inputs(value: Mapping[str, Any]) -> _LegacyRecord:
-    constraints = tuple(
-        TrainingConstraint.from_mapping(item["kind"], item["source"], item["values"])
-        for item in value.get("constraints", ())
-    )
+def _legacy_replay_inputs(inputs: TrainingPlanReplayInputs) -> _LegacyRecord:
     return _legacy_record(
         "TrainingPlanReplayInputs",
         (
-            ("constitution", _freeze(value["constitution"])),
-            ("snapshot", _legacy_snapshot(value["snapshot"])),
-            ("constraints", constraints),
+            ("constitution", inputs.constitution),
+            ("snapshot", _legacy_snapshot(inputs.snapshot)),
+            ("constraints", inputs.constraints),
         ),
     )
 
 
-def _legacy_identity_matches(value: Mapping[str, Any]) -> bool:
-    replay_inputs = value["replay_inputs"]
-    input_hash = _legacy_canonical_hash({"replay_inputs": _legacy_replay_inputs(replay_inputs)})
-    plan_id = str(uuid5(NAMESPACE_URL, f"training-plan:{input_hash}:{value['cycle_id']}"))
+def _legacy_receipt_hash(values: Mapping[str, Any], plan_id: str, input_hash: str) -> str:
     unsigned = {
-        "parent_plan_id": value.get("parent_plan_id"),
-        "constitution_version": value["constitution_version"],
-        "planner_version": value["planner_version"],
-        "cycle_id": value["cycle_id"],
-        "days": tuple(_legacy_plan_day(item) for item in value["days"]),
-        "constraints": tuple(
-            TrainingConstraint.from_mapping(item["kind"], item["source"], item["values"])
-            for item in value["constraints"]
-        ),
-        "validations": tuple(
-            PlanValidation(
-                rule=item["rule"],
-                passed=item["passed"],
-                severity=item["severity"],
-                detail=item["detail"],
-            )
-            for item in value["validations"]
-        ),
-        "replay_inputs": _legacy_replay_inputs(replay_inputs),
-        "created_at": value["created_at"],
-        "status": value["status"],
+        "parent_plan_id": values["parent_plan_id"],
+        "constitution_version": values["constitution_version"],
+        "planner_version": values["planner_version"],
+        "cycle_id": values["cycle_id"],
+        "days": tuple(_legacy_plan_day(day) for day in values["days"]),
+        "constraints": values["constraints"],
+        "validations": values["validations"],
+        "replay_inputs": _legacy_replay_inputs(values["replay_inputs"]),
+        "created_at": values["created_at"],
+        "status": values["status"],
     }
-    receipt_hash = _legacy_canonical_hash({**unsigned, "plan_id": plan_id, "input_hash": input_hash})
-    return (
-        value.get("plan_id") == plan_id
-        and value.get("input_hash") == input_hash
-        and value.get("receipt_hash") == receipt_hash
-    )
+    return _legacy_canonical_hash({**unsigned, "plan_id": plan_id, "input_hash": input_hash})
 
 
 def iso_cycle_id(day: date) -> str:
@@ -272,8 +255,8 @@ class PlannerInputSnapshot:
         )
         object.__setattr__(self, "safety_blocks", tuple(self.safety_blocks))
 
-    def to_mapping(self) -> dict[str, Any]:
-        return {
+    def to_mapping(self, *, include_hybrid: bool = True) -> dict[str, Any]:
+        mapping = {
             "week_start": self.week_start.isoformat(),
             "created_at": self.created_at,
             "completed_sessions": _plain(self.completed_sessions),
@@ -283,9 +266,15 @@ class PlannerInputSnapshot:
             "equipment": list(self.equipment),
             "preferences": _plain(self.preferences),
             "safety_blocks": list(self.safety_blocks),
-            "sequence_cursor": self.sequence_cursor,
-            "sequence_source_plan_id": self.sequence_source_plan_id,
         }
+        if include_hybrid:
+            mapping.update(
+                {
+                    "sequence_cursor": self.sequence_cursor,
+                    "sequence_source_plan_id": self.sequence_source_plan_id,
+                }
+            )
+        return mapping
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "PlannerInputSnapshot":
@@ -344,10 +333,10 @@ class TrainingPlanReplayInputs:
         if any(not isinstance(item, TrainingConstraint) for item in self.constraints):
             raise ValueError("Replay constraints must use TrainingConstraint")
 
-    def to_mapping(self) -> dict[str, Any]:
+    def to_mapping(self, *, include_hybrid: bool = True) -> dict[str, Any]:
         return {
             "constitution": _plain(self.constitution),
-            "snapshot": self.snapshot.to_mapping(),
+            "snapshot": self.snapshot.to_mapping(include_hybrid=include_hybrid),
             "constraints": [constraint.to_mapping() for constraint in self.constraints],
         }
 
@@ -419,6 +408,28 @@ class PlanDay:
         object.__setattr__(self, "decision_reasons", tuple(self.decision_reasons))
 
 
+def _select_contract_schema(
+    constitution_version: str,
+    planner_version: str,
+    days: tuple[PlanDay, ...],
+    snapshot: PlannerInputSnapshot,
+) -> Literal["legacy", "hybrid"]:
+    is_v1 = str(constitution_version) == "1" and str(planner_version) == "adaptive-v1"
+    has_default_hybrid_evidence = all(
+        day.session_intent is None
+        and day.sequence_position is None
+        and day.sequence_length is None
+        and day.decision_reasons == ()
+        and day.high_neural is False
+        for day in days
+    ) and snapshot.sequence_cursor == 1 and snapshot.sequence_source_plan_id is None
+    if is_v1:
+        if not has_default_hybrid_evidence:
+            raise ValueError("Legacy v1 receipts cannot carry non-default hybrid evidence")
+        return "legacy"
+    return "hybrid"
+
+
 @dataclass(frozen=True)
 class PlanValidation:
     rule: str
@@ -469,35 +480,56 @@ class WeeklyPlanReceipt:
             raise ValueError("Receipt cycle must match replay inputs")
         if replay_inputs.snapshot.created_at != values["created_at"]:
             raise ValueError("Receipt timestamp must match replay inputs")
+        schema = _select_contract_schema(
+            values["constitution_version"],
+            values["planner_version"],
+            values["days"],
+            replay_inputs.snapshot,
+        )
         unsigned = {**values, "days": days}
         input_hash = canonical_hash({"replay_inputs": replay_inputs})
         plan_id = str(uuid5(NAMESPACE_URL, f"training-plan:{input_hash}:{values['cycle_id']}"))
-        receipt_hash = canonical_hash({**unsigned, "plan_id": plan_id, "input_hash": input_hash})
+        if schema == "legacy":
+            receipt_hash = _legacy_receipt_hash(values, plan_id, input_hash)
+        else:
+            receipt_hash = canonical_hash({**unsigned, "plan_id": plan_id, "input_hash": input_hash})
         return cls(plan_id=plan_id, input_hash=input_hash, receipt_hash=receipt_hash, **values)
 
     def to_mapping(self) -> dict[str, Any]:
+        schema = _select_contract_schema(
+            self.constitution_version,
+            self.planner_version,
+            self.days,
+            self.replay_inputs.snapshot,
+        )
+        days = []
+        for day in self.days:
+            mapping = {
+                "date": day.date.isoformat(),
+                "session_type": day.session_type,
+                "objective": day.objective,
+                "exercises": _plain(day.exercises),
+                "estimated_minutes": day.estimated_minutes,
+                "change_reason": day.change_reason,
+            }
+            if schema == "hybrid":
+                mapping.update(
+                    {
+                        "session_intent": day.session_intent,
+                        "sequence_position": day.sequence_position,
+                        "sequence_length": day.sequence_length,
+                        "decision_reasons": list(day.decision_reasons),
+                        "high_neural": day.high_neural,
+                    }
+                )
+            days.append(mapping)
         return {
             "plan_id": self.plan_id,
             "parent_plan_id": self.parent_plan_id,
             "constitution_version": self.constitution_version,
             "planner_version": self.planner_version,
             "cycle_id": self.cycle_id,
-            "days": [
-                {
-                    "date": day.date.isoformat(),
-                    "session_type": day.session_type,
-                    "objective": day.objective,
-                    "exercises": _plain(day.exercises),
-                    "estimated_minutes": day.estimated_minutes,
-                    "change_reason": day.change_reason,
-                    "session_intent": day.session_intent,
-                    "sequence_position": day.sequence_position,
-                    "sequence_length": day.sequence_length,
-                    "decision_reasons": list(day.decision_reasons),
-                    "high_neural": day.high_neural,
-                }
-                for day in self.days
-            ],
+            "days": days,
             "constraints": [item.to_mapping() for item in self.constraints],
             "validations": [
                 {
@@ -508,7 +540,7 @@ class WeeklyPlanReceipt:
                 }
                 for row in self.validations
             ],
-            "replay_inputs": self.replay_inputs.to_mapping(),
+            "replay_inputs": self.replay_inputs.to_mapping(include_hybrid=schema == "hybrid"),
             "created_at": self.created_at,
             "status": self.status,
             "input_hash": self.input_hash,
@@ -567,35 +599,9 @@ class WeeklyPlanReceipt:
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("Malformed plan receipt") from exc
         if (
-            value.get("plan_id") == receipt.plan_id
-            and value.get("input_hash") == receipt.input_hash
-            and value.get("receipt_hash") == receipt.receipt_hash
+            value.get("plan_id") != receipt.plan_id
+            or value.get("input_hash") != receipt.input_hash
+            or value.get("receipt_hash") != receipt.receipt_hash
         ):
-            return receipt
-        if (
-            all(
-                not any(field in item for field in _PLAN_DAY_HYBRID_FIELDS)
-                for item in value["days"]
-            )
-            and not any(
-                field in value["replay_inputs"].get("snapshot", {})
-                for field in _SNAPSHOT_HYBRID_FIELDS
-            )
-            and _legacy_identity_matches(value)
-        ):
-            return cls(
-                plan_id=value["plan_id"],
-                parent_plan_id=value.get("parent_plan_id"),
-                constitution_version=value["constitution_version"],
-                planner_version=value["planner_version"],
-                cycle_id=value["cycle_id"],
-                days=receipt.days,
-                constraints=receipt.constraints,
-                validations=receipt.validations,
-                replay_inputs=receipt.replay_inputs,
-                created_at=value["created_at"],
-                status=value["status"],
-                input_hash=value["input_hash"],
-                receipt_hash=value["receipt_hash"],
-            )
-        raise ValueError("Plan receipt identity does not match canonical content")
+            raise ValueError("Plan receipt identity does not match canonical content")
+        return receipt

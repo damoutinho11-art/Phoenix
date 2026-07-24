@@ -139,7 +139,7 @@ def test_hybrid_plan_day_round_trips_sequence_evidence():
         decision_reasons=("sequence_resumed",),
         high_neural=False,
     )
-    restored = WeeklyPlanReceipt.from_mapping(receipt_with(day).to_mapping())
+    restored = WeeklyPlanReceipt.from_mapping(hybrid_receipt_with(day).to_mapping())
     assert restored.days[0].session_intent == "push_strength"
     assert restored.days[0].decision_reasons == ("sequence_resumed",)
 
@@ -158,7 +158,7 @@ def test_hybrid_plan_day_round_trips_all_evidence_fields():
         high_neural=True,
     )
 
-    restored = WeeklyPlanReceipt.from_mapping(receipt_with(day).to_mapping())
+    restored = WeeklyPlanReceipt.from_mapping(hybrid_receipt_with(day).to_mapping())
 
     assert restored.days[0].session_intent == "pull_strength"
     assert restored.days[0].sequence_position == 3
@@ -179,6 +179,85 @@ def test_base_v1_receipt_preserves_original_hashes_and_identity():
     assert restored.plan_id == "fe9f5197-78f3-5179-ba63-0fb98a1b4e28"
     assert restored.input_hash == "553aa857566d58cf826fa0d31fdf5633b3f7ff0942ede59f3c86004a7f997c7f"
     assert restored.receipt_hash == "415ea57b9cf2971c65190970305736e6a83610ca2e45853f37651133f49bffd4"
+
+
+def test_base_v1_receipt_mapping_round_trips_without_changing_identity():
+    mapping = legacy_v1_receipt_mapping()
+
+    restored = WeeklyPlanReceipt.from_mapping(mapping)
+    reloaded = WeeklyPlanReceipt.from_mapping(restored.to_mapping())
+
+    assert restored.to_mapping() == mapping
+    assert reloaded.plan_id == mapping["plan_id"]
+    assert reloaded.input_hash == mapping["input_hash"]
+    assert reloaded.receipt_hash == mapping["receipt_hash"]
+
+
+def test_v1_create_with_default_hybrid_evidence_uses_legacy_mapping():
+    receipt = receipt_with(
+        PlanDay(
+            date=date(2026, 7, 20),
+            session_type="general",
+            objective="general_strength",
+            exercises=(),
+            estimated_minutes=60,
+        )
+    )
+
+    mapping = receipt.to_mapping()
+
+    assert "session_intent" not in mapping["days"][0]
+    assert "sequence_position" not in mapping["days"][0]
+    assert "sequence_length" not in mapping["days"][0]
+    assert "decision_reasons" not in mapping["days"][0]
+    assert "high_neural" not in mapping["days"][0]
+    assert "sequence_cursor" not in mapping["replay_inputs"]["snapshot"]
+    assert "sequence_source_plan_id" not in mapping["replay_inputs"]["snapshot"]
+    assert WeeklyPlanReceipt.from_mapping(mapping) == receipt
+
+
+def test_v1_receipt_rejects_non_default_hybrid_evidence():
+    with pytest.raises(ValueError, match="Legacy"):
+        receipt_with(
+            PlanDay(
+                date=date(2026, 7, 20),
+                session_type="general",
+                objective="general_strength",
+                exercises=(),
+                estimated_minutes=60,
+                session_intent="push_strength",
+            )
+        )
+
+
+def test_hybrid_receipt_emits_additive_schema_and_rejects_tampering():
+    receipt = hybrid_receipt_with(
+        PlanDay(
+            date=date(2026, 7, 20),
+            session_type="general",
+            objective="push_strength",
+            exercises=(),
+            estimated_minutes=60,
+            session_intent="push_strength",
+            sequence_position=1,
+            sequence_length=6,
+            decision_reasons=("sequence_resumed",),
+            high_neural=True,
+        )
+    )
+    mapping = receipt.to_mapping()
+    tampered = deepcopy(mapping)
+    tampered["days"][0]["sequence_position"] = 2
+
+    assert all(
+        field in mapping["days"][0]
+        for field in ("session_intent", "sequence_position", "sequence_length", "decision_reasons", "high_neural")
+    )
+    assert "sequence_cursor" in mapping["replay_inputs"]["snapshot"]
+    assert "sequence_source_plan_id" in mapping["replay_inputs"]["snapshot"]
+    assert WeeklyPlanReceipt.from_mapping(mapping) == receipt
+    with pytest.raises(ValueError, match="identity"):
+        WeeklyPlanReceipt.from_mapping(tampered)
 
 
 def test_base_v1_receipt_rejects_tampered_content():
@@ -319,8 +398,8 @@ def test_hybrid_receipt_hash_is_stable_and_rejects_tampered_evidence():
         decision_reasons=("sequence_resumed",),
         high_neural=True,
     )
-    first = receipt_with(day)
-    second = receipt_with(day)
+    first = hybrid_receipt_with(day)
+    second = hybrid_receipt_with(day)
     tampered = first.to_mapping()
     tampered["days"][0]["decision_reasons"] = ["tampered"]
 
@@ -525,11 +604,17 @@ def test_plan_day_freezes_source_exercise_mappings_and_nested_lists():
         day.exercises[0]["sets"].append(2)
 
 
-def _replay_inputs(readiness=None):
+def _replay_inputs(
+    readiness=None,
+    constitution_version="1",
+    planner_version="adaptive-v1",
+    sequence_cursor=1,
+    sequence_source_plan_id=None,
+):
     return TrainingPlanReplayInputs(
         constitution={
-            "version": "1",
-            "adaptive_planner": {"version": "adaptive-v1"},
+            "version": constitution_version,
+            "adaptive_planner": {"version": planner_version},
         },
         snapshot=PlannerInputSnapshot(
             week_start=date(2026, 7, 20),
@@ -540,6 +625,8 @@ def _replay_inputs(readiness=None):
             progression={},
             equipment=("barbell", "bench"),
             preferences=(),
+            sequence_cursor=sequence_cursor,
+            sequence_source_plan_id=sequence_source_plan_id,
         ),
         constraints=(),
     )
@@ -557,6 +644,26 @@ def receipt_with(day):
         created_at="2026-07-20T06:00:00Z",
         status="proposed",
         replay_inputs=_replay_inputs(),
+    )
+
+
+def hybrid_receipt_with(day):
+    return WeeklyPlanReceipt.create(
+        parent_plan_id=None,
+        constitution_version="2",
+        planner_version="adaptive-v2",
+        cycle_id="2026-W30",
+        days=(day,),
+        constraints=(),
+        validations=(),
+        created_at="2026-07-20T06:00:00Z",
+        status="proposed",
+        replay_inputs=_replay_inputs(
+            constitution_version="2",
+            planner_version="adaptive-v2",
+            sequence_cursor=1,
+            sequence_source_plan_id="plan-source",
+        ),
     )
 
 
