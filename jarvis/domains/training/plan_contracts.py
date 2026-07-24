@@ -110,6 +110,8 @@ class PlannerInputSnapshot:
     equipment: tuple[str, ...]
     preferences: tuple[tuple[str, Any], ...]
     safety_blocks: tuple[str, ...] = ()
+    sequence_cursor: int = 1
+    sequence_source_plan_id: str | None = None
 
     def __post_init__(self):
         object.__setattr__(
@@ -143,6 +145,8 @@ class PlannerInputSnapshot:
             "equipment": list(self.equipment),
             "preferences": _plain(self.preferences),
             "safety_blocks": list(self.safety_blocks),
+            "sequence_cursor": self.sequence_cursor,
+            "sequence_source_plan_id": self.sequence_source_plan_id,
         }
 
     @classmethod
@@ -159,6 +163,8 @@ class PlannerInputSnapshot:
             equipment = tuple(value.get("equipment", ()))
             preferences = tuple(tuple(item) for item in value.get("preferences", ()))
             safety_blocks = tuple(value.get("safety_blocks", ()))
+            sequence_cursor = value.get("sequence_cursor", 1)
+            sequence_source_plan_id = value.get("sequence_source_plan_id")
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("Malformed replay snapshot") from exc
         if not isinstance(created_at, str) or not isinstance(progression, Mapping):
@@ -179,6 +185,8 @@ class PlannerInputSnapshot:
             equipment=equipment,
             preferences=preferences,
             safety_blocks=safety_blocks,
+            sequence_cursor=sequence_cursor,
+            sequence_source_plan_id=sequence_source_plan_id,
         )
 
 
@@ -244,9 +252,17 @@ class PlanDay:
     exercises: tuple[Mapping[str, Any], ...]
     estimated_minutes: int
     change_reason: str | None = None
+    session_intent: str | None = None
+    sequence_position: int | None = None
+    sequence_length: int | None = None
+    decision_reasons: tuple[str, ...] = ()
+    high_neural: bool = False
 
     def __post_init__(self):
         object.__setattr__(self, "exercises", tuple(_freeze(exercise) for exercise in self.exercises))
+        object.__setattr__(self, "decision_reasons", tuple(self.decision_reasons))
+        if self.sequence_position is not None and self.sequence_position not in range(1, 7):
+            raise ValueError("Hybrid sequence position must be between 1 and 6")
 
 
 @dataclass(frozen=True)
@@ -320,6 +336,11 @@ class WeeklyPlanReceipt:
                     "exercises": _plain(day.exercises),
                     "estimated_minutes": day.estimated_minutes,
                     "change_reason": day.change_reason,
+                    "session_intent": day.session_intent,
+                    "sequence_position": day.sequence_position,
+                    "sequence_length": day.sequence_length,
+                    "decision_reasons": list(day.decision_reasons),
+                    "high_neural": day.high_neural,
                 }
                 for day in self.days
             ],
@@ -353,6 +374,11 @@ class WeeklyPlanReceipt:
                     exercises=tuple(item.get("exercises", ())),
                     estimated_minutes=item["estimated_minutes"],
                     change_reason=item.get("change_reason"),
+                    session_intent=item.get("session_intent"),
+                    sequence_position=item.get("sequence_position"),
+                    sequence_length=item.get("sequence_length"),
+                    decision_reasons=tuple(item.get("decision_reasons", ())),
+                    high_neural=item.get("high_neural", False),
                 )
                 for item in value["days"]
             )

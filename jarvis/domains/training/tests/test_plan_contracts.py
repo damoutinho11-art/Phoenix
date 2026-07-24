@@ -125,6 +125,80 @@ def test_replay_inputs_round_trip_through_receipt_mapping():
     assert restored.receipt_hash == receipt.receipt_hash
 
 
+def test_hybrid_plan_day_round_trips_sequence_evidence():
+    day = PlanDay(
+        date=date(2026, 7, 27),
+        session_type="general",
+        objective="push_strength",
+        exercises=(),
+        estimated_minutes=65,
+        session_intent="push_strength",
+        sequence_position=1,
+        sequence_length=6,
+        decision_reasons=("sequence_resumed",),
+        high_neural=False,
+    )
+    restored = WeeklyPlanReceipt.from_mapping(receipt_with(day).to_mapping())
+    assert restored.days[0].session_intent == "push_strength"
+    assert restored.days[0].decision_reasons == ("sequence_resumed",)
+
+
+def test_legacy_plan_day_defaults_hybrid_fields_to_unset():
+    restored = WeeklyPlanReceipt.from_mapping(legacy_v1_receipt_mapping())
+    assert restored.days[0].session_intent is None
+    assert restored.days[0].sequence_position is None
+
+
+def test_hybrid_snapshot_round_trips_sequence_cursor_and_source_plan_id():
+    snapshot = PlannerInputSnapshot(
+        week_start=date(2026, 7, 20),
+        created_at="2026-07-20T06:00:00Z",
+        completed_sessions=(),
+        readiness=None,
+        calendar_events=(),
+        progression={},
+        equipment=(),
+        preferences=(),
+        sequence_cursor=4,
+        sequence_source_plan_id="plan-123",
+    )
+
+    restored = PlannerInputSnapshot.from_mapping(snapshot.to_mapping())
+
+    assert restored.sequence_cursor == 4
+    assert restored.sequence_source_plan_id == "plan-123"
+
+
+def test_legacy_snapshot_defaults_hybrid_cursor_and_source_plan_id():
+    snapshot = PlannerInputSnapshot.from_mapping(
+        {
+            "week_start": "2026-07-20",
+            "created_at": "2026-07-20T06:00:00Z",
+            "completed_sessions": [],
+            "readiness": None,
+            "calendar_events": [],
+            "progression": {},
+            "equipment": [],
+            "preferences": [],
+        }
+    )
+
+    assert snapshot.sequence_cursor == 1
+    assert snapshot.sequence_source_plan_id is None
+
+
+def test_plan_day_rejects_sequence_position_outside_hybrid_range():
+    with pytest.raises(ValueError, match="between 1 and 6"):
+        PlanDay(
+            date=date(2026, 7, 27),
+            session_type="general",
+            objective="push_strength",
+            exercises=(),
+            estimated_minutes=65,
+            sequence_position=7,
+        )
+
+
 def test_plan_receipt_rejects_duplicate_dates():
     day = PlanDay(
         date=date(2026, 7, 20),
@@ -326,3 +400,38 @@ def _replay_inputs(readiness=None):
         ),
         constraints=(),
     )
+
+
+def receipt_with(day):
+    return WeeklyPlanReceipt.create(
+        parent_plan_id=None,
+        constitution_version="1",
+        planner_version="adaptive-v1",
+        cycle_id="2026-W30",
+        days=(day,),
+        constraints=(),
+        validations=(),
+        created_at="2026-07-20T06:00:00Z",
+        status="proposed",
+        replay_inputs=_replay_inputs(),
+    )
+
+
+def legacy_v1_receipt_mapping():
+    mapping = receipt_with(
+        PlanDay(
+            date=date(2026, 7, 27),
+            session_type="general",
+            objective="push_strength",
+            exercises=(),
+            estimated_minutes=65,
+        )
+    ).to_mapping()
+    mapping["days"][0].pop("session_intent", None)
+    mapping["days"][0].pop("sequence_position", None)
+    mapping["days"][0].pop("sequence_length", None)
+    mapping["days"][0].pop("decision_reasons", None)
+    mapping["days"][0].pop("high_neural", None)
+    mapping["replay_inputs"]["snapshot"].pop("sequence_cursor", None)
+    mapping["replay_inputs"]["snapshot"].pop("sequence_source_plan_id", None)
+    return mapping
