@@ -72,7 +72,9 @@ def _event_date(event: Mapping[str, Any]) -> date | None:
         return None
 
 
-def _recovery_index(intents: tuple[str, ...], week_start: date, calendar_events) -> int:
+def _recovery_placement(
+    intents: tuple[str, ...], week_start: date, calendar_events
+) -> tuple[int, str]:
     week_end = week_start + timedelta(days=6)
     hard_dates = sorted(
         event_date
@@ -82,15 +84,16 @@ def _recovery_index(intents: tuple[str, ...], week_start: date, calendar_events)
         and (bool(event.get("hard_conflict")) or str(event.get("severity", "")).lower() == "hard")
     )
     if hard_dates:
-        return (hard_dates[0] - week_start).days
-    return intents.index("lower_power") + 1
+        return (hard_dates[0] - week_start).days, "recovery_placed:calendar"
+    return intents.index("lower_power") + 1, "recovery_placed:default"
 
 
 def place_recovery(
     intents: tuple[str, ...], week_start: date, calendar_events
 ) -> tuple[str | None, ...]:
     dated = list(intents)
-    dated.insert(_recovery_index(intents, week_start, calendar_events), None)
+    recovery_index, _ = _recovery_placement(intents, week_start, calendar_events)
+    dated.insert(recovery_index, None)
     return tuple(dated)
 
 
@@ -117,7 +120,28 @@ def _exercise_payload(name: str, family: str, equipment: Mapping[str, Any]) -> d
     }
 
 
-def _build_plan_day(constitution: Mapping[str, Any], intent: str | None) -> PlanDay:
+def _first_compatible_exercise(
+    family: str,
+    movement_families: Mapping[str, tuple[str, ...]],
+    exercise_equipment: Mapping[str, tuple[str, ...]],
+    available_equipment: tuple[str, ...],
+) -> str:
+    approved = movement_families[family]
+    if not available_equipment:
+        return approved[0]
+    available = set(available_equipment)
+    for exercise in approved:
+        if set(exercise_equipment[exercise]) <= available:
+            return exercise
+    raise ValueError(f"No compatible exercise for movement family '{family}'")
+
+
+def _build_plan_day(
+    constitution: Mapping[str, Any],
+    intent: str | None,
+    available_equipment: tuple[str, ...],
+    recovery_reason: str,
+) -> PlanDay:
     if intent is None:
         return PlanDay(
             date=date.min,
@@ -125,14 +149,19 @@ def _build_plan_day(constitution: Mapping[str, Any], intent: str | None) -> Plan
             objective="recovery",
             exercises=(),
             estimated_minutes=0,
-            decision_reasons=("baseline_recovery",),
+            decision_reasons=(recovery_reason,),
         )
 
     policy = constitution["adaptive_planner"]
     families = policy["session_templates"][intent]
     exercises = tuple(
         _exercise_payload(
-            policy["movement_families"][family][0],
+            _first_compatible_exercise(
+                family,
+                policy["movement_families"],
+                policy["exercise_equipment"],
+                available_equipment,
+            ),
             family,
             policy["exercise_equipment"],
         )
@@ -157,7 +186,15 @@ def build_hybrid_week(
 ) -> tuple[PlanDay, ...]:
     intents = rotate_sequence(HYBRID_SEQUENCE, snapshot.sequence_cursor)
     dated = place_recovery(intents, snapshot.week_start, snapshot.calendar_events)
+    _, recovery_reason = _recovery_placement(
+        intents, snapshot.week_start, snapshot.calendar_events
+    )
     return tuple(
-        replace(_build_plan_day(constitution, intent), date=snapshot.week_start + timedelta(days=index))
+        replace(
+            _build_plan_day(
+                constitution, intent, snapshot.equipment, recovery_reason
+            ),
+            date=snapshot.week_start + timedelta(days=index),
+        )
         for index, intent in enumerate(dated)
     )

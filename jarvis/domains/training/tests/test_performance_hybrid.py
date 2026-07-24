@@ -14,7 +14,7 @@ def training_constitution_v2():
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def snapshot(*, sequence_cursor=1, calendar_events=()):
+def snapshot(*, sequence_cursor=1, calendar_events=(), equipment=()):
     return PlannerInputSnapshot(
         week_start=date(2026, 7, 20),
         created_at="2026-07-20T06:00:00Z",
@@ -22,7 +22,7 @@ def snapshot(*, sequence_cursor=1, calendar_events=()):
         readiness=None,
         calendar_events=calendar_events,
         progression={},
-        equipment=(),
+        equipment=equipment,
         preferences=(),
         sequence_cursor=sequence_cursor,
     )
@@ -34,6 +34,8 @@ def test_builds_six_ordered_intents_plus_one_recovery(training_constitution_v2):
     intents = [day.session_intent for day in days if day.session_intent]
     assert intents == list(HYBRID_SEQUENCE)
     assert sum(day.session_type == "recovery" for day in days) == 1
+    recovery = next(day for day in days if day.session_type == "recovery")
+    assert recovery.decision_reasons == ("recovery_placed:default",)
 
 
 def test_push_strength_uses_approved_template_and_duration(training_constitution_v2):
@@ -81,6 +83,35 @@ def test_exercises_include_constitution_derived_equipment(training_constitution_
             assert exercise["equipment"] == tuple(policy["exercise_equipment"][exercise["name"]])
 
 
+def test_selects_the_first_approved_exercise_compatible_with_equipment(
+    training_constitution_v2,
+):
+    days = build_hybrid_week(
+        training_constitution_v2,
+        snapshot(
+            equipment=(
+                "dumbbells",
+                "bench",
+                "incline_bench",
+                "cable_machine",
+                "pullup_bar",
+                "weight_belt",
+                "hex_bar",
+                "leg_press",
+                "seated_calf_raise",
+            )
+        ),
+    )
+
+    push_strength = next(day for day in days if day.session_intent == "push_strength")
+    assert push_strength.exercises[0]["name"] == "dumbbell_bench_press"
+
+
+def test_rejects_a_required_family_without_a_compatible_exercise(training_constitution_v2):
+    with pytest.raises(ValueError, match="horizontal_push"):
+        build_hybrid_week(training_constitution_v2, snapshot(equipment=("dumbbells",)))
+
+
 def test_hard_calendar_event_receives_the_recovery_slot(training_constitution_v2):
     days = build_hybrid_week(
         training_constitution_v2,
@@ -89,3 +120,4 @@ def test_hard_calendar_event_receives_the_recovery_slot(training_constitution_v2
 
     recovery = next(day for day in days if day.session_type == "recovery")
     assert recovery.date == date(2026, 7, 20)
+    assert recovery.decision_reasons == ("recovery_placed:calendar",)
