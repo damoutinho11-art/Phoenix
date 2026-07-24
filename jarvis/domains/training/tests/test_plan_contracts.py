@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import date
 
 import pytest
@@ -143,10 +144,49 @@ def test_hybrid_plan_day_round_trips_sequence_evidence():
     assert restored.days[0].decision_reasons == ("sequence_resumed",)
 
 
+def test_hybrid_plan_day_round_trips_all_evidence_fields():
+    day = PlanDay(
+        date=date(2026, 7, 27),
+        session_type="general",
+        objective="pull_strength",
+        exercises=(),
+        estimated_minutes=65,
+        session_intent="pull_strength",
+        sequence_position=3,
+        sequence_length=6,
+        decision_reasons=("sequence_resumed", "readiness_clear"),
+        high_neural=True,
+    )
+
+    restored = WeeklyPlanReceipt.from_mapping(receipt_with(day).to_mapping())
+
+    assert restored.days[0].session_intent == "pull_strength"
+    assert restored.days[0].sequence_position == 3
+    assert restored.days[0].sequence_length == 6
+    assert restored.days[0].decision_reasons == ("sequence_resumed", "readiness_clear")
+    assert restored.days[0].high_neural is True
+
+
 def test_legacy_plan_day_defaults_hybrid_fields_to_unset():
     restored = WeeklyPlanReceipt.from_mapping(legacy_v1_receipt_mapping())
     assert restored.days[0].session_intent is None
     assert restored.days[0].sequence_position is None
+
+
+def test_base_v1_receipt_preserves_original_hashes_and_identity():
+    restored = WeeklyPlanReceipt.from_mapping(legacy_v1_receipt_mapping())
+
+    assert restored.plan_id == "fe9f5197-78f3-5179-ba63-0fb98a1b4e28"
+    assert restored.input_hash == "553aa857566d58cf826fa0d31fdf5633b3f7ff0942ede59f3c86004a7f997c7f"
+    assert restored.receipt_hash == "415ea57b9cf2971c65190970305736e6a83610ca2e45853f37651133f49bffd4"
+
+
+def test_base_v1_receipt_rejects_tampered_content():
+    mapping = legacy_v1_receipt_mapping()
+    mapping["days"][0]["objective"] = "tampered"
+
+    with pytest.raises(ValueError, match="identity"):
+        WeeklyPlanReceipt.from_mapping(mapping)
 
 
 def test_hybrid_snapshot_round_trips_sequence_cursor_and_source_plan_id():
@@ -185,6 +225,109 @@ def test_legacy_snapshot_defaults_hybrid_cursor_and_source_plan_id():
 
     assert snapshot.sequence_cursor == 1
     assert snapshot.sequence_source_plan_id is None
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("session_intent", ""),
+        ("session_intent", "   "),
+        ("session_intent", 1),
+        ("sequence_position", True),
+        ("sequence_position", 0),
+        ("sequence_position", 7),
+        ("sequence_length", True),
+        ("sequence_length", 5),
+        ("sequence_length", "6"),
+        ("decision_reasons", "reason"),
+        ("decision_reasons", ("valid", 1)),
+        ("high_neural", 1),
+        ("high_neural", "false"),
+    ),
+)
+def test_plan_day_rejects_invalid_hybrid_field_values(field, value):
+    with pytest.raises((TypeError, ValueError)):
+        PlanDay(
+            date=date(2026, 7, 27),
+            session_type="general",
+            objective="push_strength",
+            exercises=(),
+            estimated_minutes=65,
+            **{field: value},
+        )
+
+
+def test_plan_day_freezes_decision_reasons_input():
+    reasons = ["sequence_resumed"]
+    day = PlanDay(
+        date=date(2026, 7, 27),
+        session_type="general",
+        objective="push_strength",
+        exercises=(),
+        estimated_minutes=65,
+        decision_reasons=reasons,
+    )
+
+    reasons.append("tampered")
+
+    assert day.decision_reasons == ("sequence_resumed",)
+    assert isinstance(day.decision_reasons, tuple)
+
+
+@pytest.mark.parametrize("value", (True, 0, 7, "3"))
+def test_snapshot_rejects_invalid_sequence_cursor(value):
+    with pytest.raises((TypeError, ValueError)):
+        PlannerInputSnapshot(
+            week_start=date(2026, 7, 20),
+            created_at="2026-07-20T06:00:00Z",
+            completed_sessions=(),
+            readiness=None,
+            calendar_events=(),
+            progression={},
+            equipment=(),
+            preferences=(),
+            sequence_cursor=value,
+        )
+
+
+@pytest.mark.parametrize("value", ("", "   ", 123, []))
+def test_snapshot_rejects_invalid_sequence_source_plan_id(value):
+    with pytest.raises((TypeError, ValueError)):
+        PlannerInputSnapshot(
+            week_start=date(2026, 7, 20),
+            created_at="2026-07-20T06:00:00Z",
+            completed_sessions=(),
+            readiness=None,
+            calendar_events=(),
+            progression={},
+            equipment=(),
+            preferences=(),
+            sequence_source_plan_id=value,
+        )
+
+
+def test_hybrid_receipt_hash_is_stable_and_rejects_tampered_evidence():
+    day = PlanDay(
+        date=date(2026, 7, 27),
+        session_type="general",
+        objective="push_strength",
+        exercises=(),
+        estimated_minutes=65,
+        session_intent="push_strength",
+        sequence_position=1,
+        sequence_length=6,
+        decision_reasons=("sequence_resumed",),
+        high_neural=True,
+    )
+    first = receipt_with(day)
+    second = receipt_with(day)
+    tampered = first.to_mapping()
+    tampered["days"][0]["decision_reasons"] = ["tampered"]
+
+    assert first.input_hash == second.input_hash
+    assert first.receipt_hash == second.receipt_hash
+    with pytest.raises(ValueError, match="identity"):
+        WeeklyPlanReceipt.from_mapping(tampered)
 
 
 def test_plan_day_rejects_sequence_position_outside_hybrid_range():
@@ -418,20 +561,43 @@ def receipt_with(day):
 
 
 def legacy_v1_receipt_mapping():
-    mapping = receipt_with(
-        PlanDay(
-            date=date(2026, 7, 27),
-            session_type="general",
-            objective="push_strength",
-            exercises=(),
-            estimated_minutes=65,
-        )
-    ).to_mapping()
-    mapping["days"][0].pop("session_intent", None)
-    mapping["days"][0].pop("sequence_position", None)
-    mapping["days"][0].pop("sequence_length", None)
-    mapping["days"][0].pop("decision_reasons", None)
-    mapping["days"][0].pop("high_neural", None)
-    mapping["replay_inputs"]["snapshot"].pop("sequence_cursor", None)
-    mapping["replay_inputs"]["snapshot"].pop("sequence_source_plan_id", None)
-    return mapping
+    return deepcopy(
+        {
+            "constitution_version": "1",
+            "constraints": [],
+            "created_at": "2026-07-20T06:00:00Z",
+            "cycle_id": "2026-W30",
+            "days": [
+                {
+                    "change_reason": None,
+                    "date": "2026-07-20",
+                    "estimated_minutes": 60,
+                    "exercises": [{"name": "bench_press", "sets": [5, 5, 5]}],
+                    "objective": "general_strength",
+                    "session_type": "general",
+                }
+            ],
+            "input_hash": "553aa857566d58cf826fa0d31fdf5633b3f7ff0942ede59f3c86004a7f997c7f",
+            "parent_plan_id": None,
+            "plan_id": "fe9f5197-78f3-5179-ba63-0fb98a1b4e28",
+            "planner_version": "adaptive-v1",
+            "receipt_hash": "415ea57b9cf2971c65190970305736e6a83610ca2e45853f37651133f49bffd4",
+            "replay_inputs": {
+                "constitution": {"adaptive_planner": {"version": "adaptive-v1"}, "version": "1"},
+                "constraints": [],
+                "snapshot": {
+                    "calendar_events": [],
+                    "completed_sessions": [],
+                    "created_at": "2026-07-20T06:00:00Z",
+                    "equipment": ["barbell", "bench"],
+                    "preferences": [],
+                    "progression": {"Bench Press": {"suggested_kg": 62.5}},
+                    "readiness": {"knee": {"pain": 0}},
+                    "safety_blocks": [],
+                    "week_start": "2026-07-20",
+                },
+            },
+            "status": "proposed",
+            "validations": [],
+        }
+    )

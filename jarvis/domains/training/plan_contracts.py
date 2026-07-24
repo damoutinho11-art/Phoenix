@@ -25,6 +25,10 @@ _CONSTRAINT_KINDS = frozenset(
     }
 )
 _CONSTRAINT_SOURCES = frozenset({"user", "phoenix", "safety"})
+_PLAN_DAY_HYBRID_FIELDS = frozenset(
+    {"session_intent", "sequence_position", "sequence_length", "decision_reasons", "high_neural"}
+)
+_SNAPSHOT_HYBRID_FIELDS = frozenset({"sequence_cursor", "sequence_source_plan_id"})
 
 
 def _freeze(value: Any) -> Any:
@@ -71,6 +75,133 @@ def canonical_hash(value: Mapping[str, Any]) -> str:
     return sha256(encoded).hexdigest()
 
 
+@dataclass(frozen=True)
+class _LegacyRecord:
+    name: str
+    fields: tuple[tuple[str, Any], ...]
+
+
+def _legacy_record(name: str, fields: tuple[tuple[str, Any], ...]) -> _LegacyRecord:
+    return _LegacyRecord(name=name, fields=fields)
+
+
+def _legacy_canonical(value: Any) -> Any:
+    if isinstance(value, _LegacyRecord):
+        return {
+            "type": "dataclass",
+            "name": f"{__name__}.{value.name}",
+            "fields": [[name, _legacy_canonical(item)] for name, item in value.fields],
+        }
+    if is_dataclass(value) and not isinstance(value, type):
+        return _canonical(value)
+    if isinstance(value, Mapping):
+        return {
+            "type": "mapping",
+            "items": [[key, _legacy_canonical(item)] for key, item in sorted(value.items())],
+        }
+    if isinstance(value, tuple):
+        return {"type": "tuple", "items": [_legacy_canonical(item) for item in value]}
+    if isinstance(value, list):
+        return {"type": "list", "items": [_legacy_canonical(item) for item in value]}
+    if isinstance(value, date):
+        return {"type": "date", "value": value.isoformat()}
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise TypeError(f"Unsupported legacy canonical value: {type(value).__name__}")
+
+
+def _legacy_canonical_hash(value: Mapping[str, Any]) -> str:
+    encoded = json.dumps(
+        _legacy_canonical(value), sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("ascii")
+    return sha256(encoded).hexdigest()
+
+
+def _legacy_plan_day(item: Mapping[str, Any]) -> _LegacyRecord:
+    exercises = tuple(_freeze(exercise) for exercise in item.get("exercises", ()))
+    return _legacy_record(
+        "PlanDay",
+        (
+            ("date", date.fromisoformat(item["date"])),
+            ("session_type", item["session_type"]),
+            ("objective", item["objective"]),
+            ("exercises", exercises),
+            ("estimated_minutes", item["estimated_minutes"]),
+            ("change_reason", item.get("change_reason")),
+        ),
+    )
+
+
+def _legacy_snapshot(value: Mapping[str, Any]) -> _LegacyRecord:
+    return _legacy_record(
+        "PlannerInputSnapshot",
+        (
+            ("week_start", date.fromisoformat(value["week_start"])),
+            ("created_at", value["created_at"]),
+            ("completed_sessions", tuple(_freeze(item) for item in value.get("completed_sessions", ()))),
+            ("readiness", _freeze(value.get("readiness"))),
+            ("calendar_events", tuple(_freeze(item) for item in value.get("calendar_events", ()))),
+            ("progression", _freeze(value.get("progression", {}))),
+            ("equipment", tuple(value.get("equipment", ()))),
+            (
+                "preferences",
+                tuple((str(key), _freeze(item)) for key, item in value.get("preferences", ())),
+            ),
+            ("safety_blocks", tuple(value.get("safety_blocks", ()))),
+        ),
+    )
+
+
+def _legacy_replay_inputs(value: Mapping[str, Any]) -> _LegacyRecord:
+    constraints = tuple(
+        TrainingConstraint.from_mapping(item["kind"], item["source"], item["values"])
+        for item in value.get("constraints", ())
+    )
+    return _legacy_record(
+        "TrainingPlanReplayInputs",
+        (
+            ("constitution", _freeze(value["constitution"])),
+            ("snapshot", _legacy_snapshot(value["snapshot"])),
+            ("constraints", constraints),
+        ),
+    )
+
+
+def _legacy_identity_matches(value: Mapping[str, Any]) -> bool:
+    replay_inputs = value["replay_inputs"]
+    input_hash = _legacy_canonical_hash({"replay_inputs": _legacy_replay_inputs(replay_inputs)})
+    plan_id = str(uuid5(NAMESPACE_URL, f"training-plan:{input_hash}:{value['cycle_id']}"))
+    unsigned = {
+        "parent_plan_id": value.get("parent_plan_id"),
+        "constitution_version": value["constitution_version"],
+        "planner_version": value["planner_version"],
+        "cycle_id": value["cycle_id"],
+        "days": tuple(_legacy_plan_day(item) for item in value["days"]),
+        "constraints": tuple(
+            TrainingConstraint.from_mapping(item["kind"], item["source"], item["values"])
+            for item in value["constraints"]
+        ),
+        "validations": tuple(
+            PlanValidation(
+                rule=item["rule"],
+                passed=item["passed"],
+                severity=item["severity"],
+                detail=item["detail"],
+            )
+            for item in value["validations"]
+        ),
+        "replay_inputs": _legacy_replay_inputs(replay_inputs),
+        "created_at": value["created_at"],
+        "status": value["status"],
+    }
+    receipt_hash = _legacy_canonical_hash({**unsigned, "plan_id": plan_id, "input_hash": input_hash})
+    return (
+        value.get("plan_id") == plan_id
+        and value.get("input_hash") == input_hash
+        and value.get("receipt_hash") == receipt_hash
+    )
+
+
 def iso_cycle_id(day: date) -> str:
     year, week, _ = day.isocalendar()
     return f"{year}-W{week:02d}"
@@ -114,6 +245,13 @@ class PlannerInputSnapshot:
     sequence_source_plan_id: str | None = None
 
     def __post_init__(self):
+        if type(self.sequence_cursor) is not int or self.sequence_cursor not in range(1, 7):
+            raise ValueError("Hybrid sequence cursor must be between 1 and 6")
+        if self.sequence_source_plan_id is not None and (
+            not isinstance(self.sequence_source_plan_id, str)
+            or not self.sequence_source_plan_id.strip()
+        ):
+            raise ValueError("Hybrid sequence source plan ID must be a nonblank string")
         object.__setattr__(
             self,
             "completed_sessions",
@@ -259,10 +397,26 @@ class PlanDay:
     high_neural: bool = False
 
     def __post_init__(self):
-        object.__setattr__(self, "exercises", tuple(_freeze(exercise) for exercise in self.exercises))
-        object.__setattr__(self, "decision_reasons", tuple(self.decision_reasons))
+        if self.session_intent is not None and (
+            not isinstance(self.session_intent, str) or not self.session_intent.strip()
+        ):
+            raise ValueError("Hybrid session intent must be a nonblank string")
+        if type(self.sequence_position) is not int and self.sequence_position is not None:
+            raise ValueError("Hybrid sequence position must be an integer")
         if self.sequence_position is not None and self.sequence_position not in range(1, 7):
             raise ValueError("Hybrid sequence position must be between 1 and 6")
+        if self.sequence_length is not None and (
+            type(self.sequence_length) is not int or self.sequence_length != 6
+        ):
+            raise ValueError("Hybrid sequence length must be exactly 6")
+        if not isinstance(self.decision_reasons, (list, tuple)):
+            raise ValueError("Hybrid decision reasons must be a sequence of strings")
+        if any(not isinstance(reason, str) for reason in self.decision_reasons):
+            raise ValueError("Hybrid decision reasons must be strings")
+        if type(self.high_neural) is not bool:
+            raise ValueError("Hybrid high neural must be a bool")
+        object.__setattr__(self, "exercises", tuple(_freeze(exercise) for exercise in self.exercises))
+        object.__setattr__(self, "decision_reasons", tuple(self.decision_reasons))
 
 
 @dataclass(frozen=True)
@@ -377,7 +531,7 @@ class WeeklyPlanReceipt:
                     session_intent=item.get("session_intent"),
                     sequence_position=item.get("sequence_position"),
                     sequence_length=item.get("sequence_length"),
-                    decision_reasons=tuple(item.get("decision_reasons", ())),
+                    decision_reasons=item.get("decision_reasons", ()),
                     high_neural=item.get("high_neural", False),
                 )
                 for item in value["days"]
@@ -413,9 +567,35 @@ class WeeklyPlanReceipt:
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("Malformed plan receipt") from exc
         if (
-            value.get("plan_id") != receipt.plan_id
-            or value.get("input_hash") != receipt.input_hash
-            or value.get("receipt_hash") != receipt.receipt_hash
+            value.get("plan_id") == receipt.plan_id
+            and value.get("input_hash") == receipt.input_hash
+            and value.get("receipt_hash") == receipt.receipt_hash
         ):
-            raise ValueError("Plan receipt identity does not match canonical content")
-        return receipt
+            return receipt
+        if (
+            all(
+                not any(field in item for field in _PLAN_DAY_HYBRID_FIELDS)
+                for item in value["days"]
+            )
+            and not any(
+                field in value["replay_inputs"].get("snapshot", {})
+                for field in _SNAPSHOT_HYBRID_FIELDS
+            )
+            and _legacy_identity_matches(value)
+        ):
+            return cls(
+                plan_id=value["plan_id"],
+                parent_plan_id=value.get("parent_plan_id"),
+                constitution_version=value["constitution_version"],
+                planner_version=value["planner_version"],
+                cycle_id=value["cycle_id"],
+                days=receipt.days,
+                constraints=receipt.constraints,
+                validations=receipt.validations,
+                replay_inputs=receipt.replay_inputs,
+                created_at=value["created_at"],
+                status=value["status"],
+                input_hash=value["input_hash"],
+                receipt_hash=value["receipt_hash"],
+            )
+        raise ValueError("Plan receipt identity does not match canonical content")
