@@ -2,6 +2,7 @@ import sqlite3
 import tempfile
 import unittest
 from datetime import date, timedelta
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -36,6 +37,333 @@ class DatabaseTests(unittest.TestCase):
         values.update(overrides)
         return database.log_meal(**values)
 
+    def _training_plan_receipt(self, **overrides):
+        receipt = {
+            "plan_id": "plan-1",
+            "parent_plan_id": None,
+            "constitution_version": "1",
+            "planner_version": "adaptive-v1",
+            "cycle_id": "2026-W30",
+            "days": [
+                {
+                    "date": "2026-07-20",
+                    "session_type": "high_intensity",
+                    "objective": "jump_strength",
+                    "exercises": [],
+                    "estimated_minutes": 60,
+                    "change_reason": None,
+                }
+            ],
+            "constraints": [],
+            "validations": [
+                {
+                    "rule": "seven_unique_dates",
+                    "passed": True,
+                    "severity": "hard",
+                    "detail": "Within policy",
+                }
+            ],
+            "created_at": "2026-07-20T06:00:00Z",
+            "status": "proposed",
+            "input_hash": "input-hash-1",
+            "receipt_hash": "receipt-hash-1",
+        }
+        receipt.update(overrides)
+        return receipt
+
+    def test_training_plan_receipt_round_trips_immutable_payload(self):
+        receipt = self._training_plan_receipt(plan_id="plan-1", status="proposed")
+
+        database.save_training_plan_receipt(receipt)
+
+        stored = database.get_training_plan_receipt("plan-1")
+
+        assert stored["payload"] == receipt
+        assert stored["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            row = connection.execute(
+                "SELECT payload_json, receipt_hash FROM training_plan_receipts WHERE plan_id = ?",
+                ("plan-1",),
+            ).fetchone()
+        finally:
+            connection.close()
+        assert row == (
+            json.dumps(receipt, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False),
+            receipt["receipt_hash"],
+        )
+
+    def test_training_plan_receipt_round_trips_canonical_replay_inputs(self):
+        replay_inputs = {
+            "constitution": {
+                "version": "1",
+                "adaptive_planner": {"version": "adaptive-v1"},
+            },
+            "snapshot": {
+                "week_start": "2026-07-20",
+                "created_at": "2026-07-20T06:00:00Z",
+                "completed_sessions": [],
+                "readiness": {"knee": 0},
+                "calendar_events": [],
+                "progression": {},
+                "equipment": ["barbell", "rack"],
+                "preferences": [],
+                "safety_blocks": [],
+            },
+            "constraints": [],
+        }
+        receipt = self._training_plan_receipt(replay_inputs=replay_inputs)
+
+        database.save_training_plan_receipt(receipt)
+        replay_inputs["snapshot"]["readiness"]["knee"] = 5
+
+        stored = database.get_training_plan_receipt("plan-1")
+
+        assert stored["payload"]["replay_inputs"]["snapshot"]["readiness"] == {
+            "knee": 0
+        }
+
+    def test_training_plan_apply_atomically_supersedes_parent_and_is_idempotent(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        first = database.apply_training_plan_proposal("plan-2")
+        second = database.apply_training_plan_proposal("plan-2")
+
+        assert first["status"] == second["status"] == "active"
+        assert database.get_training_plan_receipt("plan-1")["status"] == "superseded"
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-2"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            event_count = connection.execute(
+                "SELECT COUNT(*) FROM training_plan_lifecycle_events"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert event_count == 4
+
+    def test_training_plan_apply_rejects_parentless_proposal_when_active_plan_exists(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-2", status="proposed")
+        )
+
+        with self.assertRaisesRegex(ValueError, "active plan as its parent"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+
+    def test_training_plan_apply_rejects_orphan_parent_atomically(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="missing-plan", status="proposed"
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "declared parent"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30") is None
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            event_count = connection.execute(
+                "SELECT COUNT(*) FROM training_plan_lifecycle_events"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert event_count == 1
+
+    def test_training_plan_apply_rejects_cross_cycle_parent_atomically(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-1", cycle_id="2026-W31", status="active"
+            )
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "same cycle"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30") is None
+        assert database.get_active_training_plan("2026-W31")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+
+    def test_training_plan_apply_rejects_stale_parent_atomically(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+        database.apply_training_plan_proposal("plan-2")
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-3", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "current active plan"):
+            database.apply_training_plan_proposal("plan-3")
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-2"
+        assert database.get_training_plan_receipt("plan-1")["status"] == "superseded"
+        assert database.get_training_plan_receipt("plan-3")["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            event_count = connection.execute(
+                "SELECT COUNT(*) FROM training_plan_lifecycle_events"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert event_count == 5
+
+    def test_training_plan_apply_rolls_back_parent_supersession_when_activation_fails(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+        connection = sqlite3.connect(self.db_path)
+        try:
+            connection.execute(
+                """
+                CREATE TRIGGER fail_training_plan_activation
+                BEFORE INSERT ON training_plan_lifecycle_events
+                WHEN NEW.plan_id = 'plan-2' AND NEW.status = 'active'
+                BEGIN
+                    SELECT RAISE(ABORT, 'forced activation failure');
+                END;
+                """
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "forced activation failure"):
+            database.apply_training_plan_proposal("plan-2")
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-1")["status"] == "active"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "proposed"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            events = connection.execute(
+                "SELECT plan_id, status FROM training_plan_lifecycle_events ORDER BY id"
+            ).fetchall()
+        finally:
+            connection.close()
+        assert events == [("plan-1", "active"), ("plan-2", "proposed")]
+
+    def test_training_plan_rejection_preserves_active_parent(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        first = database.reject_training_plan_proposal("plan-2")
+        second = database.reject_training_plan_proposal("plan-2")
+
+        assert first["status"] == second["status"] == "rejected"
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
+        assert database.get_training_plan_receipt("plan-2")["status"] == "rejected"
+
+    def test_training_plan_receipt_history_reports_current_lifecycle_statuses(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(
+                plan_id="plan-2", parent_plan_id="plan-1", status="proposed"
+            )
+        )
+
+        rows = database.list_training_plan_receipts()
+
+        assert [(row["plan_id"], row["status"]) for row in rows] == [
+            ("plan-2", "proposed"),
+            ("plan-1", "active"),
+        ]
+        assert database.list_training_plan_receipts(limit=0) == []
+
+    def test_training_plan_receipt_rows_are_append_only(self):
+        receipt = self._training_plan_receipt()
+        database.save_training_plan_receipt(receipt)
+
+        connection = sqlite3.connect(self.db_path)
+        try:
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+                connection.execute(
+                    "UPDATE training_plan_receipts SET receipt_hash = ? WHERE plan_id = ?",
+                    ("changed", receipt["plan_id"]),
+                )
+            connection.rollback()
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+                connection.execute(
+                    "DELETE FROM training_plan_receipts WHERE plan_id = ?",
+                    (receipt["plan_id"],),
+                )
+        finally:
+            connection.close()
+
+        assert database.get_training_plan_receipt(receipt["plan_id"])["payload"] == receipt
+
+    def test_training_plan_lifecycle_events_are_append_only(self):
+        receipt = self._training_plan_receipt()
+        database.save_training_plan_receipt(receipt)
+
+        connection = sqlite3.connect(self.db_path)
+        try:
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
+                connection.execute(
+                    "UPDATE training_plan_lifecycle_events SET reason = 'changed' WHERE plan_id = ?",
+                    (receipt["plan_id"],),
+                )
+            connection.rollback()
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
+                connection.execute(
+                    "DELETE FROM training_plan_lifecycle_events WHERE plan_id = ?",
+                    (receipt["plan_id"],),
+                )
+        finally:
+            connection.close()
+
+        assert database.get_training_plan_receipt(receipt["plan_id"])["status"] == "proposed"
+
+    def test_training_plan_rejects_second_active_receipt_for_cycle(self):
+        database.save_training_plan_receipt(
+            self._training_plan_receipt(plan_id="plan-1", status="active")
+        )
+
+        with self.assertRaisesRegex(ValueError, "one active training plan"):
+            database.save_training_plan_receipt(
+                self._training_plan_receipt(plan_id="plan-2", status="active")
+            )
+
+        assert database.get_active_training_plan("2026-W30")["plan_id"] == "plan-1"
+
     def test_init_db_creates_all_tables(self):
         connection = sqlite3.connect(self.db_path)
         try:
@@ -59,6 +387,195 @@ class DatabaseTests(unittest.TestCase):
             "training_capacity_logs",
             "training_jump_balance_logs",
         } <= names
+
+    def test_init_db_migrates_hybrid_completion_columns_without_data_loss(self):
+        legacy_db_path = Path(self.temp_dir.name) / "legacy-training-evidence.db"
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            connection.executescript(
+                """
+                CREATE TABLE session_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    session_type TEXT NOT NULL,
+                    week_number INTEGER,
+                    exercises TEXT NOT NULL,
+                    notes TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE training_session_evidence (
+                    session_id INTEGER PRIMARY KEY,
+                    plan_id TEXT NOT NULL,
+                    receipt_hash TEXT NOT NULL,
+                    plan_date TEXT NOT NULL,
+                    duration_seconds INTEGER NOT NULL,
+                    rpe INTEGER NOT NULL,
+                    pain_confirmed INTEGER NOT NULL,
+                    pain_body_areas_json TEXT NOT NULL DEFAULT '[]',
+                    created_at TEXT NOT NULL,
+                    UNIQUE(plan_id, plan_date)
+                );
+                """
+            )
+            cursor = connection.execute(
+                """
+                INSERT INTO session_log (
+                    date, session_type, exercises
+                ) VALUES ('2026-07-20', 'high_intensity', '[]')
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO training_session_evidence (
+                    session_id, plan_id, receipt_hash, plan_date,
+                    duration_seconds, rpe, pain_confirmed,
+                    pain_body_areas_json, created_at
+                ) VALUES (?, 'legacy-plan', 'legacy-hash', '2026-07-20',
+                          2700, 8, 0, '[]', '2026-07-20T08:00:00Z')
+                """,
+                (cursor.lastrowid,),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        with patch.object(database, "DB_PATH", legacy_db_path):
+            database.init_db()
+            database.init_db()
+
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            columns = {
+                row[1]
+                for row in connection.execute(
+                    "PRAGMA table_info(training_session_evidence)"
+                ).fetchall()
+            }
+            evidence = connection.execute(
+                """
+                SELECT plan_id, session_intent, sequence_position, sequence_length
+                FROM training_session_evidence
+                """
+            ).fetchone()
+        finally:
+            connection.close()
+
+        assert {
+            "session_intent",
+            "sequence_position",
+            "sequence_length",
+        } <= columns
+        assert evidence == ("legacy-plan", None, None, None)
+
+    def test_init_db_migrates_populated_existing_schema_without_data_loss(self):
+        legacy_db_path = Path(self.temp_dir.name) / "legacy.db"
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            connection.executescript(
+                """
+                CREATE TABLE meal_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    log_date TEXT NOT NULL,
+                    logged_at TEXT NOT NULL,
+                    item_id TEXT NOT NULL,
+                    item_type TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    servings REAL NOT NULL,
+                    calories REAL NOT NULL,
+                    protein_g REAL NOT NULL,
+                    fat_g REAL NOT NULL,
+                    carbs_g REAL NOT NULL,
+                    source TEXT NOT NULL
+                );
+
+                CREATE TABLE training_readiness_scans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_date TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    knee INTEGER NOT NULL,
+                    ankle INTEGER NOT NULL,
+                    hip INTEGER NOT NULL,
+                    hamstring INTEGER NOT NULL,
+                    calf_achilles INTEGER NOT NULL,
+                    lower_back_pelvic INTEGER NOT NULL,
+                    note TEXT,
+                    sharp_pain INTEGER NOT NULL DEFAULT 0,
+                    limping INTEGER NOT NULL DEFAULT 0,
+                    next_day_worsening INTEGER NOT NULL DEFAULT 0,
+                    readiness_status TEXT NOT NULL
+                );
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO meal_log (
+                    log_date, logged_at, item_id, item_type, name, servings,
+                    calories, protein_g, fat_g, carbs_g, source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "2026-07-20",
+                    "2026-07-20T06:00:00Z",
+                    "legacy-meal",
+                    "recipe",
+                    "Legacy Meal",
+                    1.0,
+                    500.0,
+                    30.0,
+                    20.0,
+                    40.0,
+                    "manual",
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO training_readiness_scans (
+                    scan_date, created_at, knee, ankle, hip, hamstring,
+                    calf_achilles, lower_back_pelvic, readiness_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                ("2026-07-20", "2026-07-20T06:00:00Z", 1, 1, 1, 1, 1, 1, "clear"),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        with patch.object(database, "DB_PATH", legacy_db_path):
+            database.init_db()
+
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            }
+            triggers = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'trigger'"
+                ).fetchall()
+            }
+            meal = connection.execute(
+                "SELECT name, calories FROM meal_log WHERE item_id = 'legacy-meal'"
+            ).fetchone()
+            scan = connection.execute(
+                "SELECT readiness_status FROM training_readiness_scans WHERE scan_date = '2026-07-20'"
+            ).fetchone()
+        finally:
+            connection.close()
+
+        assert {"training_plan_receipts", "training_plan_lifecycle_events"} <= tables
+        assert {
+            "trg_training_plan_receipts_no_update",
+            "trg_training_plan_receipts_no_delete",
+            "trg_training_plan_lifecycle_events_no_update",
+            "trg_training_plan_lifecycle_events_no_delete",
+        } <= triggers
+        assert meal == ("Legacy Meal", 500.0)
+        assert scan == ("clear",)
 
     def test_training_readiness_scan_round_trip_is_newest_first(self):
         first = database.save_training_readiness_scan(

@@ -1,5 +1,7 @@
 """Tests for /training routes — mocks the provider-agnostic AI gateway."""
 
+from datetime import date
+
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -9,6 +11,32 @@ from jarvis.api.main import app
 from jarvis.api.ai_gateway import AIResult
 
 client = TestClient(app)
+
+
+def _active_plan_record(target_date="2026-07-20", session_type="high_intensity"):
+    return {
+        "plan_id": "plan-2026-W30",
+        "status": "active",
+        "reason": "accepted",
+        "changed_at": "2026-07-19T10:00:00+00:00",
+        "superseded_by": None,
+        "payload": {
+            "plan_id": "plan-2026-W30",
+            "receipt_hash": "receipt-2026-W30",
+            "days": [
+                {
+                    "date": target_date,
+                    "session_type": session_type,
+                    "objective": "jump_strength",
+                    "exercises": [
+                        {"name": "hang_power_clean", "sets": 5, "reps": 3},
+                    ],
+                    "estimated_minutes": 50,
+                    "change_reason": None,
+                }
+            ],
+        },
+    }
 
 _MOCK_BRIEF = (
     "You're in month_1, week 1 of the Long Conjugate Sequence, laying hypertrophy base. "
@@ -39,14 +67,25 @@ class TestTrainingStatusRoute:
         assert "fatigue_warning" in data
 
     def test_today_session_has_session_type(self):
-        data = client.get("/training/status").json()
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_plan_record(),
+        ), patch("jarvis.api.routers.training.clock.today", return_value=date(2026, 7, 20)):
+            data = client.get("/training/status").json()
         assert "session_type" in data["today_session"]
-        valid_types = {"high_intensity", "general", "jump", "iso_only", "rest", "peak", "attempt"}
+        valid_types = {
+            "high_intensity", "general", "jump", "iso_only", "rest", "recovery",
+            "peak", "attempt",
+        }
         assert data["today_session"]["session_type"] in valid_types
 
-    def test_week_sessions_has_7_entries(self):
-        data = client.get("/training/status").json()
-        assert len(data["week_sessions"]) == 7
+    def test_week_sessions_contains_only_active_plan_days(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_plan_record(),
+        ), patch("jarvis.api.routers.training.clock.today", return_value=date(2026, 7, 20)):
+            data = client.get("/training/status").json()
+        assert data["week_sessions"] == [data["today_session"]]
 
     def test_dunk_goal_fields_present(self):
         g = client.get("/training/status").json()["dunk_goal"]
@@ -74,10 +113,44 @@ class TestTrainingStatusRoute:
         finally:
             app.dependency_overrides.clear()
 
-    def test_today_session_has_phase(self):
-        data = client.get("/training/status").json()
-        assert "phase" in data["today_session"]
-        assert data["today_session"]["phase"] in {"month_1", "month_2", "peak", "attempt"}
+    def test_today_session_exposes_adaptive_objective_not_legacy_phase(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_plan_record(),
+        ), patch("jarvis.api.routers.training.clock.today", return_value=date(2026, 7, 20)):
+            data = client.get("/training/status").json()
+        assert data["today_session"]["objective"] == "jump_strength"
+        assert "phase" not in data["today_session"]
+
+    def test_status_requires_plan_instead_of_returning_legacy_session(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=None,
+        ):
+            body = client.get("/training/status").json()
+
+        assert body["operational_state"] == "plan_required"
+        assert body["plan_provenance"] is None
+        assert body["today_session"] is None
+
+    def test_status_projects_today_from_active_plan(self):
+        active = _active_plan_record()
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=active,
+        ), patch("jarvis.api.routers.training.clock.today", return_value=date(2026, 7, 20)):
+            body = client.get("/training/status").json()
+
+        assert body["operational_state"] == "active_plan"
+        assert body["plan_provenance"] == {
+            "plan_id": "plan-2026-W30",
+            "receipt_hash": "receipt-2026-W30",
+            "date": "2026-07-20",
+        }
+        assert body["today_session"]["exercises"] == [
+            {"name": "hang_power_clean", "sets": 5, "reps": 3}
+        ]
+        assert body["week_sessions"] == [body["today_session"]]
 
 
 class TestTrainingBriefRoute:
@@ -116,6 +189,33 @@ class TestTrainingBriefRoute:
 
 
 class TestTrainingReadinessAndRouting:
+    def test_routed_session_uses_same_active_plan_projection_as_status(self):
+        active = _active_plan_record()
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=active,
+        ), patch(
+            "jarvis.api.routers.training.database.get_latest_training_readiness_scan",
+            return_value=None,
+        ), patch("jarvis.api.routers.training.clock.today", return_value=date(2026, 7, 20)):
+            status = client.get("/training/status").json()
+            routed = client.get("/training/routed-session").json()
+
+        assert routed["operational_state"] == "active_plan"
+        assert routed["plan_provenance"] == status["plan_provenance"]
+        assert routed["session"] == status["today_session"]
+        assert routed["planned_session"] == status["today_session"]
+
+    def test_routed_session_rejects_missing_active_plan(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=None,
+        ):
+            response = client.get("/training/routed-session")
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Active training plan required"
+
     def test_readiness_scan_validates_score_range(self):
         response = client.post(
             "/training/readiness-scan",
@@ -156,6 +256,9 @@ class TestTrainingReadinessAndRouting:
         with patch(
             "jarvis.api.routers.training.database.get_latest_training_readiness_scan",
             return_value=None,
+        ), patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_plan_record("2026-07-01"),
         ), patch("jarvis.api.routers.training.clock.today", return_value=__import__("datetime").date(2026, 7, 1)):
             response = client.get("/training/routed-session")
         assert response.status_code == 200
@@ -181,6 +284,9 @@ class TestTrainingReadinessAndRouting:
         with patch(
             "jarvis.api.routers.training.database.get_latest_training_readiness_scan",
             return_value=None,
+        ), patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_plan_record("2026-07-01"),
         ), patch("jarvis.api.routers.training.clock.today", return_value=__import__("datetime").date(2026, 7, 1)):
             response = client.get("/training/routed-session?explicit_reset=true")
         assert response.status_code == 200

@@ -115,6 +115,20 @@ The ledger stores immutable plan receipts and separate lifecycle events. A recei
 
 Only one active plan may exist for a given training week. Applying a proposal supersedes the previous active version atomically.
 
+### Task 10 Trust Contract Correction (2026-07-17)
+
+The promotion gate requires a stronger identity contract than an output-only receipt hash:
+
+- Every newly generated receipt persists a deeply immutable canonical replay payload containing the complete constitution, the typed planner input snapshot, and the exact typed constraints consumed by `generate_weekly_plan`.
+- The canonical input hash covers that replay payload, not generated days. The plan ID derives from the input hash and ISO cycle; the receipt hash additionally covers generated days, validations, parent, and immutable receipt status.
+- Replay deserializes the canonical inputs and reruns the actual planner. It must reproduce the same plan ID, input hash, output, validations, and receipt hash. Legacy receipts without replay inputs and any input, output, planner-drift, or nondeterminism mismatch fail closed.
+- Promotion evidence is generated from complete evaluated receipts and replay inputs. Its deterministic evidence ID covers the authenticated receipt bundle, inferred fixture summary, exact proposal identity allowlist, reasons, versions, and side-effect proof. Acceptance always decodes and recomputes the evidence; caller-authored `accepted`, fixture labels, summaries, counters, or evidence IDs grant no authority.
+- Required move, skip, equipment, fatigue, calendar, and pain scenarios are inferred from typed inputs and demonstrated before/after planner behavior. Validation evidence must be non-empty and structurally exact, and the current hard rules (`seven_unique_days`, `pain_block`, `calendar_conflicts`, and `recovery_spacing`) must pass with literal boolean `true`.
+- Side-effect evidence comes from a hashed pure-planner module boundary plus immutable input hashes before and after replay. Caller-provided zero counters are not evidence.
+- Live apply is authorized only when the proposal's plan ID, planner version, constitution version, input hash, and receipt hash exactly match one allowlisted evidence row. An already-active proposal remains idempotent and returns before mode or acceptance gates.
+
+The explicit runtime default remains `shadow`. Shadow proposals are persisted previews, are never authoritative, and cannot supersede the active plan.
+
 ## Planning Behavior
 
 ### Weekly Generation
@@ -228,6 +242,9 @@ Existing readiness, recovery, history, calendar, and session-log routes remain s
 - Rejected and superseded proposals cannot become active.
 - History preserves immutable plan and reason data.
 - Natural-language translation cannot directly activate a plan.
+- Legacy receipts without canonical replay inputs cannot become promotion evidence.
+- Evidence recomputation rejects tampered summaries, proofs, allowlists, receipt identities, and malformed validations.
+- Live apply requires an exact five-field proposal identity match in accepted evidence.
 
 ### Frontend Tests
 
@@ -247,7 +264,7 @@ Existing readiness, recovery, history, calendar, and session-log routes remain s
 5. Add `ADAPT WEEK` to the cockpit.
 6. Run browser QA on desktop and mobile.
 7. Observe planner recommendations without replacing the current schedule.
-8. Promote the planner to authoritative after replay and safety acceptance passes.
+8. Promote the planner to authoritative only after recomputed replay and safety evidence allowlists the exact proposal receipt.
 9. Begin the separate `START SESSION` design review using real authoritative plan data.
 
 ## Acceptance Criteria

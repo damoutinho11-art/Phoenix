@@ -61,7 +61,1031 @@
 /* the composer input focus ring follows the accent */
 .holo-composer:focus { border-color: color-mix(in srgb, var(--phx-accent) 60%, transparent) !important; }
 
+.phx-scope-training :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--phx-accent) 88%, white 12%);
+  outline-offset: 2px;
+  border-color: var(--phx-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--phx-accent) 18%, transparent);
+}
+
+/* Training Control Room */
+.training-control-room-layer {
+  --training-accent: var(--phx-accent);
+  position: fixed;
+  inset: 0;
+  z-index: 91;
+  color: var(--phx-text);
+}
+
+.training-control-room-scrim {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, black 72%, transparent);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  animation: holo-fadeIn .24s ease both;
+}
+
+.training-control-room {
+  position: fixed;
+  top: 48%;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  width: min(1160px, calc(100vw - 24px));
+  max-height: calc(100dvh - 96px);
+  overflow: hidden;
+  flex-direction: column;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--training-accent) 52%, transparent);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--training-accent) 14%, transparent), transparent 34%),
+    repeating-linear-gradient(90deg, transparent 0 48px, color-mix(in srgb, var(--training-accent) 3%, transparent) 48px 49px),
+    linear-gradient(180deg, color-mix(in srgb, var(--training-accent) 10%, var(--phx-panel) 90%), var(--phx-bg));
+  box-shadow:
+    0 0 90px color-mix(in srgb, var(--training-accent) 25%, transparent),
+    inset 0 0 54px color-mix(in srgb, var(--training-accent) 5%, transparent);
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+  animation: holo-focusIn .42s cubic-bezier(.2, .8, .4, 1) both;
+}
+
+.training-control-room::before,
+.training-control-room::after {
+  position: absolute;
+  z-index: 2;
+  width: 38px;
+  height: 1px;
+  content: '';
+  pointer-events: none;
+  background: var(--training-accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--training-accent) 65%, transparent);
+}
+
+.training-control-room::before { top: 5px; right: -3px; transform: rotate(-45deg); }
+.training-control-room::after { bottom: 0; left: 0; }
+
+.training-control-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px clamp(14px, 2.2vw, 22px) 11px;
+}
+
+.training-control-heading { min-width: 0; }
+
+.training-control-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--training-accent);
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--training-accent) 50%, transparent);
+}
+
+.training-control-kicker i,
+.training-plan-live-state i {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.training-control-heading h1 {
+  margin: 5px 0 0;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.training-control-heading p {
+  margin: 6px 0 0;
+  color: color-mix(in srgb, var(--training-accent) 60%, var(--phx-muted) 40%);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+
+.training-control-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.training-plan-live-state,
+.training-control-esc {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 28%, transparent);
+  color: color-mix(in srgb, var(--training-accent) 82%, white 8%);
+  background: color-mix(in srgb, var(--training-accent) 6%, var(--phx-bg) 72%);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+
+.training-plan-live-state.active { color: var(--training-accent); border-color: color-mix(in srgb, var(--training-accent) 40%, transparent); }
+.training-plan-live-state.proposed { color: var(--phx-muted); border-color: color-mix(in srgb, var(--phx-muted) 40%, transparent); }
+.training-plan-live-state.empty { color: var(--phx-muted); }
+
+.training-control-esc {
+  padding: 0 8px;
+  color: var(--phx-muted);
+  background: transparent;
+}
+
+.training-control-close {
+  width: 34px;
+  min-width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 46%, transparent);
+  color: var(--training-accent);
+  background: color-mix(in srgb, var(--phx-bg) 72%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.training-control-divider {
+  height: 1px;
+  margin: 0 clamp(14px, 2.2vw, 22px);
+  flex: 0 0 auto;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--training-accent) 88%, transparent), color-mix(in srgb, var(--training-accent) 16%, transparent) 66%, transparent);
+}
+
+.training-control-body {
+  position: relative;
+  min-height: 0;
+  padding: 12px clamp(12px, 2vw, 18px) 18px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--training-accent) 45%, transparent) transparent;
+}
+
+.training-control-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--training-accent) 16%, transparent);
+}
+
+.training-control-tab {
+  display: flex;
+  min-width: 0;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 0;
+  color: color-mix(in srgb, var(--training-accent) 72%, var(--phx-body) 28%);
+  background: color-mix(in srgb, var(--phx-bg) 88%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  cursor: pointer;
+}
+
+.training-control-tab span { color: color-mix(in srgb, var(--training-accent) 38%, var(--phx-muted) 62%); font-size: 7px; }
+
+.training-control-tab.active {
+  color: var(--phx-bg);
+  background: var(--training-accent);
+  box-shadow: inset 0 0 18px color-mix(in srgb, white 12%, transparent), 0 0 22px color-mix(in srgb, var(--training-accent) 22%, transparent);
+}
+
+.training-control-tab.active span { color: color-mix(in srgb, var(--phx-bg) 72%, transparent); }
+
+.training-control-tab:focus-visible,
+.training-control-close:focus-visible,
+.training-week-scroll:focus-visible,
+.training-control-panel:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--training-accent) 88%, white 12%);
+  outline-offset: 2px;
+}
+
+.training-plan-loading,
+.training-plan-error {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--training-accent);
+  color: color-mix(in srgb, var(--training-accent) 78%, var(--phx-body) 22%);
+  background: color-mix(in srgb, var(--training-accent) 6%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+}
+
+.training-plan-error {
+  border-left-color: var(--training-accent);
+  color: color-mix(in srgb, var(--training-accent) 78%, var(--phx-body) 22%);
+  background: color-mix(in srgb, var(--training-accent) 6%, transparent);
+}
+
+.training-control-panel {
+  min-width: 0;
+  margin-top: 12px;
+  animation: holo-in .3s cubic-bezier(.2, .8, .4, 1) both;
+}
+
+.training-view-heading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 20%, transparent);
+}
+
+.training-view-heading > div { min-width: 0; }
+
+.training-view-heading span,
+.training-section-heading,
+.training-view-count {
+  color: color-mix(in srgb, var(--training-accent) 65%, var(--phx-muted) 35%);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .14em;
+}
+
+.training-view-heading h2 {
+  margin: 3px 0 0;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.training-view-count { flex: 0 0 auto; padding-bottom: 2px; text-align: right; }
+
+.training-plan-metadata {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.4fr) minmax(420px, 2fr);
+  gap: 1px;
+  margin-top: 10px;
+  background: color-mix(in srgb, var(--training-accent) 18%, transparent);
+}
+
+.training-plan-version,
+.training-plan-metadata dl {
+  margin: 0;
+  background: color-mix(in srgb, var(--phx-bg) 90%, transparent);
+}
+
+.training-plan-version {
+  min-width: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--training-accent);
+}
+
+.training-plan-version.proposed,
+.training-plan-version.active { border-left-color: var(--training-accent); }
+
+.training-plan-version span,
+.training-plan-metadata dt,
+.training-history-metadata dt,
+.training-history-reason span {
+  display: block;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .12em;
+}
+
+.training-plan-version strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--phx-text);
+  font-family: var(--phx-font-mono);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.training-plan-metadata dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.training-plan-metadata dl div { min-width: 0; padding: 10px 12px; }
+
+.training-plan-metadata dd,
+.training-history-metadata dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--phx-body);
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
+}
+
+.training-plan-metadata dd.active,
+.training-plan-metadata dd.proposed { color: var(--training-accent); }
+
+.training-empty-state {
+  margin-top: 10px;
+  padding: 20px 12px;
+  border: 1px dashed color-mix(in srgb, var(--training-accent) 32%, transparent);
+  color: var(--phx-muted);
+  background: color-mix(in srgb, var(--training-accent) 3%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-align: center;
+}
+
+.training-week-scroll {
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--training-accent) 55%, transparent) color-mix(in srgb, var(--training-accent) 6%, transparent);
+}
+
+.training-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(112px, 1fr));
+  gap: 1px;
+  min-width: 784px;
+  background: color-mix(in srgb, var(--training-accent) 16%, transparent);
+}
+
+.training-week-day {
+  min-width: 0;
+  min-height: 228px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--phx-bg) 90%, transparent);
+}
+
+.training-week-day.changed {
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--training-accent) 72%, transparent);
+}
+
+.training-week-day.changed.passed { border-color: color-mix(in srgb, var(--phx-positive) 62%, transparent); }
+.training-week-day.changed.warning { border-color: color-mix(in srgb, var(--phx-caution) 72%, transparent); }
+.training-week-day.changed.blocked { border-color: color-mix(in srgb, var(--phx-danger) 72%, transparent); }
+.training-week-day.changed.unverified { border-color: color-mix(in srgb, var(--phx-muted) 62%, transparent); }
+
+.training-week-day.empty { background: color-mix(in srgb, var(--phx-panel) 68%, transparent); }
+
+.training-week-day header {
+  display: flex;
+  min-height: 35px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 12%, transparent);
+}
+
+.training-week-day header span,
+.training-session-type,
+.training-day-duration span,
+.training-change-marker {
+  display: block;
+  color: color-mix(in srgb, var(--training-accent) 74%, var(--phx-body) 26%);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.training-week-day time {
+  display: block;
+  margin-top: 3px;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.training-change-marker { color: var(--training-accent); font-size: 6px; }
+
+.training-session-type { margin-top: 10px; color: var(--training-accent); }
+
+.training-week-day h3 {
+  min-height: 34px;
+  margin: 5px 0 10px;
+  overflow-wrap: anywhere;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.12;
+}
+
+.training-day-duration {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 6px 0;
+  border-top: 1px solid color-mix(in srgb, var(--training-accent) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 10%, transparent);
+}
+
+.training-day-duration strong {
+  color: var(--phx-body);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.training-day-exercises {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.training-day-exercises li {
+  overflow: hidden;
+  color: color-mix(in srgb, var(--phx-body) 82%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-day-exercises li::before { margin-right: 5px; color: var(--training-accent); content: '>'; }
+
+.training-change-reason {
+  margin: 8px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid color-mix(in srgb, var(--training-accent) 22%, transparent);
+  color: color-mix(in srgb, var(--training-accent) 72%, var(--phx-body) 28%);
+  font-family: var(--phx-font-body);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.training-week-day.changed.passed .training-change-marker,
+.training-week-day.changed.passed .training-change-reason { color: var(--phx-positive); }
+.training-week-day.changed.warning .training-change-marker,
+.training-week-day.changed.warning .training-change-reason { color: var(--phx-caution); }
+.training-week-day.changed.blocked .training-change-marker,
+.training-week-day.changed.blocked .training-change-reason { color: var(--phx-danger); }
+.training-week-day.changed.unverified .training-change-marker,
+.training-week-day.changed.unverified .training-change-reason { color: var(--phx-muted); }
+
+.training-day-empty {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  color: color-mix(in srgb, var(--phx-muted) 70%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .1em;
+  text-align: center;
+}
+
+.training-hybrid-sequence {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  background: transparent;
+}
+
+.training-hybrid-slot {
+  min-width: 0;
+  min-height: 126px;
+  position: relative;
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+
+.training-hybrid-slot.current {
+  border-color: var(--training-accent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--training-accent) 12%, transparent), transparent 72%),
+    color-mix(in srgb, var(--phx-bg) 90%, transparent);
+  box-shadow: inset 0 2px 0 var(--training-accent), 0 0 20px color-mix(in srgb, var(--training-accent) 10%, transparent);
+}
+
+.training-hybrid-slot.high-neural:not(.current) {
+  border-color: color-mix(in srgb, var(--phx-caution) 42%, transparent);
+}
+
+.training-hybrid-slot.recovery {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--phx-panel) 74%, transparent);
+}
+
+.training-hybrid-slot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--training-accent) 88%, white 12%);
+  outline-offset: -3px;
+}
+
+.training-hybrid-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(260px, .75fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.training-hybrid-mission,
+.training-hybrid-decisions {
+  min-width: 0;
+  padding: 14px 2px 2px;
+  border-top: 1px solid color-mix(in srgb, var(--training-accent) 28%, transparent);
+}
+
+.training-hybrid-mission h3 {
+  margin: 9px 0 2px;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 21px;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+
+.training-hybrid-mission > p,
+.training-hybrid-decisions > p {
+  margin: 4px 0 0;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .08em;
+  line-height: 1.55;
+}
+
+.training-hybrid-mission .training-day-exercises li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 34px;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 9%, transparent);
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.training-hybrid-mission .training-day-exercises li::before { display: none; }
+.training-hybrid-mission .training-day-exercises b { color: var(--training-accent); font-weight: 400; }
+.training-hybrid-mission .training-day-exercises strong { color: var(--phx-muted); font-size: 7px; font-weight: 400; text-align: right; }
+
+.training-hybrid-decisions dl { margin: 8px 0 0; }
+.training-hybrid-decisions dl div {
+  padding: 9px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 9%, transparent);
+}
+.training-hybrid-decisions dt { color: var(--phx-body); font-family: var(--phx-font-body); font-size: 11px; }
+.training-hybrid-decisions dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .07em; }
+
+.training-session-identity {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 30%, transparent);
+}
+
+.training-session-identity span {
+  display: block;
+  color: var(--training-accent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .16em;
+}
+
+.training-session-identity strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+
+.training-session-identity b {
+  flex: 0 0 auto;
+  color: var(--training-accent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: .13em;
+}
+
+.training-session-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.05fr) minmax(270px, 1.2fr) minmax(220px, .9fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.training-session-queue,
+.training-session-console,
+.training-session-evidence { min-width: 0; }
+.training-session-console { text-align: center; }
+
+.training-validation-summary {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--training-accent) 20%, transparent);
+}
+
+.training-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.training-section-heading b { font-weight: 400; }
+.training-section-heading .passed { color: var(--phx-positive); }
+.training-section-heading .warning { color: var(--phx-caution); }
+.training-section-heading .blocked { color: var(--phx-danger); }
+.training-section-heading .unverified { color: var(--phx-muted); }
+
+.training-validation-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  background: color-mix(in srgb, var(--training-accent) 12%, transparent);
+}
+
+.training-validation-list li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 5px minmax(100px, .7fr) minmax(160px, 1.3fr);
+  align-items: start;
+  gap: 7px;
+  padding: 8px 9px;
+  background: color-mix(in srgb, var(--phx-bg) 92%, transparent);
+}
+
+.training-validation-list i { width: 5px; height: 5px; margin-top: 2px; background: currentColor; box-shadow: 0 0 6px currentColor; }
+.training-validation-list span,
+.training-validation-list strong { overflow-wrap: anywhere; font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .05em; }
+.training-validation-list strong { color: var(--phx-body); font-weight: 400; }
+.training-validation-list .passed { color: var(--phx-positive); }
+.training-validation-list .warning { color: var(--phx-caution); }
+.training-validation-list .blocked { color: var(--phx-danger); }
+.training-validation-list .unverified { color: var(--phx-muted); }
+
+.training-history-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.training-history-item {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 20%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--training-accent) 5%, transparent), color-mix(in srgb, var(--phx-bg) 84%, transparent));
+}
+
+.training-history-item > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.training-history-version { min-width: 0; }
+.training-history-version span { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .12em; }
+.training-history-version strong { display: block; margin-top: 4px; overflow-wrap: anywhere; color: var(--phx-text); font-family: var(--phx-font-mono); font-size: 10px; font-weight: 400; }
+
+.training-lifecycle-status {
+  flex: 0 0 auto;
+  padding: 5px 7px;
+  border: 1px solid currentColor;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.training-lifecycle-status.active { color: var(--training-accent); }
+.training-lifecycle-status.proposed { color: var(--training-accent); }
+.training-lifecycle-status.rejected { color: var(--phx-muted); }
+.training-lifecycle-status.completed { color: var(--phx-muted); }
+.training-lifecycle-status.superseded { color: color-mix(in srgb, var(--training-accent) 62%, var(--phx-muted) 38%); }
+
+.training-history-metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 10px 0 0;
+  background: color-mix(in srgb, var(--training-accent) 10%, transparent);
+}
+
+.training-history-metadata > div { min-width: 0; padding: 8px; background: color-mix(in srgb, var(--phx-bg) 90%, transparent); }
+.training-history-metadata a { color: var(--training-accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+.training-history-reason {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid color-mix(in srgb, var(--training-accent) 12%, transparent);
+}
+
+.training-history-reason p { margin: 0; color: var(--phx-body); font-family: var(--phx-font-body); font-size: 11px; line-height: 1.45; }
+
+.training-history-validation {
+  margin-top: 8px;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.training-history-validation.passed { color: var(--phx-positive); }
+.training-history-validation.warning { color: var(--phx-caution); }
+.training-history-validation.blocked { color: var(--phx-danger); }
+.training-history-validation.unverified { color: var(--phx-muted); }
+
+.training-rules-objective {
+  display: grid;
+  grid-template-columns: 160px minmax(160px, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+  border-left: 3px solid var(--training-accent);
+  background: color-mix(in srgb, var(--training-accent) 6%, transparent);
+}
+
+.training-rules-objective span,
+.training-rules-objective p { margin: 0; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .11em; }
+.training-rules-objective strong { color: var(--phx-text); font-family: var(--phx-font-display); font-size: 20px; font-weight: 600; }
+.training-rules-objective p { text-align: right; overflow-wrap: anywhere; }
+
+.training-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--training-accent) 18%, transparent);
+}
+
+.training-rule-section {
+  min-width: 0;
+  padding: 13px 12px;
+  border-right: 1px solid color-mix(in srgb, var(--training-accent) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 14%, transparent);
+}
+
+.training-rule-section:nth-child(even) { border-right: 0; }
+
+.training-rule-section h3 {
+  margin: 0 0 9px;
+  color: var(--training-accent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: .14em;
+}
+
+.training-rule-metrics,
+.training-movement-families dl { display: grid; gap: 1px; margin: 0; background: color-mix(in srgb, var(--training-accent) 9%, transparent); }
+
+.training-rule-metrics div,
+.training-movement-families dl div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(145px, 1fr) minmax(70px, auto);
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 8px;
+  background: color-mix(in srgb, var(--phx-bg) 92%, transparent);
+}
+
+.training-rule-metrics dt,
+.training-movement-families dt { color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .06em; }
+.training-rule-metrics dd,
+.training-movement-families dd { margin: 0; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; text-align: right; }
+
+.training-constraint-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.training-constraint-list li { padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 10%, transparent); }
+.training-constraint-list li:last-child { border-bottom: 0; }
+.training-constraint-list div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.training-constraint-list strong,
+.training-constraint-list span { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 7px; font-weight: 400; letter-spacing: .08em; }
+.training-constraint-list span { color: var(--phx-muted); }
+.training-constraint-list p { margin: 5px 0 0; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-body); font-size: 10px; line-height: 1.4; }
+
+.training-rule-empty { margin: 0; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 8px; letter-spacing: .08em; }
+
+.training-adapt-view { min-width: 0; }
+
+.training-adapt-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 10px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--training-accent) 14%, transparent);
+}
+
+.training-adapt-actions button,
+.training-adapt-quick-form button,
+.training-adapt-intent-form button,
+.training-adapt-commands button {
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 44%, transparent);
+  color: var(--training-accent);
+  background: color-mix(in srgb, var(--phx-bg) 90%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+
+.training-adapt-actions button { border: 0; }
+.training-adapt-actions button[aria-pressed="true"],
+.training-adapt-apply { color: var(--phx-bg); background: var(--training-accent); }
+.training-adapt-actions button:focus-visible,
+.training-adapt-quick-form input:focus-visible,
+.training-adapt-intent-form input:focus-visible,
+.training-adapt-commands button:focus-visible,
+.training-adapt-preview h2:focus-visible { outline: 2px solid color-mix(in srgb, var(--training-accent) 88%, white 12%); outline-offset: 2px; }
+.training-adapt-actions button:disabled,
+.training-adapt-quick-form button:disabled,
+.training-adapt-intent-form button:disabled,
+.training-adapt-commands button:disabled { cursor: not-allowed; opacity: .42; }
+
+.training-adapt-quick-form,
+.training-adapt-intent-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.training-adapt-quick-form label,
+.training-adapt-intent-form label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.training-adapt-quick-form input,
+.training-adapt-intent-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 25%, transparent);
+  color: var(--phx-text);
+  background: color-mix(in srgb, var(--phx-bg) 88%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
+}
+
+.training-adapt-quick-form button { align-self: end; }
+.training-adapt-intent-form { grid-template-columns: minmax(150px, .65fr) minmax(0, 2fr) auto; }
+.training-adapt-intent-form button { min-width: 148px; }
+
+.training-adapt-error,
+.training-adapt-empty {
+  margin: 9px 0 0;
+  padding: 9px 10px;
+  border-left: 2px solid var(--training-accent);
+  color: var(--phx-muted);
+  background: color-mix(in srgb, var(--training-accent) 5%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .08em;
+  line-height: 1.45;
+}
+
+.training-adapt-preview { margin-top: 14px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--training-accent) 28%, transparent); }
+.training-adapt-status { flex: 0 0 auto; padding: 5px 7px; border: 1px solid currentColor; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .1em; }
+.training-adapt-status.passed { color: var(--phx-positive); }
+.training-adapt-status.warning { color: var(--phx-caution); }
+
+.training-adapt-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 10px;
+  background: color-mix(in srgb, var(--training-accent) 14%, transparent);
+}
+
+.training-adapt-summary div { min-width: 0; padding: 9px 10px; background: color-mix(in srgb, var(--phx-bg) 90%, transparent); }
+.training-adapt-summary span { display: block; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .1em; }
+.training-adapt-summary strong { display: block; margin-top: 4px; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; font-weight: 400; }
+
+.training-adapt-constraints,
+.training-adapt-diff,
+.training-adapt-validations { margin-top: 12px; }
+.training-adapt-constraint-list { display: grid; gap: 1px; margin: 8px 0 0; padding: 0; list-style: none; background: color-mix(in srgb, var(--training-accent) 12%, transparent); }
+.training-adapt-constraint-list li { display: grid; min-width: 0; grid-template-columns: minmax(120px, .65fr) minmax(0, 2fr); gap: 8px; padding: 8px 9px; background: color-mix(in srgb, var(--phx-bg) 92%, transparent); }
+.training-adapt-constraint-list strong { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 7px; font-weight: 400; letter-spacing: .08em; }
+.training-adapt-constraint-list span { overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; letter-spacing: .04em; }
+
+.training-adapt-diff-scroll { margin-top: 8px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--training-accent) 48%, transparent) transparent; }
+.training-adapt-diff-grid { min-width: 760px; border: 1px solid color-mix(in srgb, var(--training-accent) 18%, transparent); }
+.training-adapt-diff-head,
+.training-adapt-diff-row { display: grid; grid-template-columns: 104px minmax(150px, 1fr) minmax(150px, 1fr) minmax(170px, 1.2fr) 100px; gap: 1px; background: color-mix(in srgb, var(--training-accent) 12%, transparent); }
+.training-adapt-diff-head span { padding: 7px 8px; color: var(--training-accent); background: color-mix(in srgb, var(--phx-bg) 90%, transparent); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .09em; }
+.training-adapt-diff-row > * { min-width: 0; padding: 8px; overflow-wrap: anywhere; color: var(--phx-body); background: color-mix(in srgb, var(--phx-bg) 94%, transparent); font-family: var(--phx-font-mono); font-size: 8px; line-height: 1.4; }
+.training-adapt-diff-row b { display: block; margin-bottom: 3px; color: var(--phx-muted); font-size: 6px; font-weight: 400; letter-spacing: .08em; }
+.training-adapt-day-status { color: var(--phx-muted) !important; }
+.training-adapt-day-status.passed { color: var(--phx-positive) !important; }
+.training-adapt-day-status.warning { color: var(--phx-caution) !important; }
+
+.training-adapt-commands { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.training-adapt-commands button { min-width: 118px; }
+.training-adapt-reject { color: var(--phx-muted) !important; }
+
+@media (max-width: 820px) {
+  .training-hybrid-sequence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    min-width: 0;
+  }
+  .training-hybrid-slot { min-height: 154px; }
+  .training-hybrid-detail { grid-template-columns: 1fr; }
+  .training-hybrid-mission .training-day-exercises li { grid-template-columns: 24px minmax(0, 1fr); }
+  .training-hybrid-mission .training-day-exercises strong { grid-column: 2; text-align: left; }
+  .training-session-layout { grid-template-columns: 1fr; gap: 18px; }
+}
+
+@media (max-width: 760px) {
+  .training-control-room {
+    top: 8px;
+    left: 8px;
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    transform: none;
+    animation: none;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  }
+
+  .training-control-header { align-items: stretch; flex-direction: column; gap: 10px; padding: 12px 12px 10px; }
+  .training-control-heading h1 { font-size: 23px; }
+  .training-control-actions { justify-content: flex-start; }
+  .training-plan-live-state { margin-right: auto; }
+  .training-control-divider { margin: 0 12px; }
+  .training-control-body { padding: 10px 10px 14px; }
+  .training-control-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .training-control-tab { min-height: 42px; }
+  .training-view-heading { align-items: flex-start; }
+  .training-plan-metadata { grid-template-columns: 1fr; }
+  .training-plan-metadata dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .training-plan-metadata dl div { padding: 8px; }
+  .training-week-grid { grid-template-columns: repeat(7, 118px); min-width: 826px; }
+  .training-week-day { min-height: 230px; }
+  .training-session-identity { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .training-validation-list { grid-template-columns: 1fr; }
+  .training-validation-list li { grid-template-columns: 5px minmax(80px, .7fr) minmax(120px, 1.3fr); }
+  .training-adapt-quick-form,
+  .training-adapt-intent-form { grid-template-columns: 1fr; }
+  .training-adapt-intent-form button { min-width: 0; }
+  .training-history-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .training-history-reason { grid-template-columns: 1fr; gap: 5px; }
+  .training-rules-objective { grid-template-columns: 1fr; gap: 5px; }
+  .training-rules-objective p { text-align: left; }
+  .training-rules-grid { grid-template-columns: 1fr; }
+  .training-rule-section,
+  .training-rule-section:nth-child(even) { border-right: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .training-control-room,
+  .training-control-room-scrim,
+  .training-control-panel { animation: none !important; }
+  .training-hybrid-slot { animation: none; transition: none; }
+
   .holo-root *, .holo-root *::before, .holo-root *::after,
   .holo-layer *, .holo-layer *::before, .holo-layer *::after {
     animation-duration: .001ms !important;

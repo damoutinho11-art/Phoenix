@@ -120,6 +120,34 @@ CREATE TABLE IF NOT EXISTS session_log (
 
 CREATE INDEX IF NOT EXISTS idx_session_log_date ON session_log(date);
 
+CREATE TABLE IF NOT EXISTS training_session_evidence (
+    session_id INTEGER PRIMARY KEY,
+    plan_id TEXT NOT NULL,
+    receipt_hash TEXT NOT NULL,
+    plan_date TEXT NOT NULL,
+    duration_seconds INTEGER NOT NULL CHECK(duration_seconds >= 0),
+    rpe INTEGER NOT NULL CHECK(rpe BETWEEN 1 AND 10),
+    pain_confirmed INTEGER NOT NULL CHECK(pain_confirmed IN (0, 1)),
+    pain_body_areas_json TEXT NOT NULL DEFAULT '[]',
+    session_intent TEXT,
+    sequence_position INTEGER,
+    sequence_length INTEGER,
+    created_at TEXT NOT NULL,
+    UNIQUE(plan_id, plan_date)
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_training_session_evidence_no_update
+BEFORE UPDATE ON training_session_evidence
+BEGIN
+    SELECT RAISE(ABORT, 'Training session evidence is immutable');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_training_session_evidence_no_delete
+BEFORE DELETE ON training_session_evidence
+BEGIN
+    SELECT RAISE(ABORT, 'Training session evidence is immutable');
+END;
+
 CREATE TABLE IF NOT EXISTS jump_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -178,6 +206,57 @@ CREATE TABLE IF NOT EXISTS training_jump_balance_logs (
 
 CREATE INDEX IF NOT EXISTS idx_training_jump_balance_logs_date
 ON training_jump_balance_logs(log_date, id);
+
+CREATE TABLE IF NOT EXISTS training_plan_receipts (
+    plan_id TEXT PRIMARY KEY,
+    cycle_id TEXT NOT NULL,
+    parent_plan_id TEXT,
+    constitution_version TEXT NOT NULL,
+    planner_version TEXT NOT NULL,
+    input_hash TEXT NOT NULL,
+    receipt_hash TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    persisted_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS training_plan_lifecycle_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('proposed','active','superseded','completed','rejected')),
+    reason TEXT,
+    changed_at TEXT NOT NULL,
+    superseded_by TEXT,
+    UNIQUE(plan_id, status, reason, superseded_by)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_training_one_active_cycle
+ON training_plan_lifecycle_events(plan_id, status)
+WHERE status = 'active';
+
+CREATE TRIGGER IF NOT EXISTS trg_training_plan_receipts_no_update
+BEFORE UPDATE ON training_plan_receipts
+BEGIN
+    SELECT RAISE(ABORT, 'Training plan receipts are immutable');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_training_plan_receipts_no_delete
+BEFORE DELETE ON training_plan_receipts
+BEGIN
+    SELECT RAISE(ABORT, 'Training plan receipts are immutable');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_training_plan_lifecycle_events_no_update
+BEFORE UPDATE ON training_plan_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'Training plan lifecycle events are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_training_plan_lifecycle_events_no_delete
+BEFORE DELETE ON training_plan_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'Training plan lifecycle events are append-only');
+END;
 
 CREATE TABLE IF NOT EXISTS brief_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -422,6 +501,27 @@ def _migrate_research_memos_quality_columns(connection: sqlite3.Connection) -> N
     connection.commit()
 
 
+def _migrate_training_session_evidence(connection: sqlite3.Connection) -> None:
+    """Add nullable hybrid sequence evidence without rewriting legacy rows."""
+    existing = {
+        row[1]
+        for row in connection.execute(
+            "PRAGMA table_info(training_session_evidence)"
+        ).fetchall()
+    }
+    new_cols = [
+        ("session_intent", "TEXT"),
+        ("sequence_position", "INTEGER"),
+        ("sequence_length", "INTEGER"),
+    ]
+    for col_name, col_def in new_cols:
+        if col_name not in existing:
+            connection.execute(
+                f"ALTER TABLE training_session_evidence ADD COLUMN {col_name} {col_def}"
+            )
+    connection.commit()
+
+
 def _migrate_finance_transaction_void_columns(connection: sqlite3.Connection) -> None:
     """Add void columns to finance_transaction_ledger if not present."""
     existing = {
@@ -466,6 +566,7 @@ def init_db() -> None:
         _migrate_finance_transaction_ledger(connection)
         _migrate_finance_transaction_void_columns(connection)
         _migrate_research_memos_quality_columns(connection)
+        _migrate_training_session_evidence(connection)
         _migrate_portfolio_state_store(connection)
     finally:
         connection.close()
@@ -976,10 +1077,122 @@ def log_session(
         connection.close()
 
 
+def log_planned_session(
+    session_date: date | str,
+    session_type: str,
+    week_number: int | None,
+    exercises: list[dict[str, Any]],
+    plan_id: str,
+    receipt_hash: str,
+    plan_date: date | str,
+    duration_seconds: int,
+    rpe: int,
+    pain_confirmed: bool,
+    pain_body_areas: list[str],
+    session_intent: str | None = None,
+    sequence_position: int | None = None,
+    sequence_length: int | None = None,
+    notes: str | None = None,
+) -> tuple[int, bool]:
+    """Atomically persist one immutable completion per adaptive plan day."""
+    session_date_value = _date_value(session_date)
+    plan_date_value = _date_value(plan_date)
+    exercises_json = json.dumps(exercises, separators=(",", ":"))
+    pain_body_areas_json = json.dumps(
+        sorted(set(pain_body_areas)), separators=(",", ":")
+    )
+    expected = (
+        session_date_value,
+        session_type,
+        week_number,
+        exercises_json,
+        notes,
+        receipt_hash,
+        int(duration_seconds),
+        int(rpe),
+        int(pain_confirmed),
+        pain_body_areas_json,
+        session_intent,
+        sequence_position,
+        sequence_length,
+    )
+
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            """
+            SELECT s.id, s.date, s.session_type, s.week_number, s.exercises, s.notes,
+                   e.receipt_hash, e.duration_seconds, e.rpe, e.pain_confirmed,
+                   e.pain_body_areas_json, e.session_intent,
+                   e.sequence_position, e.sequence_length
+            FROM training_session_evidence e
+            JOIN session_log s ON s.id = e.session_id
+            WHERE e.plan_id = ? AND e.plan_date = ?
+            """,
+            (plan_id, plan_date_value),
+        ).fetchone()
+        if existing is not None:
+            actual = tuple(existing[key] for key in existing.keys() if key != "id")
+            if actual != expected:
+                raise ValueError(
+                    "Training plan day completion already exists with different evidence"
+                )
+            connection.commit()
+            return int(existing["id"]), True
+
+        cursor = connection.execute(
+            """
+            INSERT INTO session_log (date, session_type, week_number, exercises, notes)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            expected[:5],
+        )
+        session_id = int(cursor.lastrowid)
+        connection.execute(
+            """
+            INSERT INTO training_session_evidence (
+                session_id, plan_id, receipt_hash, plan_date, duration_seconds,
+                rpe, pain_confirmed, pain_body_areas_json, session_intent,
+                sequence_position, sequence_length, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                plan_id,
+                receipt_hash,
+                plan_date_value,
+                int(duration_seconds),
+                int(rpe),
+                int(pain_confirmed),
+                pain_body_areas_json,
+                session_intent,
+                sequence_position,
+                sequence_length,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        connection.commit()
+        return session_id, False
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def get_sessions(limit: int | None = None) -> list[dict[str, Any]]:
     connection = get_db()
     try:
-        sql = "SELECT * FROM session_log ORDER BY date DESC, id DESC"
+        sql = """
+            SELECT s.*, e.plan_id, e.receipt_hash, e.plan_date,
+                   e.duration_seconds, e.rpe, e.pain_confirmed,
+                   e.pain_body_areas_json, e.session_intent,
+                   e.sequence_position, e.sequence_length
+            FROM session_log s
+            LEFT JOIN training_session_evidence e ON e.session_id = s.id
+            ORDER BY s.date DESC, s.id DESC
+        """
         parameters: tuple[Any, ...] = ()
         if limit is not None:
             if limit < 1:
@@ -991,6 +1204,39 @@ def get_sessions(limit: int | None = None) -> list[dict[str, Any]]:
         for row in rows:
             session = dict(row)
             session["exercises"] = json.loads(session["exercises"])
+            pain_body_areas_json = session.pop("pain_body_areas_json")
+            if all(
+                session[field] is None
+                for field in (
+                    "session_intent",
+                    "sequence_position",
+                    "sequence_length",
+                )
+            ):
+                for field in (
+                    "session_intent",
+                    "sequence_position",
+                    "sequence_length",
+                ):
+                    session.pop(field)
+            if session["plan_id"] is not None:
+                session["plan_provenance"] = {
+                    "plan_id": session.pop("plan_id"),
+                    "receipt_hash": session.pop("receipt_hash"),
+                    "date": session.pop("plan_date"),
+                }
+                session["completion_evidence"] = {
+                    "duration_seconds": session.pop("duration_seconds"),
+                    "rpe": session.pop("rpe"),
+                    "pain_confirmed": bool(session.pop("pain_confirmed")),
+                    "pain_body_areas": json.loads(pain_body_areas_json),
+                }
+            else:
+                for key in (
+                    "plan_id", "receipt_hash", "plan_date", "duration_seconds",
+                    "rpe", "pain_confirmed",
+                ):
+                    session.pop(key)
             sessions.append(session)
         return sessions
     finally:
@@ -1210,6 +1456,331 @@ def list_training_jump_balance_logs(limit: int = 50) -> list[dict[str, Any]]:
             item["quality"] = json.loads(item.pop("quality_json"))
             result.append(item)
         return result
+    finally:
+        connection.close()
+
+
+_TRAINING_PLAN_STATUSES = frozenset(
+    {"proposed", "active", "superseded", "completed", "rejected"}
+)
+_TRAINING_PLAN_RECEIPT_FIELDS = (
+    "plan_id",
+    "cycle_id",
+    "parent_plan_id",
+    "constitution_version",
+    "planner_version",
+    "input_hash",
+    "receipt_hash",
+    "created_at",
+)
+_TRAINING_PLAN_INITIAL_REASONS = {
+    "proposed": "Plan proposed",
+    "active": "Initial active plan",
+    "superseded": "Imported superseded plan",
+    "completed": "Imported completed plan",
+    "rejected": "Imported rejected plan",
+}
+
+
+def _canonical_training_plan_json(payload: dict[str, Any]) -> str:
+    return json.dumps(
+        payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+
+
+def _validated_training_plan_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    if not isinstance(payload, dict):
+        raise ValueError("Training plan receipt must be a dictionary")
+
+    try:
+        payload_json = _canonical_training_plan_json(payload)
+        normalized = json.loads(payload_json)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Training plan receipt must be JSON serializable") from error
+
+    missing = [field for field in (*_TRAINING_PLAN_RECEIPT_FIELDS, "status") if field not in normalized]
+    if missing:
+        raise ValueError(f"Training plan receipt is missing required fields: {', '.join(missing)}")
+
+    for field in _TRAINING_PLAN_RECEIPT_FIELDS:
+        value = normalized[field]
+        if field == "parent_plan_id" and value is None:
+            continue
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"Training plan receipt field '{field}' must be a non-empty string")
+
+    if normalized["status"] not in _TRAINING_PLAN_STATUSES:
+        raise ValueError("Training plan receipt has an invalid status")
+
+    return normalized, payload_json
+
+
+def _training_plan_record_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    record = dict(row)
+    payload_json = record.pop("payload_json")
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError as error:
+        raise ValueError("Stored training plan receipt payload is invalid JSON") from error
+
+    if _canonical_training_plan_json(payload) != payload_json:
+        raise ValueError("Stored training plan receipt payload is not canonical")
+    if payload.get("receipt_hash") != record["receipt_hash"]:
+        raise ValueError("Stored training plan receipt hash does not match payload")
+    for field in _TRAINING_PLAN_RECEIPT_FIELDS:
+        if payload.get(field) != record[field]:
+            raise ValueError(f"Stored training plan receipt field '{field}' does not match payload")
+
+    record["payload"] = payload
+    return record
+
+
+def _training_plan_row(connection: sqlite3.Connection, where_sql: str, parameters: tuple[Any, ...]) -> sqlite3.Row | None:
+    return connection.execute(
+        f"""
+        SELECT receipt.*, event.status, event.reason, event.changed_at, event.superseded_by
+        FROM training_plan_receipts AS receipt
+        JOIN training_plan_lifecycle_events AS event ON event.id = (
+            SELECT id
+            FROM training_plan_lifecycle_events
+            WHERE plan_id = receipt.plan_id
+            ORDER BY id DESC
+            LIMIT 1
+        )
+        WHERE {where_sql}
+        """,
+        parameters,
+    ).fetchone()
+
+
+def _training_plan_record_for_update(connection: sqlite3.Connection, plan_id: str) -> dict[str, Any]:
+    row = _training_plan_row(connection, "receipt.plan_id = ?", (plan_id,))
+    if row is None:
+        raise ValueError("Training plan receipt was not found")
+    return _training_plan_record_from_row(row)
+
+
+def _active_training_plan_for_cycle(
+    connection: sqlite3.Connection, cycle_id: str
+) -> dict[str, Any] | None:
+    row = _training_plan_row(
+        connection,
+        "receipt.cycle_id = ? AND event.status = 'active'",
+        (cycle_id,),
+    )
+    return _training_plan_record_from_row(row) if row is not None else None
+
+
+def _insert_training_plan_event(
+    connection: sqlite3.Connection,
+    plan_id: str,
+    status: str,
+    reason: str | None,
+    *,
+    superseded_by: str | None = None,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO training_plan_lifecycle_events (
+            plan_id, status, reason, changed_at, superseded_by
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (plan_id, status, reason, _utc_now(), superseded_by),
+    )
+
+
+def save_training_plan_receipt(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized, payload_json = _validated_training_plan_payload(payload)
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            "SELECT payload_json, receipt_hash FROM training_plan_receipts WHERE plan_id = ?",
+            (normalized["plan_id"],),
+        ).fetchone()
+        if existing is not None:
+            if (
+                existing["payload_json"] != payload_json
+                or existing["receipt_hash"] != normalized["receipt_hash"]
+            ):
+                raise ValueError("Training plan receipts are immutable")
+            result = _training_plan_record_for_update(connection, normalized["plan_id"])
+            connection.commit()
+            return result
+
+        if normalized["status"] == "active":
+            active = _active_training_plan_for_cycle(connection, normalized["cycle_id"])
+            if active is not None:
+                raise ValueError("Only one active training plan may exist per ISO cycle")
+
+        connection.execute(
+            """
+            INSERT INTO training_plan_receipts (
+                plan_id, cycle_id, parent_plan_id, constitution_version, planner_version,
+                input_hash, receipt_hash, payload_json, created_at, persisted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                normalized["plan_id"],
+                normalized["cycle_id"],
+                normalized["parent_plan_id"],
+                normalized["constitution_version"],
+                normalized["planner_version"],
+                normalized["input_hash"],
+                normalized["receipt_hash"],
+                payload_json,
+                normalized["created_at"],
+                _utc_now(),
+            ),
+        )
+        _insert_training_plan_event(
+            connection,
+            normalized["plan_id"],
+            normalized["status"],
+            _TRAINING_PLAN_INITIAL_REASONS[normalized["status"]],
+        )
+        stored = connection.execute(
+            "SELECT payload_json, receipt_hash FROM training_plan_receipts WHERE plan_id = ?",
+            (normalized["plan_id"],),
+        ).fetchone()
+        if stored is None or stored["payload_json"] != payload_json or stored["receipt_hash"] != normalized["receipt_hash"]:
+            raise ValueError("Training plan receipt verification failed after write")
+        result = _training_plan_record_for_update(connection, normalized["plan_id"])
+        connection.commit()
+        return result
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def get_training_plan_receipt(plan_id: str) -> dict[str, Any] | None:
+    connection = get_db()
+    try:
+        row = _training_plan_row(connection, "receipt.plan_id = ?", (plan_id,))
+        return _training_plan_record_from_row(row) if row is not None else None
+    finally:
+        connection.close()
+
+
+def get_active_training_plan(cycle_id: str) -> dict[str, Any] | None:
+    connection = get_db()
+    try:
+        return _active_training_plan_for_cycle(connection, cycle_id)
+    finally:
+        connection.close()
+
+
+def list_training_plan_receipts(limit: int = 50) -> list[dict[str, Any]]:
+    if limit < 1:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT receipt.*, event.status, event.reason, event.changed_at, event.superseded_by
+            FROM training_plan_receipts AS receipt
+            JOIN training_plan_lifecycle_events AS event ON event.id = (
+                SELECT id
+                FROM training_plan_lifecycle_events
+                WHERE plan_id = receipt.plan_id
+                ORDER BY id DESC
+                LIMIT 1
+            )
+            ORDER BY receipt.persisted_at DESC, receipt.plan_id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [_training_plan_record_from_row(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def apply_training_plan_proposal(plan_id: str) -> dict[str, Any]:
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        proposal = _training_plan_record_for_update(connection, plan_id)
+        if proposal["status"] == "active":
+            connection.commit()
+            return proposal
+        if proposal["status"] != "proposed":
+            raise ValueError("Only proposed training plans can be applied")
+
+        active = _active_training_plan_for_cycle(connection, proposal["cycle_id"])
+        parent_plan_id = proposal["parent_plan_id"]
+        if parent_plan_id is None:
+            if active is not None:
+                raise ValueError(
+                    "Training plan proposal must declare the current active plan as its parent"
+                )
+        else:
+            try:
+                parent = _training_plan_record_for_update(connection, parent_plan_id)
+            except ValueError as error:
+                raise ValueError(
+                    "Training plan proposal declared parent was not found"
+                ) from error
+            if parent["cycle_id"] != proposal["cycle_id"]:
+                raise ValueError(
+                    "Training plan proposal declared parent must be from the same cycle"
+                )
+            if active is None or active["plan_id"] != parent_plan_id:
+                raise ValueError(
+                    "Training plan proposal declared parent must be the current active plan"
+                )
+            _insert_training_plan_event(
+                connection,
+                parent_plan_id,
+                "superseded",
+                "Approved replacement",
+                superseded_by=plan_id,
+            )
+        _insert_training_plan_event(
+            connection,
+            plan_id,
+            "active",
+            "User approved proposal",
+        )
+        result = _training_plan_record_for_update(connection, plan_id)
+        connection.commit()
+        return result
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def reject_training_plan_proposal(plan_id: str) -> dict[str, Any]:
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        proposal = _training_plan_record_for_update(connection, plan_id)
+        if proposal["status"] == "rejected":
+            connection.commit()
+            return proposal
+        if proposal["status"] != "proposed":
+            raise ValueError("Only proposed training plans can be rejected")
+
+        _insert_training_plan_event(
+            connection,
+            plan_id,
+            "rejected",
+            "User rejected proposal",
+        )
+        result = _training_plan_record_for_update(connection, plan_id)
+        connection.commit()
+        return result
+    except Exception:
+        connection.rollback()
+        raise
     finally:
         connection.close()
 
