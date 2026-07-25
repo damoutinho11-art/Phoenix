@@ -210,6 +210,9 @@ class SessionLogRequest(BaseModel):
     duration_seconds: int | None = Field(default=None, ge=0, le=86400)
     rpe: int | None = Field(default=None, ge=1, le=10)
     pain_confirmed: bool | None = None
+    session_intent: str | None = None
+    sequence_position: int | None = Field(default=None, ge=1, le=6)
+    sequence_length: int | None = Field(default=None, ge=6, le=6)
     pain_body_areas: list[
         Literal[
             "knee", "ankle", "hip", "hamstring", "calf_achilles",
@@ -219,6 +222,15 @@ class SessionLogRequest(BaseModel):
 
     @model_validator(mode="after")
     def require_complete_planned_evidence(self):
+        hybrid_values = (
+            self.session_intent,
+            self.sequence_position,
+            self.sequence_length,
+        )
+        if any(value is not None for value in hybrid_values) and self.plan_id is None:
+            raise ValueError(
+                "Hybrid sequence evidence requires plan provenance"
+            )
         planned_values = (
             self.plan_id,
             self.receipt_hash,
@@ -1216,6 +1228,24 @@ def create_session_log(request: SessionLogRequest) -> dict:
             raise HTTPException(
                 status_code=409, detail="Training completion provenance mismatch"
             )
+        authoritative_day = next(
+            (
+                day
+                for day in payload.get("days", [])
+                if isinstance(day, Mapping)
+                and day.get("date") == request.date.isoformat()
+            ),
+            None,
+        )
+        if payload.get("planner_version") == "adaptive-v2" and (
+            authoritative_day is None
+            or request.session_intent != authoritative_day.get("session_intent")
+            or request.sequence_position != authoritative_day.get("sequence_position")
+            or request.sequence_length != authoritative_day.get("sequence_length")
+        ):
+            raise HTTPException(
+                status_code=409, detail="Training completion does not match plan day"
+            )
         planned_names = [
             str(exercise.get("name", "")).casefold().strip()
             for exercise in session["exercises"]
@@ -1242,6 +1272,9 @@ def create_session_log(request: SessionLogRequest) -> dict:
                 rpe=request.rpe,
                 pain_confirmed=request.pain_confirmed,
                 pain_body_areas=request.pain_body_areas,
+                session_intent=request.session_intent,
+                sequence_position=request.sequence_position,
+                sequence_length=request.sequence_length,
             )
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc

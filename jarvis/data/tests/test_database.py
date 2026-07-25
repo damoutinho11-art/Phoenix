@@ -388,6 +388,86 @@ class DatabaseTests(unittest.TestCase):
             "training_jump_balance_logs",
         } <= names
 
+    def test_init_db_migrates_hybrid_completion_columns_without_data_loss(self):
+        legacy_db_path = Path(self.temp_dir.name) / "legacy-training-evidence.db"
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            connection.executescript(
+                """
+                CREATE TABLE session_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    session_type TEXT NOT NULL,
+                    week_number INTEGER,
+                    exercises TEXT NOT NULL,
+                    notes TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE training_session_evidence (
+                    session_id INTEGER PRIMARY KEY,
+                    plan_id TEXT NOT NULL,
+                    receipt_hash TEXT NOT NULL,
+                    plan_date TEXT NOT NULL,
+                    duration_seconds INTEGER NOT NULL,
+                    rpe INTEGER NOT NULL,
+                    pain_confirmed INTEGER NOT NULL,
+                    pain_body_areas_json TEXT NOT NULL DEFAULT '[]',
+                    created_at TEXT NOT NULL,
+                    UNIQUE(plan_id, plan_date)
+                );
+                """
+            )
+            cursor = connection.execute(
+                """
+                INSERT INTO session_log (
+                    date, session_type, exercises
+                ) VALUES ('2026-07-20', 'high_intensity', '[]')
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO training_session_evidence (
+                    session_id, plan_id, receipt_hash, plan_date,
+                    duration_seconds, rpe, pain_confirmed,
+                    pain_body_areas_json, created_at
+                ) VALUES (?, 'legacy-plan', 'legacy-hash', '2026-07-20',
+                          2700, 8, 0, '[]', '2026-07-20T08:00:00Z')
+                """,
+                (cursor.lastrowid,),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        with patch.object(database, "DB_PATH", legacy_db_path):
+            database.init_db()
+            database.init_db()
+
+        connection = sqlite3.connect(legacy_db_path)
+        try:
+            columns = {
+                row[1]
+                for row in connection.execute(
+                    "PRAGMA table_info(training_session_evidence)"
+                ).fetchall()
+            }
+            evidence = connection.execute(
+                """
+                SELECT plan_id, session_intent, sequence_position, sequence_length
+                FROM training_session_evidence
+                """
+            ).fetchone()
+        finally:
+            connection.close()
+
+        assert {
+            "session_intent",
+            "sequence_position",
+            "sequence_length",
+        } <= columns
+        assert evidence == ("legacy-plan", None, None, None)
+
     def test_init_db_migrates_populated_existing_schema_without_data_loss(self):
         legacy_db_path = Path(self.temp_dir.name) / "legacy.db"
         connection = sqlite3.connect(legacy_db_path)

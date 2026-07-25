@@ -129,6 +129,9 @@ CREATE TABLE IF NOT EXISTS training_session_evidence (
     rpe INTEGER NOT NULL CHECK(rpe BETWEEN 1 AND 10),
     pain_confirmed INTEGER NOT NULL CHECK(pain_confirmed IN (0, 1)),
     pain_body_areas_json TEXT NOT NULL DEFAULT '[]',
+    session_intent TEXT,
+    sequence_position INTEGER,
+    sequence_length INTEGER,
     created_at TEXT NOT NULL,
     UNIQUE(plan_id, plan_date)
 );
@@ -498,6 +501,27 @@ def _migrate_research_memos_quality_columns(connection: sqlite3.Connection) -> N
     connection.commit()
 
 
+def _migrate_training_session_evidence(connection: sqlite3.Connection) -> None:
+    """Add nullable hybrid sequence evidence without rewriting legacy rows."""
+    existing = {
+        row[1]
+        for row in connection.execute(
+            "PRAGMA table_info(training_session_evidence)"
+        ).fetchall()
+    }
+    new_cols = [
+        ("session_intent", "TEXT"),
+        ("sequence_position", "INTEGER"),
+        ("sequence_length", "INTEGER"),
+    ]
+    for col_name, col_def in new_cols:
+        if col_name not in existing:
+            connection.execute(
+                f"ALTER TABLE training_session_evidence ADD COLUMN {col_name} {col_def}"
+            )
+    connection.commit()
+
+
 def _migrate_finance_transaction_void_columns(connection: sqlite3.Connection) -> None:
     """Add void columns to finance_transaction_ledger if not present."""
     existing = {
@@ -542,6 +566,7 @@ def init_db() -> None:
         _migrate_finance_transaction_ledger(connection)
         _migrate_finance_transaction_void_columns(connection)
         _migrate_research_memos_quality_columns(connection)
+        _migrate_training_session_evidence(connection)
         _migrate_portfolio_state_store(connection)
     finally:
         connection.close()
@@ -1064,6 +1089,9 @@ def log_planned_session(
     rpe: int,
     pain_confirmed: bool,
     pain_body_areas: list[str],
+    session_intent: str | None = None,
+    sequence_position: int | None = None,
+    sequence_length: int | None = None,
     notes: str | None = None,
 ) -> tuple[int, bool]:
     """Atomically persist one immutable completion per adaptive plan day."""
@@ -1084,6 +1112,9 @@ def log_planned_session(
         int(rpe),
         int(pain_confirmed),
         pain_body_areas_json,
+        session_intent,
+        sequence_position,
+        sequence_length,
     )
 
     connection = get_db()
@@ -1093,7 +1124,8 @@ def log_planned_session(
             """
             SELECT s.id, s.date, s.session_type, s.week_number, s.exercises, s.notes,
                    e.receipt_hash, e.duration_seconds, e.rpe, e.pain_confirmed,
-                   e.pain_body_areas_json
+                   e.pain_body_areas_json, e.session_intent,
+                   e.sequence_position, e.sequence_length
             FROM training_session_evidence e
             JOIN session_log s ON s.id = e.session_id
             WHERE e.plan_id = ? AND e.plan_date = ?
@@ -1121,8 +1153,9 @@ def log_planned_session(
             """
             INSERT INTO training_session_evidence (
                 session_id, plan_id, receipt_hash, plan_date, duration_seconds,
-                rpe, pain_confirmed, pain_body_areas_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                rpe, pain_confirmed, pain_body_areas_json, session_intent,
+                sequence_position, sequence_length, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 session_id,
@@ -1133,6 +1166,9 @@ def log_planned_session(
                 int(rpe),
                 int(pain_confirmed),
                 pain_body_areas_json,
+                session_intent,
+                sequence_position,
+                sequence_length,
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
@@ -1151,7 +1187,8 @@ def get_sessions(limit: int | None = None) -> list[dict[str, Any]]:
         sql = """
             SELECT s.*, e.plan_id, e.receipt_hash, e.plan_date,
                    e.duration_seconds, e.rpe, e.pain_confirmed,
-                   e.pain_body_areas_json
+                   e.pain_body_areas_json, e.session_intent,
+                   e.sequence_position, e.sequence_length
             FROM session_log s
             LEFT JOIN training_session_evidence e ON e.session_id = s.id
             ORDER BY s.date DESC, s.id DESC
@@ -1168,6 +1205,20 @@ def get_sessions(limit: int | None = None) -> list[dict[str, Any]]:
             session = dict(row)
             session["exercises"] = json.loads(session["exercises"])
             pain_body_areas_json = session.pop("pain_body_areas_json")
+            if all(
+                session[field] is None
+                for field in (
+                    "session_intent",
+                    "sequence_position",
+                    "sequence_length",
+                )
+            ):
+                for field in (
+                    "session_intent",
+                    "sequence_position",
+                    "sequence_length",
+                ):
+                    session.pop(field)
             if session["plan_id"] is not None:
                 session["plan_provenance"] = {
                     "plan_id": session.pop("plan_id"),

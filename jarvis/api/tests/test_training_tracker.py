@@ -70,6 +70,37 @@ def _active_plan_record():
     }
 
 
+def _active_hybrid_plan_record():
+    return {
+        "plan_id": "plan-2026-W30-hybrid",
+        "status": "active",
+        "reason": "accepted",
+        "changed_at": "2026-07-19T10:00:00+00:00",
+        "superseded_by": None,
+        "payload": {
+            "plan_id": "plan-2026-W30-hybrid",
+            "constitution_version": "2",
+            "planner_version": "adaptive-v2",
+            "receipt_hash": "receipt-2026-W30-hybrid",
+            "days": [
+                {
+                    "date": "2026-07-20",
+                    "session_type": "general",
+                    "objective": "lower_power",
+                    "session_intent": "lower_power",
+                    "sequence_position": 3,
+                    "sequence_length": 6,
+                    "exercises": [
+                        {"name": "Bench Press", "sets": 2, "reps": 5},
+                    ],
+                    "estimated_minutes": 65,
+                    "change_reason": None,
+                }
+            ],
+        },
+    }
+
+
 def _planned_api_payload(**overrides):
     payload = {
         "date": "2026-07-20",
@@ -83,6 +114,19 @@ def _planned_api_payload(**overrides):
         "pain_body_areas": [],
         "notes": "Clean session",
     }
+    payload.update(overrides)
+    return payload
+
+
+def _hybrid_completion_payload(**overrides):
+    payload = _planned_api_payload(
+        session_type="general",
+        plan_id="plan-2026-W30-hybrid",
+        receipt_hash="receipt-2026-W30-hybrid",
+        session_intent="lower_power",
+        sequence_position=3,
+        sequence_length=6,
+    )
     payload.update(overrides)
     return payload
 
@@ -137,6 +181,93 @@ class TrainingTrackerTests(unittest.TestCase):
             "pain_confirmed": False,
             "pain_body_areas": [],
         }
+
+    def test_hybrid_completion_persists_sequence_evidence_in_history(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_hybrid_plan_record(),
+        ):
+            response = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(),
+            )
+            history = client.get("/training/history")
+
+        assert response.status_code == 200
+        assert history.status_code == 200
+        recorded = history.json()["sessions"][0]
+        assert recorded["session_intent"] == "lower_power"
+        assert recorded["sequence_position"] == 3
+        assert recorded["sequence_length"] == 6
+
+    def test_hybrid_completion_rejects_sequence_position_not_matching_plan(self):
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_hybrid_plan_record(),
+        ):
+            response = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(sequence_position=5),
+            )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == (
+            "Training completion does not match plan day"
+        )
+        assert database.get_sessions() == []
+
+    def test_hybrid_completion_conflicting_retry_is_rejected(self):
+        active_plan = _active_hybrid_plan_record()
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=active_plan,
+        ):
+            first = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(),
+            )
+            active_plan["payload"]["days"][0]["session_intent"] = "push_volume"
+            second = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(session_intent="push_volume"),
+            )
+
+        assert first.status_code == 200
+        assert second.status_code == 409
+        assert "different evidence" in second.json()["detail"]
+        assert len(database.get_sessions()) == 1
+
+    def test_hybrid_completion_requires_all_authoritative_sequence_evidence(self):
+        payload = _hybrid_completion_payload()
+        payload.pop("session_intent")
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=_active_hybrid_plan_record(),
+        ):
+            response = client.post("/training/log/session", json=payload)
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == (
+            "Training completion does not match plan day"
+        )
+        assert database.get_sessions() == []
+
+    def test_unplanned_session_rejects_unlinked_hybrid_sequence_claims(self):
+        response = client.post(
+            "/training/log/session",
+            json={
+                "date": date.today().isoformat(),
+                "session_type": "Push",
+                "exercises": [_exercise()],
+                "session_intent": "push_strength",
+                "sequence_position": 1,
+                "sequence_length": 6,
+            },
+        )
+
+        assert response.status_code == 422
+        assert "Hybrid sequence evidence requires plan provenance" in response.text
+        assert database.get_sessions() == []
 
     def test_planned_session_write_is_idempotent_per_plan_day(self):
         first_id, first_replay = database.log_planned_session(
