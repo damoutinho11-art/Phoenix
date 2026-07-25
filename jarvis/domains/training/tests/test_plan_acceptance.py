@@ -19,6 +19,7 @@ from jarvis.domains.training.plan_acceptance import (
     validate_runtime_proposal,
 )
 from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
+from jarvis.domains.training.plan_evidence import build_planning_snapshot
 from jarvis.domains.training.plan_contracts import (
     PlanValidation,
     TrainingConstraint,
@@ -49,6 +50,35 @@ def _snapshot(week_start: date, **overrides) -> PlanningSnapshot:
     return PlanningSnapshot(**values)
 
 
+def _completed_hybrid_session(receipt: WeeklyPlanReceipt, position: int) -> dict:
+    planned = next(day for day in receipt.days if day.sequence_position == position)
+    return {
+        "date": planned.date.isoformat(),
+        "session_type": planned.session_type,
+        "session_intent": planned.session_intent,
+        "sequence_position": planned.sequence_position,
+        "sequence_length": planned.sequence_length,
+        "plan_provenance": {
+            "plan_id": receipt.plan_id,
+            "receipt_hash": receipt.receipt_hash,
+            "date": planned.date.isoformat(),
+        },
+        "completion_evidence": {
+            "duration_seconds": 3600,
+            "rpe": 8,
+            "pain_confirmed": False,
+            "pain_body_areas": [],
+        },
+        "exercises": [
+            {
+                "name": "bench_press",
+                "target_reps": 5,
+                "sets": [{"reps": 5, "weight_kg": 55, "target_reps": 5}],
+            }
+        ],
+    }
+
+
 HYBRID_REQUIRED_CATEGORIES = (
     "sequence",
     "recovery_placement",
@@ -69,7 +99,16 @@ def _scenario_receipt(constitution, category: str, week_start: date) -> WeeklyPl
     if category == "sequence":
         pass
     elif category == "recovery_placement":
-        snapshot = replace(snapshot, sequence_cursor=4)
+        snapshot = replace(
+            snapshot,
+            calendar_events=(
+                {
+                    "event_type": "performance",
+                    "date": week_start.isoformat(),
+                    "severity": "hard",
+                },
+            ),
+        )
     elif category == "time_compression":
         constraints = (
             TrainingConstraint.from_mapping(
@@ -169,10 +208,22 @@ def _scenario_receipt(constitution, category: str, week_start: date) -> WeeklyPl
         if week_start != date(2026, 8, 31):
             raise AssertionError("Peak fixture must use the configured peak week")
     elif category == "completion_advance":
-        snapshot = replace(
-            snapshot,
-            sequence_cursor=2,
-            sequence_source_plan_id="completed-prior-hybrid-plan",
+        active = _with_receipt_values(
+            generate_weekly_plan(
+                constitution,
+                _snapshot(week_start - timedelta(days=7)),
+            ),
+            status="active",
+        )
+        snapshot = build_planning_snapshot(
+            week_start=week_start,
+            created_at=f"{week_start.isoformat()}T06:00:00Z",
+            sessions=[_completed_hybrid_session(active, position=1)],
+            readiness=None,
+            calendar_events=[],
+            equipment=[],
+            preferences={},
+            active_plan=active.to_mapping(),
         )
     else:
         raise AssertionError(f"Unknown scenario: {category}")
@@ -338,6 +389,82 @@ def test_acceptance_requires_all_hybrid_behavior_categories(training_constitutio
     assert result["accepted"] is False
     assert "equipment_substitution" not in result["fixture_summary"]
     assert "fixture_coverage" in result["reasons"]
+
+
+def test_ordinary_recovery_annotation_cannot_grant_recovery_placement(
+    training_constitution,
+):
+    receipt = _scenario_receipt(
+        training_constitution, "sequence", date(2026, 7, 20)
+    )
+
+    categories = acceptance_module._infer_fixture_categories(receipt)
+
+    assert "recovery_placement" not in categories
+
+
+def test_synthetic_cursor_without_linked_completion_cannot_grant_advance(
+    training_constitution,
+):
+    synthetic = generate_weekly_plan(
+        training_constitution,
+        _snapshot(
+            date(2026, 7, 20),
+            sequence_cursor=2,
+            sequence_source_plan_id="synthetic-active-plan",
+        ),
+    )
+
+    categories = acceptance_module._infer_fixture_categories(synthetic)
+
+    assert "completion_advance" not in categories
+
+
+def test_older_linked_completion_cannot_override_newer_sequence_evidence(
+    training_constitution,
+):
+    active = generate_weekly_plan(
+        training_constitution,
+        _snapshot(date(2026, 7, 20)),
+    )
+    latest = _completed_hybrid_session(active, position=2)
+    older = _completed_hybrid_session(active, position=1)
+    inconsistent = generate_weekly_plan(
+        training_constitution,
+        _snapshot(
+            date(2026, 7, 27),
+            completed_sessions=(latest, older),
+            sequence_cursor=2,
+            sequence_source_plan_id=active.plan_id,
+        ),
+    )
+
+    categories = acceptance_module._infer_fixture_categories(inconsistent)
+
+    assert "completion_advance" not in categories
+
+
+def test_peak_reason_label_without_peak_transform_cannot_grant_phase_coverage(
+    training_constitution,
+):
+    ordinary = _scenario_receipt(
+        training_constitution, "sequence", date(2026, 7, 20)
+    )
+    labeled_day = replace(
+        ordinary.days[0],
+        decision_reasons=(
+            *ordinary.days[0].decision_reasons,
+            "phase_maintenance:peak",
+        ),
+    )
+    mislabeled = _with_receipt_values(
+        ordinary,
+        days=(labeled_day, *ordinary.days[1:]),
+    )
+
+    categories = acceptance_module._infer_fixture_categories(mislabeled)
+
+    assert "phase_peak" not in categories
 
 
 def test_caller_labels_cannot_fake_required_fixture_coverage(training_constitution):

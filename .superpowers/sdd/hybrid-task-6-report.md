@@ -43,3 +43,34 @@ DONE
 - `jarvis/domains/finance/portfolio_state.json` and two frontend Training test
   files were already modified outside this task. They were not edited or staged
   by Task 6.
+
+## Authority Review Fixes
+
+Follow-up review identified three evidence gaps. They are fixed in a separate
+commit:
+
+- Recovery placement now compares the observed recovery date with a neutral
+  replay. Coverage requires a genuinely moved recovery caused by calendar,
+  readiness, or proven sequence evidence, with valid high-neural spacing.
+- Completion advancement now requires actual completion proof linked to the
+  source plan, a nonblank receipt hash, matching completion/provenance dates,
+  valid hybrid intent metadata, and a cursor derived from the latest linked
+  completion. Synthetic IDs and empty completion sets fail closed.
+- Peak coverage now verifies the configured peak window and compares the raw
+  hybrid week with the transformed output. It requires lower work removal,
+  capped general sessions, and bounded jump volume; labels alone have no
+  authority.
+
+Adversarial coverage includes ordinary recovery annotations, synthetic cursors,
+misleading peak labels, and out-of-order linked completions.
+
+### Follow-up Verification
+
+- Focused:
+  `python -m pytest jarvis/domains/training/tests/test_plan_acceptance.py jarvis/api/tests/test_training_plan_routes.py -q`
+  - `116 passed`
+- Broad:
+  `python -m pytest jarvis/domains/training/tests jarvis/api/tests/test_training_plan_routes.py jarvis/api/tests/test_training_tracker.py jarvis/data/tests/test_database.py -q`
+  - `452 passed, 3 subtests passed`
+- `git diff --check`
+  - passed

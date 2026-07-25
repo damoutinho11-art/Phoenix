@@ -6,6 +6,7 @@ import ast
 import base64
 from collections import Counter
 from dataclasses import replace
+from datetime import date
 from hashlib import sha256
 import json
 import os
@@ -13,7 +14,14 @@ from pathlib import Path
 from typing import Any, Mapping
 import zlib
 
-from . import adaptive_planner, engine, plan_contracts, plan_evidence, progression
+from . import (
+    adaptive_planner,
+    engine,
+    performance_hybrid,
+    plan_contracts,
+    plan_evidence,
+    progression,
+)
 from .adaptive_planner import generate_weekly_plan
 from .plan_contracts import (
     TrainingPlanReplayInputs,
@@ -71,6 +79,7 @@ _MAX_EVIDENCE_RAW_BYTES = 2_000_000
 _PURE_REPLAY_MODULES = (
     adaptive_planner,
     engine,
+    performance_hybrid,
     plan_contracts,
     plan_evidence,
     progression,
@@ -385,6 +394,155 @@ def _baseline(receipt: WeeklyPlanReceipt, *, snapshot=None, constraints=()):
     )
 
 
+def _completion_advance_is_proven(receipt: WeeklyPlanReceipt) -> bool:
+    snapshot = receipt.replay_inputs.snapshot
+    source_plan_id = snapshot.sequence_source_plan_id
+    cursor = snapshot.sequence_cursor
+    if source_plan_id is None or cursor == 1:
+        return False
+
+    completions = snapshot.to_mapping()["completed_sessions"]
+    linked_completions = []
+    for session in completions:
+        provenance = session.get("plan_provenance")
+        if (
+            not isinstance(provenance, Mapping)
+            or provenance.get("plan_id") != source_plan_id
+            or not isinstance(provenance.get("receipt_hash"), str)
+            or not provenance["receipt_hash"].strip()
+            or not plan_evidence._has_actual_completion_proof(session)
+        ):
+            continue
+        try:
+            completed_date = date.fromisoformat(str(session.get("date")))
+            planned_date = date.fromisoformat(
+                str(provenance.get("date", provenance.get("plan_date")))
+            )
+        except (TypeError, ValueError):
+            continue
+        if completed_date != planned_date:
+            continue
+        position = session.get("sequence_position")
+        intent = session.get("session_intent")
+        sequence_length = session.get("sequence_length")
+        if (
+            type(position) is int
+            and position in range(1, len(HYBRID_SEQUENCE) + 1)
+            and sequence_length == len(HYBRID_SEQUENCE)
+            and intent == HYBRID_SEQUENCE[position - 1]
+        ):
+            linked_completions.append((planned_date, position))
+    if not linked_completions:
+        return False
+    _, latest_position = max(linked_completions)
+    return cursor == latest_position % len(HYBRID_SEQUENCE) + 1
+
+
+def _recovery_placement_is_proven(receipt: WeeklyPlanReceipt) -> bool:
+    inputs = receipt.replay_inputs
+    observed_dates = {
+        day.date
+        for day in receipt.days
+        if day.session_type == "recovery"
+        and any(
+            reason.startswith("recovery_placed:")
+            for reason in day.decision_reasons
+        )
+    }
+    if not observed_dates or not _has_minimum_recovery_spacing(receipt):
+        return False
+
+    sequence_evidence = _completion_advance_is_proven(receipt)
+    causal_input = bool(
+        inputs.snapshot.calendar_events
+        or inputs.snapshot.readiness
+        or sequence_evidence
+    )
+    if not causal_input:
+        return False
+
+    neutral_snapshot = replace(
+        inputs.snapshot,
+        readiness=None,
+        calendar_events=(),
+        safety_blocks=(),
+        sequence_cursor=1,
+        sequence_source_plan_id=None,
+    )
+    neutral = _baseline(
+        receipt,
+        snapshot=neutral_snapshot,
+        constraints=inputs.constraints,
+    )
+    neutral_dates = {
+        day.date
+        for day in neutral.days
+        if day.session_type == "recovery"
+        and any(
+            reason.startswith("recovery_placed:")
+            for reason in day.decision_reasons
+        )
+    }
+    return observed_dates != neutral_dates
+
+
+def _peak_phase_is_proven(receipt: WeeklyPlanReceipt) -> bool:
+    inputs = receipt.replay_inputs
+    phase, _ = engine.get_current_phase(
+        inputs.constitution,
+        inputs.snapshot.week_start,
+    )
+    if phase.value != "peak":
+        return False
+
+    raw_days = performance_hybrid.build_hybrid_week(
+        inputs.constitution,
+        inputs.snapshot,
+    )
+    raw_by_intent = {
+        day.session_intent: day
+        for day in raw_days
+        if day.session_intent is not None
+    }
+    output_by_intent = {
+        day.session_intent: day
+        for day in receipt.days
+        if day.session_intent is not None
+    }
+    general_intents = {
+        "push_strength",
+        "pull_strength",
+        "push_volume",
+        "pull_volume",
+    }
+    if (
+        "lower_power" not in raw_by_intent
+        or "lower_power" in output_by_intent
+        or set(output_by_intent) != general_intents | {"jump_elastic"}
+    ):
+        return False
+
+    general_capped = all(
+        output_by_intent[intent].estimated_minutes <= 45
+        and output_by_intent[intent].estimated_minutes
+        < raw_by_intent[intent].estimated_minutes
+        for intent in general_intents
+    )
+    jump = output_by_intent["jump_elastic"]
+    jump_bounded = (
+        jump.estimated_minutes <= 45
+        and jump.estimated_minutes < raw_by_intent["jump_elastic"].estimated_minutes
+    )
+    lower_date = raw_by_intent["lower_power"].date
+    lower_removed = any(
+        day.date == lower_date
+        and day.session_type == "recovery"
+        and not day.exercises
+        for day in receipt.days
+    )
+    return general_capped and jump_bounded and lower_removed
+
+
 def _infer_fixture_categories(receipt: WeeklyPlanReceipt) -> set[str]:
     categories = set()
     inputs = receipt.replay_inputs
@@ -401,11 +559,7 @@ def _infer_fixture_categories(receipt: WeeklyPlanReceipt) -> set[str]:
     if actual_sequence == expected_sequence and positions_are_valid:
         categories.add("sequence")
 
-    if any(
-        day.session_type == "recovery"
-        and any(reason.startswith("recovery_placed:") for reason in day.decision_reasons)
-        for day in receipt.days
-    ):
+    if _recovery_placement_is_proven(receipt):
         categories.add("recovery_placement")
 
     for constraint in inputs.constraints:
@@ -557,19 +711,11 @@ def _infer_fixture_categories(receipt: WeeklyPlanReceipt) -> set[str]:
         ):
             categories.add("pain_block")
 
-    if any(
-        any(
-            reason.startswith("phase_") and reason.endswith(":peak")
-            for reason in day.decision_reasons
-        )
-        for day in receipt.days
-    ):
+    if _peak_phase_is_proven(receipt):
         categories.add("phase_peak")
 
-    source_plan_id = inputs.snapshot.sequence_source_plan_id
     if (
-        source_plan_id is not None
-        and inputs.snapshot.sequence_cursor != 1
+        _completion_advance_is_proven(receipt)
         and training_days
         and training_days[0].sequence_position == inputs.snapshot.sequence_cursor
         and training_days[0].session_intent
