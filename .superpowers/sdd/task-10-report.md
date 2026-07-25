@@ -280,3 +280,74 @@ promotion is claimed.
 The unrelated generated
 `jarvis/domains/finance/portfolio_state.json` modification was not edited,
 reverted, staged, or committed.
+
+## Performance Hybrid Browser Truthfulness Correction
+
+Date: 2026-07-25
+
+This correction resolves two release-critical truthfulness gaps found during
+browser QA.
+
+### Signed Phoenix Decision Evidence
+
+The immutable v2 receipt contained `decision_reasons` and `high_neural`, but
+`TrainingPlanDayResponse` did not declare them. Pydantic therefore removed the
+signed fields from proposal, apply, and current-plan JSON before the PWA could
+evaluate them.
+
+The response model now exposes the exact authoritative reason array and neural
+flag. Route coverage compares every public day directly with its persisted
+receipt day. Legacy responses retain neutral defaults and do not infer either
+field.
+
+Malformed reason evidence remains fail-closed in
+`trainingHybridWeekViewModel`: one non-string reason clears the Phoenix
+Decision panel and every per-slot reason.
+
+### Honest WEEK Lifecycle
+
+WEEK previously labeled every scheduled training day before today as
+`complete` based only on the calendar date. No completion evidence was
+consulted, so the label was false.
+
+Past scheduled training days now use `elapsed`. Recovery, today, and queued
+semantics are unchanged. The current WEEK data flow has no explicit
+completion-evidence input; therefore it makes no completion claim. A future
+`complete` state must be driven by explicit recorded-session evidence rather
+than elapsed time.
+
+### TDD Evidence
+
+RED:
+
+- Public plan-day route focus -> `1 failed, 1 passed`; v2 failed with
+  `KeyError: 'decision_reasons'`, while legacy neutrality passed.
+- Hybrid WEEK view-model focus -> `9 passed, 1 failed`; the new truthfulness
+  assertion found past scheduled sessions still labeled `complete`.
+- The existing malformed-reason fail-closed test remained green.
+
+GREEN:
+
+- Public plan-day route focus -> `2 passed in 4.72s`.
+- Hybrid WEEK view-model focus -> `10 passed, 0 failed`.
+- Past uncompleted slots are `elapsed`, and no slot is `complete` without
+  completion evidence.
+
+### Automated Verification
+
+- Full Training backend matrix:
+  `460 passed, 3 subtests passed in 80.33s`.
+- Full specified Training frontend matrix:
+  `89 passed, 0 failed`.
+- Production PWA build:
+  exit 0; Vite transformed 323 modules and generated the service worker.
+- `git diff --check`:
+  exit 0; line-ending warnings only.
+
+Browser re-verification, Railway/Vercel deployment, calendar-backed real
+shadow replay, and real-session evidence remain controller-owned and pending.
+No live promotion is claimed.
+
+The unrelated generated
+`jarvis/domains/finance/portfolio_state.json` modification was not edited,
+reverted, staged, or committed.

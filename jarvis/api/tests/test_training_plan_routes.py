@@ -378,6 +378,8 @@ def test_v2_public_plan_days_expose_exact_authoritative_sequence_evidence(
         assert day["session_intent"] == authoritative["session_intent"]
         assert day["sequence_position"] == authoritative["sequence_position"]
         assert day["sequence_length"] == authoritative["sequence_length"]
+        assert day["decision_reasons"] == authoritative["decision_reasons"]
+        assert day["high_neural"] is authoritative["high_neural"]
 
 
 def test_legacy_public_plan_days_do_not_infer_hybrid_sequence_from_objective(
@@ -394,6 +396,8 @@ def test_legacy_public_plan_days_do_not_infer_hybrid_sequence_from_objective(
     assert first_day.get("session_intent") is None
     assert first_day.get("sequence_position") is None
     assert first_day.get("sequence_length") is None
+    assert first_day.get("decision_reasons") in (None, [])
+    assert first_day.get("high_neural") in (None, False)
 
 
 def test_supported_intent_compiles_to_constraint_but_never_applies(

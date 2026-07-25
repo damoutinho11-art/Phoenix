@@ -54,7 +54,7 @@ const decisionLabel = code => (
 const lifecycleFor = (day, date, todayIso) => {
   if (['recovery', 'rest'].includes(day.session_type)) return 'recovery'
   if (date === todayIso) return 'today'
-  if (isIsoDate(todayIso) && date < todayIso) return 'complete'
+  if (isIsoDate(todayIso) && date < todayIso) return 'elapsed'
   return 'queued'
 }
 

@@ -78,6 +78,20 @@ test('builds seven dated slots with six authoritative intents and movable recove
   assert.deepEqual(model.today.exercises, activeHybridPlan.days[2].exercises)
 })
 
+test('past scheduled sessions remain elapsed without explicit completion evidence', () => {
+  const model = buildHybridWeekPresentation(activeHybridPlan, '2026-07-29')
+  const pastTraining = model.slots.filter(slot => (
+    slot.date < '2026-07-29' && slot.lifecycle !== 'recovery'
+  ))
+
+  assert.equal(pastTraining.length, 2)
+  assert.equal(pastTraining.every(slot => slot.lifecycle === 'elapsed'), true)
+  assert.equal(model.slots.some(slot => slot.lifecycle === 'complete'), false)
+  assert.equal(model.today.lifecycle, 'today')
+  assert.equal(model.slots[3].lifecycle, 'recovery')
+  assert.equal(model.slots.at(-1).lifecycle, 'queued')
+})
+
 test('fails closed when hybrid intent position or cyclic ordering is malformed', () => {
   const variants = [
     days => {

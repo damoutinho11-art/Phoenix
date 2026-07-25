@@ -112,6 +112,8 @@ class TrainingPlanDayResponse(BaseModel):
     session_intent: str | None = None
     sequence_position: int | None = Field(default=None, ge=1, le=6)
     sequence_length: int | None = Field(default=None, ge=6, le=6)
+    decision_reasons: list[str] = Field(default_factory=list)
+    high_neural: bool = False
     exercises: list[dict[str, Any]]
     estimated_minutes: int
     change_reason: str | None = None
