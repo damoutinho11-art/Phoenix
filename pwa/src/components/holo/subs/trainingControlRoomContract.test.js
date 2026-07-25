@@ -284,6 +284,9 @@ test('week view presents the authoritative hybrid hierarchy without inferred ses
   assert.match(week, /training-hybrid-mission/)
   assert.match(week, /training-hybrid-decisions/)
   assert.match(week, /slot\.label \|\| 'SESSION IDENTITY UNVERIFIED'/)
+  assert.match(week, /presentation\.sequenceMode/)
+  assert.match(week, /SEQUENCE UNVERIFIED/)
+  assert.match(week, /PHASE ROUTED/)
   assert.doesNotMatch(week, /session_intent\s*\|\||sequencePosition.*PUSH|sequence_position.*PUSH/)
 })
 

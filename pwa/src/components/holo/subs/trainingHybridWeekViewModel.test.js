@@ -58,6 +58,7 @@ const activeHybridPlan = {
 test('builds seven dated slots with six authoritative intents and movable recovery', () => {
   const model = buildHybridWeekPresentation(activeHybridPlan, '2026-07-29')
 
+  assert.equal(model.sequenceMode, 'ordinary')
   assert.equal(model.slots.length, 7)
   assert.equal(model.slots.filter(slot => slot.sequencePosition !== null).length, 6)
   assert.deepEqual(model.slots.map(slot => slot.label), [
@@ -77,35 +78,111 @@ test('builds seven dated slots with six authoritative intents and movable recove
   assert.deepEqual(model.today.exercises, activeHybridPlan.days[2].exercises)
 })
 
-test('uses dates only for lifecycle and never invents identity from sequence position', () => {
-  const plan = {
-    days: activeHybridPlan.days.map(day => ({ ...day })),
-  }
-  plan.days[0] = {
-    ...plan.days[0],
-    session_intent: 'unknown_push',
-    sequence_position: 1,
-  }
+test('fails closed when hybrid intent position or cyclic ordering is malformed', () => {
+  const variants = [
+    days => {
+      days[1].sequence_position = 1
+    },
+    days => {
+      days[1].session_intent = 'push_strength'
+    },
+    days => {
+      days[1].session_intent = 'pull_volume'
+    },
+    days => {
+      const second = days[1]
+      days[1] = days[2]
+      days[2] = second
+      days[1].date = '2026-07-28'
+      days[2].date = '2026-07-29'
+    },
+  ]
 
-  const model = buildHybridWeekPresentation(plan, '2026-07-29')
-
-  assert.equal(model.slots[0].lifecycle, 'complete')
-  assert.equal(model.slots[0].intent, null)
-  assert.equal(model.slots[0].label, null)
-  assert.equal(model.slots[0].sequencePosition, 1)
-  assert.equal(model.slots[4].lifecycle, 'queued')
+  for (const mutate of variants) {
+    const days = activeHybridPlan.days.map(day => ({
+      ...day,
+      decision_reasons: [...day.decision_reasons],
+    }))
+    mutate(days)
+    assert.deepEqual(buildHybridWeekPresentation({
+      planner_version: 'adaptive-v2',
+      days,
+    }, '2026-07-29'), {
+      slots: [],
+      today: null,
+      decisions: [],
+      sequenceMode: null,
+    })
+  }
 })
 
-test('withholds malformed Phoenix reasoning and keeps only receipt strings', () => {
+test('accepts only receipt-proven peak and attempt lower-removal exceptions', () => {
+  for (const phase of ['peak', 'attempt']) {
+    const days = activeHybridPlan.days.map(day => ({
+      ...day,
+      decision_reasons: [...day.decision_reasons],
+    }))
+    days[2] = {
+      ...days[2],
+      session_type: 'recovery',
+      objective: 'recovery',
+      estimated_minutes: 0,
+      session_intent: null,
+      sequence_position: null,
+      sequence_length: null,
+      high_neural: false,
+      exercises: [],
+      decision_reasons: ['sequence_resumed', `phase_lower_removed:${phase}`],
+    }
+    for (const day of days) {
+      if (['push_strength', 'pull_strength', 'push_volume', 'pull_volume'].includes(day.session_intent)) {
+        day.decision_reasons.push(`phase_maintenance:${phase}`)
+      }
+      if (day.session_intent === 'jump_elastic') {
+        day.decision_reasons.push(
+          phase === 'peak' ? 'phase_jump_volume_limited:peak' : 'phase_attempt_exposure',
+        )
+      }
+    }
+
+    const model = buildHybridWeekPresentation({
+      planner_version: 'adaptive-v2',
+      days,
+    }, '2026-07-29')
+
+    assert.equal(model.sequenceMode, phase)
+    assert.equal(model.slots.length, 7)
+    assert.equal(model.slots.filter(slot => slot.sequencePosition !== null).length, 5)
+    assert.equal(model.slots.filter(slot => slot.lifecycle === 'recovery').length, 2)
+    assert.equal(model.today.lifecycle, 'recovery')
+    assert.equal(model.today.label, null)
+  }
+})
+
+test('preserves recovery identity when the Phoenix-placed recovery is today', () => {
+  const model = buildHybridWeekPresentation(activeHybridPlan, '2026-07-30')
+
+  assert.equal(model.today.date, '2026-07-30')
+  assert.equal(model.today.lifecycle, 'recovery')
+  assert.equal(model.today.intent, null)
+  assert.equal(model.today.label, null)
+})
+
+test('malformed Phoenix reasoning clears panel and every per-slot reason', () => {
   const plan = {
-    days: activeHybridPlan.days.map(day => ({ ...day })),
+    days: activeHybridPlan.days.map(day => ({
+      ...day,
+      decision_reasons: [...day.decision_reasons],
+    })),
   }
   plan.days[2] = {
     ...plan.days[2],
-    decision_reasons: [{ code: 'invented' }],
+    decision_reasons: ['phase_strength', { code: 'invented' }],
   }
 
-  assert.deepEqual(buildHybridWeekPresentation(plan, '2026-07-29').decisions, [])
+  const malformed = buildHybridWeekPresentation(plan, '2026-07-29')
+  assert.deepEqual(malformed.decisions, [])
+  assert.equal(malformed.slots.every(slot => slot.decisionReasons.length === 0), true)
 
   const valid = buildHybridWeekPresentation(activeHybridPlan, '2026-07-29')
   assert.deepEqual(valid.decisions, [
@@ -133,6 +210,7 @@ test('fails closed for duplicate, invalid, or incomplete receipt dates', () => {
       slots: [],
       today: null,
       decisions: [],
+      sequenceMode: null,
     })
   }
 })
@@ -152,6 +230,7 @@ test('preserves legacy days as neutral slots without hybrid explanations', () =>
   const model = buildHybridWeekPresentation(legacy, '2026-07-29')
 
   assert.equal(model.slots.length, 7)
+  assert.equal(model.sequenceMode, 'legacy')
   assert.equal(model.slots.every(slot => slot.intent === null && slot.label === null), true)
   assert.equal(model.today.date, '2026-07-29')
   assert.deepEqual(model.decisions, [])

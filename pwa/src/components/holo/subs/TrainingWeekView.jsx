@@ -118,9 +118,13 @@ export default function TrainingWeekView({
     : placeholderSlots(plan, loading, error)
   const viewState = getTrainingViewState({ loading, error, hasData: Boolean(plan) })
   const today = presentation.today
-  const legacyPlan = presentation.slots.length > 0 &&
-    presentation.slots.every(slot => slot.intent === null) &&
-    plan?.planner_version !== 'adaptive-v2'
+  const sequenceSummary = presentation.sequenceMode === 'ordinary'
+    ? '06 SESSIONS // 01 RECOVERY'
+    : ['peak', 'attempt'].includes(presentation.sequenceMode)
+      ? 'PHASE ROUTED // 05 SESSIONS'
+      : presentation.sequenceMode === 'legacy'
+        ? 'LEGACY PLAN'
+        : 'SEQUENCE UNVERIFIED'
 
   return (
     <div className="training-week-view">
@@ -141,7 +145,7 @@ export default function TrainingWeekView({
       <section aria-labelledby="training-hybrid-sequence-title">
         <div className="training-section-heading">
           <span id="training-hybrid-sequence-title">ACTIVE SEQUENCE</span>
-          <b>{legacyPlan ? 'LEGACY PLAN' : '06 SESSIONS // 01 RECOVERY'}</b>
+          <b>{sequenceSummary}</b>
         </div>
         <div className="training-week-scroll" tabIndex={0} aria-label="Seven-day training plan">
           <div className="training-hybrid-sequence training-week-grid">

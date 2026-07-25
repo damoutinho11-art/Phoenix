@@ -7,6 +7,8 @@ const HYBRID_LABELS = Object.freeze({
   jump_elastic: 'JUMP / ELASTIC',
 })
 
+const HYBRID_SEQUENCE = Object.freeze(Object.keys(HYBRID_LABELS))
+
 const DECISION_LABELS = Object.freeze({
   'recovery_placed:lower_spacing': 'LOWER-BODY SPACING',
   'recovery_placed:calendar': 'CALENDAR FIT',
@@ -46,10 +48,10 @@ const decisionLabel = code => (
 )
 
 const lifecycleFor = (day, date, todayIso) => {
-  if (date === todayIso) return 'today'
   if (day.session_type === 'recovery' && normalizeIntent(day.session_intent) === null) {
     return 'recovery'
   }
+  if (date === todayIso) return 'today'
   if (isIsoDate(todayIso) && date < todayIso) return 'complete'
   return 'queued'
 }
@@ -58,7 +60,97 @@ const emptyPresentation = () => ({
   slots: [],
   today: null,
   decisions: [],
+  sequenceMode: null,
 })
+
+const reasonEvidence = day => {
+  if (day.decision_reasons === undefined) return []
+  if (
+    !Array.isArray(day.decision_reasons) ||
+    day.decision_reasons.some(reason => typeof reason !== 'string')
+  ) {
+    return null
+  }
+  return day.decision_reasons.map(reason => reason.trim()).filter(Boolean)
+}
+
+const isRecoveryDay = day => (
+  day.session_type === 'recovery' &&
+  (day.session_intent === null || day.session_intent === undefined) &&
+  (day.sequence_position === null || day.sequence_position === undefined) &&
+  (day.sequence_length === null || day.sequence_length === undefined)
+)
+
+const followsCycle = positions => positions.every((position, index) => (
+  index === 0 || position === positions[index - 1] % HYBRID_SEQUENCE.length + 1
+))
+
+const phaseExceptionMode = orderedDays => {
+  const phaseRecovery = orderedDays.filter(day => (
+    isRecoveryDay(day) &&
+    ['peak', 'attempt'].some(phase => (
+      reasonEvidence(day)?.includes(`phase_lower_removed:${phase}`)
+    ))
+  ))
+  if (phaseRecovery.length !== 1) return null
+
+  const reasons = reasonEvidence(phaseRecovery[0])
+  const phase = reasons.includes('phase_lower_removed:peak') ? 'peak' : 'attempt'
+  const projectedPositions = orderedDays
+    .filter(day => !isRecoveryDay(day) || day === phaseRecovery[0])
+    .map(day => day === phaseRecovery[0] ? 3 : day.sequence_position)
+  if (
+    projectedPositions.length !== HYBRID_SEQUENCE.length ||
+    new Set(projectedPositions).size !== HYBRID_SEQUENCE.length ||
+    !followsCycle(projectedPositions)
+  ) {
+    return null
+  }
+
+  const sessions = orderedDays.filter(day => normalizeIntent(day.session_intent))
+  const upperReasonsAreComplete = sessions
+    .filter(day => [1, 2, 4, 5].includes(day.sequence_position))
+    .every(day => reasonEvidence(day)?.includes(`phase_maintenance:${phase}`))
+  const jump = sessions.find(day => day.sequence_position === 6)
+  const jumpReason = phase === 'peak'
+    ? 'phase_jump_volume_limited:peak'
+    : 'phase_attempt_exposure'
+
+  return upperReasonsAreComplete && reasonEvidence(jump)?.includes(jumpReason) ? phase : null
+}
+
+const hybridSequenceMode = orderedDays => {
+  for (const day of orderedDays) {
+    const intent = normalizeIntent(day.session_intent)
+    if (intent) {
+      const expectedPosition = HYBRID_SEQUENCE.indexOf(intent) + 1
+      if (day.sequence_position !== expectedPosition || day.sequence_length !== 6) return null
+    } else if (!isRecoveryDay(day)) {
+      return null
+    }
+  }
+
+  const sessions = orderedDays.filter(day => normalizeIntent(day.session_intent))
+  const recoveries = orderedDays.filter(isRecoveryDay)
+  const positions = sessions.map(day => day.sequence_position)
+  if (
+    sessions.length === 6 &&
+    recoveries.length === 1 &&
+    new Set(positions).size === 6 &&
+    followsCycle(positions)
+  ) {
+    return 'ordinary'
+  }
+  if (
+    sessions.length === 5 &&
+    recoveries.length === 2 &&
+    new Set(positions).size === 5 &&
+    !positions.includes(3)
+  ) {
+    return phaseExceptionMode(orderedDays)
+  }
+  return null
+}
 
 export function buildHybridWeekPresentation(plan, todayIso) {
   const days = Array.isArray(plan?.days) ? plan.days : []
@@ -80,15 +172,16 @@ export function buildHybridWeekPresentation(plan, todayIso) {
     return emptyPresentation()
   }
 
-  const hasMalformedReasonEvidence = days.some(day => (
-    day.decision_reasons !== undefined &&
-    (
-      !Array.isArray(day.decision_reasons) ||
-      day.decision_reasons.some(reason => typeof reason !== 'string')
-    )
-  ))
-  const slots = [...days]
-    .sort((left, right) => left.date.localeCompare(right.date))
+  const orderedDays = [...days].sort((left, right) => left.date.localeCompare(right.date))
+  const hasMalformedReasonEvidence = orderedDays.some(day => reasonEvidence(day) === null)
+  const sequenceMode = plan?.planner_version === 'adaptive-v2'
+    ? hybridSequenceMode(orderedDays)
+    : 'legacy'
+  if (plan?.planner_version === 'adaptive-v2' && sequenceMode === null) {
+    return emptyPresentation()
+  }
+
+  const slots = orderedDays
     .map(day => {
       const intent = normalizeIntent(day.session_intent)
       const sequencePosition = Number.isInteger(day.sequence_position) &&
@@ -110,7 +203,7 @@ export function buildHybridWeekPresentation(plan, todayIso) {
         sequenceLength,
         highNeural: day.high_neural === true,
         exercises: normalizeExercises(day.exercises),
-        decisionReasons: normalizeReasons(day.decision_reasons),
+        decisionReasons: hasMalformedReasonEvidence ? [] : normalizeReasons(day.decision_reasons),
       }
     })
 
@@ -128,6 +221,7 @@ export function buildHybridWeekPresentation(plan, todayIso) {
     slots,
     today: slots.find(slot => slot.date === todayIso) || null,
     decisions,
+    sequenceMode,
   }
 }
 

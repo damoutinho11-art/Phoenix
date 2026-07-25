@@ -54,3 +54,29 @@ Task 7 changed only the five frontend files named in the brief plus this report.
 ## Concerns
 
 - Task 8 still owns responsive and premium orange CSS for the new structural classes and browser visual QA.
+
+## Review Follow-Up
+
+Commit: `fix(training): validate authoritative hybrid week`
+
+Resolved all three Important review findings:
+
+1. Hybrid receipts now require exact intent-to-position coherence, unique positions, and cyclic date ordering. Ordinary plans require six sessions plus one recovery. Peak and attempt plans are accepted only when the Lower Power position is replaced by a second recovery and the complete phase-specific receipt reasons reconstruct the six-position cycle.
+2. Recovery lifecycle takes precedence over the calendar `today` marker. A recovery slot remains the neutral recovery mission when it is today's slot.
+3. Any non-string decision reason suppresses all reason evidence for the presentation, including every slot and the Phoenix Decision panel.
+
+TDD evidence:
+
+- Malformed duplicate intent/position/order tests failed against the original Task 7 implementation, then passed after sequence validation.
+- Peak/attempt mode tests failed because no phase exception semantics existed, then passed with exact backend receipt matching.
+- Today's recovery test failed with lifecycle `today`, then passed with lifecycle `recovery`.
+- Mixed valid/non-string reasoning failed because other slots retained reasons, then passed after global evidence suppression.
+
+Fresh verification:
+
+- Focused Task 7: `27 passed`.
+- Broader Training frontend: `66 passed`.
+- `npm run build`: passed with the existing large-chunk advisory.
+- Scoped `git diff --check`: passed.
+
+The follow-up did not edit or stage Task 6 backend files or Finance.
