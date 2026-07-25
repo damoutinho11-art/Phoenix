@@ -150,3 +150,72 @@ Final automated evidence:
 Railway deployment `558290c5-b8e8-431b-9a59-02eaf3281f6a` reached `SUCCESS`. Public `/health` returned `ok`, public `/training/status` returned the truthful `plan_required` operational state, and `PHOENIX_TRAINING_PLANNER_MODE` remained `shadow`. Vercel production deployment `dpl_ByyGfN1ZTzFzveZHwNwD4akJB9St` reached `READY` and was aliased to `https://pwa-ochre-theta.vercel.app`.
 
 The unrelated generated `jarvis/domains/finance/portfolio_state.json` change remained unstaged and was excluded from both clean deployment snapshots.
+
+## Performance Hybrid Task 9 Automated Verification
+
+Date: 2026-07-25
+
+### Integrity Loop
+
+Added `test_hybrid_integrity_loop_advances_from_actual_completion` in
+`jarvis/api/tests/test_training_tracker.py`. The regression exercises the real
+API and persistence path:
+
+1. generate an autonomous `adaptive-v2` proposal;
+2. activate it through the live-gated apply route under test-only acceptance;
+3. record clear readiness for the authoritative position-1 date;
+4. route the persisted Push Strength session;
+5. submit actual set evidence at 7 repetitions and 57.5 kg with RPE 8;
+6. verify the immutable history row retains actuals and plan provenance; and
+7. generate an empty-constraint proposal whose first training day is
+   `pull_strength`, sequence position 2.
+
+The regression does not inject a completion cursor or mock session history.
+The second proposal derives its cursor from the completion row written by the
+public session endpoint.
+
+### TDD Evidence
+
+RED:
+
+- Initial collection reached the active receipt and exposed that a recovery
+  slot correctly has no `sequence_position`; the test selector was narrowed to
+  the authoritative position-1 training slot.
+- A deliberate local mutation disabled completion-driven cursor advancement.
+  The exact lifecycle regression then failed at the final contract with
+  `assert 1 == 2`.
+
+GREEN:
+
+- The mutation was restored byte-for-byte; no production diff remained.
+- Focused integrity loop -> `1 passed in 2.81s`.
+
+### Automated Release Gate
+
+- Backend Training matrix:
+  `457 passed, 3 subtests passed in 77.12s`.
+- Specified Training frontend matrix:
+  `88 passed, 0 failed`.
+- Production PWA build:
+  exit 0; Vite transformed 323 modules and generated the service worker.
+- `git diff --check`:
+  exit 0; line-ending warnings only.
+
+### Pending Controller Evidence
+
+Browser visual QA at 1440x900 and 390x844, Railway/Vercel deployment, real
+calendar-backed shadow replay, and a real completed hybrid session remain
+pending for the controller. This section does not claim those checks or any
+live promotion.
+
+The public plan-day and routed-session projections currently omit
+`session_intent`, `sequence_position`, and `sequence_length`, while the
+immutable active receipt retains them. The automated integrity loop therefore
+cross-checks routed plan provenance against that persisted receipt before
+submitting exact hybrid completion evidence. The controller must verify or
+correct this public response boundary before browser/deployment evidence can
+qualify the planner for promotion.
+
+The unrelated generated
+`jarvis/domains/finance/portfolio_state.json` modification was not edited,
+reverted, staged, or committed.

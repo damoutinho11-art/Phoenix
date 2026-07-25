@@ -1,3 +1,5 @@
+import json
+import os
 import tempfile
 import unittest
 import sqlite3
@@ -8,7 +10,10 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
+from jarvis.api.routers import training as training_router
+from jarvis.core import clock
 from jarvis.data import database
+from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.training.progression import calculate_progression
 
 client = TestClient(app)
@@ -447,6 +452,152 @@ class TrainingTrackerTests(unittest.TestCase):
         }
         assert recorded["completion_evidence"]["rpe"] == 8
         assert recorded["plan_provenance"]["plan_id"] == "plan-2026-W30"
+
+    def test_hybrid_integrity_loop_advances_from_actual_completion(self):
+        acceptance = {
+            "accepted": True,
+            "reasons": [],
+            "planner_version": "adaptive-v2",
+            "constitution_version": "2",
+            "evidence_id": "integrity-loop-test-evidence",
+            "fixture_summary": {},
+        }
+        with patch.dict(
+            os.environ,
+            {
+                "PHOENIX_PLAAN_SNAPSHOT_JSON": json.dumps(LIVE_SNAPSHOT_RAW),
+                "PHOENIX_TRAINING_PLANNER_MODE": "live",
+            },
+        ), patch.object(
+            clock,
+            "today",
+            return_value=date(2026, 7, 20),
+        ), patch.object(
+            clock,
+            "utc_now_iso",
+            return_value="2026-07-20T06:00:00+00:00",
+        ), patch.object(
+            training_router,
+            "training_planner_acceptance_status",
+            return_value=acceptance,
+        ), patch.object(
+            training_router,
+            "_runtime_proposal_validation",
+            return_value=(True, ()),
+        ):
+            proposed = client.post(
+                "/training/plan/proposals",
+                json={"constraints": []},
+            )
+            assert proposed.status_code == 200
+            proposal = proposed.json()
+
+            applied = client.post(
+                f"/training/plan/proposals/{proposal['plan_id']}/apply"
+            )
+            assert applied.status_code == 200
+            active_record = database.get_active_training_plan("2026-W30")
+            assert active_record is not None
+            active = active_record["payload"]
+            first_day = next(
+                day for day in active["days"] if day.get("sequence_position") == 1
+            )
+            session_date = date.fromisoformat(first_day["date"])
+
+            with patch.object(clock, "today", return_value=session_date):
+                readiness = client.post(
+                    "/training/readiness-scan",
+                    json={
+                        "knee": 0,
+                        "ankle": 0,
+                        "hip": 0,
+                        "hamstring": 0,
+                        "calf_achilles": 0,
+                        "lower_back_pelvic": 0,
+                        "sharp_pain": False,
+                        "limping": False,
+                        "next_day_worsening": False,
+                        "note": "Ready for the integrity loop",
+                    },
+                )
+                assert readiness.status_code == 200
+
+                routed = client.get("/training/routed-session")
+                assert routed.status_code == 200
+                routed_body = routed.json()
+                planned_session = routed_body["session"]
+                assert routed_body["plan_provenance"] == {
+                    "plan_id": active["plan_id"],
+                    "receipt_hash": active["receipt_hash"],
+                    "date": first_day["date"],
+                }
+                assert first_day["session_intent"] == "push_strength"
+                assert first_day["sequence_position"] == 1
+                assert planned_session["date"] == first_day["date"]
+                assert planned_session["exercises"] == first_day["exercises"]
+
+                actual_exercises = []
+                for exercise in planned_session["exercises"]:
+                    actual_exercises.append(
+                        {
+                            "name": exercise["name"],
+                            "target_reps": exercise["reps"],
+                            "sets": [
+                                {
+                                    "reps": 7,
+                                    "target_reps": exercise["reps"],
+                                    "weight_kg": 57.5,
+                                }
+                                for _ in range(exercise["sets"])
+                            ],
+                        }
+                    )
+                completion = client.post(
+                    "/training/log/session",
+                    json={
+                        "date": first_day["date"],
+                        "session_type": planned_session["session_type"],
+                        "exercises": actual_exercises,
+                        "plan_id": active["plan_id"],
+                        "receipt_hash": active["receipt_hash"],
+                        "duration_seconds": planned_session["estimated_minutes"] * 60,
+                        "rpe": 8,
+                        "pain_confirmed": False,
+                        "pain_body_areas": [],
+                        "session_intent": first_day["session_intent"],
+                        "sequence_position": first_day["sequence_position"],
+                        "sequence_length": first_day["sequence_length"],
+                    },
+                )
+                assert completion.status_code == 200
+
+                history = client.get("/training/history")
+                assert history.status_code == 200
+                recorded = history.json()["sessions"][0]
+                assert recorded["exercises"][0]["sets"][0] == {
+                    "reps": 7,
+                    "target_reps": planned_session["exercises"][0]["reps"],
+                    "weight_kg": 57.5,
+                }
+                assert recorded["plan_provenance"]["plan_id"] == active["plan_id"]
+                assert recorded["sequence_position"] == 1
+
+                next_response = client.post(
+                    "/training/plan/proposals",
+                    json={"constraints": []},
+                )
+
+        assert next_response.status_code == 200
+        next_proposal = next_response.json()
+        stored_next = database.get_training_plan_receipt(next_proposal["plan_id"])
+        assert stored_next is not None
+        first_training_day = next(
+            day
+            for day in stored_next["payload"]["days"]
+            if day["session_intent"]
+        )
+        assert first_training_day["sequence_position"] == 2
+        assert first_training_day["session_intent"] == "pull_strength"
 
     def test_jump_log_create(self):
         response = client.post(
