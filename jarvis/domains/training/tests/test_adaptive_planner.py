@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import jarvis.domains.training.adaptive_planner as adaptive_planner_module
 from jarvis.domains.training.adaptive_planner import (
     PlanningSnapshot,
     apply_constraints,
@@ -17,6 +18,21 @@ from jarvis.domains.training.plan_contracts import PlanDay, TrainingConstraint
 
 @pytest.fixture
 def training_constitution():
+    path = Path(__file__).parent.parent / "constitution.json"
+    constitution = json.loads(path.read_text(encoding="utf-8"))
+    constitution["version"] = "1"
+    constitution["adaptive_planner"]["version"] = "adaptive-v1"
+    constitution["adaptive_planner"].pop("program", None)
+    constitution["adaptive_planner"]["movement_families"]["explosive"] = [
+        "hex_bar_jump",
+        "power_clean",
+        "approach_jump",
+    ]
+    return constitution
+
+
+@pytest.fixture
+def training_constitution_v2():
     path = Path(__file__).parent.parent / "constitution.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -32,6 +48,98 @@ def snapshot():
         equipment=("barbell", "rack", "hex_bar"),
         preferences=(),
     )
+
+
+def _hybrid_snapshot():
+    return replace(snapshot(), equipment=())
+
+
+def _completed_hybrid_session(receipt, position):
+    planned = next(day for day in receipt.days if day.sequence_position == position)
+    return {
+        "date": planned.date.isoformat(),
+        "session_type": planned.session_type,
+        "session_intent": planned.session_intent,
+        "sequence_position": planned.sequence_position,
+        "sequence_length": planned.sequence_length,
+        "plan_provenance": {
+            "plan_id": receipt.plan_id,
+            "receipt_hash": receipt.receipt_hash,
+            "date": planned.date.isoformat(),
+        },
+        "completion_evidence": {
+            "rpe": 8,
+            "pain_confirmed": False,
+            "pain_body_areas": [],
+        },
+        "exercises": [],
+    }
+
+
+def test_v2_receipt_uses_hybrid_baseline_and_version(training_constitution_v2):
+    receipt = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot())
+
+    assert receipt.planner_version == "adaptive-v2"
+    assert receipt.constitution_version == "2"
+    assert [
+        day.sequence_position for day in receipt.days if day.session_intent
+    ] == [1, 2, 3, 4, 5, 6]
+
+
+def test_completed_position_advances_next_sequence_without_doubling(
+    training_constitution_v2,
+):
+    active = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot())
+    planning = build_planning_snapshot(
+        week_start=date(2026, 7, 27),
+        created_at="2026-07-27T06:00:00Z",
+        sessions=[_completed_hybrid_session(active, position=2)],
+        readiness=None,
+        calendar_events=[],
+        equipment=[],
+        preferences={},
+        active_plan=active.to_mapping(),
+    )
+
+    receipt = generate_weekly_plan(training_constitution_v2, planning)
+    first = next(day for day in receipt.days if day.session_intent)
+
+    assert planning.sequence_cursor == 3
+    assert planning.sequence_source_plan_id == active.plan_id
+    assert first.sequence_position == 3
+    assert first.session_intent == "lower_power"
+
+
+def test_v2_phase_rules_are_integrated_exactly_once(
+    monkeypatch,
+    training_constitution_v2,
+):
+    calls = []
+    real_apply_phase_rules = adaptive_planner_module.apply_phase_rules
+
+    def apply_phase_rules_spy(days, phase, week):
+        calls.append((phase, week))
+        return real_apply_phase_rules(days, phase, week)
+
+    monkeypatch.setattr(
+        adaptive_planner_module,
+        "apply_phase_rules",
+        apply_phase_rules_spy,
+    )
+    phase_snapshot = replace(
+        _hybrid_snapshot(),
+        week_start=date(2026, 8, 31),
+        created_at="2026-08-31T06:00:00Z",
+    )
+
+    receipt = generate_weekly_plan(training_constitution_v2, phase_snapshot)
+
+    assert calls == [("peak", 1)]
+    for day in receipt.days:
+        phase_reasons = [
+            reason for reason in day.decision_reasons if reason.startswith("phase_")
+        ]
+        assert len(phase_reasons) == len(set(phase_reasons))
 
 
 def test_baseline_plan_has_seven_ordered_days(training_constitution):

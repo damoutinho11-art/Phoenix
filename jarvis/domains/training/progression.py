@@ -83,6 +83,35 @@ def _increment(session: dict[str, Any], exercise: dict[str, Any]) -> float:
     return 5.0 if is_lower else 2.5
 
 
+def _completion_evidence(session: dict[str, Any]) -> dict[str, Any]:
+    value = session.get("completion_evidence", {})
+    return value if isinstance(value, dict) else {}
+
+
+def _session_rpe(session: dict[str, Any]) -> float | None:
+    value = _completion_evidence(session).get("rpe", session.get("rpe"))
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _has_pain_evidence(session: dict[str, Any]) -> bool:
+    evidence = _completion_evidence(session)
+    return bool(
+        evidence.get("pain_confirmed", session.get("pain_confirmed", False))
+        or evidence.get("pain_body_areas", session.get("pain_body_areas", ()))
+    )
+
+
+def _session_order_key(session: dict[str, Any]) -> tuple[str, int]:
+    try:
+        row_id = int(session.get("id", 0))
+    except (TypeError, ValueError):
+        row_id = 0
+    return str(session.get("date", "")), row_id
+
+
 def calculate_progression(
     session_log: list[dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
@@ -94,7 +123,7 @@ def calculate_progression(
     """
     ordered_sessions = sorted(
         session_log,
-        key=lambda session: (str(session.get("date", "")), int(session.get("id", 0))),
+        key=_session_order_key,
         reverse=True,
     )
 
@@ -122,20 +151,44 @@ def calculate_progression(
             and len(exercise_history) >= 2
             and not _target_hit(exercise_history[1][1])
         )
+        rpe = _session_rpe(latest_session)
+        pain_evidence = _has_pain_evidence(latest_session)
 
-        if latest_hit:
+        if pain_evidence:
+            suggested = current_weight
+            load_delta = 0.0
+            action = "hold"
+            reason = "pain_evidence"
+            basis = "Pain evidence recorded; hold current weight."
+        elif latest_hit and (rpe is None or rpe <= 8):
             increment = _increment(latest_session, latest_exercise)
             suggested = current_weight + increment
+            load_delta = increment
+            action = "increase"
+            reason = "targets_completed"
             basis = f"All sets hit target reps; add {increment:g}kg."
         elif missed_twice:
             suggested = current_weight
+            load_delta = 0.0
+            action = "hold_or_reduce"
+            reason = "missed_reps"
             basis = "Target reps missed in 2 consecutive sessions; deload recommended."
         else:
             suggested = current_weight
-            basis = "Target reps missed; hold current weight."
+            load_delta = 0.0
+            action = "hold_or_reduce"
+            reason = "high_rpe" if rpe is not None and rpe >= 9 else "missed_reps"
+            basis = (
+                "RPE was 9 or higher; hold current weight."
+                if reason == "high_rpe"
+                else "Target reps missed; hold current weight."
+            )
 
         suggestions[display_names[key]] = {
             "suggested_kg": suggested,
+            "action": action,
+            "load_delta_kg": load_delta,
+            "reason": reason,
             "basis": basis,
             "deload": missed_twice,
         }

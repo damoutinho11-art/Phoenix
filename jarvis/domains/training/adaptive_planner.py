@@ -2,7 +2,8 @@ from dataclasses import replace
 from datetime import date, timedelta
 from typing import Any, Mapping
 
-from .engine import plan_week_sessions
+from .engine import get_current_phase, plan_week_sessions
+from .performance_hybrid import apply_phase_rules, build_hybrid_week
 from .plan_contracts import (
     PlanDay,
     PlanValidation,
@@ -12,8 +13,6 @@ from .plan_contracts import (
     WeeklyPlanReceipt,
     iso_cycle_id,
 )
-
-PLANNER_VERSION = "adaptive-v1"
 
 _PHASE_EXERCISE_KEYS = {
     "explosive_lift": "explosive_exercise",
@@ -604,15 +603,9 @@ def _session_exercises(session, constitution):
     )
 
 
-def generate_weekly_plan(constitution, snapshot, constraints=()):
-    constraints = tuple(constraints)
-    replay_inputs = TrainingPlanReplayInputs(
-        constitution=constitution,
-        snapshot=snapshot,
-        constraints=constraints,
-    )
+def _legacy_plan_days(constitution, snapshot):
     sessions = plan_week_sessions(constitution, snapshot.week_start)
-    days = tuple(
+    return tuple(
         PlanDay(
             date=session.date,
             session_type=session.session_type.value,
@@ -622,6 +615,32 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
         )
         for session in sessions
     )
+
+
+def _baseline_days(constitution, snapshot):
+    policy = constitution.get("adaptive_planner", {})
+    if (
+        str(constitution.get("version")) == "2"
+        and isinstance(policy, Mapping)
+        and policy.get("program") == "performance_hybrid"
+    ):
+        phase, week = get_current_phase(constitution, snapshot.week_start)
+        return apply_phase_rules(
+            build_hybrid_week(constitution, snapshot),
+            phase=phase.value,
+            week=week,
+        )
+    return _legacy_plan_days(constitution, snapshot)
+
+
+def generate_weekly_plan(constitution, snapshot, constraints=()):
+    constraints = tuple(constraints)
+    replay_inputs = TrainingPlanReplayInputs(
+        constitution=constitution,
+        snapshot=snapshot,
+        constraints=constraints,
+    )
+    days = _baseline_days(constitution, snapshot)
     policy = constitution["adaptive_planner"]
     baseline_days = days
     days = apply_constraints(days, constraints, constitution)
@@ -652,7 +671,7 @@ def generate_weekly_plan(constitution, snapshot, constraints=()):
     return WeeklyPlanReceipt.create(
         parent_plan_id=None,
         constitution_version=str(constitution["version"]),
-        planner_version=PLANNER_VERSION,
+        planner_version=str(policy["version"]),
         cycle_id=iso_cycle_id(snapshot.week_start),
         days=days,
         constraints=constraints,
