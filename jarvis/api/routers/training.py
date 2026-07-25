@@ -1237,12 +1237,22 @@ def create_session_log(request: SessionLogRequest) -> dict:
             ),
             None,
         )
-        if payload.get("planner_version") == "adaptive-v2" and (
+        hybrid_values = (
+            request.session_intent,
+            request.sequence_position,
+            request.sequence_length,
+        )
+        is_hybrid_plan = payload.get("planner_version") == "adaptive-v2"
+        hybrid_mismatch = is_hybrid_plan and (
             authoritative_day is None
             or request.session_intent != authoritative_day.get("session_intent")
             or request.sequence_position != authoritative_day.get("sequence_position")
             or request.sequence_length != authoritative_day.get("sequence_length")
-        ):
+        )
+        legacy_hybrid_claim = not is_hybrid_plan and any(
+            value is not None for value in hybrid_values
+        )
+        if hybrid_mismatch or legacy_hybrid_claim:
             raise HTTPException(
                 status_code=409, detail="Training completion does not match plan day"
             )

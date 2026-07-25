@@ -100,3 +100,56 @@ test failed in the final focused runs.
 
 - The five known Task 6 route failures remain intentionally unresolved in
   this task and must be closed by Hybrid Task 6.
+
+## Review Fix: Reject Legacy Hybrid Claims
+
+Finding: Important. The initial router validated hybrid sequence evidence only
+for `adaptive-v2`. A planned completion linked to an adaptive-v1 or otherwise
+legacy receipt could therefore submit any non-null `session_intent`,
+`sequence_position`, or `sequence_length` and persist that untrusted claim in
+immutable session evidence.
+
+Fix: the router now separates plan versions at the completion boundary:
+
+- `adaptive-v2` must exactly match all three fields on the authoritative plan
+  day;
+- every non-v2 plan must provide all three fields as null;
+- genuine legacy completions with all three fields absent retain their
+  existing persistence and idempotency behavior.
+
+### RED
+
+Command:
+
+```text
+python -m pytest jarvis/api/tests/test_training_tracker.py::TrainingTrackerTests::test_legacy_plan_completion_rejects_any_hybrid_sequence_evidence -q
+```
+
+Result: all three field-specific subtests failed because each request returned
+`200` instead of `409`.
+
+### GREEN
+
+Command:
+
+```text
+python -m pytest jarvis/api/tests/test_training_tracker.py::TrainingTrackerTests::test_legacy_plan_completion_rejects_any_hybrid_sequence_evidence jarvis/api/tests/test_training_tracker.py::TrainingTrackerTests::test_planned_completion_returns_idempotent_replay -q
+```
+
+Result: `2 passed, 3 subtests passed in 2.62s`.
+
+Focused Task 5 command:
+
+```text
+python -m pytest jarvis/data/tests/test_database.py jarvis/api/tests/test_training_tracker.py -q
+```
+
+Result: `79 passed, 3 subtests passed in 18.75s`.
+
+Relevant broad command:
+
+```text
+python -m pytest jarvis/domains/training/tests jarvis/api/tests/test_training_plan_routes.py jarvis/api/tests/test_training_tracker.py jarvis/data/tests/test_database.py --ignore=jarvis/domains/training/tests/test_plan_acceptance.py --deselect=jarvis/api/tests/test_training_plan_routes.py::test_proposal_passes_latest_import_to_real_resolver_and_uses_its_performance_events --deselect=jarvis/api/tests/test_training_plan_routes.py::test_history_and_rules_return_readable_detail --deselect=jarvis/api/tests/test_training_plan_routes.py::test_rules_whitelist_excludes_private_policy_fields --deselect=jarvis/api/tests/test_training_plan_routes.py::test_live_generated_proposals_are_authoritative_after_runtime_replay --deselect=jarvis/api/tests/test_training_plan_routes.py::test_live_apply_replays_generated_proposal_without_exact_allowlist -q
+```
+
+Result: `406 passed, 5 deselected, 3 subtests passed in 34.55s`.

@@ -252,6 +252,34 @@ class TrainingTrackerTests(unittest.TestCase):
         )
         assert database.get_sessions() == []
 
+    def test_legacy_plan_completion_rejects_any_hybrid_sequence_evidence(self):
+        hybrid_claims = {
+            "session_intent": "push_strength",
+            "sequence_position": 1,
+            "sequence_length": 6,
+        }
+        for field, value in hybrid_claims.items():
+            with self.subTest(field=field), patch.object(
+                database,
+                "DB_PATH",
+                Path(self.temp_dir.name) / f"legacy-{field}.db",
+            ), patch(
+                "jarvis.api.routers.training.database.get_active_training_plan",
+                return_value=_active_plan_record(),
+            ):
+                database.init_db()
+
+                response = client.post(
+                    "/training/log/session",
+                    json=_planned_api_payload(**{field: value}),
+                )
+
+                assert response.status_code == 409
+                assert response.json()["detail"] == (
+                    "Training completion does not match plan day"
+                )
+                assert database.get_sessions() == []
+
     def test_unplanned_session_rejects_unlinked_hybrid_sequence_claims(self):
         response = client.post(
             "/training/log/session",
