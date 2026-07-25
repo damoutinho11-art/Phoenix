@@ -8,6 +8,7 @@ import {
   buildReadinessPayload,
   canCompleteSession,
   createSetResults,
+  formatHybridSessionIdentity,
   normalizePlanExercises,
   recordSetResult,
 } from './trainingSessionModel.js'
@@ -43,6 +44,7 @@ function ClosedState({ message }) {
 export function SessionSub({ onClose, training, refreshTraining, meta }) {
   const routed = training?.routed
   const exercises = normalizePlanExercises(routed)
+  const hybridIdentity = formatHybridSessionIdentity(routed?.session)
   const planKey = [
     routed?.plan_provenance?.plan_id,
     routed?.plan_provenance?.receipt_hash,
@@ -168,8 +170,17 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
 
   return (
     <SubShell subKey="session" onClose={onClose} meta={meta}>
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1.1, minWidth: 240 }}>
+      {hybridIdentity && (
+        <header className="training-session-identity" aria-label="Authoritative hybrid session identity">
+          <div>
+            <span>TODAY'S MISSION</span>
+            <strong>{hybridIdentity.label}</strong>
+          </div>
+          <b>{hybridIdentity.sequenceLabel}</b>
+        </header>
+      )}
+      <div className="training-session-layout">
+        <div className="training-session-queue">
           <SubLabel>EXERCISE QUEUE</SubLabel>
           {exercises.map((ex, i) => {
             const live = i === idx && !allDone
@@ -201,7 +212,7 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
             )
           })}
         </div>
-        <div style={{ flex: 1.2, minWidth: 260, textAlign: 'center' }}>
+        <div className="training-session-console">
           <svg viewBox="0 0 140 140" style={{ width: 168, height: 168, display: 'block', margin: '0 auto' }}>
             <circle cx="70" cy="70" r="62" fill="none" stroke={a(ACC, '1a')} strokeWidth="5" />
             <circle cx="70" cy="70" r="62" fill="none" stroke={ringColor} strokeWidth="5" strokeLinecap="round" strokeDasharray="389.6" strokeDashoffset={ringOffset} transform="rotate(-90 70 70)" style={{ filter: `drop-shadow(0 0 7px ${ringColor})`, transition: 'stroke-dashoffset .9s linear, stroke .4s ease' }} />
@@ -228,12 +239,17 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
             <button onClick={onClose} style={{ minHeight: 36, padding: '0 18px', fontFamily: FM, fontSize: '8.5px', letterSpacing: '.2em', color: a(ACC, '99'), background: 'none', border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>END SESSION</button>
           </div>
         </div>
-        <div style={{ flex: 1, minWidth: 210 }}>
+        <div className="training-session-evidence">
           <SubLabel style={{ marginBottom: 8 }}>SESSION CLOCK</SubLabel>
           <div style={{ fontFamily: FD, fontSize: 40, fontWeight: 300, color: W, textShadow: `0 0 14px ${a(ACC, '66')}`, marginBottom: 14 }}>
             {pad2(Math.floor(elapsed / 60)) + ':' + pad2(elapsed % 60)}
           </div>
-          {[['PLAN ID', routed.plan_provenance?.plan_id || 'UNAVAILABLE', W], ['SESSION', routed.session?.display_name || routed.session?.session_type, W], ['ROUTE', String(routed.readiness_status || 'clear').toUpperCase(), G]].map(([k, v, c], i, arr) => (
+          {[
+            ['PLAN ID', routed.plan_provenance?.plan_id || 'UNAVAILABLE', W],
+            ['SESSION', hybridIdentity?.label || routed.session?.display_name || routed.session?.session_type, W],
+            ['SEQUENCE', hybridIdentity ? `${String(hybridIdentity.position).padStart(2, '0')} / ${String(hybridIdentity.length).padStart(2, '0')}` : 'LEGACY', hybridIdentity ? ACC : a(ACC, '99')],
+            ['ROUTE', String(routed.readiness_status || 'clear').toUpperCase(), G],
+          ].map(([k, v, c], i, arr) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < arr.length - 1 ? `1px solid ${a(ACC, '14')}` : 'none', fontFamily: FM, fontSize: 8, letterSpacing: '.12em' }}>
               <span style={{ color: a(ACC, '99') }}>{k}</span><span style={{ color: c }}>{v}</span>
             </div>

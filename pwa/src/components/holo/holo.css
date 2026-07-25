@@ -556,6 +556,149 @@
   text-align: center;
 }
 
+.training-hybrid-sequence {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  background: transparent;
+}
+
+.training-hybrid-slot {
+  min-width: 0;
+  min-height: 126px;
+  position: relative;
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+
+.training-hybrid-slot.current {
+  border-color: var(--training-accent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--training-accent) 12%, transparent), transparent 72%),
+    color-mix(in srgb, var(--phx-bg) 90%, transparent);
+  box-shadow: inset 0 2px 0 var(--training-accent), 0 0 20px color-mix(in srgb, var(--training-accent) 10%, transparent);
+}
+
+.training-hybrid-slot.high-neural:not(.current) {
+  border-color: color-mix(in srgb, var(--phx-caution) 42%, transparent);
+}
+
+.training-hybrid-slot.recovery {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--phx-panel) 74%, transparent);
+}
+
+.training-hybrid-slot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--training-accent) 88%, white 12%);
+  outline-offset: -3px;
+}
+
+.training-hybrid-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(260px, .75fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.training-hybrid-mission,
+.training-hybrid-decisions {
+  min-width: 0;
+  padding: 14px 2px 2px;
+  border-top: 1px solid color-mix(in srgb, var(--training-accent) 28%, transparent);
+}
+
+.training-hybrid-mission h3 {
+  margin: 9px 0 2px;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 21px;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+
+.training-hybrid-mission > p,
+.training-hybrid-decisions > p {
+  margin: 4px 0 0;
+  color: var(--phx-muted);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .08em;
+  line-height: 1.55;
+}
+
+.training-hybrid-mission .training-day-exercises li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 34px;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 9%, transparent);
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.training-hybrid-mission .training-day-exercises li::before { display: none; }
+.training-hybrid-mission .training-day-exercises b { color: var(--training-accent); font-weight: 400; }
+.training-hybrid-mission .training-day-exercises strong { color: var(--phx-muted); font-size: 7px; font-weight: 400; text-align: right; }
+
+.training-hybrid-decisions dl { margin: 8px 0 0; }
+.training-hybrid-decisions dl div {
+  padding: 9px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 9%, transparent);
+}
+.training-hybrid-decisions dt { color: var(--phx-body); font-family: var(--phx-font-body); font-size: 11px; }
+.training-hybrid-decisions dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .07em; }
+
+.training-session-identity {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 30%, transparent);
+}
+
+.training-session-identity span {
+  display: block;
+  color: var(--training-accent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .16em;
+}
+
+.training-session-identity strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--phx-text);
+  font-family: var(--phx-font-display);
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+
+.training-session-identity b {
+  flex: 0 0 auto;
+  color: var(--training-accent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: .13em;
+}
+
+.training-session-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.05fr) minmax(270px, 1.2fr) minmax(220px, .9fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.training-session-queue,
+.training-session-console,
+.training-session-evidence { min-width: 0; }
+.training-session-console { text-align: center; }
+
 .training-validation-summary {
   margin-top: 12px;
   padding-top: 10px;
@@ -902,6 +1045,17 @@
   .training-plan-metadata dl div { padding: 8px; }
   .training-week-grid { grid-template-columns: repeat(7, 118px); min-width: 826px; }
   .training-week-day { min-height: 230px; }
+  .training-hybrid-sequence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    min-width: 0;
+  }
+  .training-hybrid-slot { min-height: 154px; }
+  .training-hybrid-detail { grid-template-columns: 1fr; }
+  .training-hybrid-mission .training-day-exercises li { grid-template-columns: 24px minmax(0, 1fr); }
+  .training-hybrid-mission .training-day-exercises strong { grid-column: 2; text-align: left; }
+  .training-session-identity { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .training-session-layout { grid-template-columns: 1fr; gap: 18px; }
   .training-validation-list { grid-template-columns: 1fr; }
   .training-validation-list li { grid-template-columns: 5px minmax(80px, .7fr) minmax(120px, 1.3fr); }
   .training-adapt-quick-form,
@@ -920,6 +1074,7 @@
   .training-control-room,
   .training-control-room-scrim,
   .training-control-panel { animation: none !important; }
+  .training-hybrid-slot { animation: none; transition: none; }
 
   .holo-root *, .holo-root *::before, .holo-root *::after,
   .holo-layer *, .holo-layer *::before, .holo-layer *::after {

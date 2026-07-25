@@ -57,3 +57,14 @@ test('live session captures actual reps and load before completing each set', as
   assert.match(subs, /setResults/)
   assert.doesNotMatch(subs, /sets: Array\.from\(\{ length: exercise\.sets/)
 })
+
+
+test('live session presents receipt identity and submits model-built hybrid evidence', async () => {
+  const subs = await source('./subs/TrainingSubs.jsx')
+
+  assert.match(subs, /training-session-layout/)
+  assert.match(subs, /training-session-identity/)
+  assert.match(subs, /formatHybridSessionIdentity/)
+  assert.match(subs, /buildCompletionPayload\(\{[\s\S]*routed/)
+  assert.doesNotMatch(subs, /exercise.*(?:push|pull|lower|jump).*session_intent/is)
+})

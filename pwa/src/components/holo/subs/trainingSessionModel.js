@@ -2,6 +2,65 @@ const SCORE_FIELDS = [
   'knee', 'ankle', 'hip', 'hamstring', 'calf_achilles', 'lower_back_pelvic',
 ]
 
+const HYBRID_SEQUENCE = [
+  'push_strength',
+  'pull_strength',
+  'lower_power',
+  'push_volume',
+  'pull_volume',
+  'jump_elastic',
+]
+
+const HYBRID_LABELS = {
+  push_strength: 'PUSH STRENGTH',
+  pull_strength: 'PULL STRENGTH',
+  lower_power: 'LOWER POWER',
+  push_volume: 'PUSH VOLUME',
+  pull_volume: 'PULL VOLUME',
+  jump_elastic: 'JUMP / ELASTIC',
+}
+
+
+function exactHybridSessionEvidence(session, strict = false) {
+  const values = [
+    session?.session_intent,
+    session?.sequence_position,
+    session?.sequence_length,
+  ]
+  const absent = values.every(value => value === null || value === undefined)
+  if (absent) return null
+
+  const intent = session?.session_intent
+  const position = session?.sequence_position
+  const length = session?.sequence_length
+  const valid = (
+    HYBRID_SEQUENCE.includes(intent)
+    && Number.isInteger(position)
+    && position === HYBRID_SEQUENCE.indexOf(intent) + 1
+    && length === HYBRID_SEQUENCE.length
+  )
+  if (!valid) {
+    if (strict) throw new Error('Verified hybrid sequence evidence is required')
+    return null
+  }
+  return {
+    intent,
+    label: HYBRID_LABELS[intent],
+    position,
+    length,
+  }
+}
+
+
+export function formatHybridSessionIdentity(session) {
+  const evidence = exactHybridSessionEvidence(session)
+  if (!evidence) return null
+  return {
+    ...evidence,
+    sequenceLabel: `SEQUENCE ${String(evidence.position).padStart(2, '0')} OF ${String(evidence.length).padStart(2, '0')}`,
+  }
+}
+
 
 export function normalizePlanExercises(routed) {
   const exercises = routed?.session?.exercises
@@ -112,6 +171,7 @@ export function buildCompletionPayload({
   if (!session || !provenance || !exercises?.length || !allSetResultsRecorded(exercises, setResults)) {
     throw new Error('Verified plan session is required')
   }
+  const hybrid = exactHybridSessionEvidence(session, true)
   return {
     date: session.date || provenance.date,
     session_type: session.session_type,
@@ -131,5 +191,8 @@ export function buildCompletionPayload({
     rpe: Number(rpe),
     pain_confirmed: Boolean(painConfirmed),
     pain_body_areas: painConfirmed ? painBodyAreas : [],
+    session_intent: hybrid?.intent ?? null,
+    sequence_position: hybrid?.position ?? null,
+    sequence_length: hybrid?.length ?? null,
   }
 }

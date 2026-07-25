@@ -1,4 +1,5 @@
 import { ACC, G, Y, R, W, BODY, a } from './holoTokens.js'
+import { formatHybridSessionIdentity } from './subs/trainingSessionModel.js'
 
 
 const EMPTY_ROWS = message => [{
@@ -78,6 +79,11 @@ export function buildTrainingDomain(base, model) {
   const status = model.status
   const routed = model.routed || {}
   const session = status.today_session
+  const hybridIdentity = formatHybridSessionIdentity(session)
+  const sessionName = hybridIdentity?.label || session.display_name
+  const sessionMeta = hybridIdentity
+    ? `${hybridIdentity.label} · ${String(hybridIdentity.position).padStart(2, '0')}/${String(hybridIdentity.length).padStart(2, '0')}`
+    : upper(session.session_type)
   const goal = status.dunk_goal || {}
   const cut = status.cut_status || {}
   const history = Array.isArray(model.history?.sessions) ? model.history.sessions : []
@@ -133,12 +139,16 @@ export function buildTrainingDomain(base, model) {
     reactorPct: goal.days_to_attempt == null ? 0.08 : Math.max(0.08, Math.min(1, 1 - goal.days_to_attempt / 90)),
     heroChips: [
       { text: model.message, color: stateColor },
-      { text: upper(session.display_name), color: ACC },
+      { text: upper(sessionName), color: ACC },
       { text: `READINESS · ${upper(readiness)}`, color: readiness === 'clear' ? G : Y },
     ],
-    heroBrief: session.change_reason
-      ? `${session.display_name}. Phoenix adapted this day: ${title(session.change_reason)}.`
-      : `${session.display_name}. ${session.estimated_minutes} minutes from active plan ${status.plan_provenance?.plan_id || 'unavailable'}.`,
+    heroBrief: hybridIdentity
+      ? `${hybridIdentity.label}. ${hybridIdentity.sequenceLabel}. ${session.estimated_minutes} minutes from active plan ${status.plan_provenance?.plan_id || 'unavailable'}.${
+          session.change_reason ? ` Phoenix adapted this day: ${title(session.change_reason)}.` : ''
+        }`
+      : session.change_reason
+        ? `${session.display_name}. Phoenix adapted this day: ${title(session.change_reason)}.`
+        : `${session.display_name}. ${session.estimated_minutes} minutes from active plan ${status.plan_provenance?.plan_id || 'unavailable'}.`,
     heroActions: actions,
     readout: [
       { k: 'READINESS', v: upper(readiness), w: readiness === 'clear' ? '100%' : '35%' },
@@ -150,12 +160,12 @@ export function buildTrainingDomain(base, model) {
     ],
     feed: history.slice(0, 5).map(item => ({ t: item.date || '', msg: upper(item.session_type), tone: G })),
     panels: [
-      { code: 'SESSION', meta: upper(session.session_type), type: 'rows', rows: sessionRows },
+      { code: 'SESSION', meta: sessionMeta, type: 'rows', rows: sessionRows },
       { code: 'READINESS', meta: upper(readiness), type: 'rows', rows: scanRows },
       { code: 'HISTORY', meta: `${history.length} RECORDED`, type: 'rows', rows: historyRows.length ? historyRows : EMPTY_ROWS('No sessions recorded') },
       { code: 'MISSION', meta: `ATTEMPT · ${attempt}`, type: 'rows', rows: [
         { title: 'Phase', sub: 'ACTIVE CONSTITUTION', value: upper(goal.current_phase) || '—', valueColor: W },
-        { title: 'Plan day', sub: status.plan_provenance?.date || 'DATE UNAVAILABLE', value: upper(session.objective), valueColor: ACC },
+        { title: 'Plan day', sub: status.plan_provenance?.date || 'DATE UNAVAILABLE', value: hybridIdentity?.label || upper(session.objective), valueColor: ACC },
         { title: 'Projection', sub: 'CURRENT MISSION STATUS', value: goal.on_track ? 'ON TRACK' : 'REVIEW', valueColor: goal.on_track ? G : Y },
       ] },
     ],

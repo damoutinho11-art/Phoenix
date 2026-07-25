@@ -385,3 +385,41 @@ test('training CSS keeps danger red inside validation hard-block selectors', () 
     assert.match(selector, validationHardBlock, `danger red escaped validation scope: ${selector.trim()}`)
   }
 })
+
+
+test('hybrid Training surfaces use restrained orange stable responsive geometry', () => {
+  const css = readSource('../holo.css')
+  const trainingCss = css.slice(css.indexOf('/* Training Control Room'))
+
+  assert.match(
+    trainingCss,
+    /\.training-hybrid-sequence\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)/s,
+  )
+  assert.match(
+    trainingCss,
+    /\.training-hybrid-slot\s*\{[^}]*min-width:\s*0;[^}]*min-height:\s*126px/s,
+  )
+  assert.match(
+    trainingCss,
+    /\.training-hybrid-slot\.current\s*\{[^}]*border-color:\s*var\(--training-accent\)/s,
+  )
+  assert.match(
+    trainingCss,
+    /\.training-hybrid-detail\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1\.65fr\)\s+minmax\(260px,\s*\.75fr\)/s,
+  )
+  assert.match(
+    trainingCss,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*\.training-hybrid-sequence\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+  )
+  assert.match(
+    trainingCss,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*\.training-hybrid-detail\s*\{[^}]*grid-template-columns:\s*1fr/,
+  )
+  assert.match(trainingCss, /\.training-hybrid-slot:focus-visible/)
+  assert.match(
+    trainingCss,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.training-hybrid-slot\s*\{[^}]*(?:animation:\s*none|transition:\s*none)/,
+  )
+  assert.match(trainingCss, /\.training-session-layout\s*\{[^}]*display:\s*grid/s)
+  assert.doesNotMatch(trainingCss, /border-radius:\s*(?:[1-9]\d|[2-9]\d*)px/)
+})

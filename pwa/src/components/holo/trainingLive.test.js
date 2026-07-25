@@ -109,3 +109,58 @@ test('Training live ready model uses API session and recorded history only', () 
   assert.match(JSON.stringify(domain.panels[2]), /2026-07-18/)
   assert.doesNotMatch(JSON.stringify(domain.panels[2]), /31\.5/)
 })
+
+
+test('Training live mission uses authoritative hybrid identity and position', () => {
+  const hybridStatus = {
+    ...status,
+    today_session: {
+      ...status.today_session,
+      display_name: 'Generic training day',
+      objective: 'general',
+      session_intent: 'lower_power',
+      sequence_position: 3,
+      sequence_length: 6,
+    },
+  }
+  const model = normalizeTrainingLive({
+    status: hybridStatus,
+    routed: { ...routed, session: hybridStatus.today_session },
+    history: { sessions: [] },
+    loading: false,
+    error: null,
+  })
+  const domain = buildTrainingDomain(baseDomain(), model)
+
+  assert.equal(domain.heroChips[1].text, 'LOWER POWER')
+  assert.match(domain.heroBrief, /SEQUENCE 03 OF 06/)
+  assert.equal(domain.panels[0].meta, 'LOWER POWER · 03/06')
+  assert.equal(domain.panels[3].rows[1].value, 'LOWER POWER')
+})
+
+
+test('Training live does not infer hybrid identity when receipt fields are absent or partial', () => {
+  const legacyDomain = buildTrainingDomain(baseDomain(), normalizeTrainingLive({
+    status,
+    routed,
+    history: { sessions: [] },
+    loading: false,
+    error: null,
+  }))
+  assert.doesNotMatch(legacyDomain.heroBrief, /SEQUENCE/)
+  assert.equal(legacyDomain.heroChips[1].text, 'JUMP STRENGTH')
+
+  const partialStatus = {
+    ...status,
+    today_session: { ...status.today_session, session_intent: 'lower_power' },
+  }
+  const partialDomain = buildTrainingDomain(baseDomain(), normalizeTrainingLive({
+    status: partialStatus,
+    routed: { ...routed, session: partialStatus.today_session },
+    history: { sessions: [] },
+    loading: false,
+    error: null,
+  }))
+  assert.doesNotMatch(partialDomain.heroBrief, /LOWER POWER|SEQUENCE/)
+  assert.equal(partialDomain.panels[0].meta, 'HIGH INTENSITY')
+})

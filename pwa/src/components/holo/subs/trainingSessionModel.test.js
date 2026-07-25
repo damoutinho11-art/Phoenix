@@ -115,5 +115,92 @@ test('builds plan-linked completion evidence from actual set results', () => {
     rpe: 8,
     pain_confirmed: true,
     pain_body_areas: ['knee'],
+    session_intent: null,
+    sequence_position: null,
+    sequence_length: null,
   })
+})
+
+
+test('completion forwards exact plan-linked hybrid evidence', () => {
+  const hybridRouted = {
+    ...routed,
+    session: {
+      ...routed.session,
+      session_intent: 'lower_power',
+      sequence_position: 3,
+      sequence_length: 6,
+    },
+  }
+  const exercises = normalizePlanExercises(hybridRouted)
+  let setResults = createSetResults(exercises)
+  for (let exerciseIndex = 0; exerciseIndex < exercises.length; exerciseIndex += 1) {
+    for (let setIndex = 0; setIndex < exercises[exerciseIndex].sets; setIndex += 1) {
+      setResults = recordSetResult(setResults, exerciseIndex, setIndex, {
+        reps: exercises[exerciseIndex].reps,
+        weightKg: exercises[exerciseIndex].loadKg ?? 0,
+      })
+    }
+  }
+
+  const payload = buildCompletionPayload({
+    routed: hybridRouted,
+    exercises,
+    setResults,
+    elapsedSeconds: 1800,
+    rpe: 8,
+    painConfirmed: false,
+    painBodyAreas: [],
+    notes: '',
+  })
+
+  assert.equal(payload.session_intent, 'lower_power')
+  assert.equal(payload.sequence_position, 3)
+  assert.equal(payload.sequence_length, 6)
+})
+
+
+test('completion rejects partial or incoherent hybrid receipt evidence', () => {
+  const exercises = normalizePlanExercises(routed)
+  let setResults = createSetResults(exercises)
+  for (let exerciseIndex = 0; exerciseIndex < exercises.length; exerciseIndex += 1) {
+    for (let setIndex = 0; setIndex < exercises[exerciseIndex].sets; setIndex += 1) {
+      setResults = recordSetResult(setResults, exerciseIndex, setIndex, {
+        reps: exercises[exerciseIndex].reps,
+        weightKg: exercises[exerciseIndex].loadKg ?? 0,
+      })
+    }
+  }
+  const completion = {
+    exercises,
+    setResults,
+    elapsedSeconds: 1800,
+    rpe: 8,
+    painConfirmed: false,
+    painBodyAreas: [],
+    notes: '',
+  }
+
+  assert.throws(
+    () => buildCompletionPayload({
+      ...completion,
+      routed: { ...routed, session: { ...routed.session, session_intent: 'lower_power' } },
+    }),
+    /hybrid sequence evidence/i,
+  )
+  assert.throws(
+    () => buildCompletionPayload({
+      ...completion,
+      routed: {
+        ...routed,
+        session: {
+          ...routed.session,
+          session_intent: 'lower_power',
+          sequence_position: 2,
+          sequence_length: 6,
+        },
+      },
+    }),
+    /hybrid sequence evidence/i,
+  )
 })
