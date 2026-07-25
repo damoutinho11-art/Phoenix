@@ -244,6 +244,36 @@ def _with_phase_reason(day: PlanDay, reason: str) -> PlanDay:
     )
 
 
+def _phase_maintenance_session(day: PlanDay, phase: str) -> PlanDay:
+    cap = 45 if phase == "peak" else 30
+    exercises = []
+    primary_count = 0
+    can_consider_primary = True
+    for item in day.exercises:
+        priority = item["priority"]
+        if priority == "required":
+            if estimate_minutes(exercises) + item["estimated_minutes"] <= cap:
+                exercises.append(item)
+            continue
+        if priority != "primary" or not can_consider_primary:
+            continue
+        if estimate_minutes(exercises) + item["estimated_minutes"] > cap:
+            can_consider_primary = False
+            continue
+        exercises.append(item)
+        primary_count += 1
+        if phase == "attempt":
+            can_consider_primary = False
+    if primary_count == 0:
+        raise ValueError("Phase maintenance requires a primary movement within its cap")
+    return replace(
+        day,
+        exercises=tuple(exercises),
+        estimated_minutes=estimate_minutes(exercises),
+        decision_reasons=(*day.decision_reasons, f"phase_maintenance:{phase}"),
+    )
+
+
 def _recovery_from_lower(day: PlanDay, phase: str) -> PlanDay:
     return replace(
         day,
@@ -274,7 +304,7 @@ def apply_phase_rules(
     )
     if phase == "peak":
         return tuple(
-            _with_phase_reason(compress_session(day, 45), "phase_maintenance:peak")
+            _phase_maintenance_session(day, phase)
             if day.session_type == "general"
             else _with_phase_reason(
                 compress_session(day, 45), "phase_jump_volume_limited:peak"
@@ -287,9 +317,7 @@ def apply_phase_rules(
     return tuple(
         _attempt_jump_session(day)
         if day.session_intent == "jump_elastic"
-        else _with_phase_reason(
-            compress_session(day, 30), "phase_maintenance:attempt"
-        )
+        else _phase_maintenance_session(day, phase)
         if day.session_type == "general"
         else day
         for day in transformed

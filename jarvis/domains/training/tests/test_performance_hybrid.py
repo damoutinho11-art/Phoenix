@@ -11,7 +11,7 @@ from jarvis.domains.training.performance_hybrid import (
     build_hybrid_week,
     compress_session,
 )
-from jarvis.domains.training.plan_contracts import PlannerInputSnapshot
+from jarvis.domains.training.plan_contracts import PlanDay, PlannerInputSnapshot
 
 
 @pytest.fixture
@@ -263,6 +263,18 @@ def test_40_minute_compression_removes_optional_then_last_accessory(plan_day):
     assert compressed.decision_reasons == ("sequence_resumed", "time_compressed")
 
 
+def test_50_minute_normal_compression_keeps_the_ordinary_floor_behavior(plan_day):
+    compressed = compress_session(plan_day, 50)
+
+    assert compressed.estimated_minutes == 50
+    assert [item["movement_family"] for item in compressed.exercises] == [
+        "horizontal_push",
+        "vertical_push",
+        "lateral_delt",
+    ]
+    assert compressed.decision_reasons == ("sequence_resumed", "time_compressed")
+
+
 def test_compression_reports_the_truthful_protected_work_floor(baseline_days):
     lower = next(day for day in baseline_days if day.session_intent == "lower_power")
     compressed = compress_session(lower, 40)
@@ -319,13 +331,29 @@ def test_peak_removes_loaded_lower_and_keeps_upper_maintenance(baseline_days):
     assert lower.decision_reasons == ("sequence_resumed", "phase_lower_removed:peak")
     assert push.decision_reasons == (
         "sequence_resumed",
-        "time_compressed",
         "phase_maintenance:peak",
     )
+    general_days = [day for day in days if day.session_type == "general"]
+    assert all(day.estimated_minutes <= 45 for day in general_days)
+    assert {
+        day.session_intent: day.estimated_minutes for day in general_days
+    } == {
+        "push_strength": 40,
+        "pull_strength": 42,
+        "push_volume": 35,
+        "pull_volume": 38,
+    }
     assert all(
-        day.decision_reasons[-1] == "phase_maintenance:peak"
-        for day in days
-        if day.session_type == "general"
+        sum(item["estimated_minutes"] for item in day.exercises) == day.estimated_minutes
+        for day in general_days
+    )
+    assert all(
+        day.decision_reasons == ("sequence_resumed", "phase_maintenance:peak")
+        for day in general_days
+    )
+    assert all(
+        [item["priority"] for item in day.exercises] == ["primary", "primary"]
+        for day in general_days
     )
     assert jump.decision_reasons == (
         "sequence_resumed",
@@ -351,13 +379,46 @@ def test_attempt_keeps_only_required_jump_preparation_and_attempt_exposure(basel
     assert jump.decision_reasons == ("sequence_resumed", "phase_attempt_exposure")
     assert push.decision_reasons == (
         "sequence_resumed",
-        "time_compressed:floor_preserved",
         "phase_maintenance:attempt",
     )
+    general_days = [day for day in days if day.session_type == "general"]
+    assert all(day.estimated_minutes <= 30 for day in general_days)
+    assert {
+        day.session_intent: day.estimated_minutes for day in general_days
+    } == {
+        "push_strength": 22,
+        "pull_strength": 20,
+        "push_volume": 20,
+        "pull_volume": 20,
+    }
     assert all(
-        day.decision_reasons[-1] == "phase_maintenance:attempt"
-        for day in days
-        if day.session_type == "general"
+        sum(item["estimated_minutes"] for item in day.exercises) == day.estimated_minutes
+        for day in general_days
+    )
+    assert all(
+        day.decision_reasons == ("sequence_resumed", "phase_maintenance:attempt")
+        for day in general_days
+    )
+    assert all(
+        [item["priority"] for item in day.exercises] == ["primary"]
+        for day in general_days
     )
     assert lower.session_type == "recovery"
     assert lower.decision_reasons == ("sequence_resumed", "phase_lower_removed:attempt")
+
+
+def test_attempt_maintenance_fails_closed_when_its_first_primary_exceeds_cap():
+    day = PlanDay(
+        date=date(2026, 7, 20),
+        session_type="general",
+        objective="test",
+        exercises=(
+            {"priority": "primary", "estimated_minutes": 35},
+            {"priority": "primary", "estimated_minutes": 20},
+        ),
+        estimated_minutes=55,
+        decision_reasons=("sequence_resumed",),
+    )
+
+    with pytest.raises(ValueError, match="primary movement"):
+        apply_phase_rules((day,), phase="attempt", week=1)
