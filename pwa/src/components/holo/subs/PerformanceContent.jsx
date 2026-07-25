@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ACC, G, R, W, BODY, FM, FD, FB, a, mix, deep } from '../holoTokens'
-import { getFinancePerformanceHistory } from '../../../api/client'
+import { getFinancePerformanceHistory, getFinanceSummary } from '../../../api/client'
 import { financeBody, financeLabel, financeMicro } from './financeReadability'
 
 const eurFull = v => Number(v).toLocaleString('en-US', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 })
@@ -12,6 +12,26 @@ const eurK = v => {
 const shortDate = v => {
   const d = new Date(v)
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+}
+const finite = v => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function withLiveSnapshot(snaps, summary) {
+  const liveTotal = finite(summary?.total_invested)
+  if (liveTotal == null) return snaps
+  const ordered = snaps.slice().sort((x, y) => new Date(x.created_at) - new Date(y.created_at))
+  const last = ordered[ordered.length - 1]
+  const lastTotal = finite(last?.total_value_eur)
+  if (last && lastTotal != null && Math.abs(lastTotal - liveTotal) < 0.01) return ordered
+  return ordered.concat([{
+    created_at: summary.prices_refreshed_at || summary.as_of || new Date().toISOString(),
+    source: 'live_portfolio_state',
+    total_value_eur: liveTotal,
+    invested_value_eur: liveTotal,
+    cash_eur: null,
+  }])
 }
 
 // viewBox geometry — text scales with the box; kept ~1:1 so labels stay legible
@@ -135,12 +155,17 @@ const HOW_STEPS = [
 // Self-fetching. Plots ONLY recorded snapshots; never fabricates returns.
 export function PerformanceContent() {
   const [snaps, setSnaps] = useState(null)
+  const [summary, setSummary] = useState(null)
   const [error, setError] = useState(false)
 
   useEffect(() => {
     let alive = true
-    getFinancePerformanceHistory()
-      .then(r => { if (alive) setSnaps(Array.isArray(r.snapshots) ? r.snapshots : []) })
+    Promise.all([getFinancePerformanceHistory(), getFinanceSummary()])
+      .then(([r, live]) => {
+        if (!alive) return
+        setSnaps(Array.isArray(r.snapshots) ? r.snapshots : [])
+        setSummary(live || null)
+      })
       .catch(() => { if (alive) setError(true) })
     return () => { alive = false }
   }, [])
@@ -152,8 +177,10 @@ export function PerformanceContent() {
     return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING REAL HISTORY…</div>
   }
 
-  // snapshots are ordered newest-first by the API; chart wants oldest→newest
-  const ordered = snaps.slice().sort((x, y) => new Date(x.created_at) - new Date(y.created_at))
+  // snapshots are ordered newest-first by the API; chart wants oldest→newest.
+  // The final point may be the current Railway portfolio state, not a saved snapshot.
+  const ordered = withLiveSnapshot(snaps, summary)
+  const recordedCount = snaps.length
 
   if (ordered.length < 2) {
     return (
@@ -187,6 +214,7 @@ export function PerformanceContent() {
 
   const first = ordered[0]
   const last = ordered[ordered.length - 1]
+  const isLiveLast = last.source === 'live_portfolio_state'
   const delta = Number(last.total_value_eur) - Number(first.total_value_eur)
   const pct = Number(first.total_value_eur) ? (delta / Number(first.total_value_eur)) * 100 : 0
   const up = delta >= 0
@@ -198,7 +226,7 @@ export function PerformanceContent() {
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontFamily: FD, fontSize: 40, fontWeight: 700, color: W, lineHeight: 1, textShadow: `0 0 30px ${a(ACC, '33')}` }}>{eurFull(last.total_value_eur)}</div>
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 6 }}>TOTAL VALUE · LATEST SNAPSHOT</div>
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 6 }}>{isLiveLast ? 'TOTAL VALUE · LIVE PORTFOLIO STATE' : 'TOTAL VALUE · LATEST SNAPSHOT'}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: deltaColor }}>{up ? '+' : '−'}{eurFull(Math.abs(delta)).replace('€', '€')}</div>
@@ -211,11 +239,11 @@ export function PerformanceContent() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
         <StatTile label="INVESTED" value={eurK(last.invested_value_eur)} color={ACC} />
         <StatTile label="CASH" value={eurK(last.cash_eur)} color={W} />
-        <StatTile label="SNAPSHOTS" value={String(ordered.length)} color={W} />
+        <StatTile label="SNAPSHOTS" value={String(recordedCount)} color={W} />
       </div>
 
       <div style={{ marginTop: 12, fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '77'), textAlign: 'center' }}>
-        REAL RECORDED SNAPSHOTS ONLY · NO SIMULATED RETURNS
+        REAL RECORDED SNAPSHOTS + LIVE PORTFOLIO STATE · NO SIMULATED RETURNS
       </div>
     </div>
   )

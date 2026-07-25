@@ -4,7 +4,7 @@ import { ACC, G, Y, W, SCENE, RAISED, PANEL, BG, BODY, INK, FM, FB, HOME_ACCENT,
 import { buildDomains } from './holoDomains'
 import useHoloData from './useHoloData'
 import { logMeal as apiLogMeal, logSleepDuration } from '../../api/client'
-import { applyFinance, applyNutrition, applyCalendar, mapHoldings, mealBudget, mapDinners, mapConnectorLanes, mapTodayRail } from './holoLive'
+import { applyFinance, applyFinanceOffline, applyNutrition, applyCalendar, mapHoldings, mealBudget, mapDinners, mapConnectorLanes, mapTodayRail } from './holoLive'
 import { buildTrainingDomain, normalizeTrainingLive } from './trainingLive'
 import HoloScene, { useHoloAtmosphere, HoloEdgeChrome, HoloBootLine, HoloDomainFlash, HoloBeams } from './HoloScene'
 import HoloCore from './HoloCore'
@@ -201,7 +201,7 @@ export default function HoloCommand({ startTab = 'home' }) {
       if (live.nutrition) parts.push(`${Math.max(0, Math.round(live.nutrition.remaining_calories))} kcal open`)
       if (live.training?.status?.dunk_goal?.days_to_attempt != null) parts.push(`${live.training.status.dunk_goal.days_to_attempt} days to dunk attempt`)
       if (live.calendar) parts.push(`${(live.calendar.events || []).length} events in the calendar window`)
-      msg = parts.length > 1 ? parts[0] + ' ' + parts.slice(1).join(' · ') + '.' : 'All modules nominal. Portfolio €1,893 · 860 kcal open · 53 days to dunk attempt · next event 10:00.'
+      msg = parts.length > 1 ? parts[0] + ' ' + parts.slice(1).join(' · ') + '.' : 'Live module data is unavailable. Open a module to inspect its source status.'
       hold = 5200
     } else {
       msg = `Directive logged: "${raw}". Try "open training" or "status report".`
@@ -222,8 +222,12 @@ export default function HoloCommand({ startTab = 'home' }) {
   const D = useMemo(() => {
     const all = buildDomains(dayPart)
     let d = all[tab] || all.finance
-    // Real sources override display fixtures. Training always uses explicit source state.
-    if (tab === 'finance') d = applyFinance(d, live.finance, live.financePerformance)
+    // Finance is fail-closed: an unavailable source renders an explicit
+    // offline instrument state instead of realistic fixture portfolio data.
+    // Training always uses explicit source state.
+    if (tab === 'finance') d = live.finance
+      ? applyFinance(d, live.finance, live.financePerformance)
+      : applyFinanceOffline(d, live.status.finance)
     if (tab === 'nutrition') d = applyNutrition(d, live.nutrition)
     if (tab === 'training') d = buildTrainingDomain(d, trainingLive)
     if (tab === 'calendar') d = applyCalendar(d, live.calendar, live.connectors)

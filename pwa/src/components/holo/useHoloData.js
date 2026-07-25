@@ -15,8 +15,11 @@ import {
   reconcileTrainingSources,
 } from './trainingLive.js'
 
-// Fetches fast domain endpoints. Training retains explicit source state because
-// operational controls must fail closed rather than render fixture values.
+const sourceState = () => ({ loading: true, error: null, verifiedAt: null })
+const errorMessage = error => error instanceof Error ? error.message : String(error || 'SOURCE_UNAVAILABLE')
+
+// Fetches the fast, real domain endpoints once on mount. Finance carries an
+// explicit source state so a failed request cannot masquerade as live data.
 export default function useHoloData() {
   const [live, setLive] = useState({
     finance: null,
@@ -26,6 +29,9 @@ export default function useHoloData() {
     training: { status: null, routed: null, history: null, loading: true, error: null },
     calendar: null,
     connectors: null,
+    status: {
+      finance: sourceState(),
+    },
   })
   const trainingRequest = useRef(0)
 
@@ -58,11 +64,33 @@ export default function useHoloData() {
 
   useEffect(() => {
     let alive = true
-    const grab = (key, fn) =>
+    const grab = (key, fn, { tracked = false } = {}) =>
       fn()
-        .then(data => { if (alive) setLive(s => ({ ...s, [key]: data })) })
-        .catch(() => {}) // Non-critical domains retain their existing presentation state.
-    grab('finance', getFinanceSummary)
+        .then(data => {
+          if (!alive) return
+          setLive(s => ({
+            ...s,
+            [key]: data,
+            ...(tracked ? {
+              status: {
+                ...s.status,
+                [key]: { loading: false, error: null, verifiedAt: new Date().toISOString() },
+              },
+            } : {}),
+          }))
+        })
+        .catch(error => {
+          if (!alive || !tracked) return
+          setLive(s => ({
+            ...s,
+            [key]: null,
+            status: {
+              ...s.status,
+              [key]: { loading: false, error: errorMessage(error), verifiedAt: null },
+            },
+          }))
+        })
+    grab('finance', getFinanceSummary, { tracked: true })
     grab('holdings', getFinanceHoldings)
     grab('financePerformance', getFinancePerformanceHistory)
     grab('nutrition', getNutritionStatus)

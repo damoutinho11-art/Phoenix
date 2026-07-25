@@ -18,6 +18,12 @@ export default function HoloCore({
     : hot
       ? `drop-shadow(0 0 34px ${accentGlow}) brightness(1.3) saturate(1.15)`
       : `drop-shadow(0 0 34px ${accentGlow})`
+  const heroMain = String(domain.heroValue || '')
+  const heroUnit = String(domain.heroUnit || '')
+  const isMoneyReadout = !isHome && heroMain.startsWith('€') && /\bEUR\b/.test(heroUnit)
+  const heroCurrency = isMoneyReadout ? heroMain.slice(0, 1) : ''
+  const heroAmount = isMoneyReadout ? heroMain.slice(1) : heroMain
+  const heroReadoutOffset = isShort ? 34 : 42
 
   const globeRing = (rot, alpha) => (
     <i key={rot + alpha} style={{ position: 'absolute', left: 0, top: 0, transform: `translate(-50%,-50%) ${rot}`, width: GLOBE, height: GLOBE, borderRadius: '50%', border: `1px solid ${a(ACC, alpha)}` }} />
@@ -133,28 +139,33 @@ export default function HoloCore({
         </div>
 
         {/* pedestal hero readout */}
-        <div style={{ position: 'absolute', left: 0, top: isShort ? 'min(17vmin, 148px)' : 'min(24vmin, 204px)', transform: 'translateX(-50%)', textAlign: 'center', whiteSpace: 'nowrap', animation: 'holo-inX .6s cubic-bezier(.2,.8,.4,1) .3s both', zIndex: 46 }}>
-          {/* On home the unit is taken out of flow so the wordmark itself is
-              dead-center; marginRight cancels the trailing letter-space. */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: isHome ? 0 : 10, justifyContent: 'center', position: 'relative' }}>
-            <span style={{ fontFamily: FD, fontSize: isShort ? 'clamp(34px, 6.6vmin, 54px)' : 'clamp(50px, 9.4vmin, 82px)', letterSpacing: isHome ? '.2em' : 'normal', marginRight: isHome ? '-.2em' : 0, fontWeight: 700, lineHeight: 1, color: W, textShadow: `0 0 28px ${accentGlow}, 0 0 84px ${accentGlowSoft}, -1px 0 1px ${mix('rgb(255,80,120)', 18)}, 1px 0 1px ${mix('rgb(80,180,255)', 20)}` }}>{domain.heroValue}</span>
-            <span style={{ fontFamily: FM, fontSize: 12, letterSpacing: '.2em', color: a(ACC, '99'), ...(isHome ? { position: 'absolute', left: 'calc(100% + 10px)', bottom: 4 } : {}) }}>{domain.heroUnit}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, justifyContent: 'center', marginTop: 7 }}>
-            <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${a(ACC, '88')})` }} />
-            <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.34em', color: a(ACC, 'cc'), textShadow: `0 0 10px ${accentGlow}` }}>{domain.heroLabel}</span>
-            <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${a(ACC, '88')}, transparent)` }} />
-          </div>
-          {showChips && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', margin: '10px auto 0', flexWrap: 'wrap', maxWidth: 'min(560px, 46vw)', whiteSpace: 'normal' }}>
-              {domain.heroChips.map((c, i) => (
-                <span key={i} style={{ fontFamily: FM, fontSize: '8.5px', letterSpacing: '.14em', color: c.color, border: `1px solid ${mix(c.color, 33)}`, background: deep(60), padding: '4px 9px', display: 'inline-flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(4px)' }}>
-                  <i style={{ width: 4, height: 4, borderRadius: 99, background: 'currentColor', boxShadow: '0 0 6px currentColor' }} />
-                  {c.text}
-                </span>
-              ))}
+        <div style={{ position: 'absolute', left: 0, top: isShort ? 'min(17vmin, 148px)' : 'min(24vmin, 204px)', transform: `translate(-50%, ${heroReadoutOffset}px)`, textAlign: 'center', whiteSpace: 'nowrap', zIndex: 46 }}>
+          <div style={{ animation: 'holo-readoutIn .6s cubic-bezier(.2,.8,.4,1) .3s both' }}>
+            {/* On home the unit is taken out of flow so the wordmark itself is
+                dead-center; marginRight cancels the trailing letter-space. */}
+            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: isHome ? 0 : 10, justifyContent: 'center', position: 'relative' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', fontFamily: FD, fontSize: isMoneyReadout ? 'clamp(44px, 8.2vmin, 72px)' : isShort ? 'clamp(34px, 6.6vmin, 54px)' : 'clamp(50px, 9.4vmin, 82px)', letterSpacing: isMoneyReadout ? '.015em' : isHome ? '.2em' : 'normal', marginRight: isHome ? '-.2em' : 0, fontWeight: isMoneyReadout ? 650 : 700, lineHeight: 1, color: W, fontVariantNumeric: 'tabular-nums', textShadow: isMoneyReadout ? `0 0 18px ${a(ACC, '44')}, 0 0 46px ${a(ACC, '18')}, 0 1px 0 ${mix(W, 18)}` : `0 0 28px ${accentGlow}, 0 0 84px ${accentGlowSoft}, -1px 0 1px ${mix('rgb(255,80,120)', 18)}, 1px 0 1px ${mix('rgb(80,180,255)', 20)}` }}>
+                {isMoneyReadout && <span style={{ fontSize: '.72em', fontWeight: 600, marginRight: 4, color: mix(W, 86), transform: 'translateY(-2px)' }}>{heroCurrency}</span>}
+                <span>{heroAmount}</span>
+              </span>
+              <span style={{ fontFamily: FM, fontSize: isMoneyReadout ? 11 : 12, letterSpacing: isMoneyReadout ? '.18em' : '.2em', color: isMoneyReadout ? a(ACC, 'aa') : a(ACC, '99'), transform: 'translateY(-2px)', ...(isHome || isMoneyReadout ? { position: 'absolute', left: isMoneyReadout ? 'calc(100% + 4px)' : 'calc(100% + 10px)', bottom: isMoneyReadout ? 6 : 4 } : {}) }}>{heroUnit}</span>
             </div>
-          )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, justifyContent: 'center', marginTop: 7 }}>
+              <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${a(ACC, '88')})` }} />
+              <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.34em', color: a(ACC, 'cc'), textShadow: `0 0 10px ${accentGlow}` }}>{domain.heroLabel}</span>
+              <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${a(ACC, '88')}, transparent)` }} />
+            </div>
+            {showChips && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', margin: '10px auto 0', flexWrap: 'wrap', maxWidth: 'min(560px, 46vw)', whiteSpace: 'normal' }}>
+                {domain.heroChips.map((c, i) => (
+                  <span key={i} style={{ fontFamily: FM, fontSize: '8.5px', letterSpacing: '.14em', color: c.color, border: `1px solid ${mix(c.color, 33)}`, background: deep(60), padding: '4px 9px', display: 'inline-flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(4px)' }}>
+                    <i style={{ width: 4, height: 4, borderRadius: 99, background: 'currentColor', boxShadow: '0 0 6px currentColor' }} />
+                    {c.text}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

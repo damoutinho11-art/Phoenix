@@ -430,15 +430,15 @@ def detect_market_regime(portfolio_state: dict[str, Any] | None = None) -> str: 
     """Detect market regime using live VIX from yfinance.
 
     Returns 'risk_on' (VIX < 20), 'risk_off' (VIX 20-30), or 'drawdown' (VIX > 30).
-    Falls back to 'risk_on' on any network or data error so the engine always runs.
+    Returns 'unknown' on network or data errors so recommendations can fail closed.
     """
     try:
         import yfinance as yf
         vix = float(yf.Ticker("^VIX").fast_info.last_price)
         log.info("VIX fetched: %.2f", vix)
     except Exception as exc:
-        log.warning("VIX fetch failed (%s) — defaulting to risk_on", exc)
-        return "risk_on"
+        log.warning("VIX fetch failed (%s) — market regime unknown", exc)
+        return "unknown"
 
     if vix > 30:
         return "drawdown"

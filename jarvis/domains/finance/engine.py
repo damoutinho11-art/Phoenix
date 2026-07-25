@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -228,6 +228,7 @@ def validate_constitution(constitution: dict[str, Any]) -> None:
 
 
 PORTFOLIO_STATE_STALE_AFTER_DAYS = 7
+PORTFOLIO_PRICES_STALE_AFTER_HOURS = 6
 
 
 def portfolio_state_staleness_warning(
@@ -261,6 +262,50 @@ def portfolio_state_staleness_warning(
     if age_days < 0:
         return f"portfolio_state.json as_of ({as_of_text}) is in the future relative to today."
     return None
+
+
+def portfolio_state_freshness_blockers(
+    portfolio_state: dict[str, Any], *, now: datetime | None = None
+) -> list[str]:
+    """Return reasons current state is unsafe for a new recommendation."""
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    current = current.astimezone(timezone.utc)
+
+    blockers: list[str] = []
+    holdings_warning = portfolio_state_staleness_warning(
+        portfolio_state, today=current.date()
+    )
+    if holdings_warning:
+        blockers.append(holdings_warning)
+
+    refreshed_text = portfolio_state.get("prices_refreshed_at")
+    if not refreshed_text:
+        blockers.append(
+            "portfolio_state has no prices_refreshed_at timestamp; current prices cannot be verified."
+        )
+        return blockers
+
+    try:
+        refreshed = datetime.fromisoformat(str(refreshed_text).replace("Z", "+00:00"))
+    except ValueError:
+        blockers.append(
+            f"prices_refreshed_at ({refreshed_text!r}) is not a valid ISO timestamp."
+        )
+        return blockers
+    if refreshed.tzinfo is None:
+        blockers.append("prices_refreshed_at has no timezone; current prices cannot be verified.")
+        return blockers
+
+    age_hours = (current - refreshed.astimezone(timezone.utc)).total_seconds() / 3600
+    if age_hours < -0.1:
+        blockers.append("prices_refreshed_at is in the future; current prices cannot be verified.")
+    elif age_hours > PORTFOLIO_PRICES_STALE_AFTER_HOURS:
+        blockers.append(
+            f"Portfolio prices are {age_hours:.1f} hours old; refresh prices before requesting a recommendation."
+        )
+    return blockers
 
 
 def investable_holdings(
@@ -1784,4 +1829,3 @@ def self_check() -> None:
     }
     assert numeric_before["global_core_etf"] == cents(150.0)
     assert numeric_before["tactical_reserve"] == cents(29.9)
-

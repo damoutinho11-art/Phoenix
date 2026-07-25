@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTokens'
-import { HOLDINGS, HOLDING_ANGLES, HOLDING_RADII, APPROVE_CHECKS } from '../holoDomains'
-import { getFinanceBrief, getFinanceRecommendation } from '../../../api/client'
+import { HOLDINGS, HOLDING_ANGLES, HOLDING_RADII } from '../holoDomains'
+import { getFinanceBrief, getFinanceManualBuyChecklist, getFinanceRecommendation } from '../../../api/client'
 import { SubLabel } from './SubShell'
 import { financeBody, financeButton, financeLabel, financeMicro, financeMonoBody } from './financeReadability'
 
@@ -46,6 +46,44 @@ function formatRecommendationBrief(data = {}) {
     'SAFETY',
     `Manual only. Phoenix does not execute trades. Approval required: ${data.requires_approval ? 'YES' : 'NO'}.`,
   ].join('\n')
+}
+
+function legLabel(item = {}) {
+  const asset = String(item.asset || 'asset').toUpperCase()
+  const amount = briefEur(item.amount)
+  const route = item.route || item.platform || 'manual route'
+  const symbol = item.ticker || item.symbol || item.instrument_display_name
+  return `${asset} ${amount} via ${route}${symbol ? ` · ${symbol}` : ''}`
+}
+
+function buildApproveChecks(data = {}) {
+  const items = Array.isArray(data.checklist_items) ? data.checklist_items : []
+  const recSummary = items.length
+    ? items.map(legLabel).join('  +  ')
+    : 'NO MANUAL BUY RECOMMENDED'
+  const confirmationLegs = items
+    .filter(item => item.confirmation_required)
+    .map(item => item.ticker || item.symbol || item.instrument_display_name || item.asset)
+    .filter(Boolean)
+  const evidence = data.research_gate_summary || {}
+  return [
+    {
+      t: 'Brief reviewed',
+      s: `${String(data.week_label || 'CURRENT WEEK').toUpperCase()} · ${String(data.brief_status || 'PENDING').toUpperCase()} · APPROVAL REQUIRED`,
+    },
+    {
+      t: 'Allocation confirmed',
+      s: `${briefEur(data.week_budget)} TOTAL · ${recSummary}`,
+    },
+    {
+      t: 'Evidence verified',
+      s: `${evidence.legs_with_research ?? 0}/${evidence.total_recommendation_legs ?? items.length} LEGS WITH RESEARCH · ${confirmationLegs.length ? `CONFIRM ${confirmationLegs.join(' + ')}` : 'NO EXTRA INSTRUMENT CONFIRMATION'}`,
+    },
+    {
+      t: 'Manual ledger ready',
+      s: 'YOU BUY IN BROKER · THEN RECORD PRICE, FEES, AND QUANTITY IN PHOENIX',
+    },
+  ]
 }
 
 // ── FINANCE // HOLDINGS MAP — 3D orbital plane of sleeve spheres ──
@@ -152,18 +190,38 @@ export function HoldingsContent({ sel = 0, onSel = () => {}, live }) {
   )
 }
 
-// ── FINANCE // W28 APPROVAL — tap-to-verify checklist + arm sequence ──
+// ── FINANCE // APPROVAL — live manual checklist + arm sequence ──
 export function ApproveContent({ checks, onToggle, stamped, onConfirm }) {
-  const n = stamped ? 4 : checks.filter(Boolean).length
-  const armed = n === 4
+  const [checklist, setChecklist] = useState(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    let alive = true
+    getFinanceManualBuyChecklist()
+      .then(data => { if (alive) setChecklist(data) })
+      .catch(() => { if (alive) setError(true) })
+    return () => { alive = false }
+  }, [])
+  const approveChecks = checklist ? buildApproveChecks(checklist) : [
+    { t: error ? 'Live checklist unavailable' : 'Loading live checklist', s: error ? 'RETRY FROM FINANCE API · NO FIXTURE CHECKS SHOWN' : 'WAITING FOR /FINANCE/MANUAL-BUY-CHECKLIST' },
+    { t: 'Allocation pending', s: 'LIVE DATA REQUIRED' },
+    { t: 'Evidence pending', s: 'LIVE DATA REQUIRED' },
+    { t: 'Ledger pending', s: 'LIVE DATA REQUIRED' },
+  ]
+  const total = approveChecks.length
+  const n = stamped ? total : checks.slice(0, total).filter(Boolean).length
+  const armed = checklist && n === total
+  const weekLabel = String(checklist?.week_label || 'THIS WEEK').toUpperCase()
+  const instruction = checklist?.checklist_items?.length
+    ? `YOU PLACE ${checklist.checklist_items.map(legLabel).join(' + ')} MANUALLY.`
+    : 'PHOENIX NEVER EXECUTES ORDERS.'
   return (
     <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
         <div style={{ flex: 1.25, minWidth: 300 }}>
           <SubLabel>PRE-FLIGHT CHECKS — TAP TO VERIFY</SubLabel>
-          {APPROVE_CHECKS.map((ck, i) => {
+          {approveChecks.map((ck, i) => {
             const on = stamped || checks[i]
             return (
-              <button key={i} onClick={() => onToggle(i)} style={{ display: 'flex', gap: 12, alignItems: 'center', width: '100%', padding: '11px 13px', marginBottom: 9, background: deep(55), border: `1px solid ${on ? mix(G, 27) : a(ACC, '2a')}`, cursor: 'pointer', textAlign: 'left' }}>
+              <button key={i} onClick={() => checklist && onToggle(i)} style={{ display: 'flex', gap: 12, alignItems: 'center', width: '100%', padding: '11px 13px', marginBottom: 9, background: deep(55), border: `1px solid ${on ? mix(G, 27) : a(ACC, '2a')}`, cursor: checklist ? 'pointer' : 'not-allowed', textAlign: 'left' }}>
                 <i style={{ flexShrink: 0, width: 17, height: 17, border: `1px solid ${a(ACC, '66')}`, background: on ? G : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: FM, fontSize: 11, color: INK, fontStyle: 'normal' }}>{on ? '✓' : ''}</i>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontFamily: FB, fontSize: 17, fontWeight: 400, color: 'var(--phx-text)', lineHeight: 1.2 }}>{ck.t}</span>
@@ -177,23 +235,23 @@ export function ApproveContent({ checks, onToggle, stamped, onConfirm }) {
         <div style={{ flex: 1, minWidth: 260, position: 'relative', textAlign: 'center', paddingTop: 4 }}>
           <svg viewBox="0 0 120 120" style={{ width: 126, height: 126, display: 'block', margin: '0 auto' }}>
             <circle cx="60" cy="60" r="52" fill="none" stroke={a(ACC, '1e')} strokeWidth="5" />
-            <circle cx="60" cy="60" r="52" fill="none" stroke={ACC} strokeWidth="5" strokeLinecap="round" strokeDasharray="326.7" strokeDashoffset={(326.7 * (1 - n / 4)).toFixed(1)} transform="rotate(-90 60 60)" style={{ filter: `drop-shadow(0 0 6px ${ACC})`, transition: 'stroke-dashoffset .5s cubic-bezier(.3,.8,.3,1)' }} />
+            <circle cx="60" cy="60" r="52" fill="none" stroke={ACC} strokeWidth="5" strokeLinecap="round" strokeDasharray="326.7" strokeDashoffset={(326.7 * (1 - n / total)).toFixed(1)} transform="rotate(-90 60 60)" style={{ filter: `drop-shadow(0 0 6px ${ACC})`, transition: 'stroke-dashoffset .5s cubic-bezier(.3,.8,.3,1)' }} />
             <circle cx="60" cy="60" r="43" fill="none" stroke={a(ACC, '22')} strokeWidth="1" strokeDasharray="2 4" />
           </svg>
           <div style={{ marginTop: -82, marginBottom: 44 }}>
-            <div style={{ fontFamily: FD, fontSize: 26, fontWeight: 700, color: W }}>{n} / 4</div>
+            <div style={{ fontFamily: FD, fontSize: 26, fontWeight: 700, color: W }}>{n} / {total}</div>
             <div style={financeMicro({ letterSpacing: '.16em', color: a(ACC, '99') })}>VERIFIED</div>
           </div>
           <SubLabel style={{ marginBottom: 9 }}>ARM SEQUENCE</SubLabel>
           <button onClick={onConfirm} disabled={!armed || stamped} style={{ minHeight: 48, width: '100%', fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: stamped || armed ? INK : a(ACC, '77'), background: stamped ? `linear-gradient(135deg, ${G}, ${mix(G, 73)})` : armed ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${stamped ? G : armed ? ACC : a(ACC, '30')}`, cursor: armed && !stamped ? 'pointer' : 'not-allowed', boxShadow: stamped ? `0 0 26px ${mix(G, 33)}` : armed ? `0 0 26px ${a(ACC, '55')}` : 'none', clipPath: 'polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)' }}>
-            {stamped ? '✓ W28 APPROVED' : armed ? 'MARK WEEK APPROVED' : `AWAITING CHECKS · ${n}/4`}
+            {stamped ? `✓ ${weekLabel} APPROVED` : armed ? 'MARK WEEK APPROVED' : `AWAITING CHECKS · ${n}/${total}`}
           </button>
           <p style={{ margin: '12px 0 0', ...financeMicro({ letterSpacing: '.08em', lineHeight: 1.7, color: a(ACC, '99') }) }}>
-            PHOENIX NEVER EXECUTES ORDERS.<br />YOU PLACE THE €85.00 VWCE BUY MANUALLY ON LIGHTYEAR.
+            PHOENIX NEVER EXECUTES ORDERS.<br />{instruction}
           </p>
           {stamped && (
             <div style={{ position: 'absolute', left: '50%', top: '34%', transform: 'translate(-50%,-50%) rotate(-8deg)', border: `2px solid ${G}`, color: G, padding: '8px 18px', fontFamily: FM, fontSize: 17, letterSpacing: '.18em', textShadow: `0 0 14px ${mix(G, 53)}`, boxShadow: `0 0 30px ${mix(G, 20)}, inset 0 0 20px ${mix(G, 8)}`, background: deep(72), animation: 'holo-stampIn .5s cubic-bezier(.2,.8,.3,1) both', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-              W28 · APPROVED
+              {weekLabel} · APPROVED
             </div>
           )}
         </div>

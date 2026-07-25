@@ -7,6 +7,8 @@ No business logic is asserted here beyond the API contract shape.
 
 import tempfile
 import unittest
+import copy
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,6 +18,7 @@ from fastapi.testclient import TestClient
 from jarvis.api import dependencies
 from jarvis.api.main import app
 from jarvis.data import database
+from jarvis.domains.finance import engine
 
 client = TestClient(app)
 
@@ -117,6 +120,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
     def test_recommendation_requires_approval_is_always_true(self) -> None:
         data = client.get("/finance/recommendation").json()
         self.assertTrue(data["requires_approval"])
+        self.assertTrue(data["data_ready"])
 
     def test_recommendation_week_budget_matches_known_value(self) -> None:
         # Pinned against portfolio_state.json as of 2026-06-22 (€500/mo → €115.38/wk)
@@ -178,6 +182,44 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
             self.assertEqual(response.status_code, 503)
         finally:
             app.dependency_overrides.clear()
+
+    def test_recommendation_pauses_when_portfolio_prices_are_stale(self) -> None:
+        state = copy.deepcopy(engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH))
+        state["as_of"] = date.today().isoformat()
+        state["prices_refreshed_at"] = "2020-01-01T00:00:00+00:00"
+        app.dependency_overrides[dependencies.get_portfolio_state] = lambda: state
+        try:
+            with patch.dict("os.environ", {"PHOENIX_FINANCE_FAIL_CLOSED": "true"}):
+                data = client.get("/finance/recommendation").json()
+        finally:
+            app.dependency_overrides.clear()
+
+        self.assertEqual(data["recommendations"], [])
+        self.assertEqual(data["portfolio_mode"], "data_unverified")
+        self.assertFalse(data["data_ready"])
+        self.assertFalse(data["requires_approval"])
+        self.assertTrue(any("prices are" in warning for warning in data["warnings"]))
+
+    def test_recommendation_pauses_when_market_regime_is_unknown(self) -> None:
+        state = copy.deepcopy(engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH))
+        state["as_of"] = date.today().isoformat()
+        state["prices_refreshed_at"] = datetime.now(timezone.utc).isoformat()
+        app.dependency_overrides[dependencies.get_portfolio_state] = lambda: state
+        try:
+            with patch.dict("os.environ", {"PHOENIX_FINANCE_FAIL_CLOSED": "true"}), patch(
+                "jarvis.api.routers.finance.detect_market_regime",
+                return_value="unknown",
+            ):
+                data = client.get("/finance/recommendation").json()
+        finally:
+            app.dependency_overrides.clear()
+
+        self.assertEqual(data["recommendations"], [])
+        self.assertEqual(data["regime"], "unknown")
+        self.assertFalse(data["data_ready"])
+        self.assertTrue(
+            any("Market regime is unavailable" in warning for warning in data["warnings"])
+        )
 
 
 class FinancePerformanceHistoryRouteTests(unittest.TestCase):

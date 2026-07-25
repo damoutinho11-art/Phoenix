@@ -2,6 +2,8 @@
 
 import copy
 import json
+import os
+import re
 from datetime import timedelta
 from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException
@@ -38,6 +40,58 @@ def _next_iso_week_label() -> str:
     return f"W{next_iso[1]} {next_iso[0]}"
 
 _CRYPTO_ASSETS = {"btc", "hype", "tao"}
+
+
+def _finance_fail_closed_enabled() -> bool:
+    return os.getenv("PHOENIX_FINANCE_FAIL_CLOSED", "true").strip().lower() not in {
+        "0", "false", "off", "no"
+    }
+
+
+def _paused_finance_recommendation(
+    portfolio_state: dict, week_label: str, warnings: list[str], *, regime: str | None
+) -> dict:
+    return {
+        "week_label": week_label,
+        "week_budget": portfolio_state.get("weekly_investment_budget", 0),
+        "recommendations": [],
+        "rationale": "Finance inputs are not verified. No recommendation was generated.",
+        "portfolio_mode": "data_unverified",
+        "regime": regime,
+        "phase": None,
+        "phase_label": None,
+        "dynamic_targets": None,
+        "sleeve_targets": None,
+        "warnings": warnings,
+        "news_thesis": "",
+        "requires_approval": False,
+        "week_done": False,
+        "data_ready": False,
+        "etf_scoring_verdict": {},
+        "weekly_dual_lane_mandate": {},
+        "portfolio_mode_details": {
+            "mode": "data_unverified",
+            "reasons": warnings,
+            "guidance": "Refresh and verify finance sources before acting.",
+        },
+        "approval_ticket_summary": {
+            "blocked_actions": warnings,
+            "fallback_actions": [],
+            "reserve_actions": [],
+            "safety_checks": [
+                "Recommendations paused until finance inputs are verified.",
+                "No broker connection.",
+                "No orders created.",
+                "No trades executed.",
+            ],
+        },
+        "research_context": [],
+        "research_gate_summary": {},
+        "autopilot_available": False,
+        "research_autopilot_hint": "",
+        "brief_id": None,
+        "brief_status": None,
+    }
 
 
 class ManualFinanceTransaction(BaseModel):
@@ -351,6 +405,7 @@ def finance_summary(
     holdings = engine.investable_holdings(constitution, portfolio_state)
     statuses = engine.current_statuses(constitution, holdings)
     staleness = engine.portfolio_state_staleness_warning(portfolio_state)
+    freshness_blockers = engine.portfolio_state_freshness_blockers(portfolio_state)
     week_label = _iso_week_label()
     applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
 
@@ -372,6 +427,8 @@ def finance_summary(
             for s in statuses
         ],
         "staleness_warning": staleness,
+        "freshness_blockers": freshness_blockers,
+        "data_ready": not freshness_blockers,
         "constitution_valid": True,
     }
 
@@ -415,6 +472,7 @@ def _build_finance_recommendation(
             "warnings": [],
             "news_thesis": "",
             "requires_approval": False,
+            "data_ready": True,
             "week_done": True,
             "assets_executed": assets_done,
             "total_deployed_eur": round(total_deployed, 2),
@@ -431,7 +489,21 @@ def _build_finance_recommendation(
             "brief_status": latest_brief["status"] if latest_brief else None,
         }
 
+    if _finance_fail_closed_enabled():
+        blockers = engine.portfolio_state_freshness_blockers(portfolio_state)
+        if blockers:
+            return _paused_finance_recommendation(
+                portfolio_state, week_label, blockers, regime=None
+            )
+
     regime = detect_market_regime(portfolio_state)
+    if _finance_fail_closed_enabled() and regime == "unknown":
+        return _paused_finance_recommendation(
+            portfolio_state,
+            week_label,
+            ["Market regime is unavailable; live VIX could not be verified."],
+            regime="unknown",
+        )
     result = engine.allocate_weekly_budget(
         constitution, portfolio_state, regime=regime, profile=profile
     )
@@ -497,6 +569,7 @@ def _build_finance_recommendation(
         "warnings": ticket["warnings"],
         "news_thesis": news_thesis,
         "requires_approval": True,
+        "data_ready": True,
         "etf_scoring_verdict": verdict_with_instruments,
         "weekly_dual_lane_mandate": result.get("weekly_dual_lane_mandate") or {},
         "portfolio_mode_details": result.get("portfolio_mode") or {},
@@ -1293,15 +1366,75 @@ def finance_holdings(
 
 
 _BRIEF_SYSTEM_PROMPT = """\
-You are PHOENIX, a personal investment assistant. You are concise, precise, and direct. No fluff. You reason about portfolio allocation and surface what matters.
+You are PHOENIX, a calm executive AI assistant for personal finance decisions. Speak like a private mission-control briefing: concise, composed, proactive, and addressed to Sir. No fluff. You reason about portfolio allocation and surface what matters.
 
 Rules:
 - Maximum 4 sentences
+- Start with "Sir,"
 - Always end with "Requires your approval before any action."
 - Never invent data — only use what is provided
 - Reference the constitution rules where relevant
+- Explain why this is the best current decision under the provided rules, never as a guaranteed market outcome
 - If nothing needs buying this week, say so clearly\
 """
+
+
+_BRIEF_REQUIRED_CLOSE = "Requires your approval before any action."
+_BRIEF_SCRATCHPAD_MARKERS = (
+    "we need to",
+    "let's craft",
+    "sentence count",
+    "required phrase",
+    "must end with",
+    "provide maybe",
+    "the rule:",
+    "check sentence",
+    "maybe say",
+)
+
+
+def _sentence_count(text: str) -> int:
+    normalized = re.sub(r"(?<=\d)\.(?=\d)", "", text or "")
+    parts = [p.strip() for p in re.split(r"[.!?]+", normalized) if p.strip()]
+    return len(parts)
+
+
+def _brief_text_is_safe(text: str) -> bool:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return False
+    lowered = cleaned.lower()
+    if any(marker in lowered for marker in _BRIEF_SCRATCHPAD_MARKERS):
+        return False
+    if not cleaned.endswith(_BRIEF_REQUIRED_CLOSE):
+        return False
+    return _sentence_count(cleaned) <= 4
+
+
+def _deterministic_finance_brief(result: dict, ticket: dict, constitution: dict) -> str:
+    legs = [
+        (asset, amount)
+        for asset, amount in ticket["executable_allocation"].items()
+        if amount > 0
+    ]
+    if legs:
+        action_text = " and ".join(
+            f"€{amount:.2f} to {asset.upper()} via {constitution['asset_routes'].get(asset, 'manual route')}"
+            for asset, amount in legs
+        )
+        first = f"Sir, I recommend deploying this week's €{ticket['weekly_budget']:.2f} allocation: {action_text}."
+    else:
+        first = "Sir, I recommend holding this week's allocation; no manual buy is needed."
+
+    mode = result["portfolio_mode"]["mode"]
+    second = (
+        "That is the best current decision under your constitution, target gaps, "
+        f"platform readiness, and risk caps in {mode}."
+    )
+    warnings = [str(w).rstrip(". ") for w in (ticket.get("warnings") or [])]
+    watch = f"Watch item: {'; '.join(warnings)}" if warnings else "No warnings are active"
+    third = f"{watch}, and PHOENIX will wait for your approval."
+    return f"{first} {second} {third} {_BRIEF_REQUIRED_CLOSE}"
 
 
 @router.get("/brief")
@@ -1309,6 +1442,21 @@ def finance_brief(
     constitution: dict = Depends(get_finance_constitution),
     portfolio_state: dict = Depends(get_portfolio_state),
 ) -> dict:
+    if _finance_fail_closed_enabled():
+        blockers = engine.portfolio_state_freshness_blockers(portfolio_state)
+        if not blockers and detect_market_regime(portfolio_state) == "unknown":
+            blockers = ["Market regime is unavailable; live VIX could not be verified."]
+        if blockers:
+            return {
+                "brief": (
+                    "Sir, finance recommendations are paused because the required "
+                    "portfolio and market inputs are not verified. No action has been prepared."
+                ),
+                "requires_approval": False,
+                "data_ready": False,
+                "warnings": blockers,
+            }
+
     result = engine.allocate_weekly_budget(constitution, portfolio_state)
     ticket = result["approval_ticket"]
     holdings = engine.investable_holdings(constitution, portfolio_state)
@@ -1365,21 +1513,19 @@ Provide a brief, direct investment summary for this week.\
 """
 
     try:
-        result = ai_gateway.generate_text(
+        ai_result = ai_gateway.generate_text(
             system_prompt=_BRIEF_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
             max_tokens=256,
         )
-        brief_text = result.text if result.ok else (
-            "AI brief unavailable. Raw recommendation available via /finance/recommendation."
-        )
+        brief_text = ai_result.text if ai_result.ok else ""
     except Exception:
-        brief_text = (
-            "Unable to generate brief. "
-            "Raw recommendation available via /finance/recommendation."
-        )
+        brief_text = ""
 
-    return {"brief": brief_text, "requires_approval": True}
+    if not _brief_text_is_safe(brief_text):
+        brief_text = _deterministic_finance_brief(result, ticket, constitution)
+
+    return {"brief": brief_text, "requires_approval": True, "data_ready": True}
 
 
 @router.get("/portfolio-state")

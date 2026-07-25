@@ -30,6 +30,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        importScripts: ['sw-force-refresh.js'],
         runtimeCaching: [
           {
             urlPattern: /^http:\/\/(localhost|127\.0\.0\.1):8000\/.*/i,

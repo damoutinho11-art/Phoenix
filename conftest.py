@@ -29,6 +29,7 @@ shutil.copyfile(PORTFOLIO_FIXTURE, TEST_PORTFOLIO)
 os.environ["JARVIS_DB_PATH"] = str(TEST_DB)
 os.environ["PHOENIX_PORTFOLIO_STATE_PATH"] = str(TEST_PORTFOLIO)
 os.environ["PHOENIX_BACKGROUND_JOBS_ENABLED"] = "false"
+os.environ["PHOENIX_FINANCE_FAIL_CLOSED"] = "false"
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:

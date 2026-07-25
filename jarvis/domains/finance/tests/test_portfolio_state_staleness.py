@@ -1,6 +1,6 @@
 import copy
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from jarvis.domains.finance import engine
 
@@ -49,6 +49,36 @@ class PortfolioStateStalenessTests(unittest.TestCase):
         warning = engine.portfolio_state_staleness_warning(state, today=date(2026, 6, 20))
         self.assertIsNotNone(warning)
         self.assertIn("in the future", warning)
+
+    def test_recent_price_refresh_is_ready_for_recommendations(self) -> None:
+        state = copy.deepcopy(self.state)
+        now = datetime(2026, 7, 15, 12, 0, tzinfo=timezone.utc)
+        state["as_of"] = "2026-07-15"
+        state["prices_refreshed_at"] = (now - timedelta(hours=4)).isoformat()
+
+        blockers = engine.portfolio_state_freshness_blockers(state, now=now)
+
+        self.assertEqual(blockers, [])
+
+    def test_old_price_refresh_blocks_recommendations(self) -> None:
+        state = copy.deepcopy(self.state)
+        now = datetime(2026, 7, 15, 12, 0, tzinfo=timezone.utc)
+        state["as_of"] = "2026-07-15"
+        state["prices_refreshed_at"] = (now - timedelta(hours=7)).isoformat()
+
+        blockers = engine.portfolio_state_freshness_blockers(state, now=now)
+
+        self.assertEqual(len(blockers), 1)
+        self.assertIn("prices are 7.0 hours old", blockers[0])
+
+    def test_missing_price_refresh_blocks_recommendations(self) -> None:
+        state = copy.deepcopy(self.state)
+        state["as_of"] = date.today().isoformat()
+        state.pop("prices_refreshed_at", None)
+
+        blockers = engine.portfolio_state_freshness_blockers(state)
+
+        self.assertTrue(any("no prices_refreshed_at" in item for item in blockers))
 
     def test_stale_data_warning_appears_first_in_allocate_weekly_budget(self) -> None:
         state = copy.deepcopy(self.state)

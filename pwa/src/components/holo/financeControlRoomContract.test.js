@@ -108,10 +108,79 @@ test('main finance projection uses real history graph data and an allocation cha
   assert.match(live, /type:\s*'valueGraph'/)
   assert.match(live, /RECORDED VALUE TREND/)
   assert.match(live, /SNAPSHOT SEED/)
+  assert.match(live, /withLivePortfolioPoint/)
+  assert.match(live, /source:\s*'live_portfolio_state'/)
   assert.doesNotMatch(live, /spark\(\[fin\.total_invested,\s*fin\.total_invested\]/)
 
   assert.match(financeSource, /type:\s*'allocationOrbit'/)
   assert.match(financeSource, /type:\s*'valueGraph'/)
+})
+
+test('production finance fails visibly instead of rendering fixture portfolio data', async () => {
+  const client = await src('../../api/client.js')
+  const data = await src('./useHoloData.js')
+  const command = await src('./HoloCommand.jsx')
+  const live = await src('./holoLive.js')
+
+  assert.match(client, /import\.meta\.env\.DEV\s*\?\s*'http:\/\/localhost:8000'\s*:\s*''/)
+  assert.match(client, /PHOENIX_API_UNCONFIGURED/)
+  assert.doesNotMatch(client, /VITE_API_URL\s*\|\|\s*'http:\/\/localhost:8000'/)
+
+  assert.match(data, /status:\s*\{/)
+  assert.match(data, /finance:\s*sourceState\(/)
+  assert.match(data, /error:\s*errorMessage/)
+  assert.doesNotMatch(data, /\.catch\(\(\) => \{\}\)/)
+
+  assert.match(live, /export function applyFinanceOffline/)
+  assert.match(live, /FINANCE DATA OFFLINE/)
+  assert.match(live, /RECOMMENDATIONS PAUSED/)
+  assert.match(command, /applyFinanceOffline/)
+  assert.match(command, /live\.status\.finance/)
+  assert.doesNotMatch(command, /Portfolio €1,893/)
+})
+
+test('finance allocation sleeves use distinct material identity colors', async () => {
+  const live = await src('./holoLive.js')
+
+  assert.match(live, /SLEEVE_MATERIAL_COLORS/)
+  assert.match(live, /global_core_etf:\s*\{[^}]*#1fb9ad[^}]*#7bd8d0[^}]*#43d8cc/s)
+  assert.match(live, /discovery:\s*\{[^}]*#b84f74[^}]*#6f3a56/s)
+  assert.match(live, /quality_etf:\s*\{[^}]*#8fdcff[^}]*#d8f4ff/s)
+  assert.match(live, /btc:\s*\{[^}]*#d8a33e[^}]*#ffe08a/s)
+  assert.match(live, /materialColorForSleeve/)
+  assert.doesNotMatch(live, /colors\[i % colors\.length\]/)
+
+  const wings = await src('./HoloWings.jsx')
+  assert.match(wings, /borderRadius: '50%'/)
+  assert.doesNotMatch(wings, /sheenColor/)
+  assert.doesNotMatch(wings, /setTimeout\(\(\) => setDrawn/)
+  assert.doesNotMatch(wings, /stroke-dasharray \.8s/)
+  assert.doesNotMatch(wings, /drop-shadow\(0 0 \$\{big \? 7 : 5\}px/)
+})
+
+test('finance hero value reads as a premium instrument number', async () => {
+  const core = await src('./HoloCore.jsx')
+  const css = await src('./holo.css')
+
+  assert.match(core, /isMoneyReadout/)
+  assert.match(core, /const heroMain = String\(domain\.heroValue/)
+  assert.match(core, /fontVariantNumeric:\s*'tabular-nums'/)
+  assert.match(core, /letterSpacing:\s*isMoneyReadout \? '\.015em'/)
+  assert.match(core, /fontSize:\s*isMoneyReadout \? 'clamp\(44px, 8\.2vmin, 72px\)'/)
+  assert.match(core, /transform:\s*'translateY\(-2px\)'/)
+  assert.match(core, /const heroReadoutOffset = isShort \? 34 : 42/)
+  assert.match(core, /transform:\s*`translate\(-50%, \$\{heroReadoutOffset\}px\)`/)
+  assert.match(core, /isHome \|\| isMoneyReadout \? \{ position: 'absolute'/)
+  assert.match(core, /left:\s*isMoneyReadout \? 'calc\(100% \+ 4px\)' : 'calc\(100% \+ 10px\)'/)
+  assert.match(core, /display:\s*'inline-flex', alignItems:\s*'baseline', gap:\s*isHome \? 0 : 10/)
+  const readoutPositionLine = core.split('\n').find((line) => line.includes('heroReadoutOffset'))
+  assert.ok(readoutPositionLine)
+  assert.doesNotMatch(readoutPositionLine, /animation:/)
+  assert.match(core, /<div style={{ animation: 'holo-readoutIn/)
+  assert.doesNotMatch(core, /<div style={{ animation: 'holo-inX/)
+  assert.match(css, /@keyframes holo-readoutIn/)
+  assert.doesNotMatch(css.match(/@keyframes holo-readoutIn[^@]+/)?.[0] || '', /translateX/)
+  assert.match(core, /textShadow:\s*isMoneyReadout/)
 })
 
 test('holo wing renderer draws upgraded finance allocation and performance charts', async () => {
@@ -193,6 +262,9 @@ test('performance lane plots real snapshots only and never fabricates returns', 
 
   assert.match(room, /PerformanceContent/)
   assert.match(perf, /getFinancePerformanceHistory/)
+  assert.match(perf, /getFinanceSummary/)
+  assert.match(perf, /withLiveSnapshot/)
+  assert.match(perf, /LIVE PORTFOLIO STATE/)
   // change-over-time chart with a hover layer
   assert.match(perf, /polyline/)
   assert.match(perf, /onMouseMove/)
@@ -259,6 +331,15 @@ test('finance control room reuses existing finance instrument designs', async ()
   assert.match(subs, /export function HoldingsContent/)
   assert.match(subs, /export function ApproveContent/)
   assert.match(subs, /export function BriefContent/)
+})
+
+test('approve lane uses the live manual buy checklist instead of W28 fixture checks', async () => {
+  const subs = await src('./subs/FinanceSubs.jsx')
+
+  assert.match(subs, /getFinanceManualBuyChecklist/)
+  assert.match(subs, /buildApproveChecks/)
+  assert.doesNotMatch(subs, /APPROVE_CHECKS\.map/)
+  assert.doesNotMatch(subs, /YOU PLACE THE €85\.00 VWCE BUY MANUALLY ON LIGHTYEAR/)
 })
 
 test('finance control room keeps manual-only safety and avoids automatic trading language', async () => {

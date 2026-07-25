@@ -7,6 +7,19 @@ from unittest.mock import patch
 from jarvis.domains.finance import market_data
 
 
+def test_market_regime_is_unknown_when_live_vix_is_unavailable() -> None:
+    class BrokenTicker:
+        @property
+        def fast_info(self):
+            raise RuntimeError("offline")
+
+    fake_yfinance = SimpleNamespace(Ticker=lambda symbol: BrokenTicker())
+    with patch.dict(sys.modules, {"yfinance": fake_yfinance}):
+        regime = market_data.detect_market_regime()
+
+    assert regime == "unknown"
+
+
 def test_etf_universe_has_required_candidate_shape_and_size() -> None:
     candidates = [
         (sleeve, candidate)

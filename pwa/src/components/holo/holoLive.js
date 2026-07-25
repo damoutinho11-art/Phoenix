@@ -1,5 +1,4 @@
 // Maps real API payloads onto the holo domain/sub-screen shapes.
-// Every mapper is defensive: missing live data ⇒ the fixture stays.
 
 import { ACC, G, Y, R, W, spark, pad2 } from './holoTokens'
 
@@ -65,19 +64,47 @@ function graphGeometry(series) {
   }
 }
 
-// Categorical sleeve palette — one distinct hue per sleeve, assigned in fixed
-// order (identity, never status). Drawn from the cool half of the wheel
-// (cyan → azure → violet → magenta) so it never collides with the green/gold/
-// pink that TRIM/HOLD/FEED status uses. Luminous on the dark HUD surface.
-const SLEEVE_COLORS = [ACC, '#4d8dff', '#9b6bff', '#e05be0', '#ff6ba6', '#2fe0cf']
+function withLivePortfolioPoint(fin, ordered) {
+  const liveTotal = finite(fin?.total_invested)
+  if (liveTotal == null) return ordered
+  const last = ordered[ordered.length - 1]
+  const lastTotal = finite(last?.total_value_eur)
+  if (last && lastTotal != null && Math.abs(lastTotal - liveTotal) < 0.01) return ordered
+  const createdAt = fin.prices_refreshed_at || fin.as_of || new Date().toISOString()
+  return ordered.concat([{
+    created_at: createdAt,
+    source: 'live_portfolio_state',
+    total_value_eur: liveTotal,
+    cash_eur: finite(fin.cash_eur),
+    invested_value_eur: liveTotal,
+  }])
+}
+
+// Portfolio material palette: colors belong to the sleeve identity, not to API
+// ordering. The paired rim/glow tones keep the donut close to the orbital
+// portfolio bodies: glass core, plum discovery, ice quality, metallic bitcoin.
+const SLEEVE_MATERIAL_COLORS = {
+  global_core_etf: { color: '#1fb9ad', rimColor: '#7bd8d0', glowColor: '#43d8cc' },
+  growth_nasdaq_etf: { color: '#37a4ff', rimColor: '#7ed8ff', glowColor: '#4fb8ff' },
+  discovery: { color: '#b84f74', rimColor: '#6f3a56', glowColor: '#d66a90' },
+  quality_etf: { color: '#8fdcff', rimColor: '#d8f4ff', glowColor: '#b8ecff' },
+  btc: { color: '#d8a33e', rimColor: '#ffe08a', glowColor: '#ffbf4f' },
+  hype: { color: '#8e6cff', rimColor: '#cbbcff', glowColor: '#a68aff' },
+  tao: { color: '#42d8b6', rimColor: '#b8fff0', glowColor: '#5ff4cf' },
+  tactical_reserve: { color: '#6f8791', rimColor: '#b5c5ca', glowColor: '#8ba5ae' },
+}
+
+function materialColorForSleeve(name) {
+  return SLEEVE_MATERIAL_COLORS[name] || { color: ACC, rimColor: W, glowColor: ACC }
+}
 
 function allocationSlices(rows, total) {
-  const colors = SLEEVE_COLORS
   let offset = 0
-  return rows.map((s, i) => {
+  return rows.map(s => {
     const weight = pctNum(s.current_weight)
     const target = pctNum(s.target_weight)
     const visible = Math.max(1.2, weight)
+    const material = materialColorForSleeve(s.name)
     const slice = {
       label: sleeveName(s.name),
       short: sleeveName(s.name).replace('GLOBAL ', '').replace('GROWTH ', '').slice(0, 12),
@@ -86,7 +113,9 @@ function allocationSlices(rows, total) {
       target,
       gap: (weight - target).toFixed(1),
       status: bandDir(s.band_status),
-      color: colors[i % colors.length],
+      color: material.color,
+      rimColor: material.rimColor,
+      glowColor: material.glowColor,
       statusColor: bandColor(s.band_status),
       dash: `${visible.toFixed(1)} ${Math.max(0, 100 - visible).toFixed(1)}`,
       offset: (-offset).toFixed(1),
@@ -98,10 +127,11 @@ function allocationSlices(rows, total) {
 
 function valueGraphPanel(fin, perf) {
   const snapshots = Array.isArray(perf?.snapshots) ? perf.snapshots : []
-  const ordered = snapshots
+  const recorded = snapshots
     .filter(s => finite(s.total_value_eur) != null)
     .slice()
     .sort((x, y) => new Date(x.created_at) - new Date(y.created_at))
+  const ordered = withLivePortfolioPoint(fin, recorded)
   const values = ordered.map(s => Number(s.total_value_eur))
   const fallback = finite(fin.total_invested) ?? 0
   const series = values.length ? values : [fallback]
@@ -114,14 +144,14 @@ function valueGraphPanel(fin, perf) {
   const geo = graphGeometry(series)
   return {
     code: 'PERFORMANCE',
-    meta: isSeed ? graphTextDate(fin.as_of || ordered[0]?.created_at) : series.length + ' SNAPSHOTS',
+    meta: isSeed ? graphTextDate(fin.as_of || ordered[0]?.created_at) : recorded.length + ' SNAPSHOTS · LIVE',
     type: 'valueGraph',
     big: eur(last),
     delta: isSeed
       ? 'SNAPSHOT SEED'
       : `${up ? '+' : '-'}${eur(Math.abs(delta))} · ${up ? '+' : '-'}${Math.abs(pctDelta).toFixed(2)}%`,
     deltaColor: isSeed ? ACC : up ? G : R,
-    graphLabel: isSeed ? 'SNAPSHOT SEED · NEED 2 FOR TREND' : 'RECORDED VALUE TREND · EUR',
+    graphLabel: isSeed ? 'SNAPSHOT SEED · NEED 2 FOR TREND' : 'RECORDED VALUE TREND + LIVE RAILWAY · EUR',
     isSeed,
     values: series,
     dates: ordered.map(s => graphTextDate(s.created_at)),
@@ -130,6 +160,48 @@ function valueGraphPanel(fin, perf) {
 }
 
 // ── FINANCE ──
+export function applyFinanceOffline(d, status = {}) {
+  const loading = status?.loading !== false
+  const sourceLabel = loading ? 'CONNECTING TO RAILWAY' : 'RAILWAY UNAVAILABLE'
+  const errorLabel = status?.error === 'PHOENIX_API_UNCONFIGURED'
+    ? 'PRODUCTION API NOT CONFIGURED'
+    : 'SOURCE VERIFICATION FAILED'
+
+  d.bootLine = 'SYS.FINANCE // DATA LINK OFFLINE'
+  d.heroValue = '—'
+  d.heroUnit = ''
+  d.heroLabel = 'FINANCE DATA OFFLINE'
+  d.reactorPct = 0
+  d.heroChips = [
+    { text: sourceLabel, color: Y },
+    { text: 'LAST VERIFIED · UNKNOWN', color: W },
+    { text: 'RECOMMENDATIONS PAUSED', color: R },
+  ]
+  d.heroBrief = 'PHOENIX cannot verify Railway finance data. Portfolio values and recommendations remain hidden until the source is restored.'
+  d.readout = []
+  d.panels = [
+    { code: 'ALLOCATION', meta: 'NO VERIFIED DATA', type: 'rows', rows: [
+      { title: 'Portfolio state', sub: errorLabel, value: 'HIDDEN', valueColor: Y },
+    ] },
+    { code: 'THIS WEEK', meta: 'FAIL-CLOSED', type: 'rows', rows: [
+      { title: 'Recommendation engine', sub: 'WAITING FOR VERIFIED INPUTS', value: 'PAUSED', valueColor: R },
+      { title: 'Auto-execution', sub: 'PHOENIX NEVER TRADES', value: 'OFF', valueColor: G },
+    ] },
+    { code: 'PERFORMANCE', meta: 'NO VERIFIED DATA', type: 'rows', rows: [
+      { title: 'Recorded value trend', sub: 'SOURCE REQUIRED', value: 'HIDDEN', valueColor: Y },
+    ] },
+    { code: 'DATA LINK', meta: 'OFFLINE', type: 'rows', rows: [
+      { title: 'Railway finance API', sub: errorLabel, value: loading ? 'CONNECTING' : 'OFFLINE', valueColor: Y },
+    ] },
+  ]
+  d.feed = [
+    { t: 'NOW', msg: sourceLabel, tone: Y },
+    { t: 'SAFE', msg: 'NO FINANCE FIXTURES DISPLAYED', tone: G },
+    { t: 'HOLD', msg: 'RECOMMENDATIONS PAUSED', tone: R },
+  ]
+  return d
+}
+
 export function applyFinance(d, fin, financePerformance) {
   if (!fin || !fin.sleeve_summary) return d
   const sleeves = fin.sleeve_summary

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getRecipes, getLidlStaples, getRecentMeals, logMeal, lookupBarcode } from '../../api/client'
 import BarcodeScanner from '../BarcodeScanner'
+import { NuScreen, NuTopBar, NuSection, NuPanel, NU } from './nutriHud'
 
 const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
@@ -202,44 +203,42 @@ export default function LogMeal({ onBack, onSuccess }) {
   const scaledProt = selected ? +(selected.protein_g * servings).toFixed(1) : 0
 
   return (
-    <div className="phx-scope-nutrition" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-nutrition) 7%, transparent), transparent 34rem), linear-gradient(180deg, #081208 0%, var(--phx-bg) 42%, #04090e 100%)', color: 'rgba(220,248,236,.94)', fontFamily: 'var(--phx-font-body)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
-          <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>MEAL LOGGER</span>
-          {scanState === 'scanning' && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: MUTED, marginLeft: 10 }}>SCANNING…</span>}
-          {scanState === 'not_found' && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: '#ff5c7a', marginLeft: 10 }}>NOT FOUND</span>}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>MANUAL</span>
-          <button onClick={() => { setScannerOpen(o => !o); setScanState(null) }} style={{ background: scannerOpen ? 'rgba(157,255,111,.08)' : 'none', border: `1px solid ${scannerOpen ? 'rgba(157,255,111,.34)' : BORDER}`, color: scannerOpen ? LIME : MUTED, padding: '4px 8px', fontFamily: 'var(--phx-font-mono)', fontSize: 10, cursor: 'pointer' }}>▣</button>
-        </div>
-      </div>
+    <NuScreen>
+      <NuTopBar
+        onBack={onBack}
+        title="MEAL LOGGER"
+        right={
+          <>
+            {scanState === 'scanning' && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: MUTED }}>SCANNING…</span>}
+            {scanState === 'not_found' && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: '#ff5c7a' }}>NOT FOUND</span>}
+            <button onClick={() => { setScannerOpen(o => !o); setScanState(null) }} style={{ background: scannerOpen ? 'rgba(157,255,111,.08)' : 'none', border: `1px solid ${scannerOpen ? 'rgba(157,255,111,.34)' : BORDER}`, color: scannerOpen ? LIME : MUTED, padding: '4px 8px', fontFamily: 'var(--phx-font-mono)', fontSize: 10, cursor: 'pointer' }}>▣</button>
+          </>
+        }
+      />
 
       {scannerOpen && <BarcodeScanner onDetected={handleBarcode} onClose={() => setScannerOpen(false)} />}
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 88 }}>
-        <div style={{ padding: '18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.04),transparent)' }}>
-          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff' }}>LOG FOOD</div>
+        <div style={{ padding: '18px 18px 14px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.04),transparent)' }}>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.29em', color: 'rgba(157,255,111,.55)' }}>PHOENIX</div>
+          <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff', lineHeight: 1 }}>
+            LOG <span style={{ color: LIME, textShadow: '0 0 32px rgba(157,255,111,.35)' }}>FOOD</span>
+          </div>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 7 }}>Barcode, recipe, Lidl staple, repeat meal, or exact custom macros.</div>
         </div>
 
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>QUICK SCAN</span>
-            <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 600, color: LIME }}>BARCODE</span>
-          </div>
-          <div onClick={() => setScannerOpen(true)} style={{ height: 112, border: `1px dashed rgba(157,255,111,.34)`, background: 'rgba(157,255,111,.025)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, cursor: 'pointer' }}>
-            <div style={{ fontSize: 36, color: LIME, filter: 'drop-shadow(0 0 14px rgba(157,255,111,.32))' }}>◎</div>
-            <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.18em', color: LIME }}>TAP TO SCAN BARCODE</div>
-          </div>
+        <NuSection n={1} title="QUICK SCAN" />
+        <div style={{ padding: '0 14px 14px' }}>
+          <NuPanel onClick={() => setScannerOpen(true)}>
+            <div style={{ height: 112, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 36, color: LIME, filter: 'drop-shadow(0 0 14px rgba(157,255,111,.32))' }}>◎</div>
+              <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.18em', color: LIME }}>TAP TO SCAN BARCODE</div>
+            </div>
+          </NuPanel>
         </div>
 
-        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.22em', color: MUTED }}>ENTRY MODE</span>
-            <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 600, color: LIME }}>{selected ? 'SELECTED' : tab.toUpperCase()}</span>
-          </div>
+        <NuSection n={2} title={selected ? 'ENTRY MODE · SELECTED' : `ENTRY MODE · ${tab.toUpperCase()}`} color={NU.gold} />
+        <div style={{ padding: '0 14px 16px', borderBottom: `1px solid ${BORDER}` }}>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 12 }}>
             {['recipes', 'staples', 'recent', 'custom'].map(t => (
@@ -338,12 +337,12 @@ export default function LogMeal({ onBack, onSuccess }) {
         </div>
 
         <div style={{ margin: '14px 18px 32px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, borderLeft: `3px solid ${LIME}`, background: 'rgba(157,255,111,.025)' }}>
-          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>NOTE</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
-            Recipe entries log the displayed serving unit, not the full batch. Custom entries are saved only after you confirm the macros.
+            Recipe entries log the displayed serving unit, not the full batch.
           </div>
         </div>
       </div>
-    </div>
+    </NuScreen>
   )
 }

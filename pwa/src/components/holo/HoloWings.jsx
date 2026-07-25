@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { ACC, W, TEXT, BODY, FM, FD, FB, a, mix, deep } from './holoTokens'
 import { feedColor } from './holoDomains'
 import { financeMicro, financeBody } from './subs/financeReadability'
@@ -6,14 +5,6 @@ import { financeMicro, financeBody } from './subs/financeReadability'
 // panel content renderers, shared by wing panels and the focus overlay.
 // `big` switches to the enlarged focus-modal type scale.
 function AllocationOrbitPanel({ panel, big }) {
-  // draw-in: segments sweep from zero to their arc on mount (staggered).
-  // setTimeout (not rAF) so it still fires when the tab isn't focused —
-  // otherwise the ring could stay invisible until focus.
-  const [drawn, setDrawn] = useState(false)
-  useEffect(() => {
-    const id = setTimeout(() => setDrawn(true), 40)
-    return () => clearTimeout(id)
-  }, [])
   const slices = (panel.slices || panel.allocationSlices || [])
   const activeSlices = slices.filter(s => Number(s.weight || 0) >= 0.5)
   const shown = (activeSlices.length ? activeSlices : slices.slice(0, 1)).slice(0, big ? 6 : 4)
@@ -21,7 +12,7 @@ function AllocationOrbitPanel({ panel, big }) {
   const gid = `holo-allocation-${big ? 'focus' : 'wing'}`
   // Real donut: arc length = share of the whole. The uncovered arc is the
   // honest remainder (dormant/uncharted sleeves) — nothing is faked by radius.
-  const donutSize = big ? 150 : 128
+  const orbitSize = big ? 150 : 128
   const CX = 66, CY = 66
   const R = 44
   const THICK = big ? 16 : 17
@@ -31,19 +22,33 @@ function AllocationOrbitPanel({ panel, big }) {
   let cursor = 0
   const segments = shown.map((s, i) => {
     const len = (Math.max(0, Number(s.weight || 0)) / totalW) * CIRC
-    const seg = { color: s.color || ACC, len: Math.max(1.2, len - GAP), offset: -cursor, key: s.label || i }
+    const seg = {
+      color: s.color || ACC,
+      rimColor: s.rimColor || W,
+      glowColor: s.glowColor || s.color || ACC,
+      len: Math.max(1.2, len - GAP),
+      offset: -cursor,
+      key: s.label || i,
+    }
     cursor += len
     return seg
   })
   return (
-    <div style={{ display: big ? 'grid' : 'block', gridTemplateColumns: big ? `${donutSize}px 1fr` : '1fr', gap: big ? 16 : 8, alignItems: 'center', paddingTop: big ? 4 : 5 }}>
-      <svg viewBox="0 0 132 132" style={{ width: big ? donutSize : '100%', maxWidth: big ? donutSize : 150, height: donutSize, display: 'block', margin: big ? 0 : '0 auto' }}>
+    <div style={{ display: big ? 'grid' : 'block', gridTemplateColumns: big ? `${orbitSize}px 1fr` : '1fr', gap: big ? 16 : 8, alignItems: 'center', paddingTop: big ? 4 : 5 }}>
+      <svg viewBox="0 0 132 132" style={{ width: big ? orbitSize : '100%', maxWidth: big ? orbitSize : 150, height: orbitSize, display: 'block', margin: big ? 0 : '0 auto' }}>
         <defs>
           <radialGradient id={`${gid}-hub`} cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor={a(ACC, '20')} />
             <stop offset="66%" stopColor={a(ACC, '08')} />
             <stop offset="100%" stopColor={a(ACC, '00')} />
           </radialGradient>
+          {segments.map((seg, i) => (
+            <linearGradient key={seg.key} id={`${gid}-seg-${i}`} x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stopColor={seg.rimColor} />
+              <stop offset="38%" stopColor={seg.color} />
+              <stop offset="100%" stopColor={seg.glowColor} />
+            </linearGradient>
+          ))}
         </defs>
         {/* faint counter-rotating guide ring for depth + motion */}
         <circle cx={CX} cy={CY} r={R + THICK / 2 + 6} fill="none" stroke={a(ACC, '16')} strokeWidth="1" strokeDasharray="1.5 7" style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'holo-ringSpinRev 44s linear infinite' }} />
@@ -59,13 +64,13 @@ function AllocationOrbitPanel({ panel, big }) {
             cy={CY}
             r={R}
             fill="none"
-            stroke={seg.color}
+            stroke={`url(#${gid}-seg-${i})`}
             strokeWidth={THICK}
             strokeLinecap="butt"
-            strokeDasharray={drawn ? `${seg.len.toFixed(2)} ${(CIRC - seg.len).toFixed(2)}` : `0 ${CIRC.toFixed(2)}`}
+            strokeDasharray={`${seg.len.toFixed(2)} ${(CIRC - seg.len).toFixed(2)}`}
             strokeDashoffset={seg.offset.toFixed(2)}
             transform={`rotate(-90 ${CX} ${CY})`}
-            style={{ transition: `stroke-dasharray .8s cubic-bezier(.2,.8,.25,1) ${(i * 0.1).toFixed(2)}s`, filter: `drop-shadow(0 0 ${big ? 6 : 4}px ${a(seg.color, '66')})` }}
+            style={{ filter: `drop-shadow(0 0 ${big ? 4.5 : 3.5}px ${a(seg.glowColor, '3d')})` }}
           />
         ))}
         {/* premium sheen — a soft light sweep orbiting the ring */}
@@ -80,7 +85,7 @@ function AllocationOrbitPanel({ panel, big }) {
       <div style={{ display: 'grid', gap: big ? 9 : 5, ...(big ? {} : { marginTop: 8 }) }}>
         {shown.map(s => (
           <div key={s.label} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: big ? 10 : 7, alignItems: 'center', minWidth: 0 }}>
-            <span style={{ width: big ? 9 : 6, height: big ? 9 : 6, borderRadius: 2, background: s.color || ACC, boxShadow: `0 0 8px ${a(s.color || ACC, '88')}` }} />
+            <span style={{ width: big ? 9 : 6, height: big ? 9 : 6, borderRadius: '50%', background: `radial-gradient(circle at 32% 22%, ${mix(W, 72)}, ${s.rimColor || W} 18%, ${s.color || ACC} 64%, ${mix(s.color || ACC, 32)} 100%)`, boxShadow: `0 0 0 1px ${a(s.rimColor || W, '42')}, 0 0 6px ${a(s.glowColor || s.color || ACC, '38')}` }} />
             <div style={{ minWidth: 0 }}>
               <div style={{ ...financeMicro({ fontSize: big ? 11 : 8, letterSpacing: '.09em', color: mix(BODY, 92) }), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.short || s.label}</div>
               {big && <div style={financeMicro({ fontSize: 9, letterSpacing: '.06em', color: a(ACC, '9f'), marginTop: 2 })}><span style={{ color: a(s.statusColor || ACC, 'cc') }}>{s.status}</span> · GAP {s.gap}%</div>}
