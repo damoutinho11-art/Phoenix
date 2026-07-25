@@ -11,7 +11,6 @@ import pytest
 import jarvis.domains.training.plan_acceptance as acceptance_module
 from jarvis.domains.training.adaptive_planner import PlanningSnapshot, generate_weekly_plan
 from jarvis.domains.training.plan_acceptance import (
-    REQUIRED_FIXTURE_CATEGORIES,
     decode_training_evidence_receipts,
     evaluate_training_shadow,
     replay_training_plan,
@@ -19,11 +18,13 @@ from jarvis.domains.training.plan_acceptance import (
     training_planner_mode,
     validate_runtime_proposal,
 )
+from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
 from jarvis.domains.training.plan_contracts import (
     PlanValidation,
     TrainingConstraint,
     WeeklyPlanReceipt,
 )
+from jarvis.domains.training.progression import calculate_progression
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ def _snapshot(week_start: date, **overrides) -> PlanningSnapshot:
         "readiness": None,
         "calendar_events": (),
         "progression": {},
-        "equipment": ("barbell", "rack", "hex_bar", "bench"),
+        "equipment": (),
         "preferences": (),
         "safety_blocks": (),
     }
@@ -48,63 +49,130 @@ def _snapshot(week_start: date, **overrides) -> PlanningSnapshot:
     return PlanningSnapshot(**values)
 
 
+HYBRID_REQUIRED_CATEGORIES = (
+    "sequence",
+    "recovery_placement",
+    "time_compression",
+    "equipment_substitution",
+    "fatigue_deload",
+    "calendar_conflict",
+    "pain_block",
+    "phase_peak",
+    "missed_session",
+    "completion_advance",
+)
+
+
 def _scenario_receipt(constitution, category: str, week_start: date) -> WeeklyPlanReceipt:
     snapshot = _snapshot(week_start)
     constraints = ()
-    if category == "move":
+    if category == "sequence":
+        pass
+    elif category == "recovery_placement":
+        snapshot = replace(snapshot, sequence_cursor=4)
+    elif category == "time_compression":
         constraints = (
             TrainingConstraint.from_mapping(
-                "move_session",
-                "user",
-                {
-                    "source_date": week_start.isoformat(),
-                    "target_date": (week_start + timedelta(days=1)).isoformat(),
-                },
-            ),
-        )
-    elif category == "skip":
-        constraints = (
-            TrainingConstraint.from_mapping(
-                "skip_session", "user", {"date": week_start.isoformat()}
-            ),
-        )
-    elif category == "equipment-limited":
-        constraints = (
-            TrainingConstraint.from_mapping(
-                "equipment_available",
+                "time_limit",
                 "user",
                 {
                     "date": week_start.isoformat(),
-                    "equipment": ("barbell", "seated_calf_raise"),
+                    "minutes": 40,
                 },
             ),
         )
-    elif category == "fatigue-reduced":
+    elif category == "equipment_substitution":
+        snapshot = replace(
+            snapshot,
+            equipment=(
+                "dumbbells",
+                "bench",
+                "incline_bench",
+                "cable_machine",
+                "pullup_bar",
+                "weight_belt",
+                "hex_bar",
+                "leg_press",
+                "seated_calf_raise",
+            ),
+        )
+    elif category == "fatigue_deload":
         snapshot = replace(
             snapshot,
             progression={
-                "Bench Press": {
+                "bench_press": {
                     "suggested_kg": 55,
-                    "basis": "Two consecutive misses require a deload.",
+                    "basis": "Readiness evidence requires a deload.",
+                    "reason": "fatigue",
                     "deload": True,
                 }
             },
         )
-    elif category == "calendar-blocked":
+    elif category == "missed_session":
+        completed_sessions = tuple(
+            {
+                "id": index,
+                "date": completed_date.isoformat(),
+                "session_type": "general",
+                "session_intent": "push_strength",
+                "sequence_position": 1,
+                "sequence_length": len(HYBRID_SEQUENCE),
+                "plan_provenance": {
+                    "plan_id": f"hybrid-plan-{index}",
+                    "receipt_hash": f"hybrid-receipt-{index}",
+                    "date": completed_date.isoformat(),
+                },
+                "completion_evidence": {
+                    "duration_seconds": 3600,
+                    "rpe": 9,
+                    "pain_confirmed": False,
+                    "pain_body_areas": [],
+                },
+                "exercises": [
+                    {
+                        "name": "bench_press",
+                        "target_reps": 5,
+                        "sets": [
+                            {"reps": 4, "weight_kg": 55, "target_reps": 5}
+                        ],
+                    }
+                ],
+            }
+            for index, completed_date in enumerate(
+                (week_start - timedelta(days=14), week_start - timedelta(days=7)),
+                start=1,
+            )
+        )
+        snapshot = replace(
+            snapshot,
+            completed_sessions=completed_sessions,
+            progression=calculate_progression(list(completed_sessions)),
+        )
+    elif category == "calendar_conflict":
         snapshot = replace(
             snapshot,
             calendar_events=(
                 {
                     "event_type": "performance",
-                    "date": (week_start + timedelta(days=2)).isoformat(),
+                    "date": week_start.isoformat(),
+                    "severity": "hard",
                 },
             ),
         )
-    elif category == "pain-blocked":
+    elif category == "pain_block":
         snapshot = replace(
             snapshot,
             readiness={"pain": True, "knee": 5, "sharp_pain": True},
             safety_blocks=("knee",),
+        )
+    elif category == "phase_peak":
+        if week_start != date(2026, 8, 31):
+            raise AssertionError("Peak fixture must use the configured peak week")
+    elif category == "completion_advance":
+        snapshot = replace(
+            snapshot,
+            sequence_cursor=2,
+            sequence_source_plan_id="completed-prior-hybrid-plan",
         )
     else:
         raise AssertionError(f"Unknown scenario: {category}")
@@ -112,13 +180,32 @@ def _scenario_receipt(constitution, category: str, week_start: date) -> WeeklyPl
 
 
 def _required_receipts(constitution) -> list[dict]:
+    fixture_weeks = {
+        "sequence": date(2026, 7, 6),
+        "recovery_placement": date(2026, 7, 13),
+        "time_compression": date(2026, 7, 20),
+        "equipment_substitution": date(2026, 7, 27),
+        "fatigue_deload": date(2026, 8, 3),
+        "calendar_conflict": date(2026, 8, 10),
+        "pain_block": date(2026, 8, 17),
+        "missed_session": date(2026, 8, 24),
+        "phase_peak": date(2026, 8, 31),
+        "completion_advance": date(2026, 9, 7),
+    }
     return [
-        _scenario_receipt(
-            constitution,
-            category,
-            date(2026, 7, 20) + timedelta(weeks=index),
-        ).to_mapping()
-        for index, category in enumerate(REQUIRED_FIXTURE_CATEGORIES)
+        _scenario_receipt(constitution, category, fixture_weeks[category]).to_mapping()
+        for category in HYBRID_REQUIRED_CATEGORIES
+    ]
+
+
+def _incomplete_hybrid_fixture_receipts(constitution) -> list[dict]:
+    return [
+        receipt
+        for category, receipt in zip(
+            HYBRID_REQUIRED_CATEGORIES,
+            _required_receipts(constitution),
+        )
+        if category != "equipment_substitution"
     ]
 
 
@@ -142,7 +229,7 @@ def _with_receipt_values(receipt: WeeklyPlanReceipt, **overrides) -> WeeklyPlanR
 def test_serialized_plan_reruns_actual_planner_to_identical_identities(
     monkeypatch, training_constitution
 ):
-    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    receipt = _scenario_receipt(training_constitution, "sequence", date(2026, 7, 20))
     active = _with_receipt_values(receipt, status="active")
     calls = []
     real_generate = acceptance_module.generate_weekly_plan
@@ -165,7 +252,7 @@ def test_serialized_plan_reruns_actual_planner_to_identical_identities(
 
 def test_replay_rejects_legacy_receipt_without_replay_inputs(training_constitution):
     serialized = _scenario_receipt(
-        training_constitution, "move", date(2026, 7, 20)
+        training_constitution, "sequence", date(2026, 7, 20)
     ).to_mapping()
     serialized.pop("replay_inputs")
 
@@ -175,7 +262,7 @@ def test_replay_rejects_legacy_receipt_without_replay_inputs(training_constituti
 
 def test_replay_rejects_tampered_canonical_inputs(training_constitution):
     serialized = _scenario_receipt(
-        training_constitution, "move", date(2026, 7, 20)
+        training_constitution, "sequence", date(2026, 7, 20)
     ).to_mapping()
     serialized["replay_inputs"]["snapshot"]["readiness"] = {"knee": 4}
 
@@ -184,7 +271,7 @@ def test_replay_rejects_tampered_canonical_inputs(training_constitution):
 
 
 def test_replay_rejects_resigned_output_not_generated_from_inputs(training_constitution):
-    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    receipt = _scenario_receipt(training_constitution, "sequence", date(2026, 7, 20))
     tampered_day = replace(receipt.days[0], objective="self_attested_output")
     resigned = _with_receipt_values(
         receipt,
@@ -198,7 +285,7 @@ def test_replay_rejects_resigned_output_not_generated_from_inputs(training_const
 def test_replay_rejects_planner_drift_or_nondeterminism(
     monkeypatch, training_constitution
 ):
-    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    receipt = _scenario_receipt(training_constitution, "sequence", date(2026, 7, 20))
     real_generate = acceptance_module.generate_weekly_plan
 
     def drifted_generate(constitution, snapshot, constraints=()):
@@ -230,24 +317,36 @@ def test_shadow_gate_infers_real_fixture_behavior_and_ignores_caller_labels(
     result = evaluate_training_shadow(receipts)
 
     assert result["accepted"] is True
-    assert result["fixture_summary"] == {
-        category: 1 for category in REQUIRED_FIXTURE_CATEGORIES
-    }
+    assert set(result["fixture_summary"]) == set(HYBRID_REQUIRED_CATEGORIES)
+    assert all(
+        result["fixture_summary"][category] > 0
+        for category in HYBRID_REQUIRED_CATEGORIES
+    )
     assert result["side_effect_proof"]["passed"] is True
-    assert result["side_effect_proof"]["replay_count"] == 6
+    assert result["side_effect_proof"]["replay_count"] == 10
     assert all(
         row["input_hash_before"] == row["input_hash_after"]
         for row in result["side_effect_proof"]["immutable_inputs"]
     )
 
 
+def test_acceptance_requires_all_hybrid_behavior_categories(training_constitution):
+    result = evaluate_training_shadow(
+        _incomplete_hybrid_fixture_receipts(training_constitution)
+    )
+
+    assert result["accepted"] is False
+    assert "equipment_substitution" not in result["fixture_summary"]
+    assert "fixture_coverage" in result["reasons"]
+
+
 def test_caller_labels_cannot_fake_required_fixture_coverage(training_constitution):
     receipts = []
-    for index, label in enumerate(REQUIRED_FIXTURE_CATEGORIES):
+    for index, label in enumerate(HYBRID_REQUIRED_CATEGORIES):
         receipt = _scenario_receipt(
             training_constitution,
-            "move",
-            date(2026, 9, 7) + timedelta(weeks=index),
+            "sequence",
+            date(2026, 7, 6) + timedelta(weeks=index),
         ).to_mapping()
         receipt["fixture_category"] = label
         receipts.append(receipt)
@@ -255,7 +354,7 @@ def test_caller_labels_cannot_fake_required_fixture_coverage(training_constituti
     result = evaluate_training_shadow(receipts)
 
     assert result["accepted"] is False
-    assert result["fixture_summary"] == {"move": 6}
+    assert set(result["fixture_summary"]) < set(HYBRID_REQUIRED_CATEGORIES)
     assert "fixture_coverage" in result["reasons"]
 
 
@@ -274,7 +373,7 @@ def test_shadow_gate_certifies_engine_without_embedding_proposal_ids(training_co
 
 def test_runtime_validation_accepts_fresh_deterministic_receipt(training_constitution):
     receipt = _scenario_receipt(
-        training_constitution, "move", date(2026, 7, 20)
+        training_constitution, "sequence", date(2026, 7, 20)
     ).to_mapping()
 
     accepted, reasons = validate_runtime_proposal(receipt, active_parent_id=None)
@@ -285,7 +384,7 @@ def test_runtime_validation_accepts_fresh_deterministic_receipt(training_constit
 
 def test_runtime_validation_rejects_tampered_days(training_constitution):
     receipt = _scenario_receipt(
-        training_constitution, "move", date(2026, 7, 20)
+        training_constitution, "sequence", date(2026, 7, 20)
     ).to_mapping()
     receipt["days"][0]["objective"] = "tampered"
 
@@ -297,7 +396,7 @@ def test_runtime_validation_rejects_tampered_days(training_constitution):
 
 def test_runtime_validation_rejects_stale_version(training_constitution):
     receipt = _scenario_receipt(
-        training_constitution, "move", date(2026, 7, 20)
+        training_constitution, "sequence", date(2026, 7, 20)
     ).to_mapping()
     receipt["planner_version"] = "adaptive-v0"
 
@@ -309,7 +408,7 @@ def test_runtime_validation_rejects_stale_version(training_constitution):
 
 def test_runtime_validation_rejects_parent_mismatch(training_constitution):
     receipt = _scenario_receipt(
-        training_constitution, "move", date(2026, 7, 20)
+        training_constitution, "sequence", date(2026, 7, 20)
     ).to_mapping()
 
     accepted, reasons = validate_runtime_proposal(
@@ -330,7 +429,7 @@ def test_evidence_decoder_avoids_unbounded_decompression(
 
     monkeypatch.setattr(acceptance_module.zlib, "decompress", reject_unbounded_decompress)
 
-    assert len(decode_training_evidence_receipts(evidence)) == 6
+    assert len(decode_training_evidence_receipts(evidence)) == 10
 
 
 def test_evidence_decoder_rejects_oversized_expanded_payload():
@@ -351,7 +450,7 @@ def test_shadow_gate_rejects_non_current_constitution(training_constitution):
     stale_constitution["version"] = "0"
     receipts = _required_receipts(training_constitution)
     receipts[0] = _scenario_receipt(
-        stale_constitution, "move", date(2026, 7, 20)
+        stale_constitution, "sequence", date(2026, 7, 20)
     ).to_mapping()
 
     result = evaluate_training_shadow(receipts)
@@ -394,7 +493,7 @@ def test_acceptance_status_recomputes_complete_evidence(training_constitution, m
     "tamper",
     (
         lambda evidence: evidence.update(accepted=False),
-        lambda evidence: evidence["fixture_summary"].update(move=99),
+        lambda evidence: evidence["fixture_summary"].update(sequence=99),
         lambda evidence: evidence["side_effect_proof"].update(passed=False),
         lambda evidence: evidence.update(evidence_id="attacker-supplied"),
         lambda evidence: evidence["receipt_bundle"].update(payload="tampered"),
@@ -420,7 +519,7 @@ def test_acceptance_status_rejects_any_tampered_evidence(
 def test_shadow_gate_rejects_malformed_hard_validation_rows(
     training_constitution, passed
 ):
-    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    receipt = _scenario_receipt(training_constitution, "sequence", date(2026, 7, 20))
     malformed = tuple(
         PlanValidation(row.rule, passed, row.severity, row.detail)
         if row.severity == "hard"
@@ -436,7 +535,7 @@ def test_shadow_gate_rejects_malformed_hard_validation_rows(
 
 
 def test_shadow_gate_rejects_empty_validation_set(training_constitution):
-    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    receipt = _scenario_receipt(training_constitution, "sequence", date(2026, 7, 20))
     signed = _with_receipt_values(receipt, validations=()).to_mapping()
 
     result = evaluate_training_shadow([signed])
@@ -446,7 +545,7 @@ def test_shadow_gate_rejects_empty_validation_set(training_constitution):
 
 
 def test_shadow_gate_requires_all_expected_hard_rules(training_constitution):
-    receipt = _scenario_receipt(training_constitution, "move", date(2026, 7, 20))
+    receipt = _scenario_receipt(training_constitution, "sequence", date(2026, 7, 20))
     validations = tuple(
         row for row in receipt.validations if row.rule != "pain_block"
     )
@@ -462,7 +561,7 @@ def test_shadow_gate_rejects_multiple_plans_for_one_cycle(training_constitution)
     receipts = _required_receipts(training_constitution)
     same_cycle = date(2026, 7, 20)
     receipts[1] = _scenario_receipt(
-        training_constitution, "skip", same_cycle
+        training_constitution, "sequence", same_cycle
     ).to_mapping()
 
     result = evaluate_training_shadow(receipts)

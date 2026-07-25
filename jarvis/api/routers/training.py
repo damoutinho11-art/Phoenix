@@ -67,12 +67,11 @@ ConstraintKind = Literal[
 PlanStatus = Literal["proposed", "active", "superseded", "completed", "rejected"]
 _PUBLIC_ADAPTIVE_PLANNER_FIELDS = (
     "version",
+    "program",
+    "hybrid_sequence",
+    "preferred_lower_spacing_hours",
     "minimum_recovery_hours",
-    "maximum_weekly_volume_increase_pct",
-    "maximum_session_volume_reduction_pct",
-    "pain_block_flags",
     "movement_families",
-    "exercise_equipment",
 )
 _AUTHORITATIVE_CALENDAR_SOURCES = frozenset(
     {"env_json", "local_file", "manual_import", "read_only_url"}
@@ -98,12 +97,6 @@ class TrainingPlanProposalRequest(BaseModel):
 
     constraints: list[TrainingConstraintRequest] = Field(default_factory=list, max_length=12)
     intent: str | None = Field(default=None, max_length=500)
-
-    @model_validator(mode="after")
-    def require_constraint_or_intent(self):
-        if not self.constraints and not (self.intent and self.intent.strip()):
-            raise ValueError("At least one training constraint or intent is required")
-        return self
 
 
 class TrainingConstraintResponse(BaseModel):
@@ -779,7 +772,24 @@ def _active_constraint_groups(active: Mapping[str, Any] | None) -> tuple[list[di
 
 
 def _public_adaptive_planner_policy(policy: Mapping[str, Any]) -> dict[str, Any]:
-    return {field: policy[field] for field in _PUBLIC_ADAPTIVE_PLANNER_FIELDS}
+    public = {field: policy[field] for field in _PUBLIC_ADAPTIVE_PLANNER_FIELDS}
+    public.update(
+        {
+            "duration_ranges": {
+                "standard_minutes": {"minimum": 60, "maximum": 70},
+                "compressed_minimum_minutes": 40,
+                "peak_general_maximum_minutes": 45,
+                "attempt_general_maximum_minutes": 30,
+            },
+            "phase_behavior": {
+                "base": "full_sequence",
+                "peak": "upper_maintenance_and_limited_jump_volume",
+                "attempt": "minimal_upper_maintenance_and_attempt_exposure",
+            },
+            "safety_flags": list(policy["pain_block_flags"]),
+        }
+    )
+    return public
 
 
 def _current_calendar_events() -> list[dict[str, Any]]:
@@ -1110,17 +1120,18 @@ def training_rules(
             status_code=503, detail="Training plan storage unavailable"
         ) from exc
     preferences, temporary_constraints = _active_constraint_groups(active)
-    policy = _public_adaptive_planner_policy(constitution["adaptive_planner"])
+    source_policy = constitution["adaptive_planner"]
+    policy = _public_adaptive_planner_policy(source_policy)
     return {
         "objective": constitution["goal"],
         "planner_version": str(policy["version"]),
         "planner": policy,
         "recovery_spacing": dict(policy["minimum_recovery_hours"]),
         "adaptation_limits": {
-            "maximum_weekly_volume_increase_pct": policy[
+            "maximum_weekly_volume_increase_pct": source_policy[
                 "maximum_weekly_volume_increase_pct"
             ],
-            "maximum_session_volume_reduction_pct": policy[
+            "maximum_session_volume_reduction_pct": source_policy[
                 "maximum_session_volume_reduction_pct"
             ],
         },

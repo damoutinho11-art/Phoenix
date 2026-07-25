@@ -94,8 +94,8 @@ def _enable_live_certificate(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda: {
             "accepted": True,
             "reasons": [],
-            "planner_version": "adaptive-v1",
-            "constitution_version": "1",
+            "planner_version": "adaptive-v2",
+            "constitution_version": "2",
             "evidence_id": "recomputed-test-evidence",
             "fixture_summary": {},
         },
@@ -353,9 +353,12 @@ def test_time_limit_accepts_inclusive_boundaries(client: TestClient, minutes: in
     assert response.json()["constraints"][0]["values"]["minutes"] == minutes
 
 
-def test_request_requires_constraints_or_intent(client: TestClient):
-    assert client.post("/training/plan/proposals", json={}).status_code == 422
-    assert client.post("/training/plan/proposals", json={"constraints": []}).status_code == 422
+def test_v2_autonomous_proposal_does_not_require_user_constraints(client: TestClient):
+    response = client.post("/training/plan/proposals", json={"constraints": []})
+
+    assert response.status_code == 200
+    assert response.json()["planner_version"] == "adaptive-v2"
+    assert response.json()["constraints"] == []
 
 
 def test_supported_intent_compiles_to_constraint_but_never_applies(
@@ -396,7 +399,7 @@ def test_proposal_passes_latest_import_to_real_resolver_and_uses_its_performance
                 "performance-1",
                 "performance",
                 "Imported performance",
-                "2026-07-21",
+                "2026-07-22",
                 "19:00",
                 "22:00",
             )
@@ -434,8 +437,8 @@ def test_proposal_passes_latest_import_to_real_resolver_and_uses_its_performance
     assert response.status_code == 200
     assert passed_imports == [latest_snapshot]
     days_by_date = {day["date"]: day for day in response.json()["days"]}
-    assert days_by_date["2026-07-20"]["session_type"] == "recovery"
-    assert days_by_date["2026-07-20"]["change_reason"] == "calendar_hard_conflict"
+    assert days_by_date["2026-07-22"]["session_type"] == "recovery"
+    assert days_by_date["2026-07-22"]["change_reason"] == "calendar_hard_conflict"
 
 
 @pytest.mark.parametrize("active_source", ["fixture_fallback", "fixture", "stale_cache"])
@@ -1001,7 +1004,7 @@ def test_history_and_rules_return_readable_detail(
     assert history.json()["items"][0]["validations"]
     assert history.json()["items"][0]["reason"] == "Plan proposed"
     assert rules.json()["objective"]
-    assert rules.json()["planner"]["version"] == "adaptive-v1"
+    assert rules.json()["planner"]["version"] == "adaptive-v2"
     assert rules.json()["recovery_spacing"]["high_neural_to_high_neural"] == 36
     assert rules.json()["movement_families"]["knee_extension"]
     assert rules.json()["preferences"] == []
@@ -1034,14 +1037,19 @@ def test_rules_whitelist_excludes_private_policy_fields(
     rules = response.json()
     assert set(rules["planner"]) == {
         "version",
+        "program",
+        "hybrid_sequence",
+        "preferred_lower_spacing_hours",
         "minimum_recovery_hours",
-        "maximum_weekly_volume_increase_pct",
-        "maximum_session_volume_reduction_pct",
-        "pain_block_flags",
+        "duration_ranges",
         "movement_families",
-        "exercise_equipment",
+        "phase_behavior",
+        "safety_flags",
     }
-    assert rules["planner"]["version"] == "adaptive-v1"
+    assert rules["planner"]["version"] == "adaptive-v2"
+    assert rules["planner"]["program"] == "performance_hybrid"
+    assert rules["planner"]["hybrid_sequence"][-1] == "jump_elastic"
+    assert "acceptance_bundle" not in rules["planner"]
     assert rules["recovery_spacing"] == policy["minimum_recovery_hours"]
     assert rules["adaptation_limits"] == {
         "maximum_weekly_volume_increase_pct": 10,

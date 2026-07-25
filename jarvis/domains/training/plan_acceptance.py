@@ -20,17 +20,25 @@ from .plan_contracts import (
     WeeklyPlanReceipt,
     canonical_hash,
 )
+from .performance_hybrid import HYBRID_SEQUENCE, rotate_sequence
 
-CURRENT_PLANNER_VERSION = "adaptive-v1"
-CURRENT_CONSTITUTION_VERSION = "1"
-REQUIRED_FIXTURE_CATEGORIES = (
-    "move",
-    "skip",
-    "equipment-limited",
-    "fatigue-reduced",
-    "calendar-blocked",
-    "pain-blocked",
+CURRENT_PLANNER_VERSION = "adaptive-v2"
+CURRENT_CONSTITUTION_VERSION = "2"
+HYBRID_REQUIRED_CATEGORIES = frozenset(
+    {
+        "sequence",
+        "recovery_placement",
+        "time_compression",
+        "equipment_substitution",
+        "fatigue_deload",
+        "calendar_conflict",
+        "pain_block",
+        "phase_peak",
+        "missed_session",
+        "completion_advance",
+    }
 )
+REQUIRED_FIXTURE_CATEGORIES = tuple(sorted(HYBRID_REQUIRED_CATEGORIES))
 EXPECTED_HARD_VALIDATIONS = frozenset(
     {
         "seven_unique_days",
@@ -381,55 +389,73 @@ def _infer_fixture_categories(receipt: WeeklyPlanReceipt) -> set[str]:
     categories = set()
     inputs = receipt.replay_inputs
     days = _day_by_date(receipt)
-    unconstrained = None
+    policy = inputs.constitution["adaptive_planner"]
+    training_days = tuple(day for day in receipt.days if day.session_intent is not None)
+    expected_sequence = rotate_sequence(HYBRID_SEQUENCE, inputs.snapshot.sequence_cursor)
+    actual_sequence = tuple(day.session_intent for day in training_days)
+    positions_are_valid = all(
+        day.sequence_position == HYBRID_SEQUENCE.index(day.session_intent) + 1
+        and day.sequence_length == len(HYBRID_SEQUENCE)
+        for day in training_days
+    )
+    if actual_sequence == expected_sequence and positions_are_valid:
+        categories.add("sequence")
+
+    if any(
+        day.session_type == "recovery"
+        and any(reason.startswith("recovery_placed:") for reason in day.decision_reasons)
+        for day in receipt.days
+    ):
+        categories.add("recovery_placement")
 
     for constraint in inputs.constraints:
         values = _constraint_values(constraint)
-        if constraint.kind in {"move_session", "skip_session", "equipment_available"}:
-            if unconstrained is None:
-                unconstrained = _baseline(receipt)
-            baseline_days = _day_by_date(unconstrained)
-        if constraint.kind == "move_session":
-            source = values.get("source_date")
-            target = values.get("target_date")
-            if (
-                source in days
-                and target in days
-                and source in baseline_days
-                and days[source].session_type == "rest"
-                and days[source].change_reason == f"moved_to:{target}"
-                and days[target].objective == baseline_days[source].objective
-                and days[target].change_reason == f"moved_from:{source}"
-            ):
-                categories.add("move")
-        elif constraint.kind == "skip_session":
-            target = values.get("date")
-            if (
-                target in days
-                and target in baseline_days
-                and baseline_days[target].session_type != "rest"
-                and days[target].session_type == "rest"
-                and days[target].estimated_minutes == 0
-                and days[target].change_reason == "user_skip"
-            ):
-                categories.add("skip")
-        elif constraint.kind == "equipment_available":
-            target = values.get("date")
-            available = set(values.get("equipment", ()))
-            if target in days and target in baseline_days:
-                before = tuple(item.get("name") for item in baseline_days[target].exercises)
-                after = tuple(item.get("name") for item in days[target].exercises)
-                metadata = inputs.constitution["adaptive_planner"]["exercise_equipment"]
-                supported = all(
-                    name in metadata and set(metadata[name]).issubset(available)
-                    for name in after
-                )
-                if (
-                    before != after
-                    and supported
-                    and "equipment_substituted:" in (days[target].change_reason or "")
-                ):
-                    categories.add("equipment-limited")
+        if constraint.kind != "time_limit":
+            continue
+        target = values.get("date")
+        if target not in days:
+            continue
+        neutral_days = _day_by_date(_baseline(receipt))
+        limit = values.get("minutes")
+        if (
+            target in neutral_days
+            and type(limit) is int
+            and days[target].change_reason == "time_limit"
+            and days[target].estimated_minutes
+            == min(neutral_days[target].estimated_minutes, limit)
+        ):
+            categories.add("time_compression")
+
+    available_equipment = set(inputs.snapshot.equipment)
+    if available_equipment:
+        neutral = _baseline(
+            receipt,
+            snapshot=replace(inputs.snapshot, equipment=()),
+            constraints=inputs.constraints,
+        )
+        neutral_days = _day_by_date(neutral)
+        output_names = tuple(
+            exercise.get("name")
+            for day in receipt.days
+            for exercise in day.exercises
+        )
+        neutral_names = tuple(
+            exercise.get("name")
+            for day in neutral.days
+            for exercise in day.exercises
+        )
+        equipment_metadata = policy["exercise_equipment"]
+        if (
+            output_names != neutral_names
+            and output_names
+            and all(
+                name in equipment_metadata
+                and set(equipment_metadata[name]).issubset(available_equipment)
+                for name in output_names
+            )
+            and all(key in neutral_days for key in days)
+        ):
+            categories.add("equipment_substitution")
 
     deload_keys = {
         "".join(character for character in str(name).casefold() if character.isalnum())
@@ -453,7 +479,21 @@ def _infer_fixture_categories(receipt: WeeklyPlanReceipt) -> set[str]:
                 and day.estimated_minutes < neutral_days[key].estimated_minutes
                 and "fatigue_reduced:progression_deload" in (day.change_reason or "")
             ):
-                categories.add("fatigue-reduced")
+                categories.add("fatigue_deload")
+                completed_sessions = inputs.snapshot.to_mapping()["completed_sessions"]
+                recomputed_progression = progression.calculate_progression(
+                    completed_sessions
+                )
+                missed_evidence = any(
+                    isinstance(values, Mapping)
+                    and values.get("deload") is True
+                    and values.get("reason") == "missed_reps"
+                    and name in inputs.snapshot.progression
+                    and dict(inputs.snapshot.progression[name]) == values
+                    for name, values in recomputed_progression.items()
+                )
+                if missed_evidence:
+                    categories.add("missed_session")
                 break
 
     hard_calendar_dates = {
@@ -473,12 +513,15 @@ def _infer_fixture_categories(receipt: WeeklyPlanReceipt) -> set[str]:
         if any(
             key in days
             and key in neutral_days
-            and neutral_days[key].session_type != "recovery"
+            and neutral_days[key].session_type not in {"recovery", "rest"}
             and days[key].session_type == "recovery"
-            and days[key].change_reason == "calendar_hard_conflict"
+            and (
+                days[key].change_reason == "calendar_hard_conflict"
+                or "recovery_placed:calendar" in days[key].decision_reasons
+            )
             for key in hard_calendar_dates
         ):
-            categories.add("calendar-blocked")
+            categories.add("calendar_conflict")
 
     readiness = inputs.snapshot.readiness or {}
     has_hard_pain_input = bool(inputs.snapshot.safety_blocks) or any(
@@ -512,7 +555,27 @@ def _infer_fixture_categories(receipt: WeeklyPlanReceipt) -> set[str]:
             and _pain_fixture_is_safe(receipt)
             and pain_validation_passed
         ):
-            categories.add("pain-blocked")
+            categories.add("pain_block")
+
+    if any(
+        any(
+            reason.startswith("phase_") and reason.endswith(":peak")
+            for reason in day.decision_reasons
+        )
+        for day in receipt.days
+    ):
+        categories.add("phase_peak")
+
+    source_plan_id = inputs.snapshot.sequence_source_plan_id
+    if (
+        source_plan_id is not None
+        and inputs.snapshot.sequence_cursor != 1
+        and training_days
+        and training_days[0].sequence_position == inputs.snapshot.sequence_cursor
+        and training_days[0].session_intent
+        == HYBRID_SEQUENCE[inputs.snapshot.sequence_cursor - 1]
+    ):
+        categories.add("completion_advance")
     return categories
 
 
@@ -609,7 +672,11 @@ def evaluate_training_shadow(receipts: list[Mapping[str, Any]]) -> dict[str, Any
             reasons.append("non_proposal_receipt")
         if not _has_minimum_recovery_spacing(replayed):
             reasons.append("recovery_spacing")
-        categories = _infer_fixture_categories(replayed)
+        try:
+            categories = _infer_fixture_categories(replayed)
+        except (KeyError, TypeError, ValueError):
+            reasons.append("behavior_inference_failed")
+            categories = set()
         fixture_counts.update(categories)
         cycle_counts[replayed.cycle_id] += 1
     if any(count > 1 for count in cycle_counts.values()):
