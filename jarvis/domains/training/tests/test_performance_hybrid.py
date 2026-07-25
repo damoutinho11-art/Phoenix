@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE, build_hybrid_week
+from jarvis.domains.training.performance_hybrid import (
+    HYBRID_SEQUENCE,
+    apply_phase_rules,
+    build_hybrid_week,
+    compress_session,
+)
 from jarvis.domains.training.plan_contracts import PlannerInputSnapshot
 
 
@@ -28,6 +33,16 @@ def snapshot(*, sequence_cursor=1, calendar_events=(), equipment=()):
     )
 
 
+@pytest.fixture
+def baseline_days(training_constitution_v2):
+    return build_hybrid_week(training_constitution_v2, snapshot())
+
+
+@pytest.fixture
+def plan_day(baseline_days):
+    return next(day for day in baseline_days if day.session_intent == "push_strength")
+
+
 def test_builds_six_ordered_intents_plus_one_recovery(training_constitution_v2):
     days = build_hybrid_week(training_constitution_v2, snapshot(sequence_cursor=1))
 
@@ -35,7 +50,7 @@ def test_builds_six_ordered_intents_plus_one_recovery(training_constitution_v2):
     assert intents == list(HYBRID_SEQUENCE)
     assert sum(day.session_type == "recovery" for day in days) == 1
     recovery = next(day for day in days if day.session_type == "recovery")
-    assert recovery.decision_reasons == ("recovery_placed:default",)
+    assert recovery.decision_reasons == ("recovery_placed:lower_spacing",)
 
 
 def test_push_strength_uses_approved_template_and_duration(training_constitution_v2):
@@ -121,3 +136,50 @@ def test_hard_calendar_event_receives_the_recovery_slot(training_constitution_v2
     recovery = next(day for day in days if day.session_type == "recovery")
     assert recovery.date == date(2026, 7, 20)
     assert recovery.decision_reasons == ("recovery_placed:calendar",)
+
+
+def test_recovery_prefers_the_earliest_date_between_lower_and_jump(
+    training_constitution_v2,
+):
+    days = build_hybrid_week(training_constitution_v2, snapshot(sequence_cursor=4))
+    recovery = next(day for day in days if day.session_type == "recovery")
+
+    assert recovery.date == date(2026, 7, 23)
+    assert recovery.decision_reasons == ("recovery_placed:lower_spacing",)
+
+
+def test_recovery_targets_48_hours_between_lower_and_jump(training_constitution_v2):
+    days = build_hybrid_week(training_constitution_v2, snapshot(sequence_cursor=3))
+    lower = next(day for day in days if day.session_intent == "lower_power")
+    jump = next(day for day in days if day.session_intent == "jump_elastic")
+
+    assert (jump.date - lower.date).days >= 2
+
+
+def test_40_minute_compression_removes_accessories_not_primary_work(plan_day):
+    compressed = compress_session(plan_day, 40)
+
+    assert compressed.estimated_minutes == 40
+    assert any(item["priority"] == "primary" for item in compressed.exercises)
+    assert len(compressed.exercises) < len(plan_day.exercises)
+    assert "time_compressed" in compressed.decision_reasons
+
+
+def test_peak_removes_loaded_lower_and_keeps_upper_maintenance(baseline_days):
+    days = apply_phase_rules(baseline_days, phase="peak", week=1)
+
+    assert not any(day.session_intent == "lower_power" for day in days)
+    assert all(day.estimated_minutes <= 45 for day in days if day.session_type == "general")
+
+
+def test_attempt_keeps_only_required_jump_preparation_and_attempt_exposure(baseline_days):
+    days = apply_phase_rules(baseline_days, phase="attempt", week=1)
+    jump = next(day for day in days if day.session_intent == "jump_elastic")
+
+    assert {item["movement_family"] for item in jump.exercises} == {
+        "dynamic_warmup",
+        "sprint_mechanics",
+        "approach_jump",
+    }
+    assert jump.estimated_minutes <= 30
+    assert all(day.estimated_minutes <= 30 for day in days if day.session_type == "general")

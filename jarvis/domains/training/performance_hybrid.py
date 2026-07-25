@@ -55,6 +55,8 @@ _PRESCRIPTION_BY_FAMILY = {
     "progressive_jump": (4, 3),
     "approach_jump": (5, 3),
 }
+REMOVAL_ORDER = ("optional", "accessory")
+_MINUTES_PER_EXERCISE = 15
 
 
 def rotate_sequence(sequence: tuple[str, ...], cursor: int) -> tuple[str, ...]:
@@ -72,29 +74,181 @@ def _event_date(event: Mapping[str, Any]) -> date | None:
         return None
 
 
-def _recovery_placement(
-    intents: tuple[str, ...], week_start: date, calendar_events
-) -> tuple[int, str]:
-    week_end = week_start + timedelta(days=6)
-    hard_dates = sorted(
-        event_date
+def has_hard_calendar_conflict(candidate: date, calendar_events) -> bool:
+    return any(
+        _event_date(event) == candidate
+        and (
+            bool(event.get("hard_conflict"))
+            or str(event.get("severity", "")).lower() == "hard"
+        )
         for event in calendar_events
-        if (event_date := _event_date(event)) is not None
-        and week_start <= event_date <= week_end
-        and (bool(event.get("hard_conflict")) or str(event.get("severity", "")).lower() == "hard")
     )
-    if hard_dates:
-        return (hard_dates[0] - week_start).days, "recovery_placed:calendar"
-    return intents.index("lower_power") + 1, "recovery_placed:default"
+
+
+def is_between_lower_and_jump(
+    candidate: date, dated_intents: tuple[tuple[date, str | None], ...]
+) -> bool:
+    dates_by_intent = {intent: scheduled for scheduled, intent in dated_intents}
+    lower = dates_by_intent.get("lower_power")
+    jump = dates_by_intent.get("jump_elastic")
+    return lower is not None and jump is not None and min(lower, jump) < candidate < max(lower, jump)
+
+
+def follows_high_neural(
+    candidate: date, dated_intents: tuple[tuple[date, str | None], ...]
+) -> bool:
+    previous_intent = dict(dated_intents).get(candidate - timedelta(days=1))
+    return previous_intent is not None and SESSION_TYPE_BY_INTENT[previous_intent] in {
+        "high_intensity",
+        "jump",
+    }
+
+
+def recovery_score(
+    candidate: date,
+    dated_intents: tuple[tuple[date, str | None], ...],
+    calendar_events,
+    readiness: Mapping[str, Any] | None,
+) -> tuple[int, int, int]:
+    if has_hard_calendar_conflict(candidate, calendar_events):
+        return (100, 0, 0)
+    separates_lower_and_jump = is_between_lower_and_jump(candidate, dated_intents)
+    after_high_neural = follows_high_neural(candidate, dated_intents)
+    fatigue = int((readiness or {}).get("fatigue_score", 0))
+    return (
+        80 if separates_lower_and_jump else 0,
+        40 if after_high_neural else 0,
+        fatigue,
+    )
+
+
+def _dated_intents_for_candidate(
+    intents: tuple[str, ...], week_start: date, candidate: date
+) -> tuple[tuple[date, str | None], ...]:
+    dated = list(intents)
+    dated.insert((candidate - week_start).days, None)
+    return tuple(
+        (week_start + timedelta(days=index), intent)
+        for index, intent in enumerate(dated)
+    )
+
+
+def _recovery_placement(
+    intents: tuple[str, ...],
+    week_start: date,
+    calendar_events,
+    readiness: Mapping[str, Any] | None = None,
+) -> tuple[int, str]:
+    candidates = tuple(week_start + timedelta(days=index) for index in range(7))
+
+    def score(candidate: date) -> tuple[int, int, int]:
+        return recovery_score(
+            candidate,
+            _dated_intents_for_candidate(intents, week_start, candidate),
+            calendar_events,
+            readiness,
+        )
+
+    selected = max(candidates, key=lambda day: (*score(day), -day.toordinal()))
+    selected_score = score(selected)
+    if has_hard_calendar_conflict(selected, calendar_events):
+        reason = "recovery_placed:calendar"
+    elif selected_score[0]:
+        reason = "recovery_placed:lower_spacing"
+    elif selected_score[2]:
+        reason = "recovery_placed:fatigue"
+    else:
+        reason = "recovery_placed:default"
+    return (selected - week_start).days, reason
 
 
 def place_recovery(
-    intents: tuple[str, ...], week_start: date, calendar_events
+    intents: tuple[str, ...],
+    week_start: date,
+    calendar_events,
+    readiness: Mapping[str, Any] | None = None,
 ) -> tuple[str | None, ...]:
     dated = list(intents)
-    recovery_index, _ = _recovery_placement(intents, week_start, calendar_events)
+    recovery_index, _ = _recovery_placement(
+        intents, week_start, calendar_events, readiness
+    )
     dated.insert(recovery_index, None)
     return tuple(dated)
+
+
+def estimate_minutes(exercises) -> int:
+    return len(exercises) * _MINUTES_PER_EXERCISE
+
+
+def last_index(items, predicate) -> int | None:
+    for index in range(len(items) - 1, -1, -1):
+        if predicate(items[index]):
+            return index
+    return None
+
+
+def compress_session(day: PlanDay, minutes: int) -> PlanDay:
+    exercises = list(day.exercises)
+    for priority in REMOVAL_ORDER:
+        while estimate_minutes(exercises) > minutes:
+            index = last_index(exercises, lambda item: item["priority"] == priority)
+            if index is None:
+                break
+            exercises.pop(index)
+    return replace(
+        day,
+        exercises=tuple(exercises),
+        estimated_minutes=max(40, min(minutes, estimate_minutes(exercises))),
+        decision_reasons=(*day.decision_reasons, "time_compressed"),
+    )
+
+
+def _attempt_jump_session(day: PlanDay) -> PlanDay:
+    exercises = tuple(
+        item
+        for item in day.exercises
+        if item["priority"] == "required" or item["movement_family"] == "approach_jump"
+    )
+    return replace(
+        day,
+        exercises=exercises,
+        estimated_minutes=min(30, estimate_minutes(exercises)),
+        decision_reasons=(*day.decision_reasons, "phase_attempt"),
+    )
+
+
+def _compress_attempt_general_session(day: PlanDay) -> PlanDay:
+    compressed = compress_session(day, 40)
+    return replace(
+        compressed,
+        estimated_minutes=min(30, estimate_minutes(compressed.exercises)),
+    )
+
+
+def apply_phase_rules(
+    days: tuple[PlanDay, ...], phase: str, week: int
+) -> tuple[PlanDay, ...]:
+    del week
+    if phase not in {"peak", "attempt"}:
+        return tuple(days)
+
+    transformed = tuple(
+        day for day in days if day.session_intent != "lower_power"
+    )
+    if phase == "peak":
+        return tuple(
+            compress_session(day, 45) if day.session_type == "general" else day
+            for day in transformed
+        )
+
+    return tuple(
+        _attempt_jump_session(day)
+        if day.session_intent == "jump_elastic"
+        else _compress_attempt_general_session(day)
+        if day.session_type == "general"
+        else day
+        for day in transformed
+    )
 
 
 def _priority_for(family: str) -> str:
@@ -185,9 +339,11 @@ def build_hybrid_week(
     constitution: Mapping[str, Any], snapshot: PlannerInputSnapshot
 ) -> tuple[PlanDay, ...]:
     intents = rotate_sequence(HYBRID_SEQUENCE, snapshot.sequence_cursor)
-    dated = place_recovery(intents, snapshot.week_start, snapshot.calendar_events)
+    dated = place_recovery(
+        intents, snapshot.week_start, snapshot.calendar_events, snapshot.readiness
+    )
     _, recovery_reason = _recovery_placement(
-        intents, snapshot.week_start, snapshot.calendar_events
+        intents, snapshot.week_start, snapshot.calendar_events, snapshot.readiness
     )
     return tuple(
         replace(
