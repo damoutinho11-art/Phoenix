@@ -61,7 +61,7 @@
 /* the composer input focus ring follows the accent */
 .holo-composer:focus { border-color: color-mix(in srgb, var(--phx-accent) 60%, transparent) !important; }
 
-.holo-scope-training :is(button, input, textarea, select):focus-visible {
+.phx-scope-training :is(button, input, textarea, select):focus-visible {
   outline: 2px solid color-mix(in srgb, var(--phx-accent) 88%, white 12%);
   outline-offset: 2px;
   border-color: var(--phx-accent) !important;

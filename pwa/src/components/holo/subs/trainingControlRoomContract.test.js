@@ -433,8 +433,9 @@ test('hybrid slots and every live-session control expose reachable orange keyboa
   assert.match(week, /aria-current=\{isToday \? 'date' : undefined\}/)
   assert.match(
     css,
-    /\.holo-scope-training\s+:is\(button,\s*input,\s*textarea,\s*select\):focus-visible\s*\{[^}]*outline:\s*2px solid[^}]*var\(--phx-accent\)/s,
+    /\.phx-scope-training\s+:is\(button,\s*input,\s*textarea,\s*select\):focus-visible\s*\{[^}]*outline:\s*2px solid[^}]*var\(--phx-accent\)/s,
   )
+  assert.doesNotMatch(css, /\.holo-scope-training\b/)
 })
 
 

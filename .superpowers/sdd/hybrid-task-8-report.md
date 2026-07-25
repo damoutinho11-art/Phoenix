@@ -77,3 +77,22 @@ Fresh verification:
 - Scoped `git diff --check`: passed.
 
 No backend or Finance file was edited or staged by this follow-up. Browser QA remains owned by Task 9.
+
+## Production Scope Follow-Up
+
+The Training root uses `scopeClass.training = "phx-scope-training"` from `holoTokens.js`. The prior focus rule and contract incorrectly targeted the unused `.holo-scope-training` selector, so the orange focus treatment did not reach production controls.
+
+Strict TDD evidence:
+
+- The contract was changed first to require `.phx-scope-training` and reject the stale selector.
+- The focused contract then failed exactly once on the missing production selector.
+- Changing only the CSS scope token made the same contract pass `23/23`.
+
+Fresh verification:
+
+- Focused Training control-room contracts: `23 passed`.
+- Broader Training frontend: `79 passed`.
+- `npm run build`: passed with the existing large-chunk advisory.
+- Scoped `git diff --check`: passed.
+
+This follow-up changes only the Task 8 CSS, its contract test, and this report. Backend and Finance remain untouched and unstaged.
