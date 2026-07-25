@@ -1,5 +1,6 @@
 import {
   WEEK_CELL_COUNT,
+  buildHybridWeekPresentation,
   buildWeekSlots,
   getTrainingViewState,
   getValidationPresentation,
@@ -30,6 +31,17 @@ const isoDate = value => {
 const displayDate = (value, formatter, fallback) => {
   const date = isoDate(value)
   return date ? formatter.format(date).toUpperCase() : fallback
+}
+
+const currentIsoDate = () => new Date().toISOString().slice(0, 10)
+
+const exerciseTarget = exercise => {
+  const values = []
+  if (Number.isFinite(exercise?.sets)) values.push(`${exercise.sets} SETS`)
+  if (Number.isFinite(exercise?.reps)) values.push(`${exercise.reps} REPS`)
+  if (Number.isFinite(exercise?.suggested_kg)) values.push(`${exercise.suggested_kg} KG`)
+  if (Number.isFinite(exercise?.seconds)) values.push(`${exercise.seconds} SEC`)
+  return values.length ? values.join(' // ') : 'TARGET UNSET'
 }
 
 function PlanMetadata({ plan }) {
@@ -79,10 +91,36 @@ function ValidationSummary({ validations = [] }) {
   )
 }
 
-export default function TrainingWeekView({ plan, loading = false, error = '' }) {
-  const slots = buildWeekSlots(plan)
+const placeholderSlots = (plan, loading, error) => buildWeekSlots(plan).map(({ index, date }) => ({
+  date,
+  lifecycle: 'empty',
+  intent: null,
+  label: null,
+  durationMinutes: null,
+  sequencePosition: null,
+  sequenceLength: null,
+  highNeural: false,
+  exercises: [],
+  decisionReasons: [],
+  placeholder: loading ? 'SYNCING DAY SLOT' : error ? 'PLAN DATA UNAVAILABLE' : 'NO SESSION ASSIGNED',
+  index,
+}))
+
+export default function TrainingWeekView({
+  plan,
+  loading = false,
+  error = '',
+  todayIso = currentIsoDate(),
+}) {
+  const presentation = buildHybridWeekPresentation(plan, todayIso)
+  const slots = presentation.slots.length
+    ? presentation.slots
+    : placeholderSlots(plan, loading, error)
   const viewState = getTrainingViewState({ loading, error, hasData: Boolean(plan) })
-  const planValidation = getValidationPresentation(plan?.validations)
+  const today = presentation.today
+  const legacyPlan = presentation.slots.length > 0 &&
+    presentation.slots.every(slot => slot.intent === null) &&
+    plan?.planner_version !== 'adaptive-v2'
 
   return (
     <div className="training-week-view">
@@ -100,48 +138,116 @@ export default function TrainingWeekView({ plan, loading = false, error = '' }) 
         <div className={viewState.className} role={viewState.role}>NO ACTIVE PLAN</div>
       )}
 
-      <div className="training-week-scroll" tabIndex={0} aria-label="Seven-day training plan">
-        <div className="training-week-grid">
-          {slots.map(({ index, date, day }) => {
-            const changed = Boolean(day?.change_reason)
-            const exercises = Array.isArray(day?.exercises) ? day.exercises : []
-            return (
-              <article
-                key={date || `training-day-${index}`}
-                className={`training-week-day${changed ? ` changed ${planValidation.tone}` : ''}${day ? '' : ' empty'}`}
-              >
-                <header>
-                  <div>
-                    <span>{displayDate(date, DAY_FORMAT, `DAY ${String(index + 1).padStart(2, '0')}`)}</span>
-                    <time dateTime={date || undefined}>{displayDate(date, DATE_FORMAT, loading ? 'SYNC' : 'OPEN')}</time>
-                  </div>
-                  {changed && <b className="training-change-marker">CHANGED</b>}
-                </header>
-
-                {day ? (
-                  <>
-                    <div className="training-session-type">{labelize(day.session_type || 'session')}</div>
-                    <h3>{labelize(day.objective || 'objective pending')}</h3>
-                    <div className="training-day-duration">
-                      <span>DURATION</span>
-                      <strong>{Number.isFinite(day.estimated_minutes) ? `${day.estimated_minutes} MIN` : 'UNSET'}</strong>
-                    </div>
-                    <ul className="training-day-exercises" aria-label="Session movements">
-                      {exercises.length > 0
-                        ? exercises.slice(0, 3).map((exercise, exerciseIndex) => (
-                          <li key={`${exercise?.name || 'movement'}-${exerciseIndex}`}>{labelize(exercise?.name || 'movement')}</li>
-                        ))
-                        : <li>NO LOADED MOVEMENTS</li>}
-                    </ul>
-                    {changed && <p className="training-change-reason">{day.change_reason}</p>}
-                  </>
-                ) : (
-                  <div className="training-day-empty">{loading ? 'SYNCING DAY SLOT' : error ? 'PLAN DATA UNAVAILABLE' : 'NO SESSION ASSIGNED'}</div>
-                )}
-              </article>
-            )
-          })}
+      <section aria-labelledby="training-hybrid-sequence-title">
+        <div className="training-section-heading">
+          <span id="training-hybrid-sequence-title">ACTIVE SEQUENCE</span>
+          <b>{legacyPlan ? 'LEGACY PLAN' : '06 SESSIONS // 01 RECOVERY'}</b>
         </div>
+        <div className="training-week-scroll" tabIndex={0} aria-label="Seven-day training plan">
+          <div className="training-hybrid-sequence training-week-grid">
+            {slots.map((slot, index) => {
+              const isToday = slot.date === todayIso
+              const slotTitle = slot.lifecycle === 'recovery'
+                ? 'RECOVERY'
+                : slot.label || 'SESSION IDENTITY UNVERIFIED'
+              return (
+                <article
+                  key={slot.date || `training-day-${index}`}
+                  className={[
+                    'training-hybrid-slot',
+                    'training-week-day',
+                    slot.lifecycle,
+                    isToday ? 'current' : '',
+                    slot.highNeural ? 'high-neural' : '',
+                  ].filter(Boolean).join(' ')}
+                >
+                  <header>
+                    <div>
+                      <span>{displayDate(slot.date, DAY_FORMAT, `DAY ${String(index + 1).padStart(2, '0')}`)}</span>
+                      <time dateTime={slot.date || undefined}>
+                        {displayDate(slot.date, DATE_FORMAT, loading ? 'SYNC' : 'OPEN')}
+                      </time>
+                    </div>
+                    <b className="training-change-marker">{labelize(slot.lifecycle)}</b>
+                  </header>
+
+                  {slot.lifecycle === 'empty' ? (
+                    <div className="training-day-empty">{slot.placeholder}</div>
+                  ) : (
+                    <>
+                      <div className="training-session-type">
+                        {slot.sequencePosition === null
+                          ? slot.lifecycle === 'recovery' ? 'PHOENIX PLACED' : 'SEQUENCE UNVERIFIED'
+                          : `SEQUENCE ${String(slot.sequencePosition).padStart(2, '0')} / ${String(slot.sequenceLength || 6).padStart(2, '0')}`}
+                      </div>
+                      <h3>{slotTitle}</h3>
+                      <div className="training-day-duration">
+                        <span>DURATION</span>
+                        <strong>{Number.isFinite(slot.durationMinutes) ? `${slot.durationMinutes} MIN` : 'UNSET'}</strong>
+                      </div>
+                      <div className="training-day-empty">
+                        {slot.highNeural ? 'HIGH NEURAL' : slot.decisionReasons[0] ? labelize(slot.decisionReasons[0]) : 'RECEIPT VERIFIED'}
+                      </div>
+                    </>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      <div className="training-hybrid-detail">
+        <section className="training-hybrid-mission" aria-labelledby="training-hybrid-mission-title">
+          <div className="training-section-heading">
+            <span id="training-hybrid-mission-title">TODAY'S MISSION</span>
+            <b>
+              {today?.sequencePosition
+                ? `${String(today.sequencePosition).padStart(2, '0')} / ${String(today.sequenceLength || 6).padStart(2, '0')}`
+                : today?.lifecycle === 'recovery' ? 'RECOVERY' : 'UNVERIFIED'}
+            </b>
+          </div>
+          <h3>
+            {today?.lifecycle === 'recovery'
+              ? 'RECOVERY'
+              : today?.label || 'SESSION IDENTITY UNVERIFIED'}
+          </h3>
+          <p>
+            {today
+              ? Number.isFinite(today.durationMinutes) ? `${today.durationMinutes} MINUTES // RECEIPT AUTHORITY` : 'DURATION UNSET'
+              : 'NO SESSION SCHEDULED TODAY'}
+          </p>
+          <ol className="training-day-exercises" aria-label="Today's authoritative movements">
+            {today?.exercises.length > 0
+              ? today.exercises.map((exercise, index) => (
+                <li key={`${exercise?.name || 'movement'}-${index}`}>
+                  <b>{String(index + 1).padStart(2, '0')}</b>
+                  <span>{labelize(exercise?.name || 'movement')}</span>
+                  <strong>{exerciseTarget(exercise)}</strong>
+                </li>
+              ))
+              : <li>{today?.lifecycle === 'recovery' ? 'RECOVERY DAY // NO LOADED MOVEMENTS' : 'NO LOADED MOVEMENTS'}</li>}
+          </ol>
+        </section>
+
+        <section className="training-hybrid-decisions" aria-labelledby="training-hybrid-decisions-title">
+          <div className="training-section-heading">
+            <span id="training-hybrid-decisions-title">PHOENIX DECISION</span>
+            <b>{presentation.decisions.length ? 'RECEIPT EVIDENCE' : 'WITHHELD'}</b>
+          </div>
+          {presentation.decisions.length > 0 ? (
+            <dl>
+              {presentation.decisions.map(decision => (
+                <div key={decision.code}>
+                  <dt>{decision.label}</dt>
+                  <dd>{decision.code}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p>NO VERIFIED DECISION EVIDENCE</p>
+          )}
+        </section>
       </div>
 
       <ValidationSummary validations={plan?.validations} />

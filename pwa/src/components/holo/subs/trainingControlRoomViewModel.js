@@ -178,4 +178,5 @@ export function getTrainingTabIndex(tab) {
   return index >= 0 ? index : 0
 }
 
+export { buildHybridWeekPresentation } from './trainingHybridWeekViewModel.js'
 export { WEEK_CELL_COUNT }

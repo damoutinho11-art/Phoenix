@@ -266,6 +266,41 @@ test('components wire behavioral helpers and the Task 9 adaptation view', () => 
   assert.doesNotMatch(room, /postTrainingPlanProposal|applyTrainingPlanProposal|rejectTrainingPlanProposal/)
 })
 
+test('week view presents the authoritative hybrid hierarchy without inferred session labels', () => {
+  const week = readSource('./TrainingWeekView.jsx')
+  const sequence = week.indexOf('ACTIVE SEQUENCE')
+  const mission = week.indexOf("TODAY'S MISSION")
+  const decision = week.indexOf('PHOENIX DECISION')
+  const validation = week.lastIndexOf('<ValidationSummary')
+
+  assert.match(week, /buildHybridWeekPresentation/)
+  assert.ok(sequence >= 0, 'active sequence heading must be rendered')
+  assert.ok(mission > sequence, 'today mission must follow the sequence rail')
+  assert.ok(decision > mission, 'Phoenix decision must follow today mission')
+  assert.ok(validation > decision, 'existing validation summary must remain last')
+  assert.match(week, /training-hybrid-sequence/)
+  assert.match(week, /training-hybrid-slot/)
+  assert.match(week, /training-hybrid-detail/)
+  assert.match(week, /training-hybrid-mission/)
+  assert.match(week, /training-hybrid-decisions/)
+  assert.match(week, /slot\.label \|\| 'SESSION IDENTITY UNVERIFIED'/)
+  assert.doesNotMatch(week, /session_intent\s*\|\||sequencePosition.*PUSH|sequence_position.*PUSH/)
+})
+
+test('week view preserves loading error empty legacy and semantic section behavior', () => {
+  const week = readSource('./TrainingWeekView.jsx')
+
+  assert.match(week, /getTrainingViewState/)
+  assert.match(week, /viewState\.kind === 'empty'/)
+  assert.match(week, /loading \? 'SYNCING DAY SLOT'/)
+  assert.match(week, /error \? 'PLAN DATA UNAVAILABLE'/)
+  assert.match(week, /LEGACY PLAN/)
+  assert.match(week, /aria-labelledby="training-hybrid-sequence-title"/)
+  assert.match(week, /aria-labelledby="training-hybrid-mission-title"/)
+  assert.match(week, /aria-labelledby="training-hybrid-decisions-title"/)
+  assert.match(week, /tabIndex=\{0\}/)
+})
+
 test('dialog source wires focus containment scroll lock escape and focus restoration', () => {
   const room = readSource('./TrainingControlRoom.jsx')
 
