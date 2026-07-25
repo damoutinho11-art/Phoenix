@@ -74,3 +74,34 @@ misleading peak labels, and out-of-order linked completions.
   - `452 passed, 3 subtests passed`
 - `git diff --check`
   - passed
+
+## Recovery Causality Review Fix
+
+The remaining recovery-placement issue is fixed with one-factor
+counterfactuals:
+
+- Calendar proof preserves readiness and sequence state, removes only in-week
+  hard calendar evidence, and requires the placed recovery date to change.
+- Readiness proof preserves calendar and sequence state, removes only readiness,
+  and requires the placed recovery date to change.
+- Sequence proof requires linked completion advancement, preserves calendar and
+  readiness, resets only the sequence cursor/source, and requires the placed
+  recovery date to change.
+- Every path still requires a real placed-recovery output and valid high-neural
+  spacing.
+
+Adversarial coverage now includes a synthetic cursor combined with an unrelated
+informational event in 2099 and a synthetic cursor combined with unrelated
+fatigue data. Positive isolated calendar and linked-sequence cases remain
+accepted.
+
+### Recovery Causality Verification
+
+- Focused:
+  `python -m pytest jarvis/domains/training/tests/test_plan_acceptance.py jarvis/api/tests/test_training_plan_routes.py -q`
+  - `120 passed`
+- Broad:
+  `python -m pytest jarvis/domains/training/tests jarvis/api/tests/test_training_plan_routes.py jarvis/api/tests/test_training_tracker.py jarvis/data/tests/test_database.py -q`
+  - `456 passed, 3 subtests passed`
+- `git diff --check`
+  - passed

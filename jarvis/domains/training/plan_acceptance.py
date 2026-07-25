@@ -438,9 +438,79 @@ def _completion_advance_is_proven(receipt: WeeklyPlanReceipt) -> bool:
     return cursor == latest_position % len(HYBRID_SEQUENCE) + 1
 
 
+def _evidence_event_date(event: Mapping[str, Any]) -> date | None:
+    value = event.get("training_date", event.get("date"))
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
 def _recovery_placement_is_proven(receipt: WeeklyPlanReceipt) -> bool:
     inputs = receipt.replay_inputs
-    observed_dates = {
+    observed_dates = _placed_recovery_dates(receipt)
+    if not observed_dates or not _has_minimum_recovery_spacing(receipt):
+        return False
+
+    week_dates = {day.date for day in receipt.days}
+    relevant_calendar_events = tuple(
+        event
+        for event in inputs.snapshot.calendar_events
+        if _evidence_event_date(event) in week_dates
+        and (
+            str(event.get("severity", "")).casefold() == "hard"
+            or event.get("hard_conflict") is True
+        )
+    )
+    calendar_proven = False
+    if relevant_calendar_events:
+        remaining_events = tuple(
+            event
+            for event in inputs.snapshot.calendar_events
+            if event not in relevant_calendar_events
+        )
+        calendar_proven = observed_dates != _placed_recovery_dates(
+            _baseline(
+                receipt,
+                snapshot=replace(
+                    inputs.snapshot,
+                    calendar_events=remaining_events,
+                ),
+                constraints=inputs.constraints,
+            )
+        )
+
+    readiness_proven = False
+    if inputs.snapshot.readiness:
+        readiness_proven = observed_dates != _placed_recovery_dates(
+            _baseline(
+                receipt,
+                snapshot=replace(inputs.snapshot, readiness=None),
+                constraints=inputs.constraints,
+            )
+        )
+
+    sequence_proven = False
+    if _completion_advance_is_proven(receipt):
+        sequence_proven = observed_dates != _placed_recovery_dates(
+            _baseline(
+                receipt,
+                snapshot=replace(
+                    inputs.snapshot,
+                    sequence_cursor=1,
+                    sequence_source_plan_id=None,
+                ),
+                constraints=inputs.constraints,
+            )
+        )
+
+    return calendar_proven or readiness_proven or sequence_proven
+
+
+def _placed_recovery_dates(receipt: WeeklyPlanReceipt) -> set[date]:
+    return {
         day.date
         for day in receipt.days
         if day.session_type == "recovery"
@@ -449,41 +519,6 @@ def _recovery_placement_is_proven(receipt: WeeklyPlanReceipt) -> bool:
             for reason in day.decision_reasons
         )
     }
-    if not observed_dates or not _has_minimum_recovery_spacing(receipt):
-        return False
-
-    sequence_evidence = _completion_advance_is_proven(receipt)
-    causal_input = bool(
-        inputs.snapshot.calendar_events
-        or inputs.snapshot.readiness
-        or sequence_evidence
-    )
-    if not causal_input:
-        return False
-
-    neutral_snapshot = replace(
-        inputs.snapshot,
-        readiness=None,
-        calendar_events=(),
-        safety_blocks=(),
-        sequence_cursor=1,
-        sequence_source_plan_id=None,
-    )
-    neutral = _baseline(
-        receipt,
-        snapshot=neutral_snapshot,
-        constraints=inputs.constraints,
-    )
-    neutral_dates = {
-        day.date
-        for day in neutral.days
-        if day.session_type == "recovery"
-        and any(
-            reason.startswith("recovery_placed:")
-            for reason in day.decision_reasons
-        )
-    }
-    return observed_dates != neutral_dates
 
 
 def _peak_phase_is_proven(receipt: WeeklyPlanReceipt) -> bool:

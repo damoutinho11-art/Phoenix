@@ -403,6 +403,75 @@ def test_ordinary_recovery_annotation_cannot_grant_recovery_placement(
     assert "recovery_placement" not in categories
 
 
+def test_synthetic_cursor_and_unrelated_calendar_cannot_grant_recovery_placement(
+    training_constitution,
+):
+    synthetic = generate_weekly_plan(
+        training_constitution,
+        _snapshot(
+            date(2026, 7, 20),
+            calendar_events=(
+                {
+                    "event_type": "information",
+                    "date": "2099-01-01",
+                    "severity": "info",
+                },
+            ),
+            sequence_cursor=2,
+            sequence_source_plan_id="synthetic-active-plan",
+        ),
+    )
+
+    categories = acceptance_module._infer_fixture_categories(synthetic)
+
+    assert "recovery_placement" not in categories
+
+
+def test_synthetic_cursor_and_unrelated_readiness_cannot_grant_recovery_placement(
+    training_constitution,
+):
+    synthetic = generate_weekly_plan(
+        training_constitution,
+        _snapshot(
+            date(2026, 7, 20),
+            readiness={"fatigue_score": 9},
+            sequence_cursor=2,
+            sequence_source_plan_id="synthetic-active-plan",
+        ),
+    )
+
+    categories = acceptance_module._infer_fixture_categories(synthetic)
+
+    assert "recovery_placement" not in categories
+
+
+def test_calendar_alone_can_prove_moved_recovery_placement(training_constitution):
+    calendar_receipt = _scenario_receipt(
+        training_constitution,
+        "recovery_placement",
+        date(2026, 7, 13),
+    )
+
+    categories = acceptance_module._infer_fixture_categories(calendar_receipt)
+
+    assert "recovery_placement" in categories
+
+
+def test_linked_sequence_advance_alone_can_prove_moved_recovery_placement(
+    training_constitution,
+):
+    sequence_receipt = _scenario_receipt(
+        training_constitution,
+        "completion_advance",
+        date(2026, 9, 7),
+    )
+
+    categories = acceptance_module._infer_fixture_categories(sequence_receipt)
+
+    assert "completion_advance" in categories
+    assert "recovery_placement" in categories
+
+
 def test_synthetic_cursor_without_linked_completion_cannot_grant_advance(
     training_constitution,
 ):
