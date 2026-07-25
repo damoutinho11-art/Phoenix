@@ -151,6 +151,27 @@ def test_progression_uses_existing_session_history():
     assert snapshot.progression["Bench Press"]["suggested_kg"] == 62.5
 
 
+def test_legacy_progression_increases_without_rpe():
+    session = logged_bench_session(reps=5, target=5, weight=60)
+    del session["completion_evidence"]
+
+    snapshot = build_planning_snapshot(
+        week_start=date(2026, 7, 20),
+        created_at="2026-07-20T06:00:00Z",
+        sessions=[session],
+        readiness=None,
+        calendar_events=[],
+        equipment=["barbell", "bench"],
+        preferences={},
+    )
+
+    assert snapshot.progression["Bench Press"] == {
+        "suggested_kg": 62.5,
+        "basis": "All sets hit target reps; add 2.5kg.",
+        "deload": False,
+    }
+
+
 def test_snapshot_normalizes_collections_deterministically():
     snapshot = build_planning_snapshot(
         week_start=date(2026, 7, 20),
@@ -354,6 +375,73 @@ def test_progression_rejects_invalid_rpe(rpe):
     suggestion = snapshot.progression["Bench Press"]
     assert suggestion["suggested_kg"] == 60
     assert suggestion["action"] == "hold_or_reduce"
+    assert suggestion["reason"] == "invalid_evidence"
+
+
+def test_hybrid_progression_rejects_missing_rpe():
+    session = completed_hybrid_session()
+    del session["completion_evidence"]["rpe"]
+
+    snapshot = build_planning_snapshot(
+        week_start=date(2026, 7, 27),
+        created_at="2026-07-27T06:00:00Z",
+        sessions=[session],
+        readiness=None,
+        calendar_events=[],
+        equipment=[],
+        preferences={},
+    )
+
+    suggestion = snapshot.progression["Bench Press"]
+    assert suggestion["suggested_kg"] == 60
+    assert suggestion["reason"] == "invalid_evidence"
+
+
+@pytest.mark.parametrize(
+    "claim",
+    (
+        {"plan_provenance": {"plan_id": "partial-plan"}},
+        {"session_intent": "pull_strength"},
+        {"sequence_position": 2},
+    ),
+)
+def test_partial_plan_or_hybrid_claim_fails_closed(claim):
+    session = logged_bench_session(reps=5, target=5, weight=60)
+    del session["completion_evidence"]
+    session.update(claim)
+
+    snapshot = build_planning_snapshot(
+        week_start=date(2026, 7, 27),
+        created_at="2026-07-27T06:00:00Z",
+        sessions=[session],
+        readiness=None,
+        calendar_events=[],
+        equipment=[],
+        preferences={},
+    )
+
+    suggestion = snapshot.progression["Bench Press"]
+    assert suggestion["suggested_kg"] == 60
+    assert suggestion["reason"] == "invalid_evidence"
+
+
+@pytest.mark.parametrize("actual_reps", (-1, float("nan"), float("inf"), True))
+def test_progression_rejects_invalid_actual_reps(actual_reps):
+    session = completed_hybrid_session()
+    session["exercises"][0]["sets"][0]["reps"] = actual_reps
+
+    snapshot = build_planning_snapshot(
+        week_start=date(2026, 7, 27),
+        created_at="2026-07-27T06:00:00Z",
+        sessions=[session],
+        readiness=None,
+        calendar_events=[],
+        equipment=[],
+        preferences={},
+    )
+
+    suggestion = snapshot.progression["Bench Press"]
+    assert suggestion["suggested_kg"] == 60
     assert suggestion["reason"] == "invalid_evidence"
 
 

@@ -293,3 +293,130 @@ or engine test failed.
 The only remaining gate is Task 6: 30 legacy v1 acceptance/version failures in
 `test_plan_acceptance.py`, plus the five corresponding mixed API route
 expectations intentionally excluded above.
+
+## Progression Compatibility Corrections
+
+### Scope
+
+The final Task 4 corrections distinguish genuine legacy progression evidence
+from authoritative or malformed plan-linked evidence and accept zero actual
+repetitions as a valid missed set.
+
+Correction files:
+
+- `jarvis/domains/training/progression.py`
+- `jarvis/domains/training/tests/test_plan_evidence.py`
+- `jarvis/api/tests/test_training_tracker.py`
+- `.superpowers/sdd/hybrid-task-4-report.md`
+
+No Task 6 acceptance file, constant, or fixture was changed. The pre-existing
+`jarvis/domains/finance/portfolio_state.json` change was not edited, staged, or
+reverted.
+
+### Progression RED
+
+Focused adaptive planner and plan evidence after adding the legacy
+compatibility regression:
+
+```text
+python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py jarvis/domains/training/tests/test_plan_evidence.py -q
+```
+
+```text
+1 failed, 77 passed in 0.41s
+```
+
+The RPE-free legacy session incorrectly held load as `invalid_evidence`.
+
+Tracker regression set, including the new zero-repetition case:
+
+```text
+python -m pytest jarvis/api/tests/test_training_tracker.py -q
+```
+
+```text
+4 failed, 13 passed in 5.46s
+```
+
+The failures were legacy history increase, direct legacy increase, established
+two-miss deload behavior, and zero-repetition two-miss deload behavior.
+
+### Progression GREEN
+
+Focused progression, plan evidence, and adaptive planner:
+
+```text
+python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py jarvis/domains/training/tests/test_plan_evidence.py -q
+```
+
+```text
+80 passed in 0.38s
+```
+
+Training tracker:
+
+```text
+python -m pytest jarvis/api/tests/test_training_tracker.py -q
+```
+
+```text
+17 passed in 5.24s
+```
+
+All Training-domain tests excluding Task 6 acceptance:
+
+```text
+python -m pytest jarvis/domains/training/tests --ignore=jarvis/domains/training/tests/test_plan_acceptance.py -q
+```
+
+```text
+257 passed in 2.27s
+```
+
+Relevant API route selection:
+
+```text
+python -m pytest jarvis/api/tests/test_training_plan_routes.py -q -k "not test_proposal_passes_latest_import_to_real_resolver_and_uses_its_performance_events and not test_history_and_rules_return_readable_detail and not test_rules_whitelist_excludes_private_policy_fields and not test_live_generated_proposals_are_authoritative_after_runtime_replay and not test_live_apply_replays_generated_proposal_without_exact_allowlist"
+```
+
+```text
+70 passed, 5 deselected in 16.63s
+```
+
+Full Training suite:
+
+```text
+python -m pytest jarvis/domains/training/tests -q
+```
+
+```text
+30 failed, 263 passed in 4.25s
+```
+
+All 30 failures remain confined to
+`jarvis/domains/training/tests/test_plan_acceptance.py` and are the Task
+6-owned legacy v1 acceptance/version expectations.
+
+### Progression Self-Review
+
+- Confirmed sessions with no plan or hybrid claim retain the established
+  legacy progression behavior and response shape without requiring RPE.
+- Confirmed complete nested plan provenance classifies a session as
+  authoritative and requires finite RPE in `1..10`.
+- Confirmed any hybrid claim requires complete provenance and a complete,
+  internally consistent intent/position/sequence tuple.
+- Confirmed partial nested provenance, lone hybrid intent, and lone sequence
+  position fail closed instead of falling through to legacy behavior.
+- Confirmed target repetitions remain finite and positive while actual
+  repetitions are finite and nonnegative.
+- Confirmed booleans, negative values, NaN, and infinity are invalid actual
+  repetitions.
+- Confirmed two valid zero-repetition legacy misses retain the established
+  two-session deload result.
+- Confirmed pain remains the highest-precedence progression decision.
+
+### Progression Concern
+
+The only remaining concern is the unchanged Task 6 acceptance/version gate:
+30 failures in `test_plan_acceptance.py` and the five corresponding mixed API
+route cases excluded by the exact selector above.

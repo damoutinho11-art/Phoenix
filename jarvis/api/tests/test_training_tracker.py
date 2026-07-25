@@ -361,3 +361,22 @@ class TrainingTrackerTests(unittest.TestCase):
         assert suggestions["Back Squat"]["deload"] is True
         assert "2 consecutive sessions" in suggestions["Back Squat"]["basis"]
 
+    def test_zero_rep_misses_trigger_deload(self):
+        suggestions = calculate_progression([
+            {
+                "id": 2,
+                "date": "2026-06-22",
+                "session_type": "Lower",
+                "exercises": [_exercise(reps=0, weight_kg=100, name="Back Squat")],
+            },
+            {
+                "id": 1,
+                "date": "2026-06-15",
+                "session_type": "Lower",
+                "exercises": [_exercise(reps=0, weight_kg=100, name="Back Squat")],
+            },
+        ])
+
+        assert suggestions["Back Squat"]["suggested_kg"] == 100
+        assert suggestions["Back Squat"]["deload"] is True
+        assert "2 consecutive sessions" in suggestions["Back Squat"]["basis"]
