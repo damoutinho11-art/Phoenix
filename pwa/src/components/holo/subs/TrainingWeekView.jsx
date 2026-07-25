@@ -169,6 +169,9 @@ export default function TrainingWeekView({
                     isToday ? 'current' : '',
                     slot.highNeural ? 'high-neural' : '',
                   ].filter(Boolean).join(' ')}
+                  tabIndex={0}
+                  aria-current={isToday ? 'date' : undefined}
+                  aria-label={`${displayDate(slot.date, DAY_FORMAT, `Day ${index + 1}`)} · ${slotTitle} · ${labelize(slot.lifecycle)}`}
                 >
                   <header>
                     <div>

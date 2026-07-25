@@ -409,11 +409,11 @@ test('hybrid Training surfaces use restrained orange stable responsive geometry'
   )
   assert.match(
     trainingCss,
-    /@media\s*\(max-width:\s*760px\)[\s\S]*\.training-hybrid-sequence\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.training-hybrid-sequence\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
   )
   assert.match(
     trainingCss,
-    /@media\s*\(max-width:\s*760px\)[\s\S]*\.training-hybrid-detail\s*\{[^}]*grid-template-columns:\s*1fr/,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.training-hybrid-detail\s*\{[^}]*grid-template-columns:\s*1fr/,
   )
   assert.match(trainingCss, /\.training-hybrid-slot:focus-visible/)
   assert.match(
@@ -422,4 +422,36 @@ test('hybrid Training surfaces use restrained orange stable responsive geometry'
   )
   assert.match(trainingCss, /\.training-session-layout\s*\{[^}]*display:\s*grid/s)
   assert.doesNotMatch(trainingCss, /border-radius:\s*(?:[1-9]\d|[2-9]\d*)px/)
+})
+
+
+test('hybrid slots and every live-session control expose reachable orange keyboard focus', () => {
+  const week = readSource('./TrainingWeekView.jsx')
+  const css = readSource('../holo.css')
+
+  assert.match(week, /className=\{\[[\s\S]*'training-hybrid-slot'[\s\S]*tabIndex=\{0\}/)
+  assert.match(week, /aria-current=\{isToday \? 'date' : undefined\}/)
+  assert.match(
+    css,
+    /\.holo-scope-training\s+:is\(button,\s*input,\s*textarea,\s*select\):focus-visible\s*\{[^}]*outline:\s*2px solid[^}]*var\(--phx-accent\)/s,
+  )
+})
+
+
+test('hybrid detail and active session collapse before the 761 to 820 pixel overflow band', () => {
+  const css = readSource('../holo.css')
+  const trainingCss = css.slice(css.indexOf('/* Training Control Room'))
+
+  assert.match(
+    trainingCss,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.training-hybrid-sequence\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+  )
+  assert.match(
+    trainingCss,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.training-hybrid-detail\s*\{[^}]*grid-template-columns:\s*1fr/,
+  )
+  assert.match(
+    trainingCss,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.training-session-layout\s*\{[^}]*grid-template-columns:\s*1fr/,
+  )
 })

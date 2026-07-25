@@ -164,3 +164,27 @@ test('Training live does not infer hybrid identity when receipt fields are absen
   assert.doesNotMatch(partialDomain.heroBrief, /LOWER POWER|SEQUENCE/)
   assert.equal(partialDomain.panels[0].meta, 'HIGH INTENSITY')
 })
+
+
+test('Training live fails closed when status and routed provenance differ', () => {
+  for (const planProvenance of [
+    { plan_id: 'p2', receipt_hash: 'h1', date: '2026-07-20' },
+    { plan_id: 'p1', receipt_hash: 'h2', date: '2026-07-20' },
+    { plan_id: 'p1', date: '2026-07-20' },
+  ]) {
+    const model = normalizeTrainingLive({
+      status,
+      routed: { ...routed, plan_provenance: planProvenance },
+      history: { sessions: [] },
+      loading: false,
+      error: null,
+    })
+    const domain = buildTrainingDomain(baseDomain(), model)
+
+    assert.equal(model.state, 'unavailable')
+    assert.equal(model.routed, null)
+    assert.match(model.message, /PLAN PROVENANCE/i)
+    assert.doesNotMatch(JSON.stringify(domain), /LOWER POWER|SEQUENCE/)
+    assert.equal(domain.heroActions[0].sub, 'training-room')
+  }
+})

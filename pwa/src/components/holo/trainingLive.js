@@ -13,12 +13,53 @@ const title = value => String(value || '').replaceAll('_', ' ')
 const upper = value => title(value).toUpperCase()
 const pct = value => `${Math.max(0, Math.min(100, Number(value) || 0))}%`
 
+const completeProvenance = value => (
+  typeof value?.plan_id === 'string'
+  && value.plan_id.length > 0
+  && typeof value?.receipt_hash === 'string'
+  && value.receipt_hash.length > 0
+)
+
+
+export function hasMatchingTrainingProvenance(status, routed) {
+  const statusProvenance = status?.plan_provenance
+  const routedProvenance = routed?.plan_provenance
+  return Boolean(
+    completeProvenance(statusProvenance)
+    && completeProvenance(routedProvenance)
+    && statusProvenance.plan_id === routedProvenance.plan_id
+    && statusProvenance.receipt_hash === routedProvenance.receipt_hash
+  )
+}
+
+
+export function reconcileTrainingSources({ status, routed, history }) {
+  if (status?.operational_state === 'active_plan' && !hasMatchingTrainingProvenance(status, routed)) {
+    return {
+      status: null,
+      routed: null,
+      history,
+      loading: false,
+      error: 'Training plan provenance changed during refresh',
+    }
+  }
+  return { status, routed, history, loading: false, error: null }
+}
+
+
+export const isCurrentTrainingRequest = (requestId, currentRequestId) => (
+  requestId === currentRequestId
+)
+
 
 export function normalizeTrainingLive({ status, routed, history, loading, error }) {
   if (loading) return { state: 'loading', status, routed, history, message: 'SYNCING TRAINING DATA' }
   if (error || !status) return { state: 'unavailable', status: null, routed: null, history: null, message: 'TRAINING DATA UNAVAILABLE' }
   if (status.operational_state === 'plan_required' || !status.today_session) {
     return { state: 'plan_required', status, routed: null, history, message: 'ACTIVE PLAN REQUIRED' }
+  }
+  if (!hasMatchingTrainingProvenance(status, routed)) {
+    return { state: 'unavailable', status: null, routed: null, history, message: 'PLAN PROVENANCE UNAVAILABLE' }
   }
   if (status.today_session.is_rest) {
     return { state: 'rest', status, routed, history, message: 'RECOVERY DAY' }

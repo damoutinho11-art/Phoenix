@@ -55,3 +55,25 @@ Task 8 changed only its named frontend files and this report. Backend files, Tas
 
 - Browser visual QA is intentionally not claimed here; Task 9 owns the 1440x900 and 390x844 checks.
 - Vite still emits the existing advisory for a minified chunk larger than 500 kB.
+
+## Review Follow-Up
+
+Resolved all three Important review findings in a separate fix commit:
+
+1. Status and routed-session provenance now require the same complete `plan_id` and `receipt_hash` before Training can present or open an authoritative mission. A mismatch clears both sources and renders Training unavailable. Refreshes also carry a monotonic request token, so an older response cannot overwrite a newer snapshot.
+2. Every hybrid week slot is keyboard focusable, identifies today's slot with `aria-current="date"`, and has a descriptive accessible label. Training buttons, inputs, textareas, and selects now receive a clear orange `:focus-visible` outline, border, and restrained halo.
+3. Hybrid WEEK detail and Active Session grids now collapse at `820px`, before their minimum tracks can overflow in the former 761–820px gap. The full Control Room chrome retains its existing 760px compact breakpoint.
+
+TDD evidence:
+
+- The review tests first failed in five expected places: provenance mismatch remained ready, reconciliation/request-order helpers were absent, slots were not focusable, Training controls lacked a general focus contract, and no 820px geometry rule existed.
+- After the boundary fixes, the review-focused suite passed `38/38`.
+
+Fresh verification:
+
+- Review-focused frontend: `38 passed`.
+- Broader Training frontend: `79 passed`.
+- `npm run build`: passed with the existing large-chunk advisory.
+- Scoped `git diff --check`: passed.
+
+No backend or Finance file was edited or staged by this follow-up. Browser QA remains owned by Task 9.

@@ -61,6 +61,13 @@
 /* the composer input focus ring follows the accent */
 .holo-composer:focus { border-color: color-mix(in srgb, var(--phx-accent) 60%, transparent) !important; }
 
+.holo-scope-training :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--phx-accent) 88%, white 12%);
+  outline-offset: 2px;
+  border-color: var(--phx-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--phx-accent) 18%, transparent);
+}
+
 /* Training Control Room */
 .training-control-room-layer {
   --training-accent: var(--phx-accent);
@@ -1020,6 +1027,19 @@
 .training-adapt-commands button { min-width: 118px; }
 .training-adapt-reject { color: var(--phx-muted) !important; }
 
+@media (max-width: 820px) {
+  .training-hybrid-sequence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    min-width: 0;
+  }
+  .training-hybrid-slot { min-height: 154px; }
+  .training-hybrid-detail { grid-template-columns: 1fr; }
+  .training-hybrid-mission .training-day-exercises li { grid-template-columns: 24px minmax(0, 1fr); }
+  .training-hybrid-mission .training-day-exercises strong { grid-column: 2; text-align: left; }
+  .training-session-layout { grid-template-columns: 1fr; gap: 18px; }
+}
+
 @media (max-width: 760px) {
   .training-control-room {
     top: 8px;
@@ -1045,17 +1065,7 @@
   .training-plan-metadata dl div { padding: 8px; }
   .training-week-grid { grid-template-columns: repeat(7, 118px); min-width: 826px; }
   .training-week-day { min-height: 230px; }
-  .training-hybrid-sequence {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    min-width: 0;
-  }
-  .training-hybrid-slot { min-height: 154px; }
-  .training-hybrid-detail { grid-template-columns: 1fr; }
-  .training-hybrid-mission .training-day-exercises li { grid-template-columns: 24px minmax(0, 1fr); }
-  .training-hybrid-mission .training-day-exercises strong { grid-column: 2; text-align: left; }
   .training-session-identity { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .training-session-layout { grid-template-columns: 1fr; gap: 18px; }
   .training-validation-list { grid-template-columns: 1fr; }
   .training-validation-list li { grid-template-columns: 5px minmax(80px, .7fr) minmax(120px, 1.3fr); }
   .training-adapt-quick-form,
