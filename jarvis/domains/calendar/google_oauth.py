@@ -1,10 +1,15 @@
-"""Google OAuth2 boundary for Phoenix's read-only Calendar + Gmail connectors.
+"""Google OAuth2 boundary for Phoenix's read-only Calendar connector.
 
 READ ONLY — DO NOT ADD WRITE SCOPES.
 
-SCOPES is intentionally limited to calendar.readonly and gmail.readonly. Do not
-add calendar.events, gmail.modify, gmail.send, or any other write/mutate scope
-to this module, ever, under any code path, including future ones.
+SCOPES is intentionally limited to calendar.readonly. Do not add
+calendar.events, gmail.modify, gmail.send, or any other write/mutate scope to
+this module, ever, under any code path, including future ones.
+
+gmail.readonly was deliberately removed: it is a Google "restricted" scope,
+which forces the OAuth app to stay unverified/Testing and expires every refresh
+token after seven days. Calendar-only keeps the app publishable so the
+connection survives. Re-adding it would reintroduce the weekly disconnect.
 
 This module never logs a raw access token, refresh token, client_secret, or
 authorization code. Functions here that touch decrypted credentials are meant
@@ -26,7 +31,6 @@ from google_auth_oauthlib.flow import Flow
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 _CLIENT_ID_ENV = "PHOENIX_GOOGLE_CLIENT_ID"
