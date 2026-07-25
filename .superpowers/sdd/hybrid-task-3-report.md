@@ -96,3 +96,75 @@ module and `59 failed, 183 passed in 4.70s` for the broader Training suite.
 
 `git diff --check` and `git diff --cached --check` are clean. The staged set
 contains only the two Task 3 files and this report.
+
+## Review Follow-up Evidence
+
+### Findings Fixed
+
+- Lower Power is now transformed into a dated recovery day in peak and attempt
+  phases, preserving immutable schedule shape and recording
+  `phase_lower_removed:<phase>`.
+- All transformed general days append deterministic
+  `phase_maintenance:<phase>` reasons; peak jump work appends
+  `phase_jump_volume_limited:peak`, and attempt jump work appends
+  `phase_attempt_exposure`.
+- Generated exercises now carry ordered per-block `estimated_minutes` budgets.
+  Each template validates both budget count and sum against its configured
+  session duration before plan construction.
+- Compression sums retained block budgets, removes optional work then the last
+  accessory, reports truthful retained duration, and records
+  `time_compressed:floor_preserved` when the protected 40-minute floor prevents
+  a requested cap.
+
+### RED
+
+```text
+python -m pytest jarvis/domains/training/tests/test_performance_hybrid.py -q
+```
+
+After adding the review regressions:
+
+```text
+11 failed, 19 passed in 0.32s
+```
+
+The failures covered missing block budgets, synthetic compression duration,
+and lower-day removal rather than auditable recovery transformation. A second
+red cycle for the new budget-sum guard produced:
+
+```text
+1 failed, 30 passed in 0.25s
+```
+
+The malformed 64-minute Push Strength budget was accepted until the explicit
+sum validation was restored.
+
+### GREEN
+
+```text
+python -m pytest jarvis/domains/training/tests/test_performance_hybrid.py -q
+```
+
+```text
+36 passed in 0.16s
+```
+
+Coverage now includes all six rotations, calendar precedence, fatigue and
+high-neural ranking, deterministic tie-breaks, all template budgets, count and
+sum validation, removal ordering, truthful retained duration, immutability,
+and exact peak/attempt reasons. Task 2 equipment coverage remains intact.
+
+### Broader Training Verification
+
+```text
+python -m pytest jarvis/domains/training/tests -q
+```
+
+```text
+59 failed, 207 passed in 4.66s
+```
+
+All 59 failures still originate at the deliberate Task 4 boundary:
+`adaptive_planner.generate_weekly_plan` emits `adaptive-v1` for constitution
+v2, which receipt validation rejects. No integration or finance file was
+edited in this follow-up.

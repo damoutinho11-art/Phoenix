@@ -26,10 +26,18 @@ SESSION_TYPE_BY_INTENT = {
 _SESSION_MINUTES = {
     "push_strength": 65,
     "pull_strength": 65,
-    "lower_power": 75,
+    "lower_power": 70,
     "push_volume": 70,
     "pull_volume": 70,
     "jump_elastic": 60,
+}
+_SESSION_BLOCK_MINUTES = {
+    "push_strength": (22, 18, 10, 15),
+    "pull_strength": (20, 22, 8, 15),
+    "lower_power": (8, 15, 20, 17, 10),
+    "push_volume": (20, 15, 12, 10, 13),
+    "pull_volume": (20, 18, 12, 10, 10),
+    "jump_elastic": (10, 10, 15, 25),
 }
 _REQUIRED_FAMILIES = frozenset({"knee_isometric", "dynamic_warmup", "sprint_mechanics"})
 _OPTIONAL_FAMILIES = frozenset({"triceps", "biceps"})
@@ -56,7 +64,6 @@ _PRESCRIPTION_BY_FAMILY = {
     "approach_jump": (5, 3),
 }
 REMOVAL_ORDER = ("optional", "accessory")
-_MINUTES_PER_EXERCISE = 15
 
 
 def rotate_sequence(sequence: tuple[str, ...], cursor: int) -> tuple[str, ...]:
@@ -177,7 +184,7 @@ def place_recovery(
 
 
 def estimate_minutes(exercises) -> int:
-    return len(exercises) * _MINUTES_PER_EXERCISE
+    return sum(item["estimated_minutes"] for item in exercises)
 
 
 def last_index(items, predicate) -> int | None:
@@ -189,17 +196,30 @@ def last_index(items, predicate) -> int | None:
 
 def compress_session(day: PlanDay, minutes: int) -> PlanDay:
     exercises = list(day.exercises)
+    floor_preserved = False
     for priority in REMOVAL_ORDER:
         while estimate_minutes(exercises) > minutes:
             index = last_index(exercises, lambda item: item["priority"] == priority)
             if index is None:
                 break
+            if estimate_minutes(exercises) - exercises[index]["estimated_minutes"] < 40:
+                floor_preserved = True
+                break
             exercises.pop(index)
+        if floor_preserved or estimate_minutes(exercises) <= minutes:
+            break
+    estimated_minutes = estimate_minutes(exercises)
+    floor_preserved = floor_preserved or estimated_minutes > minutes
     return replace(
         day,
         exercises=tuple(exercises),
-        estimated_minutes=max(40, min(minutes, estimate_minutes(exercises))),
-        decision_reasons=(*day.decision_reasons, "time_compressed"),
+        estimated_minutes=estimated_minutes,
+        decision_reasons=(
+            *day.decision_reasons,
+            "time_compressed:floor_preserved"
+            if estimated_minutes > minutes
+            else "time_compressed",
+        ),
     )
 
 
@@ -212,16 +232,30 @@ def _attempt_jump_session(day: PlanDay) -> PlanDay:
     return replace(
         day,
         exercises=exercises,
-        estimated_minutes=min(30, estimate_minutes(exercises)),
-        decision_reasons=(*day.decision_reasons, "phase_attempt"),
+        estimated_minutes=estimate_minutes(exercises),
+        decision_reasons=(*day.decision_reasons, "phase_attempt_exposure"),
     )
 
 
-def _compress_attempt_general_session(day: PlanDay) -> PlanDay:
-    compressed = compress_session(day, 40)
+def _with_phase_reason(day: PlanDay, reason: str) -> PlanDay:
     return replace(
-        compressed,
-        estimated_minutes=min(30, estimate_minutes(compressed.exercises)),
+        day,
+        decision_reasons=(*day.decision_reasons, reason),
+    )
+
+
+def _recovery_from_lower(day: PlanDay, phase: str) -> PlanDay:
+    return replace(
+        day,
+        session_type="recovery",
+        objective="recovery",
+        exercises=(),
+        estimated_minutes=0,
+        session_intent=None,
+        sequence_position=None,
+        sequence_length=None,
+        high_neural=False,
+        decision_reasons=(*day.decision_reasons, f"phase_lower_removed:{phase}"),
     )
 
 
@@ -233,18 +267,29 @@ def apply_phase_rules(
         return tuple(days)
 
     transformed = tuple(
-        day for day in days if day.session_intent != "lower_power"
+        _recovery_from_lower(day, phase)
+        if day.session_intent == "lower_power"
+        else day
+        for day in days
     )
     if phase == "peak":
         return tuple(
-            compress_session(day, 45) if day.session_type == "general" else day
+            _with_phase_reason(compress_session(day, 45), "phase_maintenance:peak")
+            if day.session_type == "general"
+            else _with_phase_reason(
+                compress_session(day, 45), "phase_jump_volume_limited:peak"
+            )
+            if day.session_intent == "jump_elastic"
+            else day
             for day in transformed
         )
 
     return tuple(
         _attempt_jump_session(day)
         if day.session_intent == "jump_elastic"
-        else _compress_attempt_general_session(day)
+        else _with_phase_reason(
+            compress_session(day, 30), "phase_maintenance:attempt"
+        )
         if day.session_type == "general"
         else day
         for day in transformed
@@ -261,7 +306,12 @@ def _priority_for(family: str) -> str:
     return "accessory"
 
 
-def _exercise_payload(name: str, family: str, equipment: Mapping[str, Any]) -> dict[str, Any]:
+def _exercise_payload(
+    name: str,
+    family: str,
+    equipment: Mapping[str, Any],
+    estimated_minutes: int,
+) -> dict[str, Any]:
     priority = _priority_for(family)
     sets, reps = _PRESCRIPTION_BY_FAMILY.get(family, (3, 8 if priority == "primary" else 12))
     return {
@@ -271,6 +321,7 @@ def _exercise_payload(name: str, family: str, equipment: Mapping[str, Any]) -> d
         "sets": sets,
         "reps": reps,
         "equipment": tuple(equipment[name]),
+        "estimated_minutes": estimated_minutes,
     }
 
 
@@ -308,6 +359,11 @@ def _build_plan_day(
 
     policy = constitution["adaptive_planner"]
     families = policy["session_templates"][intent]
+    budgets = _SESSION_BLOCK_MINUTES[intent]
+    if len(budgets) != len(families):
+        raise ValueError(f"Session budget count does not match '{intent}' template")
+    if sum(budgets) != _SESSION_MINUTES[intent]:
+        raise ValueError(f"Session budget sum does not match '{intent}' duration")
     exercises = tuple(
         _exercise_payload(
             _first_compatible_exercise(
@@ -318,8 +374,9 @@ def _build_plan_day(
             ),
             family,
             policy["exercise_equipment"],
+            estimated_minutes,
         )
-        for family in families
+        for family, estimated_minutes in zip(families, budgets)
     )
     return PlanDay(
         date=date.min,
