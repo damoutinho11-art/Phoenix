@@ -68,11 +68,24 @@ def _completed_hybrid_session(receipt, position):
             "date": planned.date.isoformat(),
         },
         "completion_evidence": {
+            "duration_seconds": 3600,
             "rpe": 8,
             "pain_confirmed": False,
             "pain_body_areas": [],
         },
-        "exercises": [],
+        "exercises": [
+            {
+                "name": "Bench Press",
+                "target_reps": 5,
+                "sets": [
+                    {
+                        "reps": 5,
+                        "target_reps": 5,
+                        "weight_kg": 60,
+                    }
+                ],
+            }
+        ],
     }
 
 

@@ -20,6 +20,11 @@ from jarvis.domains.calendar.tests.fixtures import (
     make_event,
     make_snapshot_raw,
 )
+from jarvis.domains.training.adaptive_planner import (
+    PlanningSnapshot,
+    generate_weekly_plan,
+)
+from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
 
 
 TODAY = date(2026, 7, 20)
@@ -187,6 +192,98 @@ def test_move_proposal_returns_before_after_without_activation(
     assert body["diff"]["changed_days"]
     assert body["interpreted_constraints"] == body["constraints"]
     assert client.get("/training/plan/current").json()["plan_id"] == seeded_active_plan
+
+
+def test_proposal_advances_from_active_hybrid_completion(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    constitution = get_training_constitution()
+    equipment = tuple(
+        sorted(
+            {
+                item
+                for requirements in constitution["adaptive_planner"][
+                    "exercise_equipment"
+                ].values()
+                for item in requirements
+            }
+        )
+    )
+    active = generate_weekly_plan(
+        constitution,
+        PlanningSnapshot(
+            week_start=TODAY,
+            created_at="2026-07-20T06:00:00+00:00",
+            completed_sessions=(),
+            readiness=None,
+            calendar_events=(),
+            progression={},
+            equipment=equipment,
+            preferences=(),
+        ),
+    )
+    active_mapping = active.to_mapping()
+    active_mapping["status"] = "active"
+    database.save_training_plan_receipt(active_mapping)
+    completed_day = next(day for day in active.days if day.sequence_position == 2)
+    completed_exercise = completed_day.exercises[0]
+    completion = {
+        "date": completed_day.date.isoformat(),
+        "session_type": completed_day.session_type,
+        "session_intent": completed_day.session_intent,
+        "sequence_position": completed_day.sequence_position,
+        "sequence_length": len(HYBRID_SEQUENCE),
+        "plan_provenance": {
+            "plan_id": active.plan_id,
+            "receipt_hash": active.receipt_hash,
+            "date": completed_day.date.isoformat(),
+        },
+        "completion_evidence": {
+            "duration_seconds": completed_day.estimated_minutes * 60,
+            "rpe": 8,
+            "pain_confirmed": False,
+            "pain_body_areas": [],
+        },
+        "exercises": [
+            {
+                "name": completed_exercise["name"],
+                "target_reps": completed_exercise["reps"],
+                "sets": [
+                    {
+                        "reps": completed_exercise["reps"],
+                        "target_reps": completed_exercise["reps"],
+                        "weight_kg": 60,
+                    }
+                    for _ in range(completed_exercise["sets"])
+                ],
+            }
+        ],
+    }
+    monkeypatch.setattr(database, "get_sessions", lambda limit=None: [completion])
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {"date": TODAY.isoformat(), "minutes": 60},
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    stored = database.get_training_plan_receipt(response.json()["plan_id"])["payload"]
+    assert stored["replay_inputs"]["snapshot"]["sequence_cursor"] == 3
+    assert (
+        stored["replay_inputs"]["snapshot"]["sequence_source_plan_id"]
+        == active.plan_id
+    )
+    first_training_day = next(day for day in stored["days"] if day["session_intent"])
+    assert first_training_day["sequence_position"] == 3
+    assert first_training_day["session_intent"] == HYBRID_SEQUENCE[2]
 
 
 def test_proposal_detail_returns_persisted_preview(client: TestClient, seeded_active_plan: str):

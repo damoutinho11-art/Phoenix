@@ -158,3 +158,138 @@ Task 4-only staging step.
 
 Hybrid Task 6 must migrate acceptance versions, equipment fixtures, and hybrid
 behavior categories before the unexcluded Training suite can be fully green.
+
+## Review Corrections
+
+### Scope
+
+The review corrections add the production API integration and tighten cursor
+and progression evidence without changing Task 6 acceptance files, constants,
+or fixtures.
+
+Correction files:
+
+- `jarvis/api/routers/training.py`
+- `jarvis/api/tests/test_training_plan_routes.py`
+- `jarvis/domains/training/plan_evidence.py`
+- `jarvis/domains/training/progression.py`
+- `jarvis/domains/training/tests/test_adaptive_planner.py`
+- `jarvis/domains/training/tests/test_plan_evidence.py`
+- `.superpowers/sdd/hybrid-task-4-report.md`
+
+The pre-existing `jarvis/domains/finance/portfolio_state.json` change was not
+edited, staged, or reverted.
+
+### Correction RED
+
+Focused evidence and progression regressions before correction:
+
+```text
+python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py jarvis/domains/training/tests/test_plan_evidence.py -q
+```
+
+```text
+8 failed, 62 passed in 0.52s
+```
+
+The failures covered active cursor preservation, consumed/metadata-only
+completion rejection, missing targets, and invalid RPE values.
+
+Production router regression before correction:
+
+```text
+python -m pytest jarvis/api/tests/test_training_plan_routes.py::test_proposal_advances_from_active_hybrid_completion -q
+```
+
+```text
+1 failed in 2.18s
+```
+
+The generated proposal remained at cursor `1` because
+`_current_planning_snapshot` did not pass the authoritative active receipt.
+
+### Correction GREEN
+
+Focused adaptive planner and plan evidence:
+
+```text
+python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py jarvis/domains/training/tests/test_plan_evidence.py -q
+```
+
+```text
+71 passed in 0.36s
+```
+
+Focused production API snapshot/proposal path:
+
+```text
+python -m pytest jarvis/api/tests/test_training_plan_routes.py::test_proposal_advances_from_active_hybrid_completion -q
+```
+
+```text
+1 passed in 1.99s
+```
+
+All Training-domain tests excluding the Task 6 acceptance file:
+
+```text
+python -m pytest jarvis/domains/training/tests --ignore=jarvis/domains/training/tests/test_plan_acceptance.py -q
+```
+
+```text
+248 passed in 2.03s
+```
+
+The API route file mixes five legacy v1 acceptance/layout expectations with
+the Task 4 route coverage. The exact Task 4 command was:
+
+```text
+python -m pytest jarvis/api/tests/test_training_plan_routes.py -q -k "not test_proposal_passes_latest_import_to_real_resolver_and_uses_its_performance_events and not test_history_and_rules_return_readable_detail and not test_rules_whitelist_excludes_private_policy_fields and not test_live_generated_proposals_are_authoritative_after_runtime_replay and not test_live_apply_replays_generated_proposal_without_exact_allowlist"
+```
+
+```text
+70 passed, 5 deselected in 16.67s
+```
+
+For classification, the unfiltered route file produced `70 passed, 5 failed`.
+The failures assert the legacy fixed v1 calendar layout, `adaptive-v1` public
+version, or v1 live acceptance/runtime behavior. They remain Task 6-owned.
+
+Full Training suite:
+
+```text
+python -m pytest jarvis/domains/training/tests -q
+```
+
+```text
+30 failed, 254 passed in 4.19s
+```
+
+All 30 failures are in
+`jarvis/domains/training/tests/test_plan_acceptance.py`. No adaptive planner,
+plan evidence, performance hybrid, contract, joint-capacity, operational-plan,
+or engine test failed.
+
+### Correction Self-Review
+
+- Confirmed `_current_planning_snapshot` passes the active database record into
+  `build_planning_snapshot(active_plan=active)`.
+- Confirmed an active v2 plan preserves its explicit start cursor, or recovers
+  it from the first dated hybrid training day, before considering new history.
+- Confirmed completion advancement requires unconsumed actual set results,
+  complete persisted duration/RPE/pain evidence, and exact plan ID, receipt
+  hash, date, intent, position, and sequence length.
+- Confirmed position wrap and validation use `len(HYBRID_SEQUENCE)` from the
+  pure hybrid module.
+- Confirmed progression increases only from finite positive targets and actual
+  reps, finite nonnegative loads, and finite RPE in `1..10`; booleans, missing
+  values, NaN, infinity, and out-of-range RPE fail closed.
+- Confirmed pain evidence remains the highest-precedence load decision.
+- Confirmed genuine v1 receipt behavior remains covered by the passing
+  non-acceptance contract and planner tests.
+
+### Correction Concern
+
+The only remaining gate is Task 6: 30 legacy v1 acceptance/version failures in
+`test_plan_acceptance.py`, plus the five corresponding mixed API route
+expectations intentionally excluded above.

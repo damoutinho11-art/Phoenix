@@ -7,6 +7,7 @@ no database, API, or framework imports.
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 _LOWER_SESSION_TYPES = {"legs", "lower"}
@@ -41,33 +42,47 @@ def _sets(exercise: dict[str, Any]) -> list[dict[str, Any]]:
     return value if isinstance(value, list) else []
 
 
-def _target_hit(exercise: dict[str, Any]) -> bool:
+def _finite_number(value: Any, *, positive: bool = False) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        return None
+    if positive and numeric <= 0:
+        return None
+    if not positive and numeric < 0:
+        return None
+    return numeric
+
+
+def _actual_results(exercise: dict[str, Any]) -> tuple[bool, bool]:
     sets = _sets(exercise)
     if not sets:
-        return False
+        return False, False
 
     exercise_target = exercise.get("target_reps")
     for logged_set in sets:
+        if not isinstance(logged_set, dict):
+            return False, False
         target = logged_set.get("target_reps", exercise_target)
-        if target is None:
-            if logged_set.get("completed") is False:
-                return False
-            continue
-        try:
-            if float(logged_set.get("reps", 0)) < float(target):
-                return False
-        except (TypeError, ValueError):
-            return False
-    return True
+        target_reps = _finite_number(target, positive=True)
+        actual_reps = _finite_number(logged_set.get("reps"), positive=True)
+        actual_load = _finite_number(logged_set.get("weight_kg"))
+        if target_reps is None or actual_reps is None or actual_load is None:
+            return False, False
+        if actual_reps < target_reps:
+            return True, False
+    return True, True
 
 
 def _working_weight(exercise: dict[str, Any]) -> float | None:
     weights = []
     for logged_set in _sets(exercise):
-        try:
-            weights.append(float(logged_set["weight_kg"]))
-        except (KeyError, TypeError, ValueError):
+        if not isinstance(logged_set, dict):
             continue
+        weight = _finite_number(logged_set.get("weight_kg"))
+        if weight is not None:
+            weights.append(weight)
     return max(weights) if weights else None
 
 
@@ -88,12 +103,12 @@ def _completion_evidence(session: dict[str, Any]) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def _session_rpe(session: dict[str, Any]) -> float | None:
+def _session_rpe(session: dict[str, Any]) -> tuple[bool, float | None]:
     value = _completion_evidence(session).get("rpe", session.get("rpe"))
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    rpe = _finite_number(value, positive=True)
+    if rpe is None or rpe > 10:
+        return False, None
+    return True, rpe
 
 
 def _has_pain_evidence(session: dict[str, Any]) -> bool:
@@ -145,13 +160,19 @@ def calculate_progression(
         if current_weight is None:
             continue
 
-        latest_hit = _target_hit(latest_exercise)
+        latest_valid, latest_hit = _actual_results(latest_exercise)
+        previous_valid = False
+        previous_hit = False
+        if len(exercise_history) >= 2:
+            previous_valid, previous_hit = _actual_results(exercise_history[1][1])
         missed_twice = (
-            not latest_hit
+            latest_valid
+            and not latest_hit
             and len(exercise_history) >= 2
-            and not _target_hit(exercise_history[1][1])
+            and previous_valid
+            and not previous_hit
         )
-        rpe = _session_rpe(latest_session)
+        rpe_valid, rpe = _session_rpe(latest_session)
         pain_evidence = _has_pain_evidence(latest_session)
 
         if pain_evidence:
@@ -160,7 +181,13 @@ def calculate_progression(
             action = "hold"
             reason = "pain_evidence"
             basis = "Pain evidence recorded; hold current weight."
-        elif latest_hit and (rpe is None or rpe <= 8):
+        elif not latest_valid or not rpe_valid:
+            suggested = current_weight
+            load_delta = 0.0
+            action = "hold_or_reduce"
+            reason = "invalid_evidence"
+            basis = "Actual set results or session RPE are invalid; hold current weight."
+        elif latest_hit and rpe <= 8:
             increment = _increment(latest_session, latest_exercise)
             suggested = current_weight + increment
             load_delta = increment
@@ -177,7 +204,7 @@ def calculate_progression(
             suggested = current_weight
             load_delta = 0.0
             action = "hold_or_reduce"
-            reason = "high_rpe" if rpe is not None and rpe >= 9 else "missed_reps"
+            reason = "high_rpe" if rpe >= 9 else "missed_reps"
             basis = (
                 "RPE was 9 or higher; hold current weight."
                 if reason == "high_rpe"

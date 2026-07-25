@@ -843,6 +843,7 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         calendar_events=calendar_events,
         equipment=sorted(configured_equipment),
         preferences=preference_map,
+        active_plan=active,
     )
 
 
