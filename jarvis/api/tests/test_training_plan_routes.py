@@ -361,6 +361,41 @@ def test_v2_autonomous_proposal_does_not_require_user_constraints(client: TestCl
     assert response.json()["constraints"] == []
 
 
+def test_v2_public_plan_days_expose_exact_authoritative_sequence_evidence(
+    client: TestClient,
+):
+    response = client.post("/training/plan/proposals", json={"constraints": []})
+
+    assert response.status_code == 200
+    public = response.json()
+    stored = database.get_training_plan_receipt(public["plan_id"])
+    assert stored is not None
+    authoritative_days = {
+        day["date"]: day for day in stored["payload"]["days"]
+    }
+    for day in public["days"]:
+        authoritative = authoritative_days[day["date"]]
+        assert day["session_intent"] == authoritative["session_intent"]
+        assert day["sequence_position"] == authoritative["sequence_position"]
+        assert day["sequence_length"] == authoritative["sequence_length"]
+
+
+def test_legacy_public_plan_days_do_not_infer_hybrid_sequence_from_objective(
+    client: TestClient,
+):
+    legacy = _receipt("legacy-active", status="active")
+    legacy["days"][0]["objective"] = "push_strength"
+    database.save_training_plan_receipt(legacy)
+
+    response = client.get("/training/plan/current")
+
+    assert response.status_code == 200
+    first_day = response.json()["days"][0]
+    assert first_day.get("session_intent") is None
+    assert first_day.get("sequence_position") is None
+    assert first_day.get("sequence_length") is None
+
+
 def test_supported_intent_compiles_to_constraint_but_never_applies(
     client: TestClient, seeded_active_plan: str
 ):

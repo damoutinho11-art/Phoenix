@@ -219,3 +219,64 @@ qualify the planner for promotion.
 The unrelated generated
 `jarvis/domains/finance/portfolio_state.json` modification was not edited,
 reverted, staged, or committed.
+
+## Performance Hybrid Public Boundary Correction
+
+Date: 2026-07-25
+
+This correction resolves the release-critical public response blocker recorded
+in the preceding Task 9 section.
+
+### Root Cause
+
+The immutable `adaptive-v2` receipt already persisted
+`session_intent`, `sequence_position`, and `sequence_length`, but two public
+serialization boundaries discarded them:
+
+- `TrainingPlanDayResponse` did not declare the hybrid fields, so Pydantic
+  removed them from proposal, apply, and current-plan JSON.
+- `project_plan_day` constructed an operational session without copying the
+  hybrid fields, so both `planned_session` and `session` in routed JSON lacked
+  the identity needed by the PWA.
+
+### TDD Evidence
+
+RED:
+
+- Four focused public-boundary tests produced `2 failed, 2 passed`.
+- The v2 proposal test failed with `KeyError: 'session_intent'`.
+- The full integrity-loop routed-session assertion failed with
+  `KeyError: 'session_intent'`.
+- Both legacy non-inference tests passed before the fix, establishing the
+  compatibility baseline.
+
+GREEN:
+
+- `TrainingPlanDayResponse` now declares the three nullable hybrid fields with
+  sequence bounds.
+- `project_plan_day` forwards the exact authoritative day values only for
+  constitution `2` and planner `adaptive-v2`.
+- Legacy plan and routed-session responses remain neutral and do not infer
+  hybrid identity from an objective such as `push_strength`.
+- Focused v2 and legacy boundary matrix -> `4 passed in 4.04s`.
+
+### Automated Verification
+
+- Full Training backend matrix:
+  `460 passed, 3 subtests passed in 64.34s`.
+- Relevant PWA authority, live-session, session-model, and Control Room
+  contracts:
+  `45 passed, 0 failed`.
+- Production PWA build:
+  exit 0; Vite transformed 323 modules and generated the service worker.
+- `git diff --check`:
+  exit 0; line-ending warnings only.
+
+The public API blocker from the preceding Task 9 section is resolved locally.
+Browser visual QA, Railway/Vercel deployment, calendar-backed real shadow
+replay, and real-session evidence remain controller-owned and pending. No live
+promotion is claimed.
+
+The unrelated generated
+`jarvis/domains/finance/portfolio_state.json` modification was not edited,
+reverted, staged, or committed.

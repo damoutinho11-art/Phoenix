@@ -64,6 +64,28 @@ def project_plan_day(
     ):
         return _plan_required()
 
+    session = {
+        "date": target,
+        "session_type": session_type,
+        "display_name": objective.replace("_", " ").title(),
+        "objective": objective,
+        "exercises": [dict(item) for item in exercises],
+        "estimated_minutes": estimated_minutes,
+        "change_reason": day.get("change_reason"),
+        "is_rest": session_type in {"rest", "recovery"},
+    }
+    if (
+        receipt.get("constitution_version") == "2"
+        and receipt.get("planner_version") == "adaptive-v2"
+    ):
+        session.update(
+            {
+                "session_intent": day.get("session_intent"),
+                "sequence_position": day.get("sequence_position"),
+                "sequence_length": day.get("sequence_length"),
+            }
+        )
+
     return {
         "operational_state": "active_plan",
         "plan_provenance": {
@@ -71,14 +93,5 @@ def project_plan_day(
             "receipt_hash": receipt_hash,
             "date": target,
         },
-        "session": {
-            "date": target,
-            "session_type": session_type,
-            "display_name": objective.replace("_", " ").title(),
-            "objective": objective,
-            "exercises": [dict(item) for item in exercises],
-            "estimated_minutes": estimated_minutes,
-            "change_reason": day.get("change_reason"),
-            "is_rest": session_type in {"rest", "recovery"},
-        },
+        "session": session,
     }

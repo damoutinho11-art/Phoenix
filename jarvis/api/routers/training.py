@@ -109,6 +109,9 @@ class TrainingPlanDayResponse(BaseModel):
     date: str
     session_type: str
     objective: str
+    session_intent: str | None = None
+    sequence_position: int | None = Field(default=None, ge=1, le=6)
+    sequence_length: int | None = Field(default=None, ge=6, le=6)
     exercises: list[dict[str, Any]]
     estimated_minutes: int
     change_reason: str | None = None

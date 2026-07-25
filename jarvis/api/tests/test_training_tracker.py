@@ -526,6 +526,7 @@ class TrainingTrackerTests(unittest.TestCase):
                 assert routed.status_code == 200
                 routed_body = routed.json()
                 planned_session = routed_body["session"]
+                routed_plan = routed_body["planned_session"]
                 assert routed_body["plan_provenance"] == {
                     "plan_id": active["plan_id"],
                     "receipt_hash": active["receipt_hash"],
@@ -533,6 +534,12 @@ class TrainingTrackerTests(unittest.TestCase):
                 }
                 assert first_day["session_intent"] == "push_strength"
                 assert first_day["sequence_position"] == 1
+                assert routed_plan["session_intent"] == first_day["session_intent"]
+                assert routed_plan["sequence_position"] == first_day["sequence_position"]
+                assert routed_plan["sequence_length"] == first_day["sequence_length"]
+                assert planned_session["session_intent"] == first_day["session_intent"]
+                assert planned_session["sequence_position"] == first_day["sequence_position"]
+                assert planned_session["sequence_length"] == first_day["sequence_length"]
                 assert planned_session["date"] == first_day["date"]
                 assert planned_session["exercises"] == first_day["exercises"]
 
@@ -564,9 +571,9 @@ class TrainingTrackerTests(unittest.TestCase):
                         "rpe": 8,
                         "pain_confirmed": False,
                         "pain_body_areas": [],
-                        "session_intent": first_day["session_intent"],
-                        "sequence_position": first_day["sequence_position"],
-                        "sequence_length": first_day["sequence_length"],
+                        "session_intent": routed_plan["session_intent"],
+                        "sequence_position": routed_plan["sequence_position"],
+                        "sequence_length": routed_plan["sequence_length"],
                     },
                 )
                 assert completion.status_code == 200
@@ -598,6 +605,26 @@ class TrainingTrackerTests(unittest.TestCase):
         )
         assert first_training_day["sequence_position"] == 2
         assert first_training_day["session_intent"] == "pull_strength"
+
+    def test_legacy_routed_session_does_not_infer_hybrid_sequence_from_objective(self):
+        legacy = _active_plan_record()
+        legacy["payload"]["days"][0]["objective"] = "push_strength"
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=legacy,
+        ), patch.object(
+            clock,
+            "today",
+            return_value=date(2026, 7, 20),
+        ):
+            response = client.get("/training/routed-session")
+
+        assert response.status_code == 200
+        body = response.json()
+        for session in (body["planned_session"], body["session"]):
+            assert session.get("session_intent") is None
+            assert session.get("sequence_position") is None
+            assert session.get("sequence_length") is None
 
     def test_jump_log_create(self):
         response = client.post(
