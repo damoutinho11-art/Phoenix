@@ -112,6 +112,7 @@ test('fails closed when hybrid intent position or cyclic ordering is malformed',
       today: null,
       decisions: [],
       sequenceMode: null,
+      counts: { training: 0, recovery: 0, routed: 0 },
     })
   }
 })
@@ -168,6 +169,67 @@ test('preserves recovery identity when the Phoenix-placed recovery is today', ()
   assert.equal(model.today.label, null)
 })
 
+test('routes a hard pain block to current recovery while retaining intent provenance', () => {
+  const days = activeHybridPlan.days.map(day => ({
+    ...day,
+    decision_reasons: [...day.decision_reasons],
+    exercises: day.exercises.map(exercise => ({ ...exercise })),
+  }))
+  days[2] = {
+    ...days[2],
+    session_type: 'recovery',
+    objective: 'pain_safe_recovery',
+    estimated_minutes: 0,
+    exercises: [],
+    change_reason: 'hard_pain_block',
+  }
+
+  const model = buildHybridWeekPresentation({
+    planner_version: 'adaptive-v2',
+    days,
+  }, '2026-07-29')
+
+  assert.equal(model.sequenceMode, 'routed')
+  assert.deepEqual(model.counts, { training: 5, recovery: 2, routed: 1 })
+  assert.equal(model.today.lifecycle, 'recovery')
+  assert.equal(model.today.intent, 'lower_power')
+  assert.equal(model.today.label, 'LOWER POWER')
+  assert.equal(model.today.routed, true)
+  assert.equal(model.today.changeReason, 'hard_pain_block')
+  assert.deepEqual(model.today.exercises, [])
+  assert.equal(model.decisions.some(row => row.code === 'hard_pain_block'), true)
+})
+
+test('routes a calendar hard conflict without presenting the preserved intent as workout', () => {
+  const days = activeHybridPlan.days.map(day => ({
+    ...day,
+    decision_reasons: [...day.decision_reasons],
+    exercises: day.exercises.map(exercise => ({ ...exercise })),
+  }))
+  days[6] = {
+    ...days[6],
+    session_type: 'rest',
+    objective: 'calendar_recovery',
+    estimated_minutes: 0,
+    exercises: [],
+    change_reason: 'calendar_hard_conflict',
+  }
+
+  const model = buildHybridWeekPresentation({
+    planner_version: 'adaptive-v2',
+    days,
+  }, '2026-08-02')
+
+  assert.equal(model.sequenceMode, 'routed')
+  assert.deepEqual(model.counts, { training: 5, recovery: 2, routed: 1 })
+  assert.equal(model.today.lifecycle, 'recovery')
+  assert.equal(model.today.intent, 'jump_elastic')
+  assert.equal(model.today.routed, true)
+  assert.equal(model.today.changeReason, 'calendar_hard_conflict')
+  assert.equal(model.today.highNeural, false)
+  assert.deepEqual(model.today.exercises, [])
+})
+
 test('malformed Phoenix reasoning clears panel and every per-slot reason', () => {
   const plan = {
     days: activeHybridPlan.days.map(day => ({
@@ -211,6 +273,7 @@ test('fails closed for duplicate, invalid, or incomplete receipt dates', () => {
       today: null,
       decisions: [],
       sequenceMode: null,
+      counts: { training: 0, recovery: 0, routed: 0 },
     })
   }
 })

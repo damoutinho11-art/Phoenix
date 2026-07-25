@@ -118,10 +118,15 @@ export default function TrainingWeekView({
     : placeholderSlots(plan, loading, error)
   const viewState = getTrainingViewState({ loading, error, hasData: Boolean(plan) })
   const today = presentation.today
-  const sequenceSummary = presentation.sequenceMode === 'ordinary'
-    ? '06 SESSIONS // 01 RECOVERY'
+  const countSummary = `${String(presentation.counts.training).padStart(2, '0')} SESSIONS // ${String(presentation.counts.recovery).padStart(2, '0')} RECOVERY${
+    presentation.counts.routed
+      ? ` // ${String(presentation.counts.routed).padStart(2, '0')} ROUTED`
+      : ''
+  }`
+  const sequenceSummary = ['ordinary', 'routed'].includes(presentation.sequenceMode)
+    ? countSummary
     : ['peak', 'attempt'].includes(presentation.sequenceMode)
-      ? 'PHASE ROUTED // 05 SESSIONS'
+      ? `PHASE ROUTED // ${countSummary}`
       : presentation.sequenceMode === 'legacy'
         ? 'LEGACY PLAN'
         : 'SEQUENCE UNVERIFIED'
@@ -180,7 +185,9 @@ export default function TrainingWeekView({
                   ) : (
                     <>
                       <div className="training-session-type">
-                        {slot.sequencePosition === null
+                        {slot.routed
+                          ? `ROUTED FROM ${slot.label} // SEQUENCE ${String(slot.sequencePosition).padStart(2, '0')} / ${String(slot.sequenceLength).padStart(2, '0')}`
+                          : slot.sequencePosition === null
                           ? slot.lifecycle === 'recovery' ? 'PHOENIX PLACED' : 'SEQUENCE UNVERIFIED'
                           : `SEQUENCE ${String(slot.sequencePosition).padStart(2, '0')} / ${String(slot.sequenceLength || 6).padStart(2, '0')}`}
                       </div>
@@ -190,7 +197,11 @@ export default function TrainingWeekView({
                         <strong>{Number.isFinite(slot.durationMinutes) ? `${slot.durationMinutes} MIN` : 'UNSET'}</strong>
                       </div>
                       <div className="training-day-empty">
-                        {slot.highNeural ? 'HIGH NEURAL' : slot.decisionReasons[0] ? labelize(slot.decisionReasons[0]) : 'RECEIPT VERIFIED'}
+                        {slot.changeReason
+                          ? labelize(slot.changeReason)
+                          : slot.highNeural
+                            ? 'HIGH NEURAL'
+                            : slot.decisionReasons[0] ? labelize(slot.decisionReasons[0]) : 'RECEIPT VERIFIED'}
                       </div>
                     </>
                   )}
@@ -206,9 +217,11 @@ export default function TrainingWeekView({
           <div className="training-section-heading">
             <span id="training-hybrid-mission-title">TODAY'S MISSION</span>
             <b>
-              {today?.sequencePosition
-                ? `${String(today.sequencePosition).padStart(2, '0')} / ${String(today.sequenceLength || 6).padStart(2, '0')}`
-                : today?.lifecycle === 'recovery' ? 'RECOVERY' : 'UNVERIFIED'}
+              {today?.lifecycle === 'recovery'
+                ? 'RECOVERY'
+                : today?.sequencePosition
+                  ? `${String(today.sequencePosition).padStart(2, '0')} / ${String(today.sequenceLength || 6).padStart(2, '0')}`
+                  : 'UNVERIFIED'}
             </b>
           </div>
           <h3>
@@ -217,8 +230,12 @@ export default function TrainingWeekView({
               : today?.label || 'SESSION IDENTITY UNVERIFIED'}
           </h3>
           <p>
-            {today
-              ? Number.isFinite(today.durationMinutes) ? `${today.durationMinutes} MINUTES // RECEIPT AUTHORITY` : 'DURATION UNSET'
+            {today?.lifecycle === 'recovery'
+              ? today.changeReason
+                ? `RECOVERY ROUTE // ${labelize(today.changeReason)}`
+                : 'RECOVERY // RECEIPT AUTHORITY'
+              : today
+                ? Number.isFinite(today.durationMinutes) ? `${today.durationMinutes} MINUTES // RECEIPT AUTHORITY` : 'DURATION UNSET'
               : 'NO SESSION SCHEDULED TODAY'}
           </p>
           <ol className="training-day-exercises" aria-label="Today's authoritative movements">

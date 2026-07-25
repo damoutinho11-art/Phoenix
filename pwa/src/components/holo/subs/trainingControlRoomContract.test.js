@@ -287,6 +287,11 @@ test('week view presents the authoritative hybrid hierarchy without inferred ses
   assert.match(week, /presentation\.sequenceMode/)
   assert.match(week, /SEQUENCE UNVERIFIED/)
   assert.match(week, /PHASE ROUTED/)
+  assert.match(week, /presentation\.counts/)
+  assert.match(week, /slot\.routed/)
+  assert.match(week, /slot\.changeReason/)
+  assert.match(week, /today\.changeReason/)
+  assert.match(week, /ROUTED FROM/)
   assert.doesNotMatch(week, /session_intent\s*\|\||sequencePosition.*PUSH|sequence_position.*PUSH/)
 })
 

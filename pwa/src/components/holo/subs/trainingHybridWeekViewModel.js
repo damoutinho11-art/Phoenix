@@ -42,15 +42,17 @@ const normalizeReasons = value => (
     : []
 )
 
+const normalizeChangeReason = value => (
+  typeof value === 'string' && value.trim() ? value.trim() : null
+)
+
 const decisionLabel = code => (
   DECISION_LABELS[code] ||
   code.replaceAll(':', ' ').replaceAll('_', ' ').toUpperCase()
 )
 
 const lifecycleFor = (day, date, todayIso) => {
-  if (day.session_type === 'recovery' && normalizeIntent(day.session_intent) === null) {
-    return 'recovery'
-  }
+  if (['recovery', 'rest'].includes(day.session_type)) return 'recovery'
   if (date === todayIso) return 'today'
   if (isIsoDate(todayIso) && date < todayIso) return 'complete'
   return 'queued'
@@ -61,6 +63,7 @@ const emptyPresentation = () => ({
   today: null,
   decisions: [],
   sequenceMode: null,
+  counts: { training: 0, recovery: 0, routed: 0 },
 })
 
 const reasonEvidence = day => {
@@ -75,10 +78,15 @@ const reasonEvidence = day => {
 }
 
 const isRecoveryDay = day => (
-  day.session_type === 'recovery' &&
+  ['recovery', 'rest'].includes(day.session_type) &&
   (day.session_intent === null || day.session_intent === undefined) &&
   (day.sequence_position === null || day.sequence_position === undefined) &&
   (day.sequence_length === null || day.sequence_length === undefined)
+)
+
+const isRoutedRecoveryDay = day => (
+  ['recovery', 'rest'].includes(day.session_type) &&
+  normalizeIntent(day.session_intent) !== null
 )
 
 const followsCycle = positions => positions.every((position, index) => (
@@ -125,6 +133,16 @@ const hybridSequenceMode = orderedDays => {
     if (intent) {
       const expectedPosition = HYBRID_SEQUENCE.indexOf(intent) + 1
       if (day.sequence_position !== expectedPosition || day.sequence_length !== 6) return null
+      if (
+        isRoutedRecoveryDay(day) &&
+        (
+          normalizeChangeReason(day.change_reason) === null ||
+          (Array.isArray(day.exercises) && day.exercises.length > 0) ||
+          day.estimated_minutes !== 0
+        )
+      ) {
+        return null
+      }
     } else if (!isRecoveryDay(day)) {
       return null
     }
@@ -139,7 +157,7 @@ const hybridSequenceMode = orderedDays => {
     new Set(positions).size === 6 &&
     followsCycle(positions)
   ) {
-    return 'ordinary'
+    return sessions.some(isRoutedRecoveryDay) ? 'routed' : 'ordinary'
   }
   if (
     sessions.length === 5 &&
@@ -184,6 +202,8 @@ export function buildHybridWeekPresentation(plan, todayIso) {
   const slots = orderedDays
     .map(day => {
       const intent = normalizeIntent(day.session_intent)
+      const lifecycle = lifecycleFor(day, day.date, todayIso)
+      const routed = isRoutedRecoveryDay(day)
       const sequencePosition = Number.isInteger(day.sequence_position) &&
         day.sequence_position >= 1 &&
         day.sequence_position <= 6
@@ -193,7 +213,7 @@ export function buildHybridWeekPresentation(plan, todayIso) {
 
       return {
         date: day.date,
-        lifecycle: lifecycleFor(day, day.date, todayIso),
+        lifecycle,
         intent,
         label: intent ? HYBRID_LABELS[intent] : null,
         durationMinutes: Number.isFinite(day.estimated_minutes) && day.estimated_minutes >= 0
@@ -201,27 +221,39 @@ export function buildHybridWeekPresentation(plan, todayIso) {
           : null,
         sequencePosition,
         sequenceLength,
-        highNeural: day.high_neural === true,
+        highNeural: lifecycle !== 'recovery' && day.high_neural === true,
         exercises: normalizeExercises(day.exercises),
         decisionReasons: hasMalformedReasonEvidence ? [] : normalizeReasons(day.decision_reasons),
+        changeReason: hasMalformedReasonEvidence ? null : normalizeChangeReason(day.change_reason),
+        routed,
       }
     })
 
   const decisions = []
   const seenReasons = new Set()
   for (const slot of hasMalformedReasonEvidence ? [] : slots) {
-    for (const code of slot.decisionReasons) {
+    for (const code of [
+      ...slot.decisionReasons,
+      ...(slot.changeReason ? [slot.changeReason] : []),
+    ]) {
       if (seenReasons.has(code)) continue
       seenReasons.add(code)
       decisions.push({ code, label: decisionLabel(code) })
     }
   }
 
+  const recoveryCount = slots.filter(slot => slot.lifecycle === 'recovery').length
+  const routedCount = slots.filter(slot => slot.routed).length
   return {
     slots,
     today: slots.find(slot => slot.date === todayIso) || null,
     decisions,
     sequenceMode,
+    counts: {
+      training: slots.length - recoveryCount,
+      recovery: recoveryCount,
+      routed: routedCount,
+    },
   }
 }
 

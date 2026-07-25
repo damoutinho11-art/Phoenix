@@ -80,3 +80,32 @@ Fresh verification:
 - Scoped `git diff --check`: passed.
 
 The follow-up did not edit or stage Task 6 backend files or Finance.
+
+## Routed Recovery Follow-Up
+
+Commit: `fix(training): present routed hybrid recovery`
+
+Resolved the remaining Important review finding:
+
+- `session_type: recovery|rest` now controls executable lifecycle even when the receipt preserves `session_intent`, `sequence_position`, and `sequence_length`.
+- Preserved hybrid intent is exposed only as route provenance (`ROUTED FROM ...`), never as today's workout.
+- Routed receipts require coherent intent/position evidence, zero duration, no loaded exercises, and a non-empty string `change_reason`.
+- Week counts now distinguish executable training, total recovery, and routed sessions.
+- Safe string `change_reason` evidence appears in the slot, today's recovery mission, and Phoenix Decision panel.
+- Malformed decision-reason evidence still suppresses all displayed reason evidence, including otherwise valid `change_reason` copy.
+- Routed recovery suppresses the original high-neural presentation state.
+
+TDD evidence:
+
+- `hard_pain_block` and `calendar_hard_conflict` receipt tests first failed because both plans were classified as ordinary training.
+- Component contracts first failed because routed counts, provenance copy, and recovery-reason copy were absent.
+- The tests passed after separating sequence provenance from executable session lifecycle.
+
+Fresh verification:
+
+- Focused Task 7: `29 passed`.
+- Broader Training frontend: `68 passed`.
+- `npm run build`: passed with the existing large-chunk advisory.
+- Scoped `git diff --check`: passed.
+
+No Task 6 backend file or Finance file was edited or staged.
