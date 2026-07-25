@@ -351,3 +351,38 @@ No live promotion is claimed.
 The unrelated generated
 `jarvis/domains/finance/portfolio_state.json` modification was not edited,
 reverted, staged, or committed.
+
+## Performance Hybrid Browser Verification
+
+Date: 2026-07-25
+
+The final production build was exercised against the local Railway-compatible
+backend at desktop, mobile, and intermediate breakpoints.
+
+Verified behavior:
+
+- With no authoritative active plan, Training fails closed: only WEEK and
+  ADAPT are available, the primary surface reads `ACTIVE ADAPTIVE PLAN
+  REQUIRED`, and no session-start action is exposed.
+- With a locally activated QA receipt, the main surface and active session
+  expose the exact `pull_volume` intent, sequence position `05 OF 06`, plan ID,
+  prescribed exercises, and set-entry controls without inferring identity.
+- WEEK renders all seven slots. Past scheduled sessions are `ELAPSED`, never
+  `COMPLETE`, because the current projection has no explicit completion input.
+- The Phoenix Decision panel displays the signed reason evidence and the
+  validation summary only when the complete evidence set is present.
+- At 1440x900, 800x900, and 390x844 there is no document-level horizontal
+  overflow. The mobile dialog is inset eight pixels, the weekly sequence
+  remains horizontally scrollable, and the page itself remains fixed.
+- The active Training dialog no longer overlaps the global bottom navigation.
+
+The browser-only active plan was seeded into the local development database
+from an existing read-only calendar fixture so the complete UI could be
+inspected. This was not production evidence, was not committed, and does not
+qualify the planner for live promotion.
+
+Railway production remains explicitly configured with
+`PHOENIX_TRAINING_PLANNER_MODE=shadow`. Real calendar-backed shadow replay and
+one real completed hybrid session are still required before any promotion to
+live authority. The implementation therefore remains fail-closed in
+production until those external evidence requirements are met.
