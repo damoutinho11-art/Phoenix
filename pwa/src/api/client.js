@@ -1,5 +1,8 @@
-const CONFIGURED_BASE_URL = String(import.meta.env.VITE_API_URL || '').trim()
-const BASE_URL = (CONFIGURED_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '')).replace(/\/$/, '')
+const ENV = import.meta.env
+const CONFIGURED_BASE_URL = String(ENV ? ENV.VITE_API_URL || '' : '').trim()
+const BASE_URL = (
+  CONFIGURED_BASE_URL || (ENV ? (import.meta.env.DEV ? 'http://localhost:8000' : '') : 'http://localhost:8000')
+).replace(/\/$/, '')
 
 async function apiFetch(path, options = {}) {
   if (!BASE_URL) throw new Error('PHOENIX_API_UNCONFIGURED')

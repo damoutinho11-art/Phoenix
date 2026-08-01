@@ -1,24 +1,25 @@
 from pathlib import Path
 
 
-WEEKLY_BRIEF = (
+LEDGER_CONTENT = (
     Path(__file__).resolve().parents[3]
     / "pwa"
     / "src"
     / "components"
-    / "finance"
-    / "WeeklyBrief.jsx"
+    / "holo"
+    / "subs"
+    / "LedgerContent.jsx"
 )
 
 
 def _source() -> str:
-    return WEEKLY_BRIEF.read_text(encoding="utf-8")
+    return LEDGER_CONTENT.read_text(encoding="utf-8")
 
 
-def test_checklist_offers_record_transaction_for_each_leg() -> None:
+def test_ledger_offers_a_manual_record_action_for_each_buy() -> None:
     source = _source()
-    assert "RECORD TRANSACTION" in source
-    assert "onRecordTransaction(item)" in source
+    assert "SAVE MANUAL RECORD" in source
+    assert "postManualFinanceTransaction(" in source
 
 
 def test_actual_execution_fields_remain_required_user_inputs() -> None:
@@ -29,9 +30,9 @@ def test_actual_execution_fields_remain_required_user_inputs() -> None:
 
 def test_post_buy_flow_has_preview_and_explicit_apply_safety_copy() -> None:
     source = _source()
-    assert "PREVIEW PORTFOLIO IMPACT" in source
     assert "APPLY TO PORTFOLIO STATE" in source
-    assert "Record a trade you already completed manually in your broker." in source
+    assert "PREVIEW" in source
+    assert "PHOENIX NEVER EXECUTES" in source
 
 
 def test_post_buy_flow_does_not_present_a_buy_or_execute_button() -> None:
