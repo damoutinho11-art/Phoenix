@@ -559,8 +559,8 @@ def _move_hybrid_session(planned, source, target):
     )
     if target_index != source_index + 1:
         raise ValueError("Hybrid sessions can only move to the next day")
-    if len(recovery_indices) != 1 or recovery_indices[0] <= source_index:
-        raise ValueError("Hybrid move requires a later recovery slot")
+    if len(recovery_indices) != 1:
+        raise ValueError("Hybrid move requires exactly one recovery slot")
 
     original = tuple(planned[key] for key in keys)
     recovery_index = recovery_indices[0]
@@ -569,17 +569,23 @@ def _move_hybrid_session(planned, source, target):
         f"moved_to:{target}",
         date=date.fromisoformat(source),
     )
-    for index in range(source_index + 1, recovery_index + 1):
+    previous_index = source_index
+    index = target_index
+    while True:
         reason = (
             f"moved_from:{source}"
             if index == target_index
             else f"sequence_shifted_after_move:{source}"
         )
         planned[keys[index]] = _update_for_change(
-            original[index - 1],
+            original[previous_index],
             reason,
             date=date.fromisoformat(keys[index]),
         )
+        if index == recovery_index:
+            break
+        previous_index = index
+        index = (index + 1) % len(keys)
     return planned
 
 

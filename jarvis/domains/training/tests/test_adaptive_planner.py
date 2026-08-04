@@ -614,6 +614,49 @@ def test_v2_move_today_to_tomorrow_relocates_recovery_and_preserves_sequence(
     assert plan.days[3].session_intent == "lower_power"
 
 
+@pytest.mark.parametrize("sequence_cursor", range(1, len(HYBRID_SEQUENCE) + 1))
+def test_v2_adjacent_moves_rotate_cyclically_across_every_sequence_cursor(
+    training_constitution_v2,
+    sequence_cursor,
+):
+    planning = replace(_hybrid_snapshot(), sequence_cursor=sequence_cursor)
+    baseline = generate_weekly_plan(training_constitution_v2, planning)
+    feasible_moves = tuple(
+        (source, target)
+        for source, target in zip(baseline.days, baseline.days[1:])
+        if source.session_intent is not None and target.session_intent is not None
+    )
+
+    assert feasible_moves
+    for source, target in feasible_moves:
+        move = TrainingConstraint.from_mapping(
+            "move_session",
+            "user",
+            {
+                "source_date": source.date.isoformat(),
+                "target_date": target.date.isoformat(),
+            },
+        )
+
+        plan = generate_weekly_plan(training_constitution_v2, planning, (move,))
+        by_date = {day.date: day for day in plan.days}
+        intents = tuple(
+            day.session_intent for day in plan.days if day.session_intent is not None
+        )
+        doubled = HYBRID_SEQUENCE + HYBRID_SEQUENCE
+
+        assert len(intents) == len(HYBRID_SEQUENCE)
+        assert set(intents) == set(HYBRID_SEQUENCE)
+        assert any(
+            intents == doubled[index : index + len(HYBRID_SEQUENCE)]
+            for index in range(len(HYBRID_SEQUENCE))
+        )
+        assert sum(day.session_type == "recovery" for day in plan.days) == 1
+        assert by_date[source.date].session_intent is None
+        assert by_date[source.date].session_type == "recovery"
+        assert by_date[target.date].session_intent == source.session_intent
+
+
 def test_skip_does_not_double_next_session(training_constitution):
     skip = TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-20"})
     plan = generate_weekly_plan(training_constitution, snapshot(), (skip,))
