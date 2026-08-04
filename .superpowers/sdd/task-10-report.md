@@ -427,3 +427,29 @@ Fresh release verification:
 
 Live promotion remains prohibited until real calendar-backed shadow replay and
 one real completed hybrid session satisfy the existing acceptance gate.
+
+## Performance Hybrid Shadow Deployment Attempt
+
+Date: 2026-08-05
+
+The reviewed Training branch was merged into local `main` and verified again
+on the merged result:
+
+- Training backend matrix: `484 passed, 3 subtests passed`.
+- Full PWA suite: `142 passed, 0 failed`.
+- Production PWA build: exit 0; 327 modules transformed and service worker
+  generated.
+
+Vercel production deployment `dpl_EmhaxCYQBHsWvUX1GXfoN88eExsv` reached
+`READY` and is aliased to `https://pwa-ochre-theta.vercel.app`. The public
+bundle contains the horizon-safe MOVE flow and the configured Railway API URL.
+
+Railway rejected the clean detached-snapshot upload before a build could
+start: `UPLOAD_FAILED: Your trial has expired. Please select a plan to continue
+using Railway.` The production planner variable remains `shadow`, but the
+Phoenix service is currently unavailable and `/health` returns 404. Backend
+deployment and public shadow verification are blocked until Railway billing is
+reactivated. No live promotion is claimed.
+
+The unrelated local `jarvis/domains/finance/portfolio_state.json` modification
+was excluded from the deployment snapshot and remains untouched.
