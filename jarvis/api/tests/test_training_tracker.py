@@ -324,10 +324,9 @@ class TrainingTrackerTests(unittest.TestCase):
                 "/training/log/session",
                 json=_hybrid_completion_payload(),
             )
-            active_plan["payload"]["days"][0]["session_intent"] = "push_volume"
             second = client.post(
                 "/training/log/session",
-                json=_hybrid_completion_payload(session_intent="push_volume"),
+                json=_hybrid_completion_payload(notes="Conflicting retry"),
             )
 
         assert first.status_code == 200

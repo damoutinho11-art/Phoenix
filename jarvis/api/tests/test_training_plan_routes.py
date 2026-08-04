@@ -226,7 +226,7 @@ def test_proposal_advances_from_active_hybrid_completion(
     active_mapping = active.to_mapping()
     active_mapping["status"] = "active"
     database.save_training_plan_receipt(active_mapping)
-    completed_day = next(day for day in active.days if day.sequence_position == 2)
+    completed_day = next(day for day in active.days if day.sequence_position == 1)
     completed_exercise = completed_day.exercises[0]
     completion = {
         "date": completed_day.date.isoformat(),
@@ -276,14 +276,14 @@ def test_proposal_advances_from_active_hybrid_completion(
 
     assert response.status_code == 200
     stored = database.get_training_plan_receipt(response.json()["plan_id"])["payload"]
-    assert stored["replay_inputs"]["snapshot"]["sequence_cursor"] == 3
+    assert stored["replay_inputs"]["snapshot"]["sequence_cursor"] == 2
     assert (
         stored["replay_inputs"]["snapshot"]["sequence_source_plan_id"]
         == active.plan_id
     )
     first_training_day = next(day for day in stored["days"] if day["session_intent"])
-    assert first_training_day["sequence_position"] == 3
-    assert first_training_day["session_intent"] == HYBRID_SEQUENCE[2]
+    assert first_training_day["sequence_position"] == 2
+    assert first_training_day["session_intent"] == HYBRID_SEQUENCE[1]
 
 
 def test_proposal_detail_returns_persisted_preview(client: TestClient, seeded_active_plan: str):
