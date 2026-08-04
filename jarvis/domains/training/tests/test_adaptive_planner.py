@@ -614,21 +614,76 @@ def test_v2_move_today_to_tomorrow_relocates_recovery_and_preserves_sequence(
     assert plan.days[3].session_intent == "lower_power"
 
 
+def test_v2_successful_adjacent_moves_preserve_every_earlier_day_byte_for_byte(
+    training_constitution_v2,
+):
+    successful_move_count = 0
+    for sequence_cursor in range(1, len(HYBRID_SEQUENCE) + 1):
+        planning = replace(_hybrid_snapshot(), sequence_cursor=sequence_cursor)
+        baseline = generate_weekly_plan(training_constitution_v2, planning)
+        recovery_index = next(
+            index for index, day in enumerate(baseline.days) if day.session_intent is None
+        )
+        feasible_moves = tuple(
+            (index, source, target)
+            for index, (source, target) in enumerate(zip(baseline.days, baseline.days[1:]))
+            if source.session_intent is not None and target.session_intent is not None
+            and recovery_index > index
+        )
+        baseline_days = {
+            day["date"]: json.dumps(day, sort_keys=True, separators=(",", ":"))
+            for day in baseline.to_mapping()["days"]
+        }
+
+        for _, source, target in feasible_moves:
+            successful_move_count += 1
+            move = TrainingConstraint.from_mapping(
+                "move_session",
+                "user",
+                {
+                    "source_date": source.date.isoformat(),
+                    "target_date": target.date.isoformat(),
+                },
+            )
+
+            plan = generate_weekly_plan(training_constitution_v2, planning, (move,))
+            by_date = {day.date: day for day in plan.days}
+            planned_days = {
+                day["date"]: json.dumps(day, sort_keys=True, separators=(",", ":"))
+                for day in plan.to_mapping()["days"]
+            }
+
+            assert all(
+                planned_days[day.date.isoformat()] == baseline_days[day.date.isoformat()]
+                for day in baseline.days
+                if day.date < source.date
+            )
+            assert by_date[source.date].session_intent is None
+            assert by_date[source.date].session_type == "recovery"
+            assert by_date[target.date].session_intent == source.session_intent
+
+    assert successful_move_count > 0
+
+
 @pytest.mark.parametrize("sequence_cursor", range(1, len(HYBRID_SEQUENCE) + 1))
-def test_v2_adjacent_moves_rotate_cyclically_across_every_sequence_cursor(
+def test_v2_adjacent_move_fails_when_displaced_work_would_cross_weekly_horizon(
     training_constitution_v2,
     sequence_cursor,
 ):
     planning = replace(_hybrid_snapshot(), sequence_cursor=sequence_cursor)
     baseline = generate_weekly_plan(training_constitution_v2, planning)
-    feasible_moves = tuple(
-        (source, target)
-        for source, target in zip(baseline.days, baseline.days[1:])
+    recovery_index = next(
+        index for index, day in enumerate(baseline.days) if day.session_intent is None
+    )
+    horizon_crossing_moves = tuple(
+        (index, source, target)
+        for index, (source, target) in enumerate(zip(baseline.days, baseline.days[1:]))
         if source.session_intent is not None and target.session_intent is not None
+        and recovery_index < index
     )
 
-    assert feasible_moves
-    for source, target in feasible_moves:
+    assert horizon_crossing_moves
+    for _, source, target in horizon_crossing_moves:
         move = TrainingConstraint.from_mapping(
             "move_session",
             "user",
@@ -638,23 +693,11 @@ def test_v2_adjacent_moves_rotate_cyclically_across_every_sequence_cursor(
             },
         )
 
-        plan = generate_weekly_plan(training_constitution_v2, planning, (move,))
-        by_date = {day.date: day for day in plan.days}
-        intents = tuple(
-            day.session_intent for day in plan.days if day.session_intent is not None
-        )
-        doubled = HYBRID_SEQUENCE + HYBRID_SEQUENCE
-
-        assert len(intents) == len(HYBRID_SEQUENCE)
-        assert set(intents) == set(HYBRID_SEQUENCE)
-        assert any(
-            intents == doubled[index : index + len(HYBRID_SEQUENCE)]
-            for index in range(len(HYBRID_SEQUENCE))
-        )
-        assert sum(day.session_type == "recovery" for day in plan.days) == 1
-        assert by_date[source.date].session_intent is None
-        assert by_date[source.date].session_type == "recovery"
-        assert by_date[target.date].session_intent == source.session_intent
+        with pytest.raises(
+            ValueError,
+            match="displaced session would roll beyond the active weekly horizon",
+        ):
+            generate_weekly_plan(training_constitution_v2, planning, (move,))
 
 
 def test_skip_does_not_double_next_session(training_constitution):

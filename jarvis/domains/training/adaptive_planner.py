@@ -564,28 +564,27 @@ def _move_hybrid_session(planned, source, target):
 
     original = tuple(planned[key] for key in keys)
     recovery_index = recovery_indices[0]
+    if recovery_index <= source_index:
+        raise ValueError(
+            "Cannot move hybrid session: displaced session would roll beyond "
+            "the active weekly horizon"
+        )
     planned[source] = _update_for_change(
         original[recovery_index],
         f"moved_to:{target}",
         date=date.fromisoformat(source),
     )
-    previous_index = source_index
-    index = target_index
-    while True:
+    for index in range(source_index + 1, recovery_index + 1):
         reason = (
             f"moved_from:{source}"
             if index == target_index
             else f"sequence_shifted_after_move:{source}"
         )
         planned[keys[index]] = _update_for_change(
-            original[previous_index],
+            original[index - 1],
             reason,
             date=date.fromisoformat(keys[index]),
         )
-        if index == recovery_index:
-            break
-        previous_index = index
-        index = (index + 1) % len(keys)
     return planned
 
 
