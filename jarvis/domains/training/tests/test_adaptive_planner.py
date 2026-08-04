@@ -107,7 +107,7 @@ def test_completed_position_advances_next_sequence_without_doubling(
     planning = build_planning_snapshot(
         week_start=date(2026, 7, 27),
         created_at="2026-07-27T06:00:00Z",
-        sessions=[_completed_hybrid_session(active, position=2)],
+        sessions=[_completed_hybrid_session(active, position=1)],
         readiness=None,
         calendar_events=[],
         equipment=[],
@@ -118,10 +118,10 @@ def test_completed_position_advances_next_sequence_without_doubling(
     receipt = generate_weekly_plan(training_constitution_v2, planning)
     first = next(day for day in receipt.days if day.session_intent)
 
-    assert planning.sequence_cursor == 3
+    assert planning.sequence_cursor == 2
     assert planning.sequence_source_plan_id == active.plan_id
-    assert first.sequence_position == 3
-    assert first.session_intent == "lower_power"
+    assert first.sequence_position == 2
+    assert first.session_intent == "pull_strength"
 
 
 def test_v2_phase_rules_are_integrated_exactly_once(
