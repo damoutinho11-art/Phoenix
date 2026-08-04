@@ -361,6 +361,16 @@ def test_v2_autonomous_proposal_does_not_require_user_constraints(client: TestCl
     assert response.json()["constraints"] == []
 
 
+def test_autonomous_snapshot_does_not_invent_equipment_availability(
+    client: TestClient,
+):
+    response = client.post("/training/plan/proposals", json={"constraints": []})
+
+    assert response.status_code == 200
+    stored = database.get_training_plan_receipt(response.json()["plan_id"])
+    assert stored["payload"]["replay_inputs"]["snapshot"]["equipment"] == []
+
+
 def test_v2_public_plan_days_expose_exact_authoritative_sequence_evidence(
     client: TestClient,
 ):

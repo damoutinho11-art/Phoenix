@@ -907,11 +907,6 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         f"{item['values'].get('avoid_or_prefer', 'prefer')}:{item['values'].get('exercise', '')}": True
         for item in preferences
     }
-    configured_equipment = {
-        equipment
-        for requirements in constitution["adaptive_planner"]["exercise_equipment"].values()
-        for equipment in requirements
-    }
     calendar_events = _current_calendar_events()
     return build_planning_snapshot(
         week_start=week_start,
@@ -919,7 +914,7 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         sessions=database.get_sessions(),
         readiness=database.get_latest_training_readiness_scan(),
         calendar_events=calendar_events,
-        equipment=sorted(configured_equipment),
+        equipment=(),
         preferences=preference_map,
         active_plan=active,
     )
