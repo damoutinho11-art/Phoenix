@@ -386,3 +386,44 @@ Railway production remains explicitly configured with
 one real completed hybrid session are still required before any promotion to
 live authority. The implementation therefore remains fail-closed in
 production until those external evidence requirements are met.
+
+## Performance Hybrid Final Authority Corrections
+
+Date: 2026-08-04
+
+Independent release review identified four authority gaps after the initial
+browser pass. All were resolved test-first:
+
+- Completion evidence now advances only through the contiguous expected
+  sequence. Later positions are rejected, while exact retries remain
+  idempotent.
+- Adaptive-v2 public projections reject missing or coercive hybrid identity,
+  reason, and neural fields. Legacy plans remain neutral.
+- Time limits compress the actual exercise prescription instead of changing
+  only the displayed duration.
+- Explicit equipment constraints never retain incompatible exercises, and
+  autonomous snapshots no longer invent an all-equipped environment.
+
+MOVE adaptation also received a full historical-integrity pass. Phoenix can
+move an upcoming session to the following day only when the remaining work can
+shift forward into a later recovery slot. Dates before the source remain
+byte-for-byte unchanged. When the displaced work would cross the active weekly
+horizon, the backend fails closed and the ADAPT interface excludes that move,
+directing next-cycle changes through the free-text replan channel.
+
+Final independent review found no Critical, Important, or Minor issues in the
+correction range and approved it for shadow deployment.
+
+Fresh release verification:
+
+- Training backend matrix: `484 passed, 3 subtests passed`.
+- Training frontend matrix: `93 passed, 0 failed`.
+- Production PWA build: exit 0; 323 modules transformed and service worker
+  generated.
+- `git diff --check`: exit 0.
+- The repository-wide PWA baseline retains one unrelated Finance contract
+  failure (`orbitSize` expected while the existing component uses
+  `donutSize`). No Finance file was changed.
+
+Live promotion remains prohibited until real calendar-backed shadow replay and
+one real completed hybrid session satisfy the existing acceptance gate.
