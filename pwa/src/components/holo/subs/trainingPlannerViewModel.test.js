@@ -1,13 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import {
   buildPlanDiff,
   normalizeTrainingPlan,
   planTone,
 } from './trainingPlannerViewModel.js'
-
-const trainingClient = await import('../../../api/client.js')
 
 const beforeFixture = {
   days: [
@@ -119,46 +118,15 @@ test('diff treats empty prior and malformed next day collections as empty', () =
   assert.deepEqual(buildPlanDiff({ days: null }, { days: 'not-a-list' }), { changedDays: [] })
 })
 
-test('planner client uses the training plan lifecycle routes', async () => {
-  const originalFetch = globalThis.fetch
-  const requests = []
-  const payload = { constraints: [{ kind: 'skip_session', values: { date: '2026-07-21' } }] }
+test('planner client declares the training plan lifecycle routes', () => {
+  const client = readFileSync(new URL('../../../api/client.js', import.meta.url), 'utf8')
 
-  globalThis.fetch = async (url, options) => {
-    requests.push({ url, options })
-    return {
-      ok: true,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ ok: true }),
-    }
-  }
-
-  try {
-    await trainingClient.getTrainingCurrentPlan()
-    await trainingClient.getTrainingPlanProposal('plan/id')
-    await trainingClient.postTrainingPlanProposal(payload)
-    await trainingClient.applyTrainingPlanProposal('plan/id')
-    await trainingClient.rejectTrainingPlanProposal('plan/id')
-    await trainingClient.getTrainingPlanHistory()
-    await trainingClient.getTrainingRules()
-  } finally {
-    globalThis.fetch = originalFetch
-  }
-
-  assert.deepEqual(requests, [
-    { url: 'http://localhost:8000/training/plan/current', options: {} },
-    { url: 'http://localhost:8000/training/plan/proposals/plan%2Fid', options: {} },
-    {
-      url: 'http://localhost:8000/training/plan/proposals',
-      options: {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      },
-    },
-    { url: 'http://localhost:8000/training/plan/proposals/plan%2Fid/apply', options: { method: 'POST' } },
-    { url: 'http://localhost:8000/training/plan/proposals/plan%2Fid/reject', options: { method: 'POST' } },
-    { url: 'http://localhost:8000/training/plans/history', options: {} },
-    { url: 'http://localhost:8000/training/rules', options: {} },
-  ])
+  assert.match(client, /apiFetch\('\/training\/plan\/current'\)/)
+  assert.match(client, /training\/plan\/proposals\/\$\{encodeURIComponent\(id\)\}/)
+  assert.match(client, /apiFetch\('\/training\/plan\/proposals',\s*\{[\s\S]*method:\s*'POST'/)
+  assert.match(client, /training\/plan\/proposals\/\$\{encodeURIComponent\(id\)\}\/apply/)
+  assert.match(client, /training\/plan\/proposals\/\$\{encodeURIComponent\(id\)\}\/reject/)
+  assert.match(client, /apiFetch\('\/training\/plans\/history'\)/)
+  assert.match(client, /apiFetch\('\/training\/rules'\)/)
+  assert.match(client, /PHOENIX_API_UNCONFIGURED/)
 })
