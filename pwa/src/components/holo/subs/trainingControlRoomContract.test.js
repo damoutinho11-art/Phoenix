@@ -48,6 +48,18 @@ test('adapt view consumes fail-closed evidence and lifecycle helpers', () => {
   assert.match(adapt, /onRejected\?\.\(\)/)
 })
 
+test('move control is plan-derived, locks the following day, and routes horizon overflow to free-text replan', () => {
+  const adapt = readSource('./TrainingAdaptView.jsx')
+
+  assert.match(adapt, /getFeasibleTrainingMoves\(activePlan/)
+  assert.match(adapt, /buildTrainingMoveConstraint\(moveOptions, sourceDate\)/)
+  assert.match(adapt, /<select[^>]*value=\{sourceDate\}/)
+  assert.match(adapt, /TARGET DATE[\s\S]*readOnly/)
+  assert.match(adapt, /cross the weekly horizon/i)
+  assert.doesNotMatch(adapt, /setTargetDate/)
+  assert.doesNotMatch(adapt, /TARGET DATE<input type="date"/)
+})
+
 test('validation presentation is unverified without complete validation evidence', () => {
   const getValidationPresentation = helper('getValidationPresentation')
 

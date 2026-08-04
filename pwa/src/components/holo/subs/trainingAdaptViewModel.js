@@ -32,6 +32,51 @@ const isIsoDate = value => {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
+const nextIsoDate = value => {
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+  parsed.setUTCDate(parsed.getUTCDate() + 1)
+  return parsed.toISOString().slice(0, 10)
+}
+
+export function getFeasibleTrainingMoves(activePlan, today) {
+  const days = asArray(activePlan?.days)
+  if (days.length !== 7 || !isIsoDate(today) || !days.every(day => isRecord(day) && isIsoDate(day.date))) return []
+  if (new Set(days.map(day => day.date)).size !== 7) return []
+  if (!days.slice(0, -1).every((day, index) => nextIsoDate(day.date) === days[index + 1].date)) return []
+
+  const recoveryIndexes = days
+    .map((day, index) => day.session_type === 'recovery' && day.session_intent === null ? index : -1)
+    .filter(index => index >= 0)
+  if (recoveryIndexes.length !== 1) return []
+
+  const recoveryIndex = recoveryIndexes[0]
+  return days.flatMap((sourceDay, index) => {
+    if (
+      index >= recoveryIndex ||
+      index >= days.length - 1 ||
+      sourceDay.date < today ||
+      !hasText(sourceDay.session_intent)
+    ) return []
+    const targetDay = days[index + 1]
+    return [{
+      sourceDate: sourceDay.date,
+      targetDate: targetDay.date,
+      sourceDay,
+      targetDay,
+    }]
+  })
+}
+
+export function buildTrainingMoveConstraint(options, sourceDate) {
+  const selected = asArray(options).find(option => option?.sourceDate === sourceDate)
+  if (!selected || !isIsoDate(selected.targetDate)) return null
+  return {
+    kind: 'move_session',
+    source: 'user',
+    values: { source_date: selected.sourceDate, target_date: selected.targetDate },
+  }
+}
+
 const sameValue = (left, right) => {
   if (Object.is(left, right)) return true
   if (Array.isArray(left) && Array.isArray(right)) {

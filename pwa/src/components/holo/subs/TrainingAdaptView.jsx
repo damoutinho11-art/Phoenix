@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   applyTrainingPlanProposal,
   postTrainingPlanProposal,
   rejectTrainingPlanProposal,
 } from '../../../api/client.js'
 import {
+  buildTrainingMoveConstraint,
   describeTrainingPlanDay,
   getAdaptValidationTone,
   getAppliedTrainingPlanOutcome,
   getProposalLifecycleState,
   getProposalRequestState,
+  getFeasibleTrainingMoves,
   normalizeTrainingAdaptProposal,
 } from './trainingAdaptViewModel.js'
 
@@ -25,6 +27,13 @@ const readableValues = values => {
   return Object.entries(values)
     .map(([key, value]) => `${labelize(key)}: ${Array.isArray(value) ? value.join(', ') : String(value)}`)
     .join(' // ')
+}
+
+const localDateKey = () => {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
 }
 
 function TrainingPlanPreview({ proposal, onReject, onApply, applyDisabled, busy }) {
@@ -131,13 +140,21 @@ export default function TrainingAdaptView({ activePlan, onApplied, onRejected })
   const [mode, setMode] = useState('MOVE')
   const [intent, setIntent] = useState('')
   const [sourceDate, setSourceDate] = useState('')
-  const [targetDate, setTargetDate] = useState('')
   const [date, setDate] = useState('')
   const [fromExercise, setFromExercise] = useState('')
   const [toExercise, setToExercise] = useState('')
   const [proposal, setProposal] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const moveOptions = useMemo(
+    () => getFeasibleTrainingMoves(activePlan, localDateKey()),
+    [activePlan],
+  )
+  const selectedMove = moveOptions.find(option => option.sourceDate === sourceDate) || null
+
+  useEffect(() => {
+    if (sourceDate && !moveOptions.some(option => option.sourceDate === sourceDate)) setSourceDate('')
+  }, [moveOptions, sourceDate])
 
   async function propose(payload) {
     const requestState = getProposalRequestState()
@@ -202,11 +219,11 @@ export default function TrainingAdaptView({ activePlan, onApplied, onRejected })
     event.preventDefault()
     let constraint
     if (mode === 'MOVE') {
-      if (!sourceDate || !targetDate) {
-        setError('Choose both the source date and target date before previewing.')
+      constraint = buildTrainingMoveConstraint(moveOptions, sourceDate)
+      if (!constraint) {
+        setError('Select an available session before previewing the move.')
         return
       }
-      constraint = { kind: 'move_session', source: 'user', values: { source_date: sourceDate, target_date: targetDate } }
     } else if (mode === 'SKIP') {
       if (!date) {
         setError('Choose the session date to skip before previewing.')
@@ -249,10 +266,25 @@ export default function TrainingAdaptView({ activePlan, onApplied, onRejected })
 
       <form className="training-adapt-quick-form" onSubmit={submitQuickAction}>
         {mode === 'MOVE' && (
-          <>
-            <label>SOURCE DATE<input type="date" value={sourceDate} onChange={event => setSourceDate(event.target.value)} /></label>
-            <label>TARGET DATE<input type="date" value={targetDate} onChange={event => setTargetDate(event.target.value)} /></label>
-          </>
+          moveOptions.length > 0 ? <>
+            <label>SOURCE SESSION
+              <select value={sourceDate} onChange={event => setSourceDate(event.target.value)}>
+                <option value="">SELECT UPCOMING SESSION</option>
+                {moveOptions.map(option => (
+                  <option key={option.sourceDate} value={option.sourceDate}>
+                    {option.sourceDate} // {labelize(option.sourceDay.session_intent)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>TARGET DATE
+              <input type="date" value={selectedMove?.targetDate || ''} readOnly aria-readonly="true" />
+            </label>
+          </> : (
+            <p className="training-adapt-move-state" role="status">
+              MOVE UNAVAILABLE // THE REMAINING SEQUENCE WOULD CROSS THE WEEKLY HORIZON. USE FREE-TEXT REPLAN FOR NEXT-CYCLE HANDLING.
+            </p>
+          )
         )}
         {mode === 'SKIP' && <label>SESSION DATE<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label>}
         {mode === 'REPLACE' && (
@@ -262,7 +294,9 @@ export default function TrainingAdaptView({ activePlan, onApplied, onRejected })
             <label>TO EXERCISE<input type="text" value={toExercise} onChange={event => setToExercise(event.target.value)} /></label>
           </>
         )}
-        <button type="submit" disabled={busy}>PREVIEW {mode}</button>
+        {(mode !== 'MOVE' || moveOptions.length > 0) && (
+          <button type="submit" disabled={busy || (mode === 'MOVE' && !selectedMove)}>PREVIEW {mode}</button>
+        )}
       </form>
 
       <form className="training-adapt-intent-form" onSubmit={event => { event.preventDefault(); propose({ intent: intent.trim() }) }}>
