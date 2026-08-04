@@ -14,6 +14,7 @@ from jarvis.domains.training.adaptive_planner import (
 )
 from jarvis.domains.training.plan_evidence import build_planning_snapshot
 from jarvis.domains.training.plan_contracts import PlanDay, TrainingConstraint
+from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
 
 
 @pytest.fixture
@@ -593,6 +594,26 @@ def test_move_today_to_tomorrow_replans_downstream_week(training_constitution):
     assert wednesday.change_reason is not None
 
 
+def test_v2_move_today_to_tomorrow_relocates_recovery_and_preserves_sequence(
+    training_constitution_v2,
+):
+    move = TrainingConstraint.from_mapping(
+        "move_session", "user", {"source_date": "2026-07-20", "target_date": "2026-07-21"}
+    )
+
+    plan = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot(), (move,))
+    training_days = tuple(day for day in plan.days if day.session_intent is not None)
+
+    assert tuple(day.session_intent for day in training_days) == HYBRID_SEQUENCE
+    assert tuple(day.sequence_position for day in training_days) == (1, 2, 3, 4, 5, 6)
+    assert sum(day.session_type == "recovery" for day in plan.days) == 1
+    assert plan.days[0].session_type == "recovery"
+    assert plan.days[0].session_intent is None
+    assert plan.days[1].session_intent == "push_strength"
+    assert plan.days[2].session_intent == "pull_strength"
+    assert plan.days[3].session_intent == "lower_power"
+
+
 def test_skip_does_not_double_next_session(training_constitution):
     skip = TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-20"})
     plan = generate_weekly_plan(training_constitution, snapshot(), (skip,))
@@ -609,6 +630,26 @@ def test_time_limit_caps_session_and_records_reason(training_constitution):
 
     assert plan.days[0].estimated_minutes == 30
     assert plan.days[0].change_reason == "time_limit"
+
+
+def test_v2_time_limit_compresses_the_actual_prescription(training_constitution_v2):
+    limit = TrainingConstraint.from_mapping(
+        "time_limit", "user", {"date": "2026-07-24", "minutes": 40}
+    )
+    baseline = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot())
+    original = baseline.days[4]
+
+    plan = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot(), (limit,))
+    compressed = plan.days[4]
+
+    assert compressed.session_intent == "push_volume"
+    assert len(compressed.exercises) < len(original.exercises)
+    assert compressed.estimated_minutes == sum(
+        exercise["estimated_minutes"] for exercise in compressed.exercises
+    )
+    assert compressed.estimated_minutes <= 40
+    assert compressed.change_reason == "time_limit"
+    assert "time_compressed" in compressed.decision_reasons
 
 
 def test_unavailable_date_becomes_a_rest_day(training_constitution):
@@ -696,6 +737,47 @@ def test_equipment_substitutes_every_affected_exercise_and_preserves_reasons(tra
     assert plan[0].change_reason == (
         "equipment_substituted:back_squat:split_squat;"
         "equipment_substituted:power_clean:approach_jump"
+    )
+
+
+def test_v2_equipment_constraint_fails_closed_without_a_compatible_substitute(
+    training_constitution_v2,
+):
+    constraint = TrainingConstraint.from_mapping(
+        "equipment_available", "user", {"date": "2026-07-20", "equipment": ("bodyweight",)}
+    )
+
+    with pytest.raises(ValueError, match="No compatible exercise"):
+        generate_weekly_plan(
+            training_constitution_v2,
+            _hybrid_snapshot(),
+            (constraint,),
+        )
+
+
+def test_v2_equipment_substitutions_publish_only_available_requirements(
+    training_constitution_v2,
+):
+    available = {"dumbbells", "bench", "cable_machine"}
+    constraint = TrainingConstraint.from_mapping(
+        "equipment_available",
+        "user",
+        {"date": "2026-07-20", "equipment": tuple(sorted(available))},
+    )
+
+    plan = generate_weekly_plan(
+        training_constitution_v2,
+        _hybrid_snapshot(),
+        (constraint,),
+    )
+    monday = plan.days[0]
+    metadata = training_constitution_v2["adaptive_planner"]["exercise_equipment"]
+
+    assert monday.exercises
+    assert all(set(exercise["equipment"]) <= available for exercise in monday.exercises)
+    assert all(
+        tuple(exercise["equipment"]) == tuple(metadata[exercise["name"]])
+        for exercise in monday.exercises
     )
 
 

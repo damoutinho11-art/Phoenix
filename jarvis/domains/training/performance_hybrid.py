@@ -196,20 +196,15 @@ def last_index(items, predicate) -> int | None:
 
 def compress_session(day: PlanDay, minutes: int) -> PlanDay:
     exercises = list(day.exercises)
-    floor_preserved = False
     for priority in REMOVAL_ORDER:
         while estimate_minutes(exercises) > minutes:
             index = last_index(exercises, lambda item: item["priority"] == priority)
             if index is None:
                 break
-            if estimate_minutes(exercises) - exercises[index]["estimated_minutes"] < 40:
-                floor_preserved = True
-                break
             exercises.pop(index)
-        if floor_preserved or estimate_minutes(exercises) <= minutes:
+        if estimate_minutes(exercises) <= minutes:
             break
     estimated_minutes = estimate_minutes(exercises)
-    floor_preserved = floor_preserved or estimated_minutes > minutes
     return replace(
         day,
         exercises=tuple(exercises),

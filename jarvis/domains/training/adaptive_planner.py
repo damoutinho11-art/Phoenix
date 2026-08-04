@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from typing import Any, Mapping
 
 from .engine import get_current_phase, plan_week_sessions
-from .performance_hybrid import apply_phase_rules, build_hybrid_week
+from .performance_hybrid import apply_phase_rules, build_hybrid_week, compress_session
 from .plan_contracts import (
     PlanDay,
     PlanValidation,
@@ -503,10 +503,20 @@ def _apply_availability_or_preference(planned, constraint, constitution):
                     exercise_equipment,
                 )
                 if target is None or target == source:
+                    if (
+                        str(constitution.get("version")) == "2"
+                        and policy.get("program") == "performance_hybrid"
+                    ):
+                        raise ValueError(
+                            f"No compatible exercise for movement family containing '{source}'"
+                        )
                     exercises.append(exercise)
                     reasons.append(f"equipment_retained:{source}:no_valid_substitute")
                     continue
-                exercises.append({**exercise, "name": target})
+                updated = {**exercise, "name": target}
+                if "equipment" in exercise:
+                    updated["equipment"] = tuple(exercise_equipment[target])
+                exercises.append(updated)
                 reasons.append(f"equipment_substituted:{source}:{target}")
             else:
                 preferred = values["exercise"]
@@ -540,6 +550,39 @@ def _apply_availability_or_preference(planned, constraint, constitution):
     return planned
 
 
+def _move_hybrid_session(planned, source, target):
+    keys = tuple(sorted(planned))
+    source_index = keys.index(source)
+    target_index = keys.index(target)
+    recovery_indices = tuple(
+        index for index, key in enumerate(keys) if planned[key].session_intent is None
+    )
+    if target_index != source_index + 1:
+        raise ValueError("Hybrid sessions can only move to the next day")
+    if len(recovery_indices) != 1 or recovery_indices[0] <= source_index:
+        raise ValueError("Hybrid move requires a later recovery slot")
+
+    original = tuple(planned[key] for key in keys)
+    recovery_index = recovery_indices[0]
+    planned[source] = _update_for_change(
+        original[recovery_index],
+        f"moved_to:{target}",
+        date=date.fromisoformat(source),
+    )
+    for index in range(source_index + 1, recovery_index + 1):
+        reason = (
+            f"moved_from:{source}"
+            if index == target_index
+            else f"sequence_shifted_after_move:{source}"
+        )
+        planned[keys[index]] = _update_for_change(
+            original[index - 1],
+            reason,
+            date=date.fromisoformat(keys[index]),
+        )
+    return planned
+
+
 def apply_constraints(days, constraints, constitution):
     planned = {day.date.isoformat(): day for day in days}
     for constraint in constraints:
@@ -549,6 +592,14 @@ def apply_constraints(days, constraints, constitution):
             if source == target:
                 continue
             moving = planned[source]
+            if (
+                str(constitution.get("version")) == "2"
+                and constitution["adaptive_planner"].get("program") == "performance_hybrid"
+            ):
+                if moving.session_intent is None:
+                    raise ValueError("Recovery is not a movable hybrid session")
+                planned = _move_hybrid_session(planned, source, target)
+                continue
             displaced = planned[target]
             planned[source] = _update_for_change(
                 planned[source],
@@ -583,11 +634,22 @@ def apply_constraints(days, constraints, constitution):
             )
         elif constraint.kind == "time_limit":
             key = values["date"]
-            planned[key] = _update_for_change(
-                planned[key],
-                "time_limit",
-                estimated_minutes=min(planned[key].estimated_minutes, int(values["minutes"])),
-            )
+            limit = int(values["minutes"])
+            if (
+                str(constitution.get("version")) == "2"
+                and constitution["adaptive_planner"].get("program") == "performance_hybrid"
+                and planned[key].estimated_minutes > limit
+            ):
+                planned[key] = _append_reason(
+                    compress_session(planned[key], limit),
+                    "time_limit",
+                )
+            else:
+                planned[key] = _update_for_change(
+                    planned[key],
+                    "time_limit",
+                    estimated_minutes=min(planned[key].estimated_minutes, limit),
+                )
         elif constraint.kind == "replace_exercise":
             planned = _replace_exercise(planned, values, constitution)
         elif constraint.kind in {"equipment_available", "exercise_preference", "unavailable"}:
