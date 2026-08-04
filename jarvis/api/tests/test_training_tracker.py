@@ -95,6 +95,8 @@ def _active_hybrid_plan_record():
                     "session_intent": "lower_power",
                     "sequence_position": 3,
                     "sequence_length": 6,
+                    "decision_reasons": ["sequence_continuity"],
+                    "high_neural": True,
                     "exercises": [
                         {"name": "Bench Press", "sets": 2, "reps": 5},
                     ],
@@ -104,6 +106,39 @@ def _active_hybrid_plan_record():
             ],
         },
     }
+
+
+def _active_hybrid_sequence_record():
+    record = _active_hybrid_plan_record()
+    record["payload"]["days"] = [
+        {
+            "date": f"2026-07-{20 + offset:02d}",
+            "session_type": "general",
+            "objective": intent,
+            "session_intent": intent,
+            "sequence_position": position,
+            "sequence_length": 6,
+            "decision_reasons": ["sequence_continuity"],
+            "high_neural": position in {3, 6},
+            "exercises": [{"name": "Bench Press", "sets": 2, "reps": 5}],
+            "estimated_minutes": 65,
+            "change_reason": None,
+        }
+        for offset, (position, intent) in enumerate(
+            (
+                (1, "push_strength"),
+                (2, "pull_strength"),
+                (3, "lower_power"),
+                (4, "push_volume"),
+                (5, "pull_volume"),
+                (6, "jump_elastic"),
+            )
+        )
+    ]
+    record["payload"]["replay_inputs"] = {
+        "snapshot": {"sequence_cursor": 1, "completed_sessions": []}
+    }
+    return record
 
 
 def _planned_api_payload(**overrides):
@@ -220,6 +255,64 @@ class TrainingTrackerTests(unittest.TestCase):
             "Training completion does not match plan day"
         )
         assert database.get_sessions() == []
+
+    def test_hybrid_completion_rejects_valid_later_day_before_next_position(self):
+        active_plan = _active_hybrid_sequence_record()
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=active_plan,
+        ):
+            response = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(
+                    date="2026-07-22",
+                    session_intent="lower_power",
+                    sequence_position=3,
+                ),
+            )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == (
+            "Training completion is not the next executable sequence position"
+        )
+        assert database.get_sessions() == []
+
+    def test_hybrid_completion_advances_only_after_contiguous_positions(self):
+        active_plan = _active_hybrid_sequence_record()
+        with patch(
+            "jarvis.api.routers.training.database.get_active_training_plan",
+            return_value=active_plan,
+        ):
+            first = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(
+                    session_intent="push_strength",
+                    sequence_position=1,
+                ),
+            )
+            skipped = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(
+                    date="2026-07-22",
+                    session_intent="lower_power",
+                    sequence_position=3,
+                ),
+            )
+            second = client.post(
+                "/training/log/session",
+                json=_hybrid_completion_payload(
+                    date="2026-07-21",
+                    session_intent="pull_strength",
+                    sequence_position=2,
+                ),
+            )
+
+        assert first.status_code == 200
+        assert skipped.status_code == 409
+        assert second.status_code == 200
+        assert [
+            session["sequence_position"] for session in reversed(database.get_sessions())
+        ] == [1, 2]
 
     def test_hybrid_completion_conflicting_retry_is_rejected(self):
         active_plan = _active_hybrid_plan_record()

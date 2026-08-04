@@ -192,7 +192,11 @@ def test_snapshot_advances_cursor_only_from_authoritative_completion():
         week_start=date(2026, 7, 27),
         created_at="2026-07-27T06:00:00Z",
         sessions=[
-            completed_hybrid_session(),
+            completed_hybrid_session(
+                planned_date="2026-07-20",
+                intent=HYBRID_SEQUENCE[0],
+                position=1,
+            ),
             {
                 **completed_hybrid_session(plan_id="other-plan", position=6),
                 "id": "malformed",
@@ -205,6 +209,62 @@ def test_snapshot_advances_cursor_only_from_authoritative_completion():
         equipment=[],
         preferences={},
         active_plan=active_hybrid_plan(),
+    )
+
+    assert snapshot.sequence_cursor == 2
+    assert snapshot.sequence_source_plan_id == "active-plan"
+
+
+def test_snapshot_does_not_advance_past_missing_sequence_position():
+    later_completion = completed_hybrid_session(
+        planned_date="2026-07-22",
+        intent=HYBRID_SEQUENCE[2],
+        position=3,
+    )
+
+    snapshot = build_planning_snapshot(
+        week_start=date(2026, 7, 27),
+        created_at="2026-07-27T06:00:00Z",
+        sessions=[later_completion],
+        readiness=None,
+        calendar_events=[],
+        equipment=[],
+        preferences={},
+        active_plan=active_hybrid_plan(cursor=1),
+    )
+
+    assert snapshot.sequence_cursor == 1
+    assert snapshot.sequence_source_plan_id == "active-plan"
+
+
+def test_snapshot_advances_only_across_contiguous_completion_prefix():
+    completions = [
+        completed_hybrid_session(
+            planned_date="2026-07-24",
+            intent=HYBRID_SEQUENCE[4],
+            position=5,
+        ),
+        completed_hybrid_session(
+            planned_date="2026-07-21",
+            intent=HYBRID_SEQUENCE[1],
+            position=2,
+        ),
+        completed_hybrid_session(
+            planned_date="2026-07-20",
+            intent=HYBRID_SEQUENCE[0],
+            position=1,
+        ),
+    ]
+
+    snapshot = build_planning_snapshot(
+        week_start=date(2026, 7, 27),
+        created_at="2026-07-27T06:00:00Z",
+        sessions=completions,
+        readiness=None,
+        calendar_events=[],
+        equipment=[],
+        preferences={},
+        active_plan=active_hybrid_plan(cursor=1),
     )
 
     assert snapshot.sequence_cursor == 3

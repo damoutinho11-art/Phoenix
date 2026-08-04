@@ -27,7 +27,10 @@ from jarvis.domains.training.plan_contracts import (
     WeeklyPlanReceipt,
     iso_cycle_id,
 )
-from jarvis.domains.training.plan_evidence import build_planning_snapshot
+from jarvis.domains.training.plan_evidence import (
+    build_planning_snapshot,
+    next_sequence_position,
+)
 from jarvis.domains.training.operational_plan import project_plan_day
 from jarvis.domains.training.plan_acceptance import (
     EXPECTED_HARD_VALIDATIONS,
@@ -1272,6 +1275,27 @@ def create_session_log(request: SessionLogRequest) -> dict:
             raise HTTPException(
                 status_code=409, detail="Training completion does not match plan day"
             )
+        if is_hybrid_plan:
+            sessions = database.get_sessions()
+            expected_position = next_sequence_position(sessions, active)
+            existing_plan_day = any(
+                isinstance(item, Mapping)
+                and item.get("plan_provenance")
+                == {
+                    "plan_id": request.plan_id,
+                    "receipt_hash": request.receipt_hash,
+                    "date": request.date.isoformat(),
+                }
+                and isinstance(item.get("completion_evidence"), Mapping)
+                for item in sessions
+            )
+            if request.sequence_position != expected_position and not existing_plan_day:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Training completion is not the next executable sequence position"
+                    ),
+                )
         planned_names = [
             str(exercise.get("name", "")).casefold().strip()
             for exercise in session["exercises"]
