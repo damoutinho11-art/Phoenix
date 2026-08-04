@@ -27,7 +27,11 @@ from jarvis.domains.training.plan_contracts import (
     WeeklyPlanReceipt,
     iso_cycle_id,
 )
-from jarvis.domains.training.plan_evidence import build_planning_snapshot
+from jarvis.domains.training.plan_evidence import (
+    build_planning_snapshot,
+    next_sequence_position,
+)
+from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
 from jarvis.domains.training.operational_plan import project_plan_day
 from jarvis.domains.training.plan_acceptance import (
     EXPECTED_HARD_VALIDATIONS,
@@ -667,8 +671,55 @@ def _with_parent(receipt: WeeklyPlanReceipt, parent_plan_id: str | None) -> Week
     )
 
 
+def _validate_adaptive_v2_public_days(payload: Mapping[str, Any]) -> None:
+    if payload.get("planner_version") != "adaptive-v2":
+        return
+    days = payload.get("days")
+    required = {
+        "session_intent",
+        "sequence_position",
+        "sequence_length",
+        "decision_reasons",
+        "high_neural",
+    }
+    if not isinstance(days, list):
+        raise HTTPException(status_code=503, detail="Stored adaptive-v2 plan is malformed")
+    for day in days:
+        if not isinstance(day, Mapping) or not required <= set(day):
+            raise HTTPException(
+                status_code=503, detail="Stored adaptive-v2 plan is malformed"
+            )
+        reasons = day["decision_reasons"]
+        if (
+            not isinstance(reasons, list)
+            or any(not isinstance(reason, str) or not reason.strip() for reason in reasons)
+            or type(day["high_neural"]) is not bool
+        ):
+            raise HTTPException(
+                status_code=503, detail="Stored adaptive-v2 plan is malformed"
+            )
+        intent = day["session_intent"]
+        position = day["sequence_position"]
+        length = day["sequence_length"]
+        recovery_identity = intent is None and position is None and length is None
+        training_identity = (
+            isinstance(intent, str)
+            and bool(intent.strip())
+            and type(position) is int
+            and position in range(1, len(HYBRID_SEQUENCE) + 1)
+            and type(length) is int
+            and length == len(HYBRID_SEQUENCE)
+            and intent == HYBRID_SEQUENCE[position - 1]
+        )
+        if not recovery_identity and not training_identity:
+            raise HTTPException(
+                status_code=503, detail="Stored adaptive-v2 plan is malformed"
+            )
+
+
 def _plan_projection(record: Mapping[str, Any]) -> dict[str, Any]:
     payload = dict(record["payload"])
+    _validate_adaptive_v2_public_days(payload)
     payload.update(
         {
             "status": record["status"],
@@ -856,11 +907,6 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         f"{item['values'].get('avoid_or_prefer', 'prefer')}:{item['values'].get('exercise', '')}": True
         for item in preferences
     }
-    configured_equipment = {
-        equipment
-        for requirements in constitution["adaptive_planner"]["exercise_equipment"].values()
-        for equipment in requirements
-    }
     calendar_events = _current_calendar_events()
     return build_planning_snapshot(
         week_start=week_start,
@@ -868,7 +914,7 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         sessions=database.get_sessions(),
         readiness=database.get_latest_training_readiness_scan(),
         calendar_events=calendar_events,
-        equipment=sorted(configured_equipment),
+        equipment=(),
         preferences=preference_map,
         active_plan=active,
     )
@@ -1272,6 +1318,27 @@ def create_session_log(request: SessionLogRequest) -> dict:
             raise HTTPException(
                 status_code=409, detail="Training completion does not match plan day"
             )
+        if is_hybrid_plan:
+            sessions = database.get_sessions()
+            expected_position = next_sequence_position(sessions, active)
+            existing_plan_day = any(
+                isinstance(item, Mapping)
+                and item.get("plan_provenance")
+                == {
+                    "plan_id": request.plan_id,
+                    "receipt_hash": request.receipt_hash,
+                    "date": request.date.isoformat(),
+                }
+                and isinstance(item.get("completion_evidence"), Mapping)
+                for item in sessions
+            )
+            if request.sequence_position != expected_position and not existing_plan_day:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Training completion is not the next executable sequence position"
+                    ),
+                )
         planned_names = [
             str(exercise.get("name", "")).casefold().strip()
             for exercise in session["exercises"]

@@ -14,6 +14,7 @@ from jarvis.domains.training.adaptive_planner import (
 )
 from jarvis.domains.training.plan_evidence import build_planning_snapshot
 from jarvis.domains.training.plan_contracts import PlanDay, TrainingConstraint
+from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
 
 
 @pytest.fixture
@@ -106,7 +107,7 @@ def test_completed_position_advances_next_sequence_without_doubling(
     planning = build_planning_snapshot(
         week_start=date(2026, 7, 27),
         created_at="2026-07-27T06:00:00Z",
-        sessions=[_completed_hybrid_session(active, position=2)],
+        sessions=[_completed_hybrid_session(active, position=1)],
         readiness=None,
         calendar_events=[],
         equipment=[],
@@ -117,10 +118,10 @@ def test_completed_position_advances_next_sequence_without_doubling(
     receipt = generate_weekly_plan(training_constitution_v2, planning)
     first = next(day for day in receipt.days if day.session_intent)
 
-    assert planning.sequence_cursor == 3
+    assert planning.sequence_cursor == 2
     assert planning.sequence_source_plan_id == active.plan_id
-    assert first.sequence_position == 3
-    assert first.session_intent == "lower_power"
+    assert first.sequence_position == 2
+    assert first.session_intent == "pull_strength"
 
 
 def test_v2_phase_rules_are_integrated_exactly_once(
@@ -593,6 +594,112 @@ def test_move_today_to_tomorrow_replans_downstream_week(training_constitution):
     assert wednesday.change_reason is not None
 
 
+def test_v2_move_today_to_tomorrow_relocates_recovery_and_preserves_sequence(
+    training_constitution_v2,
+):
+    move = TrainingConstraint.from_mapping(
+        "move_session", "user", {"source_date": "2026-07-20", "target_date": "2026-07-21"}
+    )
+
+    plan = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot(), (move,))
+    training_days = tuple(day for day in plan.days if day.session_intent is not None)
+
+    assert tuple(day.session_intent for day in training_days) == HYBRID_SEQUENCE
+    assert tuple(day.sequence_position for day in training_days) == (1, 2, 3, 4, 5, 6)
+    assert sum(day.session_type == "recovery" for day in plan.days) == 1
+    assert plan.days[0].session_type == "recovery"
+    assert plan.days[0].session_intent is None
+    assert plan.days[1].session_intent == "push_strength"
+    assert plan.days[2].session_intent == "pull_strength"
+    assert plan.days[3].session_intent == "lower_power"
+
+
+def test_v2_successful_adjacent_moves_preserve_every_earlier_day_byte_for_byte(
+    training_constitution_v2,
+):
+    successful_move_count = 0
+    for sequence_cursor in range(1, len(HYBRID_SEQUENCE) + 1):
+        planning = replace(_hybrid_snapshot(), sequence_cursor=sequence_cursor)
+        baseline = generate_weekly_plan(training_constitution_v2, planning)
+        recovery_index = next(
+            index for index, day in enumerate(baseline.days) if day.session_intent is None
+        )
+        feasible_moves = tuple(
+            (index, source, target)
+            for index, (source, target) in enumerate(zip(baseline.days, baseline.days[1:]))
+            if source.session_intent is not None and target.session_intent is not None
+            and recovery_index > index
+        )
+        baseline_days = {
+            day["date"]: json.dumps(day, sort_keys=True, separators=(",", ":"))
+            for day in baseline.to_mapping()["days"]
+        }
+
+        for _, source, target in feasible_moves:
+            successful_move_count += 1
+            move = TrainingConstraint.from_mapping(
+                "move_session",
+                "user",
+                {
+                    "source_date": source.date.isoformat(),
+                    "target_date": target.date.isoformat(),
+                },
+            )
+
+            plan = generate_weekly_plan(training_constitution_v2, planning, (move,))
+            by_date = {day.date: day for day in plan.days}
+            planned_days = {
+                day["date"]: json.dumps(day, sort_keys=True, separators=(",", ":"))
+                for day in plan.to_mapping()["days"]
+            }
+
+            assert all(
+                planned_days[day.date.isoformat()] == baseline_days[day.date.isoformat()]
+                for day in baseline.days
+                if day.date < source.date
+            )
+            assert by_date[source.date].session_intent is None
+            assert by_date[source.date].session_type == "recovery"
+            assert by_date[target.date].session_intent == source.session_intent
+
+    assert successful_move_count > 0
+
+
+@pytest.mark.parametrize("sequence_cursor", range(1, len(HYBRID_SEQUENCE) + 1))
+def test_v2_adjacent_move_fails_when_displaced_work_would_cross_weekly_horizon(
+    training_constitution_v2,
+    sequence_cursor,
+):
+    planning = replace(_hybrid_snapshot(), sequence_cursor=sequence_cursor)
+    baseline = generate_weekly_plan(training_constitution_v2, planning)
+    recovery_index = next(
+        index for index, day in enumerate(baseline.days) if day.session_intent is None
+    )
+    horizon_crossing_moves = tuple(
+        (index, source, target)
+        for index, (source, target) in enumerate(zip(baseline.days, baseline.days[1:]))
+        if source.session_intent is not None and target.session_intent is not None
+        and recovery_index < index
+    )
+
+    assert horizon_crossing_moves
+    for _, source, target in horizon_crossing_moves:
+        move = TrainingConstraint.from_mapping(
+            "move_session",
+            "user",
+            {
+                "source_date": source.date.isoformat(),
+                "target_date": target.date.isoformat(),
+            },
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="displaced session would roll beyond the active weekly horizon",
+        ):
+            generate_weekly_plan(training_constitution_v2, planning, (move,))
+
+
 def test_skip_does_not_double_next_session(training_constitution):
     skip = TrainingConstraint.from_mapping("skip_session", "user", {"date": "2026-07-20"})
     plan = generate_weekly_plan(training_constitution, snapshot(), (skip,))
@@ -609,6 +716,26 @@ def test_time_limit_caps_session_and_records_reason(training_constitution):
 
     assert plan.days[0].estimated_minutes == 30
     assert plan.days[0].change_reason == "time_limit"
+
+
+def test_v2_time_limit_compresses_the_actual_prescription(training_constitution_v2):
+    limit = TrainingConstraint.from_mapping(
+        "time_limit", "user", {"date": "2026-07-24", "minutes": 40}
+    )
+    baseline = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot())
+    original = baseline.days[4]
+
+    plan = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot(), (limit,))
+    compressed = plan.days[4]
+
+    assert compressed.session_intent == "push_volume"
+    assert len(compressed.exercises) < len(original.exercises)
+    assert compressed.estimated_minutes == sum(
+        exercise["estimated_minutes"] for exercise in compressed.exercises
+    )
+    assert compressed.estimated_minutes <= 40
+    assert compressed.change_reason == "time_limit"
+    assert "time_compressed" in compressed.decision_reasons
 
 
 def test_unavailable_date_becomes_a_rest_day(training_constitution):
@@ -696,6 +823,47 @@ def test_equipment_substitutes_every_affected_exercise_and_preserves_reasons(tra
     assert plan[0].change_reason == (
         "equipment_substituted:back_squat:split_squat;"
         "equipment_substituted:power_clean:approach_jump"
+    )
+
+
+def test_v2_equipment_constraint_fails_closed_without_a_compatible_substitute(
+    training_constitution_v2,
+):
+    constraint = TrainingConstraint.from_mapping(
+        "equipment_available", "user", {"date": "2026-07-20", "equipment": ("bodyweight",)}
+    )
+
+    with pytest.raises(ValueError, match="No compatible exercise"):
+        generate_weekly_plan(
+            training_constitution_v2,
+            _hybrid_snapshot(),
+            (constraint,),
+        )
+
+
+def test_v2_equipment_substitutions_publish_only_available_requirements(
+    training_constitution_v2,
+):
+    available = {"dumbbells", "bench", "cable_machine"}
+    constraint = TrainingConstraint.from_mapping(
+        "equipment_available",
+        "user",
+        {"date": "2026-07-20", "equipment": tuple(sorted(available))},
+    )
+
+    plan = generate_weekly_plan(
+        training_constitution_v2,
+        _hybrid_snapshot(),
+        (constraint,),
+    )
+    monday = plan.days[0]
+    metadata = training_constitution_v2["adaptive_planner"]["exercise_equipment"]
+
+    assert monday.exercises
+    assert all(set(exercise["equipment"]) <= available for exercise in monday.exercises)
+    assert all(
+        tuple(exercise["equipment"]) == tuple(metadata[exercise["name"]])
+        for exercise in monday.exercises
     )
 
 

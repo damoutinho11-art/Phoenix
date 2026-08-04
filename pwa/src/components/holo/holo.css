@@ -930,6 +930,7 @@
 .training-adapt-apply { color: var(--phx-bg); background: var(--training-accent); }
 .training-adapt-actions button:focus-visible,
 .training-adapt-quick-form input:focus-visible,
+.training-adapt-quick-form select:focus-visible,
 .training-adapt-intent-form input:focus-visible,
 .training-adapt-commands button:focus-visible,
 .training-adapt-preview h2:focus-visible { outline: 2px solid color-mix(in srgb, var(--training-accent) 88%, white 12%); outline-offset: 2px; }
@@ -958,6 +959,7 @@
 }
 
 .training-adapt-quick-form input,
+.training-adapt-quick-form select,
 .training-adapt-intent-form input {
   width: 100%;
   min-width: 0;
@@ -969,6 +971,21 @@
   background: color-mix(in srgb, var(--phx-bg) 88%, transparent);
   font-family: var(--phx-font-mono);
   font-size: 9px;
+}
+
+.training-adapt-quick-form select { cursor: pointer; }
+.training-adapt-quick-form input[readonly] { color: var(--training-accent); }
+.training-adapt-move-state {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 11px 12px;
+  border-left: 2px solid var(--training-accent);
+  color: var(--phx-muted);
+  background: color-mix(in srgb, var(--training-accent) 5%, transparent);
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  line-height: 1.6;
+  letter-spacing: .08em;
 }
 
 .training-adapt-quick-form button { align-self: end; }

@@ -226,7 +226,7 @@ def test_proposal_advances_from_active_hybrid_completion(
     active_mapping = active.to_mapping()
     active_mapping["status"] = "active"
     database.save_training_plan_receipt(active_mapping)
-    completed_day = next(day for day in active.days if day.sequence_position == 2)
+    completed_day = next(day for day in active.days if day.sequence_position == 1)
     completed_exercise = completed_day.exercises[0]
     completion = {
         "date": completed_day.date.isoformat(),
@@ -276,14 +276,14 @@ def test_proposal_advances_from_active_hybrid_completion(
 
     assert response.status_code == 200
     stored = database.get_training_plan_receipt(response.json()["plan_id"])["payload"]
-    assert stored["replay_inputs"]["snapshot"]["sequence_cursor"] == 3
+    assert stored["replay_inputs"]["snapshot"]["sequence_cursor"] == 2
     assert (
         stored["replay_inputs"]["snapshot"]["sequence_source_plan_id"]
         == active.plan_id
     )
     first_training_day = next(day for day in stored["days"] if day["session_intent"])
-    assert first_training_day["sequence_position"] == 3
-    assert first_training_day["session_intent"] == HYBRID_SEQUENCE[2]
+    assert first_training_day["sequence_position"] == 2
+    assert first_training_day["session_intent"] == HYBRID_SEQUENCE[1]
 
 
 def test_proposal_detail_returns_persisted_preview(client: TestClient, seeded_active_plan: str):
@@ -361,6 +361,16 @@ def test_v2_autonomous_proposal_does_not_require_user_constraints(client: TestCl
     assert response.json()["constraints"] == []
 
 
+def test_autonomous_snapshot_does_not_invent_equipment_availability(
+    client: TestClient,
+):
+    response = client.post("/training/plan/proposals", json={"constraints": []})
+
+    assert response.status_code == 200
+    stored = database.get_training_plan_receipt(response.json()["plan_id"])
+    assert stored["payload"]["replay_inputs"]["snapshot"]["equipment"] == []
+
+
 def test_v2_public_plan_days_expose_exact_authoritative_sequence_evidence(
     client: TestClient,
 ):
@@ -380,6 +390,45 @@ def test_v2_public_plan_days_expose_exact_authoritative_sequence_evidence(
         assert day["sequence_length"] == authoritative["sequence_length"]
         assert day["decision_reasons"] == authoritative["decision_reasons"]
         assert day["high_neural"] is authoritative["high_neural"]
+
+
+@pytest.mark.parametrize(
+    "malformation",
+    (
+        ("high_neural", "false"),
+        ("high_neural", 0),
+        ("high_neural", 1),
+        ("high_neural", None),
+        ("decision_reasons", None),
+        ("session_intent", None),
+        ("sequence_position", None),
+        ("sequence_length", None),
+    ),
+)
+def test_v2_public_projection_fails_closed_for_inexact_hybrid_day_fields(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    malformation: tuple[str, object | None],
+):
+    proposal = client.post(
+        "/training/plan/proposals", json={"constraints": []}
+    ).json()
+    stored = deepcopy(database.get_training_plan_receipt(proposal["plan_id"]))
+    stored["status"] = "active"
+    field, value = malformation
+    training_day = next(
+        day for day in stored["payload"]["days"] if day["session_intent"] is not None
+    )
+    if value is None:
+        training_day.pop(field)
+    else:
+        training_day[field] = value
+    monkeypatch.setattr(database, "get_active_training_plan", lambda _cycle: stored)
+
+    response = client.get("/training/plan/current")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Stored adaptive-v2 plan is malformed"
 
 
 def test_legacy_public_plan_days_do_not_infer_hybrid_sequence_from_objective(

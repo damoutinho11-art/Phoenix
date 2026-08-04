@@ -272,3 +272,59 @@ test('bootstrap top-level null parent rejects an after snapshot with a parent', 
 
   assert.equal(proposal.canApply, false)
 })
+
+const hybridWeek = recoveryIndex => ({
+  days: Array.from({ length: 7 }, (_, index) => ({
+    date: `2026-07-${String(20 + index).padStart(2, '0')}`,
+    session_type: index === recoveryIndex ? 'recovery' : 'strength',
+    session_intent: index === recoveryIndex ? null : `session_${index + 1}`,
+    objective: index === recoveryIndex ? 'recovery' : `objective_${index + 1}`,
+    exercises: index === recoveryIndex ? [] : [{ name: `exercise_${index + 1}` }],
+    estimated_minutes: index === recoveryIndex ? 0 : 60,
+  })),
+})
+
+test('truthful move options include only upcoming training sources before recovery across every recovery position', () => {
+  for (let recoveryIndex = 0; recoveryIndex < 7; recoveryIndex += 1) {
+    const options = adapt.getFeasibleTrainingMoves(hybridWeek(recoveryIndex), '2026-07-22')
+    const expectedSourceIndexes = Array.from(
+      { length: Math.max(0, recoveryIndex - 2) },
+      (_, index) => index + 2,
+    )
+
+    assert.deepEqual(
+      options.map(option => option.sourceDate),
+      expectedSourceIndexes.map(index => `2026-07-${String(20 + index).padStart(2, '0')}`),
+      `recovery index ${recoveryIndex}`,
+    )
+    assert.deepEqual(
+      options.map(option => option.targetDate),
+      expectedSourceIndexes.map(index => `2026-07-${String(21 + index).padStart(2, '0')}`),
+      `recovery index ${recoveryIndex}`,
+    )
+  }
+})
+
+test('truthful move options fail closed for malformed horizons and never expose recovery or the final slot', () => {
+  const valid = hybridWeek(6)
+  assert.deepEqual(adapt.getFeasibleTrainingMoves(null, '2026-07-20'), [])
+  assert.deepEqual(adapt.getFeasibleTrainingMoves({ days: valid.days.slice(0, 6) }, '2026-07-20'), [])
+  assert.deepEqual(adapt.getFeasibleTrainingMoves({ days: valid.days.map(day => ({ ...day, session_type: 'strength', session_intent: 'push' })) }, '2026-07-20'), [])
+  assert.deepEqual(adapt.getFeasibleTrainingMoves({ days: [...valid.days].reverse() }, '2026-07-20'), [])
+
+  const options = adapt.getFeasibleTrainingMoves(valid, '2026-07-20')
+  assert.equal(options.some(option => option.sourceDate === valid.days[6].date), false)
+  assert.equal(options.every(option => option.sourceDay.session_intent !== null), true)
+})
+
+test('source selection constructs only the exact plan-derived next-day move constraint', () => {
+  const options = adapt.getFeasibleTrainingMoves(hybridWeek(5), '2026-07-20')
+
+  assert.deepEqual(adapt.buildTrainingMoveConstraint(options, '2026-07-22'), {
+    kind: 'move_session',
+    source: 'user',
+    values: { source_date: '2026-07-22', target_date: '2026-07-23' },
+  })
+  assert.equal(adapt.buildTrainingMoveConstraint(options, '2026-07-25'), null)
+  assert.equal(adapt.buildTrainingMoveConstraint(options, '2026-07-26'), null)
+})

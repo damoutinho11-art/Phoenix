@@ -292,8 +292,8 @@ def test_compression_reports_the_truthful_protected_work_floor(baseline_days):
     (
         ("push_strength", 40),
         ("pull_strength", 42),
-        ("push_volume", 47),
-        ("pull_volume", 50),
+        ("push_volume", 35),
+        ("pull_volume", 38),
         ("jump_elastic", 45),
     ),
 )

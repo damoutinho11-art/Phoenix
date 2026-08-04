@@ -235,7 +235,7 @@ def _sequence_evidence(
         planned_days[planned_date] = day_value
 
     consumed_keys = _consumed_session_keys(receipt)
-    valid_completions = []
+    valid_completion_dates: set[date] = set()
     for session in sessions:
         if (
             not isinstance(session, Mapping)
@@ -274,12 +274,27 @@ def _sequence_evidence(
         evidence_hash = _session_receipt_hash(session)
         if receipt_hash is not None and evidence_hash != receipt_hash:
             continue
-        valid_completions.append((planned_date, position))
+        valid_completion_dates.add(planned_date)
 
-    if not valid_completions:
-        return starting_cursor, source_plan_id
-    _, latest_position = max(valid_completions)
-    return latest_position % _SEQUENCE_LENGTH + 1, plan_id
+    next_position = starting_cursor
+    for planned_date, planned_day in sorted(planned_days.items()):
+        position = planned_day.get("sequence_position")
+        if position is None:
+            continue
+        if type(position) is not int or position != next_position:
+            return starting_cursor, source_plan_id
+        if planned_date not in valid_completion_dates:
+            break
+        next_position = next_position % _SEQUENCE_LENGTH + 1
+    return next_position, plan_id
+
+
+def next_sequence_position(
+    sessions: Sequence[Mapping[str, Any]],
+    active_plan: Any,
+) -> int:
+    """Return the next executable hybrid position from contiguous actual evidence."""
+    return _sequence_evidence(sessions, active_plan)[0]
 
 
 def pain_blocked_areas(readiness: Mapping[str, Any] | None) -> tuple[str, ...]:
