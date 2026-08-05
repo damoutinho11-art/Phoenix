@@ -1,6 +1,6 @@
 """Training API routes. Routers call engines; no business logic lives here."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 import re
 from typing import Any, Literal, Mapping
 
@@ -11,7 +11,7 @@ from jarvis.api.dependencies import get_training_constitution
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
-from jarvis.domains.calendar import plaan_live
+from jarvis.domains.calendar import google_calendar_client, google_oauth, plaan_live
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.training import engine, joint_capacity, progression
 from jarvis.domains.training.adaptive_planner import generate_weekly_plan
@@ -850,6 +850,19 @@ def _public_adaptive_planner_policy(policy: Mapping[str, Any]) -> dict[str, Any]
 
 def _current_calendar_events() -> list[dict[str, Any]]:
     try:
+        google_events = None
+        if google_oauth.connection_status().get("connected") is True:
+            week_start, week_end = _planning_horizon()
+            time_min = datetime.combine(week_start, time.min, tzinfo=timezone.utc)
+            time_max = datetime.combine(
+                week_end + timedelta(days=1), time.min, tzinfo=timezone.utc
+            )
+            google_events, google_warnings = google_calendar_client.fetch_events(
+                time_min, time_max
+            )
+            if not isinstance(google_events, list) or google_warnings:
+                raise CalendarEvidenceUnavailable
+
         latest_import = database.get_latest_calendar_snapshot_import()
         imported_snapshot = latest_import.get("snapshot") if latest_import else None
         resolved = plaan_live.resolve_snapshot_raw(
@@ -866,8 +879,17 @@ def _current_calendar_events() -> list[dict[str, Any]]:
             raise CalendarEvidenceUnavailable
         if not isinstance(source_status, Mapping):
             raise CalendarEvidenceUnavailable
-        if source_status.get("active_source") not in _AUTHORITATIVE_CALENDAR_SOURCES:
+        plaan_is_authoritative = (
+            source_status.get("active_source") in _AUTHORITATIVE_CALENDAR_SOURCES
+        )
+        if not plaan_is_authoritative and google_events is None:
             raise CalendarEvidenceUnavailable
+        if google_events is not None:
+            calendar_events = (
+                [*calendar_events, *google_events]
+                if plaan_is_authoritative
+                else google_events
+            )
         validated_events = []
         for event in calendar_events:
             if not isinstance(event, Mapping):

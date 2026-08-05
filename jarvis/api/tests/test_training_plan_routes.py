@@ -15,6 +15,7 @@ from jarvis.api.main import app
 from jarvis.api.routers import training as training_router
 from jarvis.core import clock
 from jarvis.data import database
+from jarvis.domains.calendar import google_calendar_client, google_oauth
 from jarvis.domains.calendar.tests.fixtures import (
     LIVE_SNAPSHOT_RAW,
     make_event,
@@ -557,6 +558,105 @@ def test_proposal_fails_closed_for_non_current_calendar_source_status(
             ]
         },
     )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+
+
+def test_proposal_uses_healthy_connected_google_calendar_as_authoritative_evidence(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def resolve_calendar_snapshot(
+        default_raw: dict, imported_snapshot: dict | None = None
+    ):
+        return {"events": []}, {"active_source": "fixture"}
+
+    google_event = {
+        "event_id": "google-1",
+        "event_type": "performance",
+        "title": "Evening performance",
+        "date": "2026-07-22",
+        "time_start": "19:00",
+        "time_end": "22:00",
+        "source": "google_calendar",
+    }
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        resolve_calendar_snapshot,
+    )
+    monkeypatch.setattr(
+        google_oauth,
+        "connection_status",
+        lambda: {"connected": True},
+    )
+    monkeypatch.setattr(
+        google_calendar_client,
+        "fetch_events",
+        lambda time_min, time_max: ([google_event], []),
+    )
+
+    response = client.post("/training/plan/proposals", json={"constraints": []})
+
+    assert response.status_code == 200
+    days_by_date = {day["date"]: day for day in response.json()["days"]}
+    assert days_by_date["2026-07-22"]["change_reason"] == "calendar_hard_conflict"
+
+
+def test_proposal_accepts_empty_healthy_connected_google_calendar(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        lambda default_raw, imported_snapshot=None: (
+            {"events": []},
+            {"active_source": "fixture"},
+        ),
+    )
+    monkeypatch.setattr(
+        google_oauth,
+        "connection_status",
+        lambda: {"connected": True},
+    )
+    monkeypatch.setattr(
+        google_calendar_client,
+        "fetch_events",
+        lambda time_min, time_max: ([], []),
+    )
+
+    response = client.post("/training/plan/proposals", json={"constraints": []})
+
+    assert response.status_code == 200
+    assert len(response.json()["days"]) == 7
+
+
+def test_proposal_fails_closed_when_connected_google_calendar_fetch_warns(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        training_router.plaan_live,
+        "resolve_snapshot_raw",
+        lambda default_raw, imported_snapshot=None: (
+            {"events": []},
+            {"active_source": "fixture"},
+        ),
+    )
+    monkeypatch.setattr(
+        google_oauth,
+        "connection_status",
+        lambda: {"connected": True},
+    )
+    monkeypatch.setattr(
+        google_calendar_client,
+        "fetch_events",
+        lambda time_min, time_max: ([], ["Google Calendar fetch failed"]),
+    )
+
+    response = client.post("/training/plan/proposals", json={"constraints": []})
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Training plan calendar evidence unavailable"
