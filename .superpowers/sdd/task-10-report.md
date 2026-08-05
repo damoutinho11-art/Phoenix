@@ -453,3 +453,27 @@ reactivated. No live promotion is claimed.
 
 The unrelated local `jarvis/domains/finance/portfolio_state.json` modification
 was excluded from the deployment snapshot and remains untouched.
+
+## Railway Reactivation And Shadow Release
+
+Date: 2026-08-05
+
+After the workspace was upgraded to Railway Hobby, clean detached snapshot
+`abb67bf7` deployed successfully as Railway deployment
+`d2a1cf03-9a71-4559-97f8-9176209f23e3`.
+
+Public verification:
+
+- `/health` -> HTTP 200 with `status: ok`.
+- `/training/status` -> HTTP 200 with truthful `plan_required` state.
+- `/training/rules` -> HTTP 200 with planner `adaptive-v2` and the six-session
+  Performance Hybrid sequence.
+- Vercel-origin CORS preflight -> HTTP 200 with the exact production origin.
+- Railway environment -> `PHOENIX_TRAINING_PLANNER_MODE=shadow`.
+- Startup logs -> clean Uvicorn application startup on port 8080.
+
+The non-authoritative production proposal check failed closed with HTTP 503:
+`Training plan calendar evidence unavailable`. Google Calendar preview confirms
+the stored read-only OAuth grant returns `invalid_grant`; no plan was created or
+applied. The user must reconnect Google Calendar before real shadow replay can
+be collected. Live promotion remains prohibited.
