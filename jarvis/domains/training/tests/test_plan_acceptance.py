@@ -24,6 +24,7 @@ from jarvis.domains.training.plan_contracts import (
     PlanValidation,
     TrainingConstraint,
     WeeklyPlanReceipt,
+    canonical_hash,
 )
 from jarvis.domains.training.progression import calculate_progression
 
@@ -683,6 +684,37 @@ def test_acceptance_status_recomputes_complete_evidence(training_constitution, m
     assert status["accepted"] is True
     assert status["evidence_id"] == evidence["evidence_id"]
     assert "accepted_proposals" not in status
+
+
+def test_acceptance_status_accepts_equivalent_cross_platform_compression(
+    training_constitution,
+    monkeypatch,
+):
+    evidence = evaluate_training_shadow(_required_receipts(training_constitution))
+    receipts = decode_training_evidence_receipts(evidence)
+    raw = json.dumps(
+        receipts,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    alternate_payload = base64.b64encode(zlib.compress(raw, level=1)).decode("ascii")
+    assert alternate_payload != evidence["receipt_bundle"]["payload"]
+    evidence["receipt_bundle"] = {
+        **evidence["receipt_bundle"],
+        "payload": alternate_payload,
+    }
+    unsigned = {key: value for key, value in evidence.items() if key != "evidence_id"}
+    evidence["evidence_id"] = canonical_hash(unsigned)
+    monkeypatch.setenv(
+        "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
+        json.dumps(evidence),
+    )
+
+    status = training_planner_acceptance_status()
+
+    assert status["accepted"] is True
+    assert status["evidence_id"] == evidence["evidence_id"]
 
 
 @pytest.mark.parametrize(

@@ -208,10 +208,35 @@ def training_planner_acceptance_status() -> dict[str, Any]:
     except (TypeError, ValueError):
         return _closed_status(("evidence_recompute_failed",))
 
-    if parsed != recomputed:
+    parsed_id = parsed.get("evidence_id")
+    unsigned = {key: value for key, value in parsed.items() if key != "evidence_id"}
+    if not isinstance(parsed_id, str) or canonical_hash(unsigned) != parsed_id:
         return _closed_status(
             ("evidence_recompute_failed",),
-            evidence_id=parsed.get("evidence_id"),
+            evidence_id=parsed_id,
+        )
+    expected_fields = set(recomputed)
+    parsed_bundle = parsed.get("receipt_bundle")
+    recomputed_bundle = recomputed.get("receipt_bundle")
+    comparable_parsed = {
+        **parsed,
+        "receipt_bundle": {
+            key: parsed_bundle[key]
+            for key in ("encoding", "sha256", "count")
+        },
+    }
+    comparable_recomputed = {
+        **recomputed,
+        "receipt_bundle": {
+            key: recomputed_bundle[key]
+            for key in ("encoding", "sha256", "count")
+        },
+        "evidence_id": parsed_id,
+    }
+    if set(parsed) != expected_fields or comparable_parsed != comparable_recomputed:
+        return _closed_status(
+            ("evidence_recompute_failed",),
+            evidence_id=parsed_id,
         )
     if (
         recomputed.get("accepted") is not True
@@ -230,7 +255,7 @@ def training_planner_acceptance_status() -> dict[str, Any]:
         "reasons": [],
         "planner_version": recomputed["planner_version"],
         "constitution_version": recomputed["constitution_version"],
-        "evidence_id": recomputed["evidence_id"],
+        "evidence_id": parsed_id,
         "fixture_summary": recomputed["fixture_summary"],
     }
 
