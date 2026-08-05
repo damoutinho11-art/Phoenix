@@ -272,6 +272,7 @@ def training_planner_acceptance_diagnostics() -> dict[str, Any]:
         "receipt_identity_match": False,
         "source_audit_match": False,
         "source_mismatch_modules": [],
+        "current_source_hashes": {},
     }
     raw_evidence = os.environ.get("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON")
     try:
@@ -296,6 +297,7 @@ def training_planner_acceptance_diagnostics() -> dict[str, Any]:
     )
     parsed_hashes = parsed.get("side_effect_proof", {}).get("module_hashes", {})
     recomputed_hashes = recomputed.get("side_effect_proof", {}).get("module_hashes", {})
+    result["current_source_hashes"] = dict(sorted(recomputed_hashes.items()))
     module_names = set(parsed_hashes) | set(recomputed_hashes)
     result["source_mismatch_modules"] = sorted(
         name for name in module_names if parsed_hashes.get(name) != recomputed_hashes.get(name)

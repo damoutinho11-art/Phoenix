@@ -737,6 +737,7 @@ def test_acceptance_diagnostics_exposes_safe_source_mismatch_names(
     assert diagnostics["receipt_identity_match"] is True
     assert diagnostics["source_audit_match"] is False
     assert diagnostics["source_mismatch_modules"] == [module_name]
+    assert diagnostics["current_source_hashes"][module_name] != "different-runtime-source"
     assert "receipt_bundle" not in diagnostics
 
 
