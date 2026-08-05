@@ -717,6 +717,29 @@ def test_acceptance_status_accepts_equivalent_cross_platform_compression(
     assert status["evidence_id"] == evidence["evidence_id"]
 
 
+def test_acceptance_diagnostics_exposes_safe_source_mismatch_names(
+    training_constitution,
+    monkeypatch,
+):
+    evidence = evaluate_training_shadow(_required_receipts(training_constitution))
+    module_name = next(iter(evidence["side_effect_proof"]["module_hashes"]))
+    evidence["side_effect_proof"]["module_hashes"][module_name] = "different-runtime-source"
+    unsigned = {key: value for key, value in evidence.items() if key != "evidence_id"}
+    evidence["evidence_id"] = canonical_hash(unsigned)
+    monkeypatch.setenv(
+        "PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON",
+        json.dumps(evidence),
+    )
+
+    diagnostics = acceptance_module.training_planner_acceptance_diagnostics()
+
+    assert diagnostics["signature_valid"] is True
+    assert diagnostics["receipt_identity_match"] is True
+    assert diagnostics["source_audit_match"] is False
+    assert diagnostics["source_mismatch_modules"] == [module_name]
+    assert "receipt_bundle" not in diagnostics
+
+
 @pytest.mark.parametrize(
     "tamper",
     (

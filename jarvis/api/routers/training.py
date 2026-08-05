@@ -35,6 +35,7 @@ from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
 from jarvis.domains.training.operational_plan import project_plan_day
 from jarvis.domains.training.plan_acceptance import (
     EXPECTED_HARD_VALIDATIONS,
+    training_planner_acceptance_diagnostics,
     training_planner_acceptance_status,
     training_planner_mode,
     validate_runtime_proposal,
@@ -1008,6 +1009,11 @@ def current_training_plan() -> dict[str, Any]:
             detail="No active training plan for the current horizon",
         )
     return _plan_projection(active)
+
+
+@router.get("/plan/authority")
+def training_plan_authority() -> dict[str, Any]:
+    return training_planner_acceptance_diagnostics()
 
 
 @router.post("/plan/proposals", response_model=TrainingPlanProposalResponse)

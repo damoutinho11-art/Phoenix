@@ -164,6 +164,16 @@ def test_current_plan_returns_404_when_cycle_has_no_active_plan(client: TestClie
     assert response.json()["detail"] == "No active training plan for the current horizon"
 
 
+def test_plan_authority_reports_closed_gate_without_exposing_evidence(client: TestClient):
+    response = client.get("/training/plan/authority")
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "shadow"
+    assert response.json()["accepted"] is False
+    assert response.json()["reasons"] == ["acceptance_evidence_missing"]
+    assert "receipt_bundle" not in response.json()
+
+
 def test_first_midweek_proposal_starts_fresh_on_current_date(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

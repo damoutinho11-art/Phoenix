@@ -260,6 +260,50 @@ def training_planner_acceptance_status() -> dict[str, Any]:
     }
 
 
+def training_planner_acceptance_diagnostics() -> dict[str, Any]:
+    """Return safe authority-gate diagnostics without exposing receipt payloads."""
+    status = training_planner_acceptance_status()
+    result = {
+        "mode": training_planner_mode(),
+        "accepted": status["accepted"],
+        "reasons": status["reasons"],
+        "evidence_id": status["evidence_id"],
+        "signature_valid": False,
+        "receipt_identity_match": False,
+        "source_audit_match": False,
+        "source_mismatch_modules": [],
+    }
+    raw_evidence = os.environ.get("PHOENIX_TRAINING_PLANNER_ACCEPTANCE_JSON")
+    try:
+        parsed = json.loads(raw_evidence) if raw_evidence is not None else None
+        if not isinstance(parsed, Mapping):
+            return result
+        receipts = decode_training_evidence_receipts(parsed)
+        recomputed = evaluate_training_shadow(receipts)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return result
+
+    parsed_id = parsed.get("evidence_id")
+    unsigned = {key: value for key, value in parsed.items() if key != "evidence_id"}
+    result["signature_valid"] = (
+        isinstance(parsed_id, str) and canonical_hash(unsigned) == parsed_id
+    )
+    parsed_bundle = parsed.get("receipt_bundle", {})
+    recomputed_bundle = recomputed.get("receipt_bundle", {})
+    result["receipt_identity_match"] = all(
+        parsed_bundle.get(key) == recomputed_bundle.get(key)
+        for key in ("encoding", "sha256", "count")
+    )
+    parsed_hashes = parsed.get("side_effect_proof", {}).get("module_hashes", {})
+    recomputed_hashes = recomputed.get("side_effect_proof", {}).get("module_hashes", {})
+    module_names = set(parsed_hashes) | set(recomputed_hashes)
+    result["source_mismatch_modules"] = sorted(
+        name for name in module_names if parsed_hashes.get(name) != recomputed_hashes.get(name)
+    )
+    result["source_audit_match"] = not result["source_mismatch_modules"]
+    return result
+
+
 def _closed_status(reasons, *, evidence_id=None):
     return {
         "accepted": False,
