@@ -149,6 +149,75 @@ Lightyear\Volta\Tallinn\10412 ESTEST
     assert transactions[5]["category"] == "Investment"
 
 
+def test_lhv_parser_uses_final_reference_when_description_contains_ten_digit_number() -> None:
+    raw_text = """
+05.05.2026 Starting balance 100.00
+08.05.2026 MAKSEKESKUS AS
+EE711700017003216868
+Refund/Payment / 2281415810
+1434689425 0.64 100.64
+08.05.2026 Final balance 100.64
+"""
+
+    transactions = _parse_lhv_statement_transactions(raw_text)
+
+    assert len(transactions) == 1
+    assert transactions[0]["amount_eur"] == 0.64
+    assert transactions[0]["merchant"] == "MAKSEKESKUS AS"
+
+
+def test_lhv_parser_keeps_withdrawal_and_fee_that_share_a_bank_reference() -> None:
+    raw_text = """
+05.05.2026 Starting balance 100.00
+05.05.2026 HAN00706 Cash withdrawal: (..7358)
+1431094563 -40.00 60.00
+05.05.2026 HAN00706 Cash withdrawal fee: (..7358)
+1431094563 -1.00 59.00
+05.05.2026 Final balance 59.00
+"""
+
+    transactions = _parse_lhv_statement_transactions(raw_text)
+
+    assert [transaction["amount_eur"] for transaction in transactions] == [40.0, 1.0]
+
+
+def test_lhv_parser_routes_food_delivery_as_eating_out() -> None:
+    raw_text = """
+03.08.2026 Starting balance 100.00
+03.08.2026 UBER *EATS (..7358)
+1500000001 -30.23 69.77
+03.08.2026 Final balance 69.77
+"""
+
+    transactions = _parse_lhv_statement_transactions(raw_text)
+
+    assert transactions[0]["category"] == "Eating Out"
+
+
+def test_parse_pdf_reports_reconciled_statement_quality() -> None:
+    raw_text = """
+05.05.2026 Starting balance 100.00
+05.05.2026 Shop
+1500000001 -10.00 90.00
+05.05.2026 Refund / 2281415810
+1500000002 0.64 90.64
+05.05.2026 Final balance 90.64 Debit turnover -10.00 Credit turnover 0.64
+"""
+
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value=raw_text):
+        response = client.post(
+            "/budget/parse-pdf",
+            files={"file": ("lhv-statement.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+
+    assert response.status_code == 200
+    quality = response.json()["quality"]
+    assert quality["status"] == "reconciled"
+    assert quality["statement_rows"] == 2
+    assert quality["parsed_rows"] == 2
+    assert quality["balance_difference_eur"] == 0.0
+
+
 def test_lhv_salary_paid_at_month_end_belongs_to_next_budget_month() -> None:
     raw_text = """
 30.05.2026 RAHVUSOOPER ESTONIA
@@ -187,6 +256,32 @@ def test_budget_summary_counts_income_positive_and_separates_savings_buckets(mon
     assert summary["savings_total"] == 407.42
     assert summary["savings_rate"] == 18.2
     assert summary["by_category"]["Income"]["total"] == 2236.54
+
+
+def test_budget_reimport_refreshes_a_matching_transaction_instead_of_ignoring_it(monkeypatch, tmp_path) -> None:
+    db_path = tmp_path / "budget-reimport.db"
+    monkeypatch.setattr(database, "DB_PATH", db_path)
+    database.init_db()
+    original = {
+        "date": "2026-08-03",
+        "merchant": "UBER *EATS",
+        "amount_eur": 30.23,
+        "category": "Transport",
+        "description": "Imported before category fix",
+        "source": "pdf",
+        "month": "2026-08",
+        "is_income": 0,
+    }
+    corrected = {**original, "category": "Eating Out", "description": "Reviewed import"}
+
+    database.save_budget_transactions([original])
+    changed = database.save_budget_transactions([corrected])
+
+    transactions = database.get_budget_transactions("2026-08")
+    assert changed == 1
+    assert len(transactions) == 1
+    assert transactions[0]["category"] == "Eating Out"
+    assert transactions[0]["description"] == "Reviewed import"
 
 
 def test_budget_memory_profile_can_be_persisted(monkeypatch, tmp_path) -> None:

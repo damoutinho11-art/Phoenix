@@ -2958,7 +2958,7 @@ MAX_SANE_BUDGET_AMOUNT_EUR = 100_000.0  # a personal bank transaction above this
 
 
 def save_budget_transactions(transactions: list[dict]) -> int:
-    """Insert transactions; skip duplicates by (date, merchant, amount_eur).
+    """Insert transactions; refresh matching imports by (date, merchant, amount_eur).
 
     Also silently skips any transaction whose amount is not a sane personal
     bank figure (e.g. a mis-parsed statement row producing a garbage huge
@@ -2975,9 +2975,15 @@ def save_budget_transactions(transactions: list[dict]) -> int:
                 if not (amount == amount) or amount < 0 or amount > MAX_SANE_BUDGET_AMOUNT_EUR:  # NaN or out of range
                     continue
                 connection.execute(
-                    """INSERT OR IGNORE INTO budget_transactions
+                    """INSERT INTO budget_transactions
                        (date, merchant, amount_eur, category, description, source, month, is_income, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(date, merchant, amount_eur) DO UPDATE SET
+                         category=excluded.category,
+                         description=excluded.description,
+                         source=excluded.source,
+                         month=excluded.month,
+                         is_income=excluded.is_income""",
                     (t["date"], t["merchant"], t["amount_eur"], t["category"],
                      t.get("description", ""), t.get("source", "text"),
                      t["month"], int(t.get("is_income", 0)), now),

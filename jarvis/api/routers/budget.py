@@ -159,6 +159,74 @@ def _parse_statement_money(value: str) -> float:
     return float(value.replace(" ", "").replace("\u00a0", ""))
 
 
+_LHV_DATE_RE = re.compile(r"^\d{2}\.\d{2}\.\d{4}\b")
+_LHV_MONEY_RE = r"-?(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d+)\.\d{2}"
+_LHV_TAIL_RE = re.compile(
+    rf"(?P<bank_reference>\d{{10}})\s+"
+    rf"(?P<bank_amount>{_LHV_MONEY_RE})\s+"
+    rf"(?P<balance>{_LHV_MONEY_RE})(?=\s|$)"
+)
+
+
+def _lhv_statement_rows(raw_text: str) -> list[str]:
+    rows: list[str] = []
+    current: list[str] = []
+    for raw_line in raw_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if _LHV_DATE_RE.match(line):
+            if current:
+                rows.append(" ".join(current))
+            current = [line]
+        elif current:
+            current.append(line)
+    if current:
+        rows.append(" ".join(current))
+    return rows
+
+
+def _lhv_statement_quality(raw_text: str, parsed_rows: int) -> dict:
+    rows = _lhv_statement_rows(raw_text)
+    transaction_rows = [
+        row for row in rows if "Starting balance" not in row and "Final balance" not in row
+    ]
+    matched = [match for row in transaction_rows if (match := _LHV_TAIL_RE.search(row))]
+    opening_match = next(
+        (re.search(rf"Starting balance\s+(?P<value>{_LHV_MONEY_RE})", row) for row in rows if "Starting balance" in row),
+        None,
+    )
+    closing_match = next(
+        (re.search(rf"Final balance\s+(?P<value>{_LHV_MONEY_RE})", row) for row in rows if "Final balance" in row),
+        None,
+    )
+    opening = _parse_statement_money(opening_match.group("value")) if opening_match else None
+    closing = _parse_statement_money(closing_match.group("value")) if closing_match else None
+    movement = round(sum(_parse_statement_money(match.group("bank_amount")) for match in matched), 2)
+    difference = round(closing - (opening + movement), 2) if opening is not None and closing is not None else None
+
+    warnings: list[str] = []
+    if opening is None or closing is None:
+        warnings.append("Opening or closing balance was not found.")
+    if len(matched) != len(transaction_rows):
+        warnings.append(f"Parsed {len(matched)} of {len(transaction_rows)} statement rows.")
+    if parsed_rows != len(matched):
+        warnings.append(f"Returned {parsed_rows} transactions for {len(matched)} matched rows.")
+    if difference is not None and abs(difference) > 0.01:
+        warnings.append(f"Statement balance differs by EUR {abs(difference):.2f}.")
+
+    return {
+        "status": "reconciled" if not warnings else "review_required",
+        "statement_rows": len(transaction_rows),
+        "parsed_rows": parsed_rows,
+        "opening_balance_eur": opening,
+        "closing_balance_eur": closing,
+        "net_movement_eur": movement,
+        "balance_difference_eur": difference,
+        "warnings": warnings,
+    }
+
+
 def _clean_merchant(value: str) -> str:
     merchant = _clean_statement_text(value)
     merchant = re.sub(r"\(\.\.\d+\).*$", "", merchant).strip()
@@ -186,8 +254,8 @@ def _categorise_lhv_transaction(merchant: str, description: str, is_income: int,
     if any(token in text for token in ["selver", "rimi", "prisma", "maxima", "lidl", "toidupood"]):
         return "Food & Groceries"
     if any(token in text for token in [
-        "wolt", "vapiano", "restaurant", "restoran", "caffeine", "coffee", "kohvik",
-        "mcdonald", "hesburger", "bistro", "soogituba", "churrascaria", "la muu",
+        "wolt", "uber *eats", "uber eats", "vapiano", "restaurant", "restoran", "caffeine", "coffee", "kohvik",
+        "mcdonald", "burger king", "dominos", "domino's", "hesburger", "bistro", "soogituba", "churrascaria", "la muu",
         "kivi paber", "om house", "vegan restoran",
     ]):
         return "Eating Out"
@@ -247,41 +315,23 @@ def _parse_lhv_statement_transactions(raw_text: str, source: str = "pdf") -> lis
     avoids sending long statements to the AI gateway where large outputs can be
     truncated or fail when AI credentials are missing.
     """
-    date_re = re.compile(r"^\d{2}\.\d{2}\.\d{4}\b")
-    money_re = r"-?\d[\d ]*\.\d{2}"
-    tail_re = re.compile(
-        rf"(?P<bank_reference>\d{{10}})\s+(?P<bank_amount>{money_re})\s+(?P<balance>{money_re})(?=\s|$)"
-    )
     iban_re = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,}\b")
-
-    rows: list[str] = []
-    current: list[str] = []
-    for raw_line in raw_text.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        if date_re.match(line):
-            if current:
-                rows.append(" ".join(current))
-            current = [line]
-        elif current:
-            current.append(line)
-    if current:
-        rows.append(" ".join(current))
+    rows = _lhv_statement_rows(raw_text)
 
     transactions: list[dict] = []
-    seen_refs: set[str] = set()
+    seen_rows: set[tuple[str, str, str]] = set()
     for row in rows:
         if "Starting balance" in row or "Final balance" in row:
             continue
-        tail = tail_re.search(row)
+        tail = _LHV_TAIL_RE.search(row)
         if not tail:
             continue
 
         bank_reference = tail.group("bank_reference")
-        if bank_reference in seen_refs:
+        row_identity = (bank_reference, tail.group("bank_amount"), tail.group("balance"))
+        if row_identity in seen_rows:
             continue
-        seen_refs.add(bank_reference)
+        seen_rows.add(row_identity)
 
         date = datetime.strptime(row[:10], "%d.%m.%Y").strftime("%Y-%m-%d")
         bank_amount = _parse_statement_money(tail.group("bank_amount"))
@@ -479,12 +529,23 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
     if not transactions:
         transactions = _parse_transactions_with_claude(raw_text, source="pdf")
         parser = "ai_fallback"
+    quality = _lhv_statement_quality(raw_text, len(transactions)) if parser == "lhv_pdf" else {
+        "status": "review_required",
+        "statement_rows": None,
+        "parsed_rows": len(transactions),
+        "opening_balance_eur": None,
+        "closing_balance_eur": None,
+        "net_movement_eur": None,
+        "balance_difference_eur": None,
+        "warnings": ["AI fallback results require manual review."],
+    }
     return {
         "transactions": transactions,
         "count": len(transactions),
         "filename": filename,
         "extracted_chars": len(raw_text),
         "parser": parser,
+        "quality": quality,
     }
 
 

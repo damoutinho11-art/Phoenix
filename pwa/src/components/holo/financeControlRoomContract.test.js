@@ -252,6 +252,10 @@ test('budget lane can upload a statement: parse text/pdf, review categories, sav
   assert.match(budget, /saveBudgetTransactions/)
   assert.match(budget, /ADD TRANSACTIONS/)
   assert.match(budget, /CategoryPicker/)
+  assert.match(budget, /quality\?\.status === 'reconciled'/)
+  assert.match(budget, /STATEMENT RECONCILED/)
+  assert.match(budget, /REVIEW REQUIRED/)
+  assert.match(budget, /disabled=\{saving \|\| saveBlocked\}/)
   // save refetches the ledger rather than leaving stale data on screen
   assert.match(budget, /afterSave/)
 })

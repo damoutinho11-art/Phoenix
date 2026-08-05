@@ -226,6 +226,7 @@ function UploadStage({ onDone, onCancel }) {
   const [parsing, setParsing] = useState(false)
   const [error, setError] = useState('')
   const [transactions, setTransactions] = useState(null)
+  const [quality, setQuality] = useState(null)
   const [saving, setSaving] = useState(false)
   const [pickerIdx, setPickerIdx] = useState(null)
 
@@ -235,6 +236,7 @@ function UploadStage({ onDone, onCancel }) {
     try {
       const r = await parseBudgetTransactions(raw.trim())
       setTransactions(r.transactions || [])
+      setQuality(null)
     } catch (err) {
       setError(err.message || 'Parse failed. Check your text and try again.')
     } finally { setParsing(false) }
@@ -246,13 +248,14 @@ function UploadStage({ onDone, onCancel }) {
     try {
       const r = await parseBudgetPdf(pdfFile)
       setTransactions(r.transactions || [])
+      setQuality(r.quality || null)
     } catch (err) {
       setError(err.message || 'PDF parse failed. Use a text-based PDF or paste the statement.')
     } finally { setParsing(false) }
   }
 
   const save = async () => {
-    if (saving) return
+    if (saving || (quality && quality.status !== 'reconciled')) return
     setSaving(true); setError('')
     try {
       await saveBudgetTransactions(transactions)
@@ -264,9 +267,11 @@ function UploadStage({ onDone, onCancel }) {
   }
 
   const inputTab = (id, label) => (
-    <button key={id} onClick={() => { setInput(id); setError('') }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
+    <button key={id} onClick={() => { setInput(id); setError(''); setQuality(null) }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
   )
   const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
+  const qualityReconciled = quality?.status === 'reconciled'
+  const saveBlocked = !!quality && !qualityReconciled
 
   return (
     <div>
@@ -305,6 +310,22 @@ function UploadStage({ onDone, onCancel }) {
       ) : (
         <>
           <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 10 }}>{transactions.length} TRANSACTIONS FOUND · TAP CATEGORY TO EDIT</div>
+          {quality && (
+            <div style={{ padding: '11px 14px', marginBottom: 12, borderTop: `1px solid ${saveBlocked ? R : ACC}`, borderBottom: `1px solid ${a(saveBlocked ? R : ACC, '44')}`, background: deep(66) }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <span style={financeLabel({ color: saveBlocked ? R : ACC })}>{saveBlocked ? 'REVIEW REQUIRED' : 'STATEMENT RECONCILED'}</span>
+                <span style={financeMicro({ color: a(ACC, '99') })}>{quality.parsed_rows ?? transactions.length} / {quality.statement_rows ?? '—'} ROWS</span>
+              </div>
+              {!saveBlocked && (
+                <div style={{ ...financeMicro({ color: a(ACC, '88') }), marginTop: 6 }}>
+                  OPEN €{Number(quality.opening_balance_eur || 0).toFixed(2)} · CLOSE €{Number(quality.closing_balance_eur || 0).toFixed(2)} · DIFFERENCE €{Number(quality.balance_difference_eur || 0).toFixed(2)}
+                </div>
+              )}
+              {saveBlocked && (quality.warnings || []).map((warning, index) => (
+                <div key={index} style={{ fontFamily: FB, fontSize: 12, lineHeight: 1.5, color: mix(BODY, 85), marginTop: 6 }}>{warning}</div>
+              ))}
+            </div>
+          )}
           <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(76), marginBottom: 14 }}>
             {transactions.map((t, i) => (
               <div key={i} style={{ padding: '10px 14px', borderBottom: i < transactions.length - 1 ? `1px solid ${a(ACC, '10')}` : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -319,8 +340,8 @@ function UploadStage({ onDone, onCancel }) {
           </div>
           {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginBottom: 10 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setTransactions(null)} style={{ flex: 1, minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>← RE-PARSE</button>
-            <button onClick={save} disabled={saving} style={{ flex: 2, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : `SAVE ALL · ${transactions.length}`}</button>
+            <button onClick={() => { setTransactions(null); setQuality(null) }} style={{ flex: 1, minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>← RE-PARSE</button>
+            <button onClick={save} disabled={saving || saveBlocked} style={{ flex: 2, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', color: saveBlocked ? a(ACC, '66') : INK, background: saveBlocked ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${saveBlocked ? a(ACC, '30') : ACC}`, cursor: saving ? 'wait' : saveBlocked ? 'not-allowed' : 'pointer', boxShadow: saveBlocked ? 'none' : `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : saveBlocked ? 'SAVE BLOCKED' : `SAVE ALL · ${transactions.length}`}</button>
           </div>
         </>
       )}
