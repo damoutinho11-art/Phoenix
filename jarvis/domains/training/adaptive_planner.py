@@ -684,6 +684,40 @@ def _legacy_plan_days(constitution, snapshot):
     )
 
 
+def _fresh_hybrid_start_days(constitution, snapshot):
+    if snapshot.sequence_source_plan_id is not None:
+        return None
+    try:
+        start_date = date.fromisoformat(snapshot.created_at[:10])
+    except (TypeError, ValueError):
+        return None
+    week_end = snapshot.week_start + timedelta(days=6)
+    if not snapshot.week_start < start_date <= week_end:
+        return None
+
+    rolling_snapshot = replace(snapshot, week_start=start_date)
+    phase, week = get_current_phase(constitution, start_date)
+    rolling_days = apply_phase_rules(
+        build_hybrid_week(constitution, rolling_snapshot),
+        phase=phase.value,
+        week=week,
+    )
+    elapsed = tuple(
+        PlanDay(
+            date=snapshot.week_start + timedelta(days=offset),
+            session_type="recovery",
+            objective="recovery",
+            exercises=(),
+            estimated_minutes=0,
+            change_reason="fresh_start_elapsed",
+            decision_reasons=("fresh_start_elapsed",),
+        )
+        for offset in range((start_date - snapshot.week_start).days)
+    )
+    current_cycle_days = tuple(day for day in rolling_days if day.date <= week_end)
+    return (*elapsed, *current_cycle_days)
+
+
 def _baseline_days(constitution, snapshot):
     policy = constitution.get("adaptive_planner", {})
     if (
@@ -691,6 +725,9 @@ def _baseline_days(constitution, snapshot):
         and isinstance(policy, Mapping)
         and policy.get("program") == "performance_hybrid"
     ):
+        fresh_days = _fresh_hybrid_start_days(constitution, snapshot)
+        if fresh_days is not None:
+            return fresh_days
         phase, week = get_current_phase(constitution, snapshot.week_start)
         return apply_phase_rules(
             build_hybrid_week(constitution, snapshot),

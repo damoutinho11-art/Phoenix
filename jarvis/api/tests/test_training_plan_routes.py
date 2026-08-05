@@ -164,6 +164,35 @@ def test_current_plan_returns_404_when_cycle_has_no_active_plan(client: TestClie
     assert response.json()["detail"] == "No active training plan for the current horizon"
 
 
+def test_first_midweek_proposal_starts_fresh_on_current_date(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    current = date(2026, 7, 22)
+    monkeypatch.setattr(clock, "today", lambda: current)
+    monkeypatch.setattr(clock, "utc_now_iso", lambda: "2026-07-22T06:00:00+00:00")
+
+    response = client.post("/training/plan/proposals", json={"constraints": []})
+
+    assert response.status_code == 200
+    days = response.json()["days"]
+    assert all(
+        day["session_type"] == "recovery"
+        and day["session_intent"] is None
+        and day["sequence_position"] is None
+        and day["change_reason"] == "fresh_start_elapsed"
+        for day in days[:2]
+    )
+    assert days[2]["date"] == current.isoformat()
+    assert days[2]["session_intent"] == "push_strength"
+    assert days[2]["sequence_position"] == 1
+    assert all(
+        row["passed"] is True
+        for row in response.json()["validations"]
+        if row["severity"] == "hard"
+    )
+
+
 def test_move_proposal_returns_before_after_without_activation(
     client: TestClient, seeded_active_plan: str
 ):

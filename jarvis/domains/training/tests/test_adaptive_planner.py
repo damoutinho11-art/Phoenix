@@ -90,6 +90,36 @@ def _completed_hybrid_session(receipt, position):
     }
 
 
+def test_fresh_midweek_plan_starts_sequence_on_creation_date(training_constitution_v2):
+    midweek = replace(
+        _hybrid_snapshot(),
+        created_at="2026-07-22T06:00:00Z",
+    )
+
+    receipt = generate_weekly_plan(training_constitution_v2, midweek)
+
+    monday, tuesday, wednesday, thursday, friday, saturday, sunday = receipt.days
+    assert all(
+        day.session_type == "recovery"
+        and day.session_intent is None
+        and day.sequence_position is None
+        and day.change_reason == "fresh_start_elapsed"
+        for day in (monday, tuesday)
+    )
+    assert [
+        (day.date.isoformat(), day.session_intent, day.sequence_position)
+        for day in (wednesday, thursday, friday, sunday)
+    ] == [
+        ("2026-07-22", "push_strength", 1),
+        ("2026-07-23", "pull_strength", 2),
+        ("2026-07-24", "lower_power", 3),
+        ("2026-07-26", "push_volume", 4),
+    ]
+    assert saturday.session_type == "recovery"
+    assert saturday.session_intent is None
+    assert all(row.passed for row in receipt.validations if row.severity == "hard")
+
+
 def test_v2_receipt_uses_hybrid_baseline_and_version(training_constitution_v2):
     receipt = generate_weekly_plan(training_constitution_v2, _hybrid_snapshot())
 
