@@ -238,6 +238,9 @@ def run_local_smoke_gate() -> dict[str, Any]:
             ), patch(
                 "jarvis.api.routers.finance.detect_market_regime",
                 return_value="risk_on",
+            ), patch(
+                "jarvis.api.routers.budget._build_cashflow_authority",
+                side_effect=acceptance_gate._offline_cashflow_authority,
             ):
                 client = TestClient(app)
                 coverage_response = client.get("/finance/data-coverage")

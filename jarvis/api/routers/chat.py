@@ -42,7 +42,7 @@ Rules:
 - For voice responses, be extremely concise — maximum 2 sentences, no lists, no markdown
 
 Example of correct output format:
-"Legs today at HIGH intensity — Hex Bar Jump 30kg, Back Squat 50kg, Hip Thrust 37.5kg, Calf Raise 30kg (5×6). Nutrition: nothing logged yet, hit 2400 kcal / 165g protein before day ends. Finance: €46.15 BTC + €69.23 Quality ETF ready to deploy. Requires your approval."\
+"Legs today at HIGH intensity — Hex Bar Jump 30kg, Back Squat 50kg, Hip Thrust 37.5kg, Calf Raise 30kg (5×6). Nutrition: nothing logged yet, hit 2400 kcal / 165g protein before day ends. Requires your approval."\
 """
 
 _FINANCE_WEB_SEARCH_ADDENDUM = """\
@@ -147,13 +147,20 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
         return True
     if domain != "home":
         return False
+    financial_action = re.search(
+        r"\b(?:invest(?:ment)?|allocate|allocation|deploy(?:\s+capital)?|buy|put|add)\b",
+        message,
+        re.IGNORECASE,
+    )
+    financial_asset = re.search(
+        r"\b(?:btc|bitcoin|eth|ethereum|etf|shares?|stocks?|crypto|bonds?|"
+        r"nasdaq|s&p(?:\s*500)?|market)\b",
+        message,
+        re.IGNORECASE,
+    )
     return bool(
-        re.search(
-            r"\b(?:invest|investment|portfolio|btc|bitcoin|etf|allocation)\b"
-            r"|\bdeploy\s+capital\b|\bbuy\s+shares\b",
-            message,
-            re.IGNORECASE,
-        )
+        re.search(r"\b(?:invest|investment|allocate|allocation|deploy\s+capital)\b", message, re.IGNORECASE)
+        or (financial_action and financial_asset)
     )
 
 

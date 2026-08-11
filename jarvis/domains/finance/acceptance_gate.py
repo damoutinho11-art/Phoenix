@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
+from datetime import date
 from pathlib import Path
 from typing import Any
 from urllib.request import urlopen
@@ -29,6 +30,32 @@ _FALSE_SAFETY_FLAGS = (
     "portfolio_state_updated",
     "recommendation_overridden",
 )
+
+
+def ready_cashflow_authority_for_today(today: date) -> dict[str, Any]:
+    """Return the complete deterministic authority fixture for offline gate checks."""
+    return {
+        "data_ready": True,
+        "blockers": [],
+        "weekly_budget_eur": 115.38,
+        "cash_capacity_eur": 461.52,
+        "sustainable_capacity_eur": 461.52,
+        "deployable_capacity_eur": 461.52,
+        "input_hash": "a" * 64,
+        "policy_version": 2,
+        "source": {
+            "parser": "lhv_pdf",
+            "quality_status": "reconciled",
+            "receipt_verified": True,
+            "balance_difference_eur": 0.0,
+            "statement_end_date": today.isoformat(),
+            "filename_hash": "b" * 64,
+        },
+    }
+
+
+def _offline_cashflow_authority(*_args: Any, today: date | None = None, **_kwargs: Any) -> dict[str, Any]:
+    return ready_cashflow_authority_for_today(today or date.today())
 
 
 def current_etf_asset(sections: dict[str, Any]) -> str | None:
@@ -254,6 +281,9 @@ def run_local_acceptance_gate() -> dict[str, Any]:
             ), patch(
                 "jarvis.api.routers.finance.detect_market_regime",
                 return_value="risk_on",
+            ), patch(
+                "jarvis.api.routers.budget._build_cashflow_authority",
+                side_effect=_offline_cashflow_authority,
             ):
                 response = TestClient(app).get("/finance/data-coverage")
             response.raise_for_status()

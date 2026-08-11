@@ -27,6 +27,7 @@ _READY_CASHFLOW_AUTHORITY = {
     "blockers": [],
     "weekly_budget_eur": 115.38,
     "cash_capacity_eur": 461.52,
+    "sustainable_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
     "input_hash": "e" * 64,
     "policy_version": 2,
@@ -162,7 +163,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         self.assertIn("warnings", data)
 
     def test_recommendation_replaces_fixed_budget_with_cashflow_authority(self) -> None:
-        authority = {**_READY_CASHFLOW_AUTHORITY, "weekly_budget_eur": 86.67, "cash_capacity_eur": 260.0, "deployable_capacity_eur": 260.0, "input_hash": "c" * 64}
+        authority = {**_READY_CASHFLOW_AUTHORITY, "weekly_budget_eur": 86.67, "cash_capacity_eur": 260.0, "sustainable_capacity_eur": 260.0, "deployable_capacity_eur": 260.0, "input_hash": "c" * 64}
         self.authority_builder.return_value = authority
 
         data = client.get("/finance/recommendation").json()
@@ -199,7 +200,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         self.assertFalse(data["cashflow_authority"]["data_ready"])
 
     def test_data_coverage_exposes_the_recommendation_authority(self) -> None:
-        authority = {**_READY_CASHFLOW_AUTHORITY, "weekly_budget_eur": 86.67, "cash_capacity_eur": 260.0, "deployable_capacity_eur": 260.0, "input_hash": "f" * 64}
+        authority = {**_READY_CASHFLOW_AUTHORITY, "weekly_budget_eur": 86.67, "cash_capacity_eur": 260.0, "sustainable_capacity_eur": 260.0, "deployable_capacity_eur": 260.0, "input_hash": "f" * 64}
         self.authority_builder.return_value = authority
 
         data = client.get("/finance/data-coverage").json()

@@ -14,6 +14,7 @@ from jarvis.api import ai_gateway
 from jarvis.api.finance_authority import (
     authoritative_portfolio_state,
     build_cashflow_authority,
+    validate_cashflow_authority,
 )
 from jarvis.core import clock
 from jarvis.domains.finance import engine
@@ -52,8 +53,8 @@ def _finance_fail_closed_enabled() -> bool:
     }
 
 
-def _cashflow_authority_for_today(today: date) -> dict:
-    return build_cashflow_authority(today)
+def _cashflow_authority_for_today(today: date, *, week_closed: bool = False) -> dict:
+    return build_cashflow_authority(today, week_closed=week_closed)
 
 
 def _paused_finance_recommendation(
@@ -66,7 +67,11 @@ def _paused_finance_recommendation(
 ) -> dict:
     return {
         "week_label": week_label,
-        "week_budget": portfolio_state.get("weekly_investment_budget", 0),
+        "week_budget": (
+            cashflow_authority["weekly_budget_eur"]
+            if cashflow_authority.get("data_ready") is True
+            else 0.0
+        ),
         "recommendations": [],
         "rationale": "Finance inputs are not verified. No recommendation was generated.",
         "portfolio_mode": "data_unverified",
@@ -140,7 +145,7 @@ def _closed_finance_recommendation(
         assets = ""
     return {
         "week_label": week_label,
-        "week_budget": authority["weekly_budget_eur"] if authority.get("data_ready") else 0.0,
+        "week_budget": 0.0,
         "recommendations": [],
         "rationale": rationale,
         "portfolio_mode": portfolio_mode,
@@ -524,8 +529,11 @@ def _build_finance_recommendation(
     week_label = _iso_week_label(today)
 
     applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
-    authority = _cashflow_authority_for_today(today)
     latest_brief = database.get_latest_brief_for_week(week_label, "finance")
+    week_closed = bool(applied_this_week) or bool(
+        latest_brief and latest_brief.get("status") == "approved"
+    )
+    authority = _cashflow_authority_for_today(today, week_closed=week_closed)
     # Closure is historical fact and must not be reopened by a stale current statement.
     if applied_this_week:
         return _closed_finance_recommendation(
@@ -1944,7 +1952,12 @@ def _generate_evidence_records(
     portfolio_allocation_context). No external APIs, no broker execution, no portfolio mutation.
     Returns (created_records, skipped_count).
     """
-    authority = cashflow_authority or _cashflow_authority_for_today(clock.today())
+    today = clock.today()
+    authority = (
+        validate_cashflow_authority(cashflow_authority, today=today)
+        if cashflow_authority is not None
+        else _cashflow_authority_for_today(today)
+    )
     portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
     asset = memo.get("asset") or ""
     target_weights = constitution.get("target_weights", {})
@@ -2511,7 +2524,12 @@ def _run_memo_autopilot(
     if memo is None:
         raise ValueError(f"Memo {memo_id} not found")
 
-    authority = cashflow_authority or _cashflow_authority_for_today(clock.today())
+    today = clock.today()
+    authority = (
+        validate_cashflow_authority(cashflow_authority, today=today)
+        if cashflow_authority is not None
+        else _cashflow_authority_for_today(today)
+    )
     portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
 
     # Step 1: generate/repair local PHOENIX evidence

@@ -47,6 +47,7 @@ _READY_AUTHORITY = {
     "blockers": [],
     "weekly_budget_eur": 115.38,
     "cash_capacity_eur": 461.52,
+    "sustainable_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
     "input_hash": "6" * 64,
     "policy_version": 2,
@@ -225,6 +226,7 @@ def test_generate_evidence_uses_authoritative_overlay_without_mutating_input() -
         **_READY_AUTHORITY,
         "weekly_budget_eur": 86.67,
         "cash_capacity_eur": 260.0,
+        "sustainable_capacity_eur": 260.0,
         "deployable_capacity_eur": 260.0,
         "input_hash": "7" * 64,
     }

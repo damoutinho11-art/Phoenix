@@ -168,6 +168,96 @@ Result: `278 passed in 39.25s`.
 No implementation concerns. The pre-existing modification to
 `.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
 
+## Final Gate: Domain Authority and Intent Isolation
+
+### RED
+
+```powershell
+python -m pytest jarvis/domains/finance/tests/test_weekly_authority.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `12 failed, 42 passed`. The failures proved public domain weekly
+reports still allocated from raw portfolio state, the sanitizer accepted stale
+and capacity-inconsistent ready data, and ordinary home investment requests
+were not consistently authority-gated.
+
+```powershell
+python -m pytest jarvis/domains/finance/tests -q
+```
+
+Result: `2 failed, 75 passed, 17 errors`. The deterministic acceptance and
+smoke harnesses were invoking Finance without a validated synthetic authority,
+so their intended transparent fixtures correctly failed closed.
+
+### GREEN
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
+
+Result: `55 passed in 6.51s`.
+
+```powershell
+$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
+python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `229 passed in 50.95s`. `rg --files` found no standalone chat test;
+chat authority coverage is in `test_finance_cashflow_authority_review.py`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `302 passed in 40.49s`.
+
+```powershell
+python -m pytest jarvis/domains/finance/tests -q
+```
+
+Result: `94 passed in 6.09s`.
+
+### Changed Files
+
+- `jarvis/domains/finance/cashflow_authority.py`
+- `jarvis/domains/finance/engine.py`
+- `jarvis/domains/finance/acceptance_gate.py`
+- `jarvis/domains/finance/production_smoke_gate.py`
+- `jarvis/domains/finance/tests/test_weekly_authority.py`
+- `jarvis/api/finance_authority.py`
+- `jarvis/api/routers/finance.py`
+- `jarvis/api/routers/chat.py`
+- Finance authority, route, brief, checklist, research, and autopilot tests
+- `docs/CLAUDE_CODE_HANDOFF.md`
+
+### Self-Review
+
+- Public domain weekly result/report functions require validated authority and
+  return zero-budget, ticket-free blocked projections otherwise.
+- Validation is domain-owned, enforces literal receipt provenance, canonical
+  seven-day statement dates, finite capacity fields, and weekly-capacity
+  consistency. API builders pass one captured date to both Budget and
+  validation.
+- All Finance/chat/research allocations deep-copy the authority overlay. The
+  research helpers also revalidate supplied authority before allocating.
+- Home chat recognizes financial action plus financial asset context without
+  treating generic shopping or a design portfolio as Finance; no prompt retains
+  the legacy fixed allocation example.
+- Lifecycle closure is determined before the authority call and propagates
+  `week_closed=True`; closed projections expose no current open-week budget.
+- Deterministic local acceptance/smoke fixtures now use complete mocked Task 3
+  authority rather than any raw-state fallback.
+- `portfolio_state.json` was not modified.
+
+### Commit
+
+SHA recorded after commit amendment.
+
+### Concerns
+
+No implementation concerns. The pre-existing modification to
+`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
+
 ## P1 Re-Review Follow-Up
 
 ### RED

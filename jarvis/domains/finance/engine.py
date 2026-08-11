@@ -9,6 +9,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .cashflow_authority import (
+    authoritative_portfolio_state,
+    validate_cashflow_authority,
+)
 from .etf_scoring import ETF_SLEEVES, load_etf_universe, score_etf_universe
 
 
@@ -1690,17 +1694,57 @@ def render_report(result: dict[str, Any]) -> str:
 def build_weekly_result(
     constitution_path: str | Path = DEFAULT_CONSTITUTION_PATH,
     portfolio_state_path: str | Path = DEFAULT_PORTFOLIO_STATE_PATH,
+    *,
+    cashflow_authority: dict | None = None,
+    today: date | None = None,
 ) -> dict[str, Any]:
+    """Build a public weekly result only from a validated cash-flow authority."""
+    decision_today = today if today is not None else date.today()
+    authority = validate_cashflow_authority(cashflow_authority, today=decision_today)
+    if authority.get("data_ready") is not True:
+        return {
+            "data_ready": False,
+            "cashflow_authority": authority,
+            "weekly_budget_cents": 0,
+            "ideal_allocations_cents": {},
+            "executable_allocations_cents": {},
+            "warnings": authority["blockers"],
+            "approval_notice": APPROVAL_NOTICE,
+        }
     constitution = load_json(constitution_path)
     portfolio_state = load_json(portfolio_state_path)
-    return allocate_weekly_budget(constitution, portfolio_state)
+    result = allocate_weekly_budget(
+        constitution,
+        authoritative_portfolio_state(portfolio_state, authority),
+    )
+    return {**result, "data_ready": True, "cashflow_authority": authority}
 
 
 def build_weekly_report(
     constitution_path: str | Path = DEFAULT_CONSTITUTION_PATH,
     portfolio_state_path: str | Path = DEFAULT_PORTFOLIO_STATE_PATH,
+    *,
+    cashflow_authority: dict | None = None,
+    today: date | None = None,
 ) -> str:
-    return render_report(build_weekly_result(constitution_path, portfolio_state_path))
+    result = build_weekly_result(
+        constitution_path,
+        portfolio_state_path,
+        cashflow_authority=cashflow_authority,
+        today=today,
+    )
+    if result["data_ready"] is not True:
+        return "\n".join(
+            [
+                "PHOENIX Weekly Allocation",
+                "",
+                "Cash-flow authority is blocked. No allocation ticket was created.",
+                f"Weekly budget: {format_eur(0)}.",
+                f"Blockers: {'; '.join(result['cashflow_authority']['blockers'])}",
+                APPROVAL_NOTICE,
+            ]
+        )
+    return render_report(result)
 
 
 def save_approval_ticket(

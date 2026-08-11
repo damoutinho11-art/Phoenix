@@ -36,6 +36,7 @@ _READY_AUTHORITY = {
     "blockers": [],
     "weekly_budget_eur": 115.38,
     "cash_capacity_eur": 461.52,
+    "sustainable_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
     "input_hash": "5" * 64,
     "policy_version": 2,

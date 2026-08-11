@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+import re
 from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -21,6 +23,8 @@ _SUMMARY_MONETARY_FIELDS = (
 # Keep cent quantization and every downstream JSON float safely representable.
 _MAX_SAFE_EUROS = Decimal("100000000000000000000")
 _APPROVED_POLICY_VERSION = 2
+_INVALID_PAYLOAD_BLOCKER = "Cash-flow authority payload is invalid."
+_UNAVAILABLE_BLOCKER = "Cash-flow authority is unavailable."
 
 
 def _json_number(value: object, *, nonnegative: bool) -> bool:
@@ -33,6 +37,111 @@ def _json_number(value: object, *, nonnegative: bool) -> bool:
     if not decimal_value.is_finite() or abs(decimal_value) > _MAX_SAFE_EUROS:
         return False
     return not nonnegative or decimal_value >= 0
+
+
+def blocked_cashflow_authority(blocker: str = _INVALID_PAYLOAD_BLOCKER) -> dict:
+    """Return the deterministic, zero-budget authority failure shape."""
+    return {
+        "data_ready": False,
+        "blockers": [blocker],
+        "weekly_budget_eur": 0.0,
+    }
+
+
+def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
+    source = authority.get("source")
+    if authority.get("blockers") != []:
+        return False
+    if not isinstance(authority.get("input_hash"), str) or not re.fullmatch(
+        r"[0-9a-f]{64}", authority["input_hash"]
+    ):
+        return False
+    if type(authority.get("policy_version")) is not int or authority["policy_version"] != _APPROVED_POLICY_VERSION:
+        return False
+    if not isinstance(source, dict):
+        return False
+    if source.get("parser") != "lhv_pdf" or source.get("quality_status") != "reconciled":
+        return False
+    if not isinstance(source.get("filename_hash"), str) or not re.fullmatch(
+        r"[0-9a-fA-F]{64}", source["filename_hash"]
+    ):
+        return False
+    if source.get("receipt_verified") is not True:
+        return False
+    if not _valid_exact_zero(source.get("balance_difference_eur")):
+        return False
+    statement_end_date = source.get("statement_end_date")
+    if not isinstance(statement_end_date, str):
+        return False
+    try:
+        statement_date = date.fromisoformat(statement_end_date)
+    except ValueError:
+        return False
+    if statement_date.isoformat() != statement_end_date:
+        return False
+    if statement_date > today or (today - statement_date).days > 7:
+        return False
+
+    capacities = (
+        authority.get("cash_capacity_eur"),
+        authority.get("sustainable_capacity_eur"),
+        authority.get("deployable_capacity_eur"),
+    )
+    if not all(_valid_nonnegative_json_number(value) for value in capacities):
+        return False
+    weekly = Decimal(str(authority["weekly_budget_eur"]))
+    cash_capacity, sustainable_capacity, deployable_capacity = (
+        Decimal(str(value)) for value in capacities
+    )
+    return weekly <= cash_capacity and weekly <= sustainable_capacity and weekly <= deployable_capacity
+
+
+def _valid_nonnegative_json_number(value: object) -> bool:
+    return _json_number(value, nonnegative=True)
+
+
+def _valid_positive_json_number(value: object) -> bool:
+    if not _json_number(value, nonnegative=True):
+        return False
+    return Decimal(str(value)) > 0
+
+
+def _valid_exact_zero(value: object) -> bool:
+    return _json_number(value, nonnegative=False) and Decimal(str(value)) == 0
+
+
+def validate_cashflow_authority(authority: object, *, today: date) -> dict:
+    """Sanitize untrusted authority data before any allocation can consume it."""
+    if type(today) is not date or not isinstance(authority, dict):
+        return blocked_cashflow_authority()
+    if type(authority.get("data_ready")) is not bool:
+        return blocked_cashflow_authority()
+    if authority["data_ready"]:
+        if (
+            not _valid_positive_json_number(authority.get("weekly_budget_eur"))
+            or not _valid_ready_provenance(authority, today=today)
+        ):
+            return blocked_cashflow_authority()
+        return authority
+
+    blockers = authority.get("blockers")
+    if (
+        not isinstance(blockers, list)
+        or not blockers
+        or any(not isinstance(blocker, str) or not blocker.strip() for blocker in blockers)
+        or not _valid_exact_zero(authority.get("weekly_budget_eur"))
+    ):
+        return blocked_cashflow_authority()
+    return authority
+
+
+def authoritative_portfolio_state(portfolio_state: dict, authority: dict) -> dict:
+    """Copy state and inject the only permitted weekly allocation budget."""
+    state = copy.deepcopy(portfolio_state)
+    state["weekly_investment_budget"] = (
+        authority["weekly_budget_eur"] if authority.get("data_ready") is True else 0.0
+    )
+    return state
 
 
 def valid_recurring_obligations(value: object) -> bool:

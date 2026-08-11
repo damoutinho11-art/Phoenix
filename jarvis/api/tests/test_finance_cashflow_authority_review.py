@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from jarvis.api.main import app
 from jarvis.api.ai_gateway import AIResult
 from jarvis.api.routers import chat, finance
+from jarvis.core import clock
 from jarvis.domains.finance import engine
 
 
@@ -18,6 +19,7 @@ _READY_AUTHORITY = {
     "blockers": [],
     "weekly_budget_eur": 86.67,
     "cash_capacity_eur": 260.0,
+    "sustainable_capacity_eur": 260.0,
     "deployable_capacity_eur": 260.0,
     "input_hash": "a" * 64,
     "policy_version": 2,
@@ -54,6 +56,11 @@ client = TestClient(app)
         {**_READY_AUTHORITY, "source": {"parser": "lhv_pdf"}},
         {**_READY_AUTHORITY, "source": {key: value for key, value in _READY_AUTHORITY["source"].items() if key != "filename_hash"}},
         {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "receipt_verified": 1}},
+        {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "statement_end_date": "2026-08-13"}},
+        {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "statement_end_date": "2026-08-04"}},
+        {key: value for key, value in _READY_AUTHORITY.items() if key != "sustainable_capacity_eur"},
+        {**_READY_AUTHORITY, "sustainable_capacity_eur": "260"},
+        {**_READY_AUTHORITY, "weekly_budget_eur": 260.01},
     ],
 )
 def test_malformed_authority_is_sanitized_to_a_safe_block(authority: dict) -> None:
@@ -170,7 +177,9 @@ def test_executed_week_remains_closed_before_a_blocked_current_authority() -> No
             constitution, portfolio_state, profile, persist_brief=False
         )
 
-    builder.assert_called_once()
+    builder.assert_called_once_with(
+        clock.today().strftime("%Y-%m"), week_closed=True, today=clock.today()
+    )
     assert recommendation["week_done"] is True
     assert recommendation["week_closed"] is True
     assert recommendation["week_budget"] == 0.0
@@ -183,6 +192,45 @@ def test_executed_week_remains_closed_before_a_blocked_current_authority() -> No
     assert coverage["verdict"] == "WEEK_CLOSED"
     assert coverage["status"] == "WEEK_CLOSED"
     assert coverage["blockers"] == authority["blockers"]
+
+
+@pytest.mark.parametrize(
+    ("applied_transactions", "latest_brief", "week_closed"),
+    [
+        ([{"asset": "btc", "amount_eur": 20.0}], None, True),
+        ([], {"id": 1, "status": "approved", "user_action_at": "2026-08-12"}, True),
+        ([], None, False),
+    ],
+)
+def test_recommendation_passes_lifecycle_closure_once_to_authority_builder(
+    applied_transactions: list[dict], latest_brief: dict | None, week_closed: bool
+) -> None:
+    blocked = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+    }
+    constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+    profile = engine.load_json(engine.DEFAULT_PROFILE_PATH)
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=blocked
+    ) as builder, patch(
+        "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+        return_value=applied_transactions,
+    ), patch(
+        "jarvis.api.routers.finance.database.get_latest_brief_for_week",
+        return_value=latest_brief,
+    ):
+        recommendation = finance._build_finance_recommendation(
+            constitution, portfolio_state, profile, persist_brief=False
+        )
+
+    builder.assert_called_once_with(
+        clock.today().strftime("%Y-%m"), week_closed=week_closed, today=clock.today()
+    )
+    assert recommendation["week_closed"] is week_closed
 
 
 def test_blocked_authority_blocks_checklist_and_data_coverage() -> None:
@@ -397,3 +445,51 @@ def test_home_investment_intent_uses_blocked_finance_authority() -> None:
     generate.assert_not_called()
     assert "stale" in response.json()["response"].lower()
     assert response.json()["cashflow_authority"] == authority
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Should I buy stocks this week?",
+        "Should I buy ETH?",
+        "Can I put 100 euros into the market?",
+        "Should I invest in bitcoin?",
+        "Should I buy an ETF?",
+        "Should I deploy capital into bonds?",
+        "Should I buy Nasdaq shares?",
+        "Should I add crypto to my portfolio?",
+    ],
+)
+def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
+    authority = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ), patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        data = client.post("/jarvis/chat", json={"domain": "home", "message": message}).json()
+
+    generate.assert_not_called()
+    assert "stale" in data["response"].lower()
+    assert data["cashflow_authority"] == authority
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Show me my design portfolio", "What should I buy for dinner?", "Build a shopping list"],
+)
+def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str) -> None:
+    with patch("jarvis.api.routers.budget._build_cashflow_authority") as build_authority, patch(
+        "jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()
+    ), patch(
+        "jarvis.api.routers.chat.ai_gateway.generate_text",
+        return_value=AIResult(text="Normal response", provider="test", model="test", ok=True),
+    ) as generate:
+        data = client.post("/jarvis/chat", json={"domain": "home", "message": message}).json()
+
+    build_authority.assert_not_called()
+    generate.assert_called_once()
+    assert data["response"] == "Normal response"
+    assert "cashflow_authority" not in data

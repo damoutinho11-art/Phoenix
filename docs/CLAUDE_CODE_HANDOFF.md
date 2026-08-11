@@ -228,12 +228,15 @@ Before changing `engine.py` logic, get a baseline:
 python3 -c "
 from jarvis.domains.finance import engine
 import json
-print(json.dumps(engine.build_weekly_result(), indent=2, sort_keys=True, default=str))
+authority = {"data_ready": False, "blockers": ["Provide validated cash-flow authority"], "weekly_budget_eur": 0.0}
+print(json.dumps(engine.build_weekly_result(cashflow_authority=authority), indent=2, sort_keys=True, default=str))
 " > /tmp/baseline.json
 ```
 Make your change, regenerate, diff. Any difference should be one you can
-explain and justify, not a surprise. Run `pytest jarvis/domains/finance/tests/`
-after every change.
+explain and justify, not a surprise. Public weekly reports now fail closed unless
+they receive a validated Task 3 cash-flow authority; callers must obtain it from
+the Budget authority boundary and pass it explicitly. Run
+`pytest jarvis/domains/finance/tests/` after every change.
 
 ---
 
