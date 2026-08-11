@@ -56,7 +56,7 @@ def test_emergency_shortfall_is_reserved_before_investing() -> None:
     )
 
     assert result["protected_cash"]["emergency_shortfall_eur"] == 200.00
-    assert result["cash_capacity_eur"] == 60.00
+    assert result["cash_capacity_eur"] == 260.00
 
 
 def test_statement_older_than_seven_days_blocks() -> None:

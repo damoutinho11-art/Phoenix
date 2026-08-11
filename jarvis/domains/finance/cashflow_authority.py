@@ -55,8 +55,7 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
     food_remaining = max(0, _cents(policy["food_budget_eur"]) - food_spent)
     bills = _cents(unpaid_bills_eur)
     emergency_shortfall = max(0, _cents(policy["emergency_fund_floor_eur"]) - _cents(policy["emergency_fund_balance_eur"]))
-    protected_food = _cents(policy["food_budget_eur"]) if emergency_shortfall else food_remaining
-    cash_capacity = max(0, balance - buffer_cents - protected_food - bills - emergency_shortfall)
+    cash_capacity = max(0, balance - buffer_cents - food_remaining - bills - emergency_shortfall)
     projected_spending = _cents(month_summary.get("expenses_total")) + bills + food_remaining
     spending_guardrail = max(_cents(policy["essential_spending_ceiling_eur"]), projected_spending)
     sustainable = max(0, _cents(month_summary.get("income_total")) - spending_guardrail - _cents(month_summary.get("emergency_fund_total")) - _cents(month_summary.get("invested_total")) - emergency_shortfall)
@@ -71,5 +70,5 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
         "deployable_capacity_eur": _euros(deployable),
         "weekly_budget_eur": _euros(weekly),
         "remaining_weekly_windows": windows,
-        "protected_cash": {"checking_buffer_eur": _euros(buffer_cents), "food_eur": _euros(protected_food), "unpaid_bills_eur": _euros(bills), "emergency_shortfall_eur": _euros(emergency_shortfall)},
+        "protected_cash": {"checking_buffer_eur": _euros(buffer_cents), "food_eur": _euros(food_remaining), "unpaid_bills_eur": _euros(bills), "emergency_shortfall_eur": _euros(emergency_shortfall)},
     }
