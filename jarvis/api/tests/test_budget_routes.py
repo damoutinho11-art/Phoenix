@@ -13,6 +13,24 @@ from jarvis.data import database
 client = TestClient(app)
 
 
+def _parse_reconciled_statement_receipt() -> dict:
+    raw_text = """
+05.05.2026 Starting balance 100.00
+05.05.2026 Shop
+1500000001 -10.00 90.00
+05.05.2026 Final balance 90.00
+"""
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value=raw_text):
+        response = client.post(
+            "/budget/parse-pdf",
+            files={"file": ("account.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("receipt_id")
+    return data
+
+
 def test_default_transaction_month_uses_shared_clock() -> None:
     with patch("jarvis.core.clock.today", return_value=date(2030, 1, 2)):
         data = client.get("/budget/transactions").json()
@@ -221,34 +239,269 @@ def test_parse_pdf_reports_reconciled_statement_quality() -> None:
     assert quality["statement_end_date"] == "2026-05-05"
 
 
+def test_ai_fallback_pdf_parse_does_not_issue_statement_receipt() -> None:
+    fallback_transactions = [
+        {
+            "date": "2026-05-05",
+            "merchant": "Fallback",
+            "amount_eur": 10.00,
+            "category": "Other",
+            "description": "AI parsed",
+            "source": "pdf",
+            "month": "2026-05",
+            "is_income": 0,
+        }
+    ]
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value="unstructured text"):
+        with patch("jarvis.api.routers.budget._parse_lhv_statement_transactions", return_value=[]):
+            with patch(
+                "jarvis.api.routers.budget._parse_transactions_with_claude",
+                return_value=fallback_transactions,
+            ):
+                response = client.post(
+                    "/budget/parse-pdf",
+                    files={"file": ("fallback.pdf", b"%PDF-1.4 fake", "application/pdf")},
+                )
+
+    assert response.status_code == 200
+    assert response.json()["parser"] == "ai_fallback"
+    assert "receipt_id" not in response.json()
+
+
+def test_text_parse_does_not_issue_statement_receipt() -> None:
+    with patch("jarvis.api.routers.budget._parse_transactions_with_claude", return_value=[]):
+        response = client.post(
+            "/budget/parse",
+            json={"raw_text": "05.05.2026 Shop -10.00", "source": "text"},
+        )
+
+    assert response.status_code == 200
+    assert "receipt_id" not in response.json()
+
+
 def test_save_reconciled_pdf_persists_authoritative_balance(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
     database.init_db()
-    payload = {
-        "transactions": [],
-        "statement": {
-            "filename": "account.pdf",
-            "parser": "lhv_pdf",
-            "quality": {
-                "status": "reconciled",
-                "statement_rows": 258,
-                "parsed_rows": 258,
-                "opening_balance_eur": 1363.38,
-                "closing_balance_eur": 760.00,
-                "balance_difference_eur": 0.0,
-                "statement_end_date": "2026-08-11",
-            },
-        },
-    }
+    parsed = _parse_reconciled_statement_receipt()
+    transactions = [
+        {**transaction, "category": "Shopping", "is_income": 0, "month": "2026-05"}
+        for transaction in parsed["transactions"]
+    ]
 
-    response = client.post("/budget/save", json=payload)
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": transactions,
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
 
     assert response.status_code == 200
     snapshot = database.get_latest_reconciled_budget_statement()
-    assert snapshot["closing_balance_eur"] == 760.00
-    assert snapshot["statement_end_date"] == "2026-08-11"
+    assert snapshot["closing_balance_eur"] == 90.00
+    assert snapshot["statement_end_date"] == "2026-05-05"
     assert snapshot["filename_hash"]
     assert "account.pdf" not in snapshot["metadata_json"]
+    assert database.get_budget_transactions("2026-05")[0]["category"] == "Shopping"
+
+
+def test_save_rejects_forged_client_statement_metadata(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": [],
+            "statement": {
+                "filename": "forged.pdf",
+                "parser": "lhv_pdf",
+                "quality": {
+                    "status": "reconciled",
+                    "statement_rows": 1,
+                    "parsed_rows": 1,
+                    "opening_balance_eur": 100.00,
+                    "closing_balance_eur": 999999.00,
+                    "balance_difference_eur": 0.0,
+                    "statement_end_date": "2026-08-11",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_save_rejects_forged_statement_receipt_id(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    response = client.post(
+        "/budget/save",
+        json={"transactions": [], "statement_receipt_id": "forged-receipt"},
+    )
+
+    assert response.status_code == 422
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("date", "2026-05-06"),
+        ("merchant", "Different merchant"),
+        ("amount_eur", 11.00),
+        ("description", "Changed description"),
+        ("source", "text"),
+    ],
+)
+def test_save_rejects_statement_receipt_transaction_mismatch(
+    monkeypatch, tmp_path, field, replacement
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
+    transactions = [dict(transaction) for transaction in parsed["transactions"]]
+    transactions[0][field] = replacement
+
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": transactions,
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert database.get_budget_transactions("2026-05") == []
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_save_rejects_replayed_statement_receipt(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
+    payload = {
+        "transactions": parsed["transactions"],
+        "statement_receipt_id": parsed["receipt_id"],
+    }
+
+    first = client.post("/budget/save", json=payload)
+    replay = client.post("/budget/save", json=payload)
+
+    assert first.status_code == 200
+    assert replay.status_code == 422
+    connection = database.get_db()
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM budget_statement_snapshots").fetchone()[0] == 1
+    finally:
+        connection.close()
+
+
+def test_save_rejects_expired_statement_receipt(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
+    connection = database.get_db()
+    try:
+        connection.execute(
+            "UPDATE budget_statement_parse_receipts SET expires_at=? WHERE receipt_id=?",
+            ("2000-01-01T00:00:00+00:00", parsed["receipt_id"]),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert database.get_budget_transactions("2026-05") == []
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_save_rejects_receipt_with_nonzero_subcent_difference(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
+    connection = database.get_db()
+    try:
+        row = connection.execute(
+            "SELECT snapshot_json FROM budget_statement_parse_receipts WHERE receipt_id=?",
+            (parsed["receipt_id"],),
+        ).fetchone()
+        snapshot = json.loads(row["snapshot_json"])
+        snapshot["balance_difference_eur"] = 0.004
+        connection.execute(
+            "UPDATE budget_statement_parse_receipts SET snapshot_json=? WHERE receipt_id=?",
+            (json.dumps(snapshot, sort_keys=True), parsed["receipt_id"]),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert database.get_budget_transactions("2026-05") == []
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_reconciled_parse_receipt_stores_only_hashes_and_whitelisted_snapshot(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
+    connection = database.get_db()
+    try:
+        receipt = dict(
+            connection.execute(
+                "SELECT * FROM budget_statement_parse_receipts WHERE receipt_id=?",
+                (parsed["receipt_id"],),
+            ).fetchone()
+        )
+    finally:
+        connection.close()
+
+    assert len(receipt["filename_hash"]) == 64
+    assert "account.pdf" not in receipt["snapshot_json"]
+    assert "%PDF" not in receipt["snapshot_json"]
+    assert "raw_pdf" not in receipt["snapshot_json"]
+
+
+def test_transaction_only_budget_save_remains_supported(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    transaction = {
+        "date": "2026-08-11",
+        "merchant": "Manual transaction",
+        "amount_eur": 10.00,
+        "category": "Other",
+        "description": "Manual entry",
+        "source": "text",
+        "month": "2026-08",
+        "is_income": 0,
+    }
+
+    response = client.post("/budget/save", json={"transactions": [transaction]})
+
+    assert response.status_code == 200
+    assert len(database.get_budget_transactions("2026-08")) == 1
+    assert database.get_latest_reconciled_budget_statement() is None
 
 
 def test_save_rejects_unreconciled_statement_metadata(monkeypatch, tmp_path) -> None:
@@ -456,6 +709,7 @@ def test_statement_save_rolls_back_transactions_when_snapshot_insert_fails(
 ) -> None:
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
     database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
 
     def fail_snapshot_insert(snapshot, connection=None):
         raise RuntimeError("simulated snapshot insertion failure")
@@ -464,33 +718,13 @@ def test_statement_save_rolls_back_transactions_when_snapshot_insert_fails(
     response = TestClient(app, raise_server_exceptions=False).post(
         "/budget/save",
         json={
-            "transactions": [
-                {
-                    "date": "2026-08-11",
-                    "merchant": "Atomic transaction",
-                    "amount_eur": 10.00,
-                    "category": "Other",
-                    "month": "2026-08",
-                }
-            ],
-            "statement": {
-                "filename": "account.pdf",
-                "parser": "lhv_pdf",
-                "quality": {
-                    "status": "reconciled",
-                    "statement_rows": 1,
-                    "parsed_rows": 1,
-                    "opening_balance_eur": 770.00,
-                    "closing_balance_eur": 760.00,
-                    "balance_difference_eur": 0.0,
-                    "statement_end_date": "2026-08-11",
-                },
-            },
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
         },
     )
 
     assert response.status_code == 500
-    assert database.get_budget_transactions("2026-08") == []
+    assert database.get_budget_transactions("2026-05") == []
 
 
 def test_parse_pdf_marks_impossible_final_balance_date_for_review() -> None:
@@ -649,6 +883,64 @@ def test_database_snapshot_rejects_invalid_statement_end_date_without_writes(
                 "filename_hash": "a" * 64,
             }
         )
+
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_database_snapshot_rejects_nonzero_subcent_balance_difference(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    with pytest.raises(ValueError, match="difference"):
+        database.save_budget_statement_snapshot(
+            {
+                "statement_end_date": "2026-08-11",
+                "opening_balance_eur": 100.00,
+                "closing_balance_eur": 100.00,
+                "parser": "lhv_pdf",
+                "quality_status": "reconciled",
+                "statement_rows": 0,
+                "parsed_rows": 0,
+                "balance_difference_eur": 0.004,
+                "filename_hash": "a" * 64,
+            }
+        )
+
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_latest_reconciled_statement_excludes_nonzero_subcent_difference(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    connection = database.get_db()
+    try:
+        connection.execute(
+            """INSERT INTO budget_statement_snapshots
+               (imported_at, statement_end_date, opening_balance_eur, closing_balance_eur,
+                parser, quality_status, statement_rows, parsed_rows,
+                balance_difference_eur, filename_hash, metadata_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "2026-08-11T12:00:00+00:00",
+                "2026-08-11",
+                100.00,
+                100.00,
+                "lhv_pdf",
+                "reconciled",
+                0,
+                0,
+                0.004,
+                "a" * 64,
+                "{}",
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
 
     assert database.get_latest_reconciled_budget_statement() is None
 

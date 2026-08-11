@@ -7,9 +7,10 @@ import math
 import re
 import unicodedata
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pypdf import PdfReader
 
 from jarvis.api import ai_gateway
@@ -70,8 +71,10 @@ class StatementSavePayload(BaseModel):
 
 
 class SaveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     transactions: list[dict]
-    statement: StatementSavePayload | None = None
+    statement_receipt_id: str | None = None
 
 
 class BudgetMemoryRequest(BaseModel):
@@ -296,9 +299,19 @@ def _validated_statement_snapshot(statement: StatementSavePayload) -> dict:
 
     opening_balance = finite_number("opening_balance_eur", optional=True)
     closing_balance = finite_number("closing_balance_eur")
-    balance_difference = finite_number("balance_difference_eur")
-    if abs(balance_difference) > 0.005:
-        raise HTTPException(status_code=422, detail="Statement balance difference must be zero")
+    raw_difference = quality.get("balance_difference_eur")
+    if isinstance(raw_difference, bool):
+        raise HTTPException(status_code=422, detail="Statement balance difference must be exactly zero")
+    try:
+        decimal_difference = Decimal(str(raw_difference))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="Statement balance difference must be exactly zero",
+        ) from exc
+    if not decimal_difference.is_finite() or decimal_difference != Decimal("0"):
+        raise HTTPException(status_code=422, detail="Statement balance difference must be exactly zero")
+    balance_difference = 0.0
 
     def row_count(field: str) -> int:
         value = quality.get(field)
@@ -638,7 +651,7 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
         "balance_difference_eur": None,
         "warnings": ["AI fallback results require manual review."],
     }
-    return {
+    response = {
         "transactions": transactions,
         "count": len(transactions),
         "filename": filename,
@@ -646,19 +659,27 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
         "parser": parser,
         "quality": quality,
     }
+    if parser == "lhv_pdf" and quality.get("status") == "reconciled":
+        snapshot = _validated_statement_snapshot(
+            StatementSavePayload(filename=filename, parser=parser, quality=quality)
+        )
+        receipt = database.create_budget_statement_parse_receipt(
+            transactions, snapshot
+        )
+        response["receipt_id"] = receipt["receipt_id"]
+    return response
 
 
 @router.post("/save")
 def save_transactions(request: SaveRequest) -> dict:
-    snapshot = (
-        _validated_statement_snapshot(request.statement)
-        if request.statement is not None
-        else None
-    )
-    if snapshot is not None:
-        saved = database.save_budget_statement_import(request.transactions, snapshot)
-    else:
-        saved = database.save_budget_transactions(request.transactions)
+    if request.statement_receipt_id is None:
+        return {"saved": database.save_budget_transactions(request.transactions)}
+    try:
+        saved = database.save_budget_statement_receipt_import(
+            request.transactions, request.statement_receipt_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"saved": saved}
 
 

@@ -7,11 +7,14 @@ startup and routers so the domain layer remains deterministic and pure.
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import os
 import re
+import secrets
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -430,6 +433,20 @@ CREATE TABLE IF NOT EXISTS budget_statement_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_budget_statement_snapshots_end
 ON budget_statement_snapshots(statement_end_date, imported_at);
+
+CREATE TABLE IF NOT EXISTS budget_statement_parse_receipts (
+    receipt_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    parser TEXT NOT NULL,
+    filename_hash TEXT NOT NULL,
+    transaction_identity_hash TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    consumed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_budget_statement_parse_receipts_expiry
+ON budget_statement_parse_receipts(expires_at, consumed_at);
 
 CREATE TABLE IF NOT EXISTS sleep_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2975,6 +2992,7 @@ def brief_exists_by_id(brief_id: int) -> bool:
 
 MAX_SANE_BUDGET_AMOUNT_EUR = 100_000.0  # a personal bank transaction above this is a parse error, not real money
 _SHA256_HEX_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_BUDGET_STATEMENT_RECEIPT_TTL = timedelta(minutes=15)
 
 
 def save_budget_transactions(
@@ -3066,46 +3084,111 @@ def _normalize_budget_statement_end_date(snapshot: dict[str, Any]) -> str:
     return normalized
 
 
-def save_budget_statement_snapshot(
-    snapshot: dict[str, Any],
-    connection: sqlite3.Connection | None = None,
-) -> dict[str, Any]:
-    """Persist a reconciled PDF statement snapshot as cash-balance authority."""
+def _normalize_budget_statement_difference(snapshot: dict[str, Any]) -> float:
+    value = snapshot.get("balance_difference_eur")
+    if isinstance(value, bool):
+        raise ValueError("balance_difference_eur must be exactly zero")
+    try:
+        difference = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError("balance_difference_eur must be exactly zero") from exc
+    if not difference.is_finite() or difference != Decimal("0"):
+        raise ValueError("balance_difference_eur must be exactly zero")
+    return 0.0
+
+
+def _validated_budget_statement_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     if snapshot.get("parser") != "lhv_pdf":
         raise ValueError("Only PDF statements can become authoritative")
     if snapshot.get("quality_status") != "reconciled":
         raise ValueError("Only reconciled statements can become authoritative")
 
-    opening_balance = _normalize_budget_statement_number(
-        snapshot, "opening_balance_eur", optional=True
-    )
-    closing_balance = _normalize_budget_statement_number(snapshot, "closing_balance_eur")
-    balance_difference = _normalize_budget_statement_number(
-        snapshot, "balance_difference_eur"
-    )
-    if abs(balance_difference) > 0.005:
-        raise ValueError("Statement balance difference must be zero")
-
     filename_hash = snapshot.get("filename_hash")
     if not isinstance(filename_hash, str) or not _SHA256_HEX_RE.fullmatch(filename_hash):
         raise ValueError("filename_hash must be exactly 64 hexadecimal characters")
 
-    statement_end_date = _normalize_budget_statement_end_date(snapshot)
-    statement_rows = _normalize_budget_statement_row_count(snapshot, "statement_rows")
-    parsed_rows = _normalize_budget_statement_row_count(snapshot, "parsed_rows")
-
-    payload = {
-        "statement_end_date": statement_end_date,
-        "opening_balance_eur": opening_balance,
-        "closing_balance_eur": closing_balance,
-        "parser": snapshot["parser"],
-        "quality_status": snapshot["quality_status"],
-        "statement_rows": statement_rows,
-        "parsed_rows": parsed_rows,
-        "balance_difference_eur": balance_difference,
+    balance_difference_eur = _normalize_budget_statement_difference(snapshot)
+    return {
+        "statement_end_date": _normalize_budget_statement_end_date(snapshot),
+        "opening_balance_eur": _normalize_budget_statement_number(
+            snapshot, "opening_balance_eur", optional=True
+        ),
+        "closing_balance_eur": _normalize_budget_statement_number(
+            snapshot, "closing_balance_eur"
+        ),
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "statement_rows": _normalize_budget_statement_row_count(
+            snapshot, "statement_rows"
+        ),
+        "parsed_rows": _normalize_budget_statement_row_count(snapshot, "parsed_rows"),
+        "balance_difference_eur": balance_difference_eur,
         "filename_hash": filename_hash.lower(),
-        "imported_at": _utc_now(),
     }
+
+
+def budget_transaction_identity_hash(transactions: list[dict]) -> str:
+    """Hash immutable imported transaction fields independent of review edits/order."""
+    identities: list[str] = []
+    for transaction in transactions:
+        identity: dict[str, str] = {}
+        for field in ("date", "merchant", "description", "source"):
+            value = transaction.get(field, "" if field == "description" else None)
+            if not isinstance(value, str):
+                raise ValueError(f"Transaction identity field {field} must be text")
+            identity[field] = value
+        try:
+            amount = Decimal(str(transaction["amount_eur"]))
+        except (InvalidOperation, KeyError, TypeError, ValueError) as exc:
+            raise ValueError("Transaction identity amount_eur must be finite") from exc
+        if not amount.is_finite():
+            raise ValueError("Transaction identity amount_eur must be finite")
+        identity["amount_eur"] = format(amount.normalize(), "f")
+        identities.append(json.dumps(identity, sort_keys=True, separators=(",", ":")))
+    canonical = json.dumps(sorted(identities), separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def create_budget_statement_parse_receipt(
+    transactions: list[dict], snapshot: dict[str, Any]
+) -> dict[str, Any]:
+    normalized_snapshot = _validated_budget_statement_snapshot(snapshot)
+    created_at = clock.utc_now()
+    receipt_id = secrets.token_urlsafe(32)
+    payload = (
+        receipt_id,
+        created_at.isoformat(),
+        (created_at + _BUDGET_STATEMENT_RECEIPT_TTL).isoformat(),
+        normalized_snapshot["parser"],
+        normalized_snapshot["filename_hash"],
+        budget_transaction_identity_hash(transactions),
+        json.dumps(normalized_snapshot, sort_keys=True, separators=(",", ":")),
+    )
+    connection = get_db()
+    try:
+        connection.execute(
+            """INSERT INTO budget_statement_parse_receipts
+               (receipt_id, created_at, expires_at, parser, filename_hash,
+                transaction_identity_hash, snapshot_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            payload,
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT * FROM budget_statement_parse_receipts WHERE receipt_id=?",
+            (receipt_id,),
+        ).fetchone()
+        return dict(row)
+    finally:
+        connection.close()
+
+
+def save_budget_statement_snapshot(
+    snapshot: dict[str, Any],
+    connection: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Persist a reconciled PDF statement snapshot as cash-balance authority."""
+    payload = {**_validated_budget_statement_snapshot(snapshot), "imported_at": _utc_now()}
     owns_connection = connection is None
     connection = connection or get_db()
     try:
@@ -3162,13 +3245,80 @@ def save_budget_statement_import(
         connection.close()
 
 
+def _validated_budget_statement_receipt_snapshot(
+    receipt: sqlite3.Row,
+) -> dict[str, Any]:
+    try:
+        stored_snapshot = json.loads(receipt["snapshot_json"])
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError("Statement receipt snapshot is invalid") from exc
+    if not isinstance(stored_snapshot, dict):
+        raise ValueError("Statement receipt snapshot is invalid")
+    normalized = _validated_budget_statement_snapshot(stored_snapshot)
+    if stored_snapshot != normalized:
+        raise ValueError("Statement receipt snapshot is invalid")
+    if (
+        normalized["parser"] != receipt["parser"]
+        or normalized["filename_hash"] != receipt["filename_hash"]
+    ):
+        raise ValueError("Statement receipt snapshot is invalid")
+    return normalized
+
+
+def save_budget_statement_receipt_import(
+    transactions: list[dict], receipt_id: str
+) -> int:
+    """Consume one parse receipt while atomically persisting its import."""
+    if not isinstance(receipt_id, str) or not receipt_id:
+        raise ValueError("Statement receipt is missing or invalid")
+
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        receipt = connection.execute(
+            "SELECT * FROM budget_statement_parse_receipts WHERE receipt_id=?",
+            (receipt_id,),
+        ).fetchone()
+        if receipt is None:
+            raise ValueError("Statement receipt is missing or invalid")
+        if receipt["consumed_at"] is not None:
+            raise ValueError("Statement receipt has already been consumed")
+        try:
+            expires_at = datetime.fromisoformat(receipt["expires_at"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Statement receipt expiry is invalid") from exc
+        if expires_at <= clock.utc_now():
+            raise ValueError("Statement receipt has expired")
+        if budget_transaction_identity_hash(transactions) != receipt["transaction_identity_hash"]:
+            raise ValueError("Submitted transactions do not match statement receipt")
+
+        snapshot = _validated_budget_statement_receipt_snapshot(receipt)
+        saved = save_budget_transactions(transactions, connection=connection)
+        save_budget_statement_snapshot(snapshot, connection=connection)
+        consumed_at = _utc_now()
+        consumed = connection.execute(
+            """UPDATE budget_statement_parse_receipts
+               SET consumed_at=? WHERE receipt_id=? AND consumed_at IS NULL""",
+            (consumed_at, receipt_id),
+        )
+        if consumed.rowcount != 1:
+            raise ValueError("Statement receipt has already been consumed")
+        connection.commit()
+        return saved
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def get_latest_reconciled_budget_statement() -> dict[str, Any] | None:
     """Return the newest reconciled statement snapshot by statement end date."""
     connection = get_db()
     try:
         row = connection.execute(
             """SELECT * FROM budget_statement_snapshots
-               WHERE quality_status='reconciled' AND ABS(balance_difference_eur) <= 0.005
+               WHERE quality_status='reconciled' AND balance_difference_eur = 0
                ORDER BY statement_end_date DESC, imported_at DESC, id DESC LIMIT 1"""
         ).fetchone()
         return _row_to_dict(row)
