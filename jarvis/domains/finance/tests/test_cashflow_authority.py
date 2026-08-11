@@ -167,3 +167,18 @@ def test_missing_or_none_closing_balance_blocks(invalid_value: object) -> None:
     assert result["data_ready"] is False
     assert result["weekly_budget_eur"] == 0.0
     assert "Checking-account snapshot is missing closing_balance_eur." in result["blockers"]
+
+
+def test_none_unpaid_bills_blocks() -> None:
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot=VALID_SNAPSHOT,
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=None,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert "Cash-flow input is missing unpaid_bills_eur." in result["blockers"]

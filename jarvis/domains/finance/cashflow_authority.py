@@ -31,7 +31,7 @@ def remaining_weekly_windows(today: date, cutoff: int, week_closed: bool) -> int
     return max(1, len(labels))
 
 
-def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary: dict, unpaid_bills_eur: float, today: date, week_closed: bool) -> dict:
+def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary: dict, unpaid_bills_eur: float | None, today: date, week_closed: bool) -> dict:
     blockers: list[str] = []
     if snapshot.get("quality_status") != "reconciled":
         blockers.append("Checking-account statement is not reconciled.")
@@ -44,6 +44,8 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
         blockers.append("Checking-account statement is older than seven days.")
     if snapshot.get("closing_balance_eur") is None:
         blockers.append("Checking-account snapshot is missing closing_balance_eur.")
+    if unpaid_bills_eur is None:
+        blockers.append("Cash-flow input is missing unpaid_bills_eur.")
     required = ("emergency_fund_floor_eur", "emergency_fund_balance_eur", "checking_buffer_eur", "food_budget_eur", "essential_spending_ceiling_eur", "salary_day_cutoff")
     for key in required:
         if policy.get(key) is None:
