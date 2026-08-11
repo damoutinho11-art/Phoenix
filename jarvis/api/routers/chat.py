@@ -9,6 +9,10 @@ from pydantic import BaseModel
 
 from jarvis.data import database
 from jarvis.api import ai_gateway
+from jarvis.api.finance_authority import (
+    authoritative_portfolio_state,
+    build_cashflow_authority,
+)
 from jarvis.domains.news import engine as news_engine
 from jarvis.domains.calendar import engine as calendar_engine
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
@@ -60,14 +64,15 @@ class ChatRequest(BaseModel):
     history: list[dict] = []
 
 
-def _build_finance_context() -> tuple[str, bool]:
+def _build_finance_context(*, include_authority: bool = False) -> tuple:
     """Returns (context_text, requires_approval)."""
     try:
         constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
         finance_engine.validate_constitution(constitution)
         portfolio_state = database.load_portfolio_state()
     except (FileNotFoundError, ValueError):
-        return "FINANCE: Constitution or portfolio state unavailable.", True
+        result = "FINANCE: Constitution or portfolio state unavailable."
+        return (result, True, None) if include_authority else (result, True)
 
     try:
         from jarvis.domains.finance.market_data import detect_market_regime
@@ -78,6 +83,15 @@ def _build_finance_context() -> tuple[str, bool]:
         except FileNotFoundError:
             profile = None
 
+        authority = build_cashflow_authority(clock.today())
+        if authority.get("data_ready") is not True:
+            result = (
+                "FINANCE: Cash-flow authority is blocked. No allocation is available. "
+                f"Blockers: {'; '.join(authority.get('blockers') or [])}"
+            )
+            return (result, True, authority) if include_authority else (result, True)
+
+        portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
         regime = detect_market_regime(portfolio_state)
         result = finance_engine.allocate_weekly_budget(
             constitution, portfolio_state,
@@ -122,9 +136,10 @@ def _build_finance_context() -> tuple[str, bool]:
             f"Engine rationale: {'; '.join(rationale_parts) or 'No buys this week'}\n"
             f"Warnings: {'; '.join(ticket['warnings']) or 'None'}"
         )
-        return context, True
+        return (context, True, authority) if include_authority else (context, True)
     except Exception:
-        return "FINANCE: Engine error loading context.", True
+        result = "FINANCE: Engine error loading context."
+        return (result, True, None) if include_authority else (result, True)
 
 
 def _build_training_context() -> str:
@@ -389,7 +404,9 @@ def jarvis_chat(request: ChatRequest) -> dict:
             pass
 
     if domain in ("finance", "home"):
-        finance_ctx, fin_approval = _build_finance_context()
+        finance_ctx, fin_approval, cashflow_authority = _build_finance_context(
+            include_authority=True
+        )
         context_parts.append(finance_ctx)
         if fin_approval:
             requires_approval = True
@@ -448,10 +465,13 @@ def jarvis_chat(request: ChatRequest) -> dict:
     if not requires_approval and "requires your approval" in response_text.lower():
         requires_approval = True
 
-    return {
+    response = {
         "response": response_text,
         "domain": domain,
         "requires_approval": requires_approval,
         "ai": ai_gateway.status().as_dict(),
         "context_summary": f"{domain} context loaded as of {clock.today().isoformat()}",
     }
+    if domain in ("finance", "home"):
+        response["cashflow_authority"] = cashflow_authority
+    return response

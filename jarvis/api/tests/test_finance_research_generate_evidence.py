@@ -16,12 +16,14 @@ Invariants verified:
 13. ETF asset market_data_source is PASS.
 """
 
+import copy
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from jarvis.api.routers import finance
 from jarvis.api.main import app
 from jarvis.data import database
 from jarvis.domains.finance import engine
@@ -38,6 +40,14 @@ _SAFE_RESOLUTION = {
     "lightyear_available": "unknown",
     "confidence": "unresolved",
     "reason": "test fixture",
+}
+
+_READY_AUTHORITY = {
+    "data_ready": True,
+    "blockers": [],
+    "weekly_budget_eur": 115.38,
+    "deployable_capacity_eur": 461.52,
+    "input_hash": "evidence-authority",
 }
 
 
@@ -60,6 +70,15 @@ def patch_etf_resolver():
 def patch_regime():
     with patch(
         "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def patch_cashflow_authority():
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY.copy(),
     ):
         yield
 
@@ -183,6 +202,56 @@ def test_generate_evidence_does_not_mutate_portfolio_state() -> None:
     _generate(memo_id)
 
     assert portfolio_path.read_bytes() == before
+
+
+def test_generate_evidence_uses_authoritative_overlay_without_mutating_input() -> None:
+    memo_id = _create_memo(asset="btc")
+    memo = database.get_research_memo(memo_id)
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    before = copy.deepcopy(portfolio_state)
+    constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+    profile = engine.load_json(engine.DEFAULT_PROFILE_PATH)
+    original_allocate = engine.allocate_weekly_budget
+    captured = []
+
+    def allocate(*args, **kwargs):
+        captured.append(copy.deepcopy(args[1]))
+        return original_allocate(*args, **kwargs)
+
+    authority = {
+        "data_ready": True,
+        "blockers": [],
+        "weekly_budget_eur": 86.67,
+        "deployable_capacity_eur": 260.0,
+        "input_hash": "memo-authority-86",
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ), patch("jarvis.api.routers.finance.engine.allocate_weekly_budget", side_effect=allocate):
+        finance._generate_evidence_records(
+            memo_id, memo, constitution, portfolio_state, profile
+        )
+
+    assert captured[0]["weekly_investment_budget"] == 86.67
+    assert portfolio_state == before
+
+
+def test_generate_evidence_blocks_allocation_when_authority_is_blocked() -> None:
+    memo_id = _create_memo(asset="btc")
+    authority = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ), patch("jarvis.api.routers.finance.engine.allocate_weekly_budget") as allocate:
+        data = _generate(memo_id)
+
+    allocate.assert_not_called()
+    assert data["data_ready"] is False
+    assert data["cashflow_authority"] == authority
+    assert "stale" in data["warnings"][0].lower()
 
 
 # ---------------------------------------------------------------------------

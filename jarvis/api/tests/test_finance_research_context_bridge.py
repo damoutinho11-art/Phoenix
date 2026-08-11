@@ -31,6 +31,14 @@ _SAFE_RESOLUTION = {
     "reason": "test fixture",
 }
 
+_READY_AUTHORITY = {
+    "data_ready": True,
+    "blockers": [],
+    "weekly_budget_eur": 115.38,
+    "deployable_capacity_eur": 461.52,
+    "input_hash": "context-authority",
+}
+
 
 @pytest.fixture(autouse=True)
 def isolated_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -51,6 +59,15 @@ def patch_etf_resolver():
 def patch_regime():
     with patch(
         "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def patch_cashflow_authority():
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY.copy(),
     ):
         yield
 

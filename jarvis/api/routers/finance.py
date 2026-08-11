@@ -11,7 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.api import ai_gateway
-from jarvis.api.routers import budget as budget_router
+from jarvis.api.finance_authority import (
+    authoritative_portfolio_state,
+    build_cashflow_authority,
+)
 from jarvis.core import clock
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.etf_scoring import load_etf_universe
@@ -50,23 +53,7 @@ def _finance_fail_closed_enabled() -> bool:
 
 
 def _cashflow_authority_for_today(today: date) -> dict:
-    """Load the sole allocation authority, treating infrastructure failures as blocked."""
-    try:
-        authority = budget_router._build_cashflow_authority(today.strftime("%Y-%m"))
-    except Exception:
-        return {
-            "data_ready": False,
-            "blockers": ["Cash-flow authority is unavailable."],
-            "weekly_budget_eur": 0.0,
-        }
-
-    if not isinstance(authority, dict):
-        return {
-            "data_ready": False,
-            "blockers": ["Cash-flow authority is unavailable."],
-            "weekly_budget_eur": 0.0,
-        }
-    return authority
+    return build_cashflow_authority(today)
 
 
 def _paused_finance_recommendation(
@@ -474,8 +461,7 @@ def _build_finance_recommendation(
     applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
     authority = _cashflow_authority_for_today(today)
     if not authority.get("data_ready"):
-        paused_state = copy.deepcopy(portfolio_state)
-        paused_state["weekly_investment_budget"] = 0.0
+        paused_state = authoritative_portfolio_state(portfolio_state, authority)
         return _paused_finance_recommendation(
             paused_state,
             week_label,
@@ -484,9 +470,7 @@ def _build_finance_recommendation(
             cashflow_authority=authority,
         )
 
-    authoritative_state = copy.deepcopy(portfolio_state)
-    authoritative_state["weekly_investment_budget"] = authority["weekly_budget_eur"]
-    portfolio_state = authoritative_state
+    portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
     if applied_this_week:
         assets_done = ", ".join(sorted({t["asset"].upper() for t in applied_this_week}))
         total_deployed = sum(t["amount_eur"] for t in applied_this_week)
@@ -517,6 +501,7 @@ def _build_finance_recommendation(
             "requires_approval": False,
             "data_ready": True,
             "week_done": True,
+            "week_closed": True,
             "assets_executed": assets_done,
             "total_deployed_eur": round(total_deployed, 2),
             "next_window": next_week,
@@ -1311,7 +1296,10 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
         or item["research_warning"]
         for item in checklist_items
     )
-    week_closed = recommendation.get("week_closed") is True
+    week_closed = (
+        recommendation.get("week_closed") is True
+        or recommendation.get("week_done") is True
+    )
     safety_flags = dict(_MANUAL_BUY_SAFETY_FLAGS)
     if week_closed:
         safety_flags["manual_broker_action_required"] = False
@@ -1463,6 +1451,21 @@ def _brief_text_is_safe(text: str) -> bool:
     return _sentence_count(cleaned) <= 4
 
 
+def _brief_text_matches_authoritative_amounts(text: str, ticket: dict) -> bool:
+    if not _brief_text_is_safe(text):
+        return False
+    expected = {
+        f"{ticket['weekly_budget']:.2f}",
+        *(
+            f"{amount:.2f}"
+            for amount in ticket.get("executable_allocation", {}).values()
+            if amount > 0
+        ),
+    }
+    stated = re.findall(r"€(\d+(?:\.\d{2})?)", text)
+    return bool(stated) and all(amount in expected for amount in stated)
+
+
 def _deterministic_finance_brief(result: dict, ticket: dict, constitution: dict) -> str:
     legs = [
         (asset, amount)
@@ -1542,11 +1545,13 @@ def finance_brief(
 
     mandate = ticket["weekly_dual_lane_mandate"]
     rationale_parts = []
-    if mandate["crypto_lane"]["status"] == "READY_FOR_MANUAL_BUY":
-        c = mandate["crypto_lane"]
+    crypto_lane = mandate.get("crypto_lane") or {}
+    if crypto_lane.get("status") == "READY_FOR_MANUAL_BUY":
+        c = crypto_lane
         rationale_parts.append(f"Buy {c['asset'].upper()} €{c['amount']:.2f} (crypto lane)")
-    if mandate["stock_fund_etf_lane"]["status"] == "READY_FOR_MANUAL_BUY":
-        s = mandate["stock_fund_etf_lane"]
+    stock_lane = mandate.get("stock_fund_etf_lane") or {}
+    if stock_lane.get("status") == "READY_FOR_MANUAL_BUY":
+        s = stock_lane
         rationale_parts.append(f"Buy {s['asset']} €{s['amount']:.2f} (ETF lane)")
     rationale = "; ".join(rationale_parts) or "No buys recommended this week."
 
@@ -1587,7 +1592,7 @@ Provide a brief, direct investment summary for this week.\
     except Exception:
         brief_text = ""
 
-    if not _brief_text_is_safe(brief_text):
+    if not _brief_text_matches_authoritative_amounts(brief_text, ticket):
         brief_text = _deterministic_finance_brief(result, ticket, constitution)
 
     return {
@@ -1596,6 +1601,9 @@ Provide a brief, direct investment summary for this week.\
         "data_ready": True,
         "warnings": recommendation["warnings"],
         "cashflow_authority": authority,
+        "week_closed": recommendation.get("week_closed") is True or recommendation.get("week_done") is True,
+        "week_done": recommendation.get("week_done") is True,
+        "portfolio_mode": recommendation.get("portfolio_mode"),
     }
 
 
@@ -1924,6 +1932,7 @@ def _generate_evidence_records(
     constitution: dict,
     portfolio_state: dict,
     profile: dict,
+    cashflow_authority: dict | None = None,
 ) -> tuple[list[dict], int, int]:  # (created, skipped, updated)
     """Build validation records from local PHOENIX data only.
 
@@ -1931,45 +1940,50 @@ def _generate_evidence_records(
     portfolio_allocation_context). No external APIs, no broker execution, no portfolio mutation.
     Returns (created_records, skipped_count).
     """
+    authority = cashflow_authority or _cashflow_authority_for_today(clock.today())
+    portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
     asset = memo.get("asset") or ""
     target_weights = constitution.get("target_weights", {})
     asset_routes = constitution.get("asset_routes", {})
     holdings = portfolio_state.get("holdings", {})
 
-    try:
-        regime = detect_market_regime(portfolio_state)
-    except Exception:
-        regime = "neutral"
     mandate: dict = {}
-    try:
-        result = engine.allocate_weekly_budget(
-            constitution, portfolio_state, regime=regime, profile=profile
-        )
-        ticket = result.get("approval_ticket", {})
-        exec_alloc: dict = ticket.get("executable_allocation", {})
-        mandate = ticket.get("weekly_dual_lane_mandate", {})
+    if authority.get("data_ready") is True:
+        try:
+            regime = detect_market_regime(portfolio_state)
+        except Exception:
+            regime = "neutral"
+        try:
+            result = engine.allocate_weekly_budget(
+                constitution, portfolio_state, regime=regime, profile=profile
+            )
+            ticket = result.get("approval_ticket", {})
+            exec_alloc: dict = ticket.get("executable_allocation", {})
+            mandate = ticket.get("weekly_dual_lane_mandate", {})
 
-        # Normalise to lowercase keys; only include amounts > 0 (same filter as recommendation endpoint)
-        rec_by_asset: dict = {
-            k.strip().lower(): {
-                "asset": k,
-                "amount": v,
-                "route": asset_routes.get(k),
-            }
-            for k, v in exec_alloc.items()
-            if (v or 0) > 0
-        }
-        # Supplement from both mandate lanes (catches assets not yet in exec_alloc for any reason)
-        for _lane_key in ("crypto_lane", "stock_fund_etf_lane"):
-            _lane = mandate.get(_lane_key, {})
-            _la = (_lane.get("asset") or "").strip().lower()
-            if _la and _la not in rec_by_asset and (_lane.get("amount") or 0) > 0:
-                rec_by_asset[_la] = {
-                    "asset": _lane.get("asset"),
-                    "amount": _lane.get("amount", 0),
-                    "route": asset_routes.get(_lane.get("asset", "")),
+            # Normalise to lowercase keys; only include amounts > 0 (same filter as recommendation endpoint)
+            rec_by_asset: dict = {
+                k.strip().lower(): {
+                    "asset": k,
+                    "amount": v,
+                    "route": asset_routes.get(k),
                 }
-    except Exception:
+                for k, v in exec_alloc.items()
+                if (v or 0) > 0
+            }
+            # Supplement from both mandate lanes (catches assets not yet in exec_alloc for any reason)
+            for _lane_key in ("crypto_lane", "stock_fund_etf_lane"):
+                _lane = mandate.get(_lane_key, {})
+                _la = (_lane.get("asset") or "").strip().lower()
+                if _la and _la not in rec_by_asset and (_lane.get("amount") or 0) > 0:
+                    rec_by_asset[_la] = {
+                        "asset": _lane.get("asset"),
+                        "amount": _lane.get("amount", 0),
+                        "route": asset_routes.get(_lane.get("asset", "")),
+                    }
+        except Exception:
+            rec_by_asset = {}
+    else:
         rec_by_asset = {}
 
     # Check A — SOURCE_CONFIDENCE: market_data_source
@@ -2476,6 +2490,7 @@ def _run_memo_autopilot(
     constitution: dict,
     portfolio_state: dict,
     profile: dict,
+    cashflow_authority: dict | None = None,
 ) -> dict:
     """Run the full autonomous research pipeline for one memo.
 
@@ -2492,6 +2507,9 @@ def _run_memo_autopilot(
     if memo is None:
         raise ValueError(f"Memo {memo_id} not found")
 
+    authority = cashflow_authority or _cashflow_authority_for_today(clock.today())
+    portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
+
     # Step 1: generate/repair local PHOENIX evidence
     created_records, skipped_count, updated_count = _generate_evidence_records(
         memo_id=memo_id,
@@ -2499,6 +2517,7 @@ def _run_memo_autopilot(
         constitution=constitution,
         portfolio_state=portfolio_state,
         profile=profile,
+        cashflow_authority=authority,
     )
     evidence_result = {
         "generated_count": len(created_records) - updated_count,
@@ -2537,6 +2556,9 @@ def _run_memo_autopilot(
         "synthesis_result": synthesis_result,
         "quality_gate_result": quality_gate_result,
         "final_memo": final_memo,
+        "data_ready": authority["data_ready"],
+        "warnings": authority.get("blockers") or [],
+        "cashflow_authority": authority,
     }
 
 
@@ -2576,17 +2598,20 @@ def _run_research_autopilot_internal(
         except Exception:
             profile = {}
 
-    try:
-        regime = detect_market_regime(portfolio_state)
-    except Exception:
-        regime = "neutral"
-
-    try:
-        alloc_result = engine.allocate_weekly_budget(
-            constitution, portfolio_state, regime=regime, profile=profile
-        )
-    except Exception:
-        alloc_result = {}
+    authority = _cashflow_authority_for_today(clock.today())
+    portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
+    alloc_result = {}
+    if authority.get("data_ready") is True:
+        try:
+            regime = detect_market_regime(portfolio_state)
+        except Exception:
+            regime = "neutral"
+        try:
+            alloc_result = engine.allocate_weekly_budget(
+                constitution, portfolio_state, regime=regime, profile=profile
+            )
+        except Exception:
+            alloc_result = {}
 
     ticket = alloc_result.get("approval_ticket", {})
     exec_alloc = ticket.get("executable_allocation", {})
@@ -2619,7 +2644,7 @@ def _run_research_autopilot_internal(
             memo_id = memo["id"]
 
         autopilot_result = _run_memo_autopilot(
-            memo_id, constitution, portfolio_state, profile
+            memo_id, constitution, portfolio_state, profile, authority
         )
         final_memo = autopilot_result["final_memo"] or {}
 
@@ -2641,6 +2666,9 @@ def _run_research_autopilot_internal(
     return {
         "legs": leg_results,
         "total_legs": len(leg_results),
+        "data_ready": authority["data_ready"],
+        "warnings": authority.get("blockers") or [],
+        "cashflow_authority": authority,
         **_AUTOPILOT_SAFETY_FLAGS,
     }
 
@@ -2678,12 +2706,14 @@ def finance_research_generate_evidence(
     if memo is None:
         raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
 
+    authority = _cashflow_authority_for_today(clock.today())
     created_records, skipped_count, updated_count = _generate_evidence_records(
         memo_id=memo_id,
         memo=memo,
         constitution=constitution,
         portfolio_state=portfolio_state,
         profile=profile,
+        cashflow_authority=authority,
     )
 
     response: dict = {
@@ -2692,6 +2722,9 @@ def finance_research_generate_evidence(
         "updated_count": updated_count,
         "skipped_count": skipped_count,
         "records": created_records,
+        "data_ready": authority["data_ready"],
+        "warnings": authority.get("blockers") or [],
+        "cashflow_authority": authority,
         **_GENERATE_EVIDENCE_SAFETY_FLAGS,
     }
 

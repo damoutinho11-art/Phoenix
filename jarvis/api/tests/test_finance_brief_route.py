@@ -137,6 +137,67 @@ class TestFinanceBriefRoute:
             data = client.get("/finance/brief").json()
         assert data["requires_approval"] is True
 
+    def test_brief_rejects_ai_legacy_budget_amount(self):
+        authority = {
+            "data_ready": True,
+            "blockers": [],
+            "weekly_budget_eur": 86.67,
+            "deployable_capacity_eur": 260.0,
+            "input_hash": "brief-authority-86",
+        }
+        legacy_brief = (
+            "Sir, I recommend deploying this week's €115.38 allocation: €46.15 to BTC. "
+            "That is the best current decision under your constitution. "
+            "No warnings are active, and PHOENIX will wait for your approval. "
+            "Requires your approval before any action."
+        )
+        with patch(
+            "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+        ), patch(
+            "jarvis.api.routers.finance.ai_gateway.generate_text",
+            return_value=_make_ai_result(legacy_brief),
+        ):
+            data = client.get("/finance/brief").json()
+
+        assert "€86.67" in data["brief"]
+        assert "€115.38" not in data["brief"]
+        assert data["cashflow_authority"] == authority
+
+    def test_brief_handles_closed_week_without_a_dual_lane_mandate(self):
+        authority = {
+            "data_ready": True,
+            "blockers": [],
+            "weekly_budget_eur": 86.67,
+            "deployable_capacity_eur": 260.0,
+            "input_hash": "week-done-authority",
+        }
+        week_done = {
+            "data_ready": True,
+            "week_budget": 86.67,
+            "recommendations": [],
+            "warnings": [],
+            "weekly_dual_lane_mandate": {},
+            "portfolio_mode": "week_done",
+            "portfolio_mode_details": {"mode": "week_done"},
+            "requires_approval": False,
+            "week_done": True,
+            "week_closed": True,
+            "cashflow_authority": authority,
+        }
+        with patch(
+            "jarvis.api.routers.finance._build_finance_recommendation",
+            return_value=week_done,
+        ), patch(
+            "jarvis.api.routers.finance.ai_gateway.generate_text",
+            return_value=_make_ai_result(ok=False),
+        ):
+            data = client.get("/finance/brief").json()
+
+        assert data["week_done"] is True
+        assert data["week_closed"] is True
+        assert data["requires_approval"] is False
+        assert data["cashflow_authority"] == authority
+
     def test_brief_never_exposes_model_scratchpad(self):
         scratchpad = (
             'We need to produce max 4 sentences. Let\'s craft: "Buy BTC." '

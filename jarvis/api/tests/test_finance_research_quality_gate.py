@@ -31,6 +31,14 @@ from jarvis.domains.finance import engine
 
 client = TestClient(app)
 
+_READY_AUTHORITY = {
+    "data_ready": True,
+    "blockers": [],
+    "weekly_budget_eur": 115.38,
+    "deployable_capacity_eur": 461.52,
+    "input_hash": "quality-gate-authority",
+}
+
 _SAFE_RESOLUTION = {
     "selected_candidate": None,
     "candidates": [],
@@ -48,6 +56,15 @@ _SAFE_RESOLUTION = {
 def isolated_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "quality_gate_test.db")
     database.init_db()
+
+
+@pytest.fixture(autouse=True)
+def patch_cashflow_authority():
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY.copy(),
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)

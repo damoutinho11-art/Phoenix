@@ -1,185 +1,100 @@
-# Task 4 Report: Evidence-Driven Progression, Recovery, Calendar, and Pain Safety
+# Task 4 Report: Finance Cash-Flow Authority
 
-## Status
+Status: DONE
 
-Completed and verified. Commit: `2596d629571293cda8bb31aa65013215b28c6fa8` (`feat(training): adapt plans from recovery evidence`).
+## RED
 
-## Files
+Command:
 
-- `jarvis/domains/training/plan_evidence.py`
-- `jarvis/domains/training/tests/test_plan_evidence.py`
-- `jarvis/domains/training/adaptive_planner.py`
-- `jarvis/domains/training/tests/test_adaptive_planner.py`
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py -k "cashflow_authority or legacy_fixed_budget" -q
+```
 
-## RED Evidence
+Result: 2 failed. A ready `86.67` authority still returned the legacy `115.38`
+budget, and blocked authority still returned `data_ready=True`.
 
-1. `python -m pytest jarvis/domains/training/tests/test_plan_evidence.py -q`
-   - Result: collection error, `ModuleNotFoundError: No module named 'jarvis.domains.training.plan_evidence'`.
-   - Expected failure: evidence normalizer did not exist.
-2. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q`
-   - Result: `6 failed, 22 passed`.
-   - Expected failures: no pain recovery routing, no calendar recovery routing, unsafe moved-session spacing, absent progression payload fields, and no weekly-volume validation.
-3. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k precomputed_safety_blocks`
-   - Result: `1 failed, 28 deselected`.
-   - Expected failure: a direct snapshot with `limping=True` but no precomputed `safety_blocks` left a high-intensity day active.
-4. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k progression_alias_order`
-   - Result: `1 failed, 29 deselected`.
-   - Expected failure: equivalent progression aliases in reverse insertion order produced different receipt hashes.
+Command:
 
-## GREEN Evidence
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py -k "data_coverage_exposes_the_recommendation_authority" -q
+```
 
-1. Evidence normalizer: `python -m pytest jarvis/domains/training/tests/test_plan_evidence.py -q`
-   - Result: `6 passed in 0.09s`.
-2. Initial planner adaptation: `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q`
-   - Result: `28 passed in 0.16s`.
-3. Direct hard-readiness fallback: `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k precomputed_safety_blocks`
-   - Result: `1 passed, 28 deselected in 0.11s`.
-4. Deterministic progression aliases: `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k progression_alias_order`
-   - Result: `1 passed, 29 deselected in 0.10s`.
-5. Final focused evidence/planner suite: `python -m pytest jarvis/domains/training/tests/test_plan_evidence.py jarvis/domains/training/tests/test_adaptive_planner.py -q`
-   - Result: `36 passed in 0.23s`.
-6. Full Training domain suite: `python -m pytest jarvis/domains/training/tests -q`
-   - Result: `127 passed in 2.35s`.
-7. Compilation: `python -m compileall -q jarvis/domains/training/plan_evidence.py jarvis/domains/training/adaptive_planner.py`
-   - Result: exit code 0.
-8. Whitespace: `git diff --check`
-   - Result: exit code 0 with no whitespace errors.
+Result: 1 failed with `KeyError: 'cashflow_authority'`; the data-coverage surface
+dropped the recommendation authority.
+
+## GREEN
+
+Command:
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
+
+Result: `52 passed in 5.91s`.
+
+## Changed Files
+
+- `jarvis/api/routers/finance.py`
+- `jarvis/api/tests/test_finance_routes.py`
+- `jarvis/api/tests/test_finance_manual_buy_checklist.py`
+- `jarvis/api/tests/test_finance_brief_route.py`
+
+## Commit
+
+`13694f8b3d098255eb84b236c924398b9b0c88f1` - `feat(finance): authorize weekly budget from cash flow`
 
 ## Self-Review
 
-- `build_planning_snapshot(...)` canonicalizes equipment and preferences, calculates progression from logged sessions through the existing `calculate_progression`, and derives stable affected-area safety blocks.
-- The planner derives hard safety blocks again at its boundary, so manually constructed snapshots cannot bypass pain, limping, sharp-pain, or next-day-worsening routing.
-- Safety runs before calendar, recovery spacing, and progression. Affected high-neural work becomes an empty `recovery` day with a truthful `hard_pain_block` reason.
-- Performance calendar events route affected high-neural dates to `calendar_recovery`; explicit hard calendar events also route their date to recovery.
-- High-neural spacing is enforced from the constitution threshold, and the receipt records explicit `pain_block`, `calendar_conflicts`, `recovery_spacing`, and `weekly_volume_change` validations.
-- Progression annotations are applied only after safety/calendar/spacing routing and use canonical exercise matching. Alias selection is deterministic, preserving repeatable receipt hashes.
-
-## Review Fix
-
-### RED Evidence
-
-1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k explicit_hard_calendar_event_preserves_pain_recovery_provenance`
-   - Result: `1 failed, 30 deselected in 0.24s`.
-   - Failure: expected `pain_safe_recovery`, received `calendar_recovery` for a sharp-pain day with an explicit hard calendar event.
-2. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k reversed_same_date_sessions_without_ids`
-   - Result: `1 failed, 31 deselected in 0.27s`.
-   - Failure: reversed ID-less same-date inputs produced unequal `completed_sessions` before progression calculation.
-3. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k pain_block_validation_reports_no_op`
-   - Result: `1 failed, 32 deselected in 0.26s`.
-   - Failure: the safe no-op case reported `Hard pain block for knee routed loaded and explosive work to recovery.` instead of stating that constraints had already removed all high-neural work.
-
-### GREEN Evidence
-
-1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k explicit_hard_calendar_event_preserves_pain_recovery_provenance`
-   - Result: `1 passed, 30 deselected in 0.08s`.
-2. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k reversed_same_date_sessions_without_ids`
-   - Result: `1 passed, 31 deselected in 0.08s`.
-3. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k pain_block_validation_reports_no_op`
-   - Result: `1 passed, 32 deselected in 0.10s`.
-4. `python -m pytest jarvis/domains/training/tests/test_plan_evidence.py jarvis/domains/training/tests/test_adaptive_planner.py -q`
-   - Result: `39 passed in 0.23s`.
-5. `python -m pytest jarvis/domains/training/tests -q`
-   - Result: `130 passed in 2.31s`.
-6. `python -m compileall -q jarvis/domains/training/plan_evidence.py jarvis/domains/training/adaptive_planner.py`
-   - Result: exit code 0.
-7. `git diff --check`
-   - Result: exit code 0 with no whitespace errors.
-
-### Changes
-
-- Pain routing now tracks the dates it actually changes. Explicit hard calendar routing preserves those days' `pain_safe_recovery` objective and `hard_pain_block` provenance while calendar validation continues to record the recovery-safe conflict date.
-- Accepted session rows are sorted by a complete canonical JSON content key before `calculate_progression`, so reversed same-date rows without IDs produce identical normalized evidence, suggestions, and receipt hashes.
-- `pain_block` validation now distinguishes active pain-layer routing from the safe no-op case where prior constraints already removed every high-neural session.
+- Finance obtains one current-month cash-flow authority per recommendation-derived route path.
+- Ready authority is injected only into a deep-copied in-memory portfolio state.
+- Blocked, malformed, and infrastructure-failed authority produces a zero-budget paused response.
+- Recommendation, week-done, week-approved, checklist, brief, and data-coverage responses retain the authority.
+- The brief now derives allocation text from the authorized recommendation path instead of allocating from the raw state.
+- Existing manual-only execution and risk/constitution gates remain in the shared allocation engine path.
+- `portfolio_state.json` was not modified.
 
 ## Concerns
 
-- None within Task 4 scope. Calendar routing intentionally consumes the existing raw event-dictionary shape (`event_type`, `date`) and preserves the established performance-day and preceding-day heavy-work policy.
+No implementation concerns. The pre-existing modification to `.superpowers/sdd/task-1-report.md` was left uncommitted and untouched.
 
-## Review Fix 2
+## Review Follow-Up
 
-### RED Evidence
+### RED
 
-1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k out_of_horizon_hard_calendar_event`
-   - Result: `1 failed, 33 deselected in 0.07s`.
-   - Failure: an explicit hard event on `2026-07-27`, outside the plan horizon of `2026-07-20` through `2026-07-26`, was reported as `Calendar hard-conflict dates are recovery-safe: 2026-07-27.` instead of `No calendar hard conflicts.`
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_brief_route.py -k "authority or legacy_budget" -q
+```
 
-### GREEN Evidence
+Result: `14 failed`. The failures proved that malformed authority payloads were echoed,
+research and chat allocated from `115.38`, blocked research still allocated, and an AI
+brief containing the legacy `€115.38` was accepted.
 
-1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k out_of_horizon_hard_calendar_event`
-   - Result: `1 passed, 33 deselected in 0.07s`.
-2. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q`
-   - Result: `34 passed in 0.23s`.
-3. `python -m pytest jarvis/domains/training/tests -q`
-   - Result: `131 passed in 2.48s`.
-4. `python -m compileall -q jarvis/domains/training/adaptive_planner.py`
-   - Result: exit code 0.
-5. `git diff --check`
-   - Result: exit code 0 with no whitespace errors.
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -k "state_is_unavailable" -q
+```
 
-### Changes
+Result: `1 failed`. Chat returned a two-item context tuple on unavailable Finance state
+despite the authority-aware caller requiring the three-item form.
 
-- Explicit hard calendar conflict dates are now limited to dates in the generated seven-day plan horizon before validation and routing.
-- Added a regression test proving an out-of-horizon hard event is not represented as recovery-safe and does not alter any plan day.
+### GREEN
 
-### Concerns
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
 
-- None within Task 4 scope. Performance events retain the existing policy of affecting an in-horizon preceding high-neural day or the performance date itself.
+Result: `54 passed in 6.90s`.
 
-## Review Fix 3
+```powershell
+$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
+python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
 
-### RED Evidence
+Result: `193 passed in 53.43s`. `rg --files` found no standalone chat test file;
+the added `test_finance_cashflow_authority_review.py` covers Finance chat context.
 
-1. `pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k "hard_pain_flags_route_loaded_general or pain_block_validation_rejects_loaded"`
-   - Result: `5 failed, 34 deselected in 0.35s`.
-   - Failure: each hard flag left the loaded `general`/`bench_press` day active while only high-neural days were routed; `pain_block` also passed for a manually supplied loaded general day.
+### Follow-Up Scope
 
-### GREEN Evidence
-
-1. `pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k "hard_pain_flags_route_loaded_general or pain_block_validation_rejects_loaded or pain_block_validation_reports_no_op_when_constraints_removed_pain_blocked_work"`
-   - Result: `6 passed, 33 deselected in 0.17s`.
-2. `pytest jarvis/domains/training/tests/test_plan_evidence.py jarvis/domains/training/tests/test_adaptive_planner.py -q`
-   - Result: `45 passed in 0.33s`.
-3. `pytest jarvis/domains/training/tests -q`
-   - Result: `136 passed in 3.19s`.
-4. `python -m compileall -q jarvis/domains/training/adaptive_planner.py jarvis/domains/training/plan_evidence.py`
-   - Result: exit code 0.
-5. `git diff --check`
-   - Result: exit code 0 with no whitespace errors.
-
-### Changes
-
-- Added regressions for `pain`, `limping`, `sharp_pain`, and `next_day_worsening`; each global hard flag now routes both loaded general work (`bench_press`) and high-neural/explosive work to empty `pain_safe_recovery` days.
-- Added a shared, deterministic pain-work classifier used by both routing and `pain_block` validation. It reads each `PlanDay` exercise payload, recognizes pure mobility, rehab, and isometric recovery work, honors explicit load fields, and derives loaded/explosive exercise profiles from the active constitution.
-- With no body-area exercise map available, named non-recovery payloads fail closed under a hard pain flag. Consequently, `pain_block` cannot pass while loaded or explosive work remains.
-- Updated the no-op regression so it requires constraints to remove all loaded and explosive work before the hard pain validation may pass.
-
-### Concerns
-
-- The conservative fallback treats an unrecognized named exercise as pain-blocked unless it is clearly mobility, rehab, or isometric recovery. This is intentional while no safe body-area exercise mapping exists.
-
-## Review Fix 4
-
-### RED Evidence
-
-1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k loaded_recovery_marker`
-   - Result: `8 failed, 39 deselected in 0.31s`.
-   - Failure: explicitly weighted isometric and loaded rehab payloads were incorrectly treated as unloaded recovery under each hard flag (`pain`, `limping`, `sharp_pain`, and `next_day_worsening`).
-
-### GREEN Evidence
-
-1. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q -k "loaded_recovery_marker or hard_pain_flags_route_loaded_general or pain_block_validation_rejects_loaded"`
-   - Result: `13 passed, 34 deselected in 0.10s`.
-2. `python -m pytest jarvis/domains/training/tests/test_adaptive_planner.py -q`
-   - Result: `47 passed in 0.25s`.
-3. `python -m pytest jarvis/domains/training/tests -q`
-   - Result: `144 passed in 2.31s`.
-
-### Changes
-
-- `_is_loaded_or_explosive_exercise` now checks explicit positive load fields before recovery marker allowlists.
-- Clearly unloaded mobility, rehab, flexibility, and isometric recovery payloads retain their safe classification.
-- Added an 8-case regression matrix covering loaded isometric and loaded rehab payloads under every hard flag.
-
-### Concerns
-
-- None within Task 4 scope.
+- Added `jarvis/api/finance_authority.py` to validate, sanitize, and overlay authority.
+- Routed Finance recommendations, memo evidence, research autopilot, and chat through it.
+- Added route-level malformed payload, memo/autopilot/chat overlay, closed lifecycle, and stale-AI amount regression coverage.
+- Confirmed `portfolio_state.json` remained unchanged.
