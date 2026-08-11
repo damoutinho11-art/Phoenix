@@ -98,7 +98,9 @@ def cashflow_authority_structural_blockers(
     version = policy.get("version", _APPROVED_POLICY_VERSION)
     if type(version) is not int or version != _APPROVED_POLICY_VERSION:
         blockers.append("Cash-flow policy has invalid version.")
-    if not valid_recurring_obligations(policy.get("recurring_obligations")):
+    if policy.get("recurring_obligations") is None:
+        blockers.append("Cash-flow policy is missing recurring_obligations.")
+    elif not valid_recurring_obligations(policy["recurring_obligations"]):
         blockers.append("Cash-flow policy has invalid recurring_obligations.")
 
     for key in _SUMMARY_MONETARY_FIELDS:

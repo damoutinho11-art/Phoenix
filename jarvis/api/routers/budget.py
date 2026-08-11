@@ -69,18 +69,6 @@ DEFAULT_BUDGET_MEMORY = {
     ],
 }
 
-_AUTHORITY_POLICY_FIELDS = {
-    "version",
-    "emergency_fund_floor_eur",
-    "emergency_fund_balance_eur",
-    "checking_buffer_eur",
-    "food_budget_eur",
-    "essential_spending_ceiling_eur",
-    "salary_day_cutoff",
-    "recurring_obligations",
-}
-
-
 class ParseRequest(BaseModel):
     raw_text: str
     source: str = "text"
@@ -128,13 +116,9 @@ def _cashflow_authority_policy() -> dict | None:
         return None
     if not isinstance(stored, dict):
         return None
-    profile = _deepcopy_default_budget_memory()
-    for key, value in stored.items():
-        if value is not None:
-            profile[key] = value
-    for key in _AUTHORITY_POLICY_FIELDS:
-        if key in stored:
-            profile[key] = stored[key]
+    profile = dict(stored)
+    if "version" not in profile:
+        profile["version"] = DEFAULT_BUDGET_MEMORY["version"]
     return profile
 
 

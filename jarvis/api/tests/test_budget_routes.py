@@ -14,6 +14,18 @@ from jarvis.data import database
 client = TestClient(app)
 
 
+_COMPLETE_AUTHORITY_POLICY = {
+    "emergency_fund_floor_eur": 5000,
+    "emergency_fund_balance_eur": 5000,
+    "checking_buffer_eur": 300,
+    "food_budget_eur": 200,
+    "essential_spending_ceiling_eur": 950,
+    "salary_day_cutoff": 25,
+    "recurring_obligations": [],
+}
+_REQUIRED_STORED_AUTHORITY_FIELDS = tuple(_COMPLETE_AUTHORITY_POLICY)
+
+
 def test_statement_receipt_helpers_are_private_implementation_apis() -> None:
     assert not hasattr(database, "create_budget_statement_parse_receipt")
     assert not hasattr(database, "save_budget_statement_receipt_import")
@@ -1341,7 +1353,14 @@ def test_investment_capacity_hash_covers_full_decision_inputs(monkeypatch, tmp_p
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         first = client.get("/budget/investment-capacity?month=2026-08").json()
         repeated = client.get("/budget/investment-capacity?month=2026-08").json()
-    database.save_budget_memory_profile({"recurring_obligations": [{"name": "utilities", "amount_eur": 120, "contains": ["utilities"]}]})
+    database.save_budget_memory_profile(
+        {
+            **_COMPLETE_AUTHORITY_POLICY,
+            "recurring_obligations": [
+                {"name": "utilities", "amount_eur": 120, "contains": ["utilities"]}
+            ],
+        }
+    )
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         changed = client.get("/budget/investment-capacity?month=2026-08").json()
 
@@ -1508,6 +1527,65 @@ def test_investment_capacity_blocks_invalid_persisted_policy_version(
     assert "Cash-flow policy has invalid version." in data["blockers"]
     assert "policy_version" not in data
     assert "input_hash" not in data
+
+
+def test_investment_capacity_blocks_empty_persisted_authority_policy(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile({})
+    _save_authoritative_statement_for_investment_capacity()
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "Cash-flow policy is missing emergency_fund_floor_eur." in data["blockers"]
+
+
+@pytest.mark.parametrize("missing_field", _REQUIRED_STORED_AUTHORITY_FIELDS)
+def test_investment_capacity_blocks_persisted_policy_missing_required_authority_field(
+    monkeypatch, tmp_path, missing_field: str
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    profile = dict(_COMPLETE_AUTHORITY_POLICY)
+    profile.pop(missing_field)
+    database.save_budget_memory_profile(profile)
+    _save_authoritative_statement_for_investment_capacity()
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert f"Cash-flow policy is missing {missing_field}." in data["blockers"]
+
+
+def test_investment_capacity_defaults_absent_version_for_complete_persisted_policy(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile(_COMPLETE_AUTHORITY_POLICY)
+    _save_authoritative_statement_for_investment_capacity()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is True
+    assert data["policy_version"] == 2
+    assert data["policy"]["version"] == 2
 
 
 def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
