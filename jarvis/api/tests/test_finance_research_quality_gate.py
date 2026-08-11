@@ -38,6 +38,7 @@ _READY_AUTHORITY = {
     "cash_capacity_eur": 461.52,
     "sustainable_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
+    "remaining_weekly_windows": 4,
     "input_hash": "5" * 64,
     "policy_version": 2,
     "source": {"parser": "lhv_pdf", "quality_status": "reconciled", "receipt_verified": True, "balance_difference_eur": 0.0, "statement_end_date": "2026-08-11", "filename_hash": "0" * 64},

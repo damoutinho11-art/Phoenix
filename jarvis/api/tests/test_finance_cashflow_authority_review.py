@@ -21,6 +21,7 @@ _READY_AUTHORITY = {
     "cash_capacity_eur": 260.0,
     "sustainable_capacity_eur": 260.0,
     "deployable_capacity_eur": 260.0,
+    "remaining_weekly_windows": 3,
     "input_hash": "a" * 64,
     "policy_version": 2,
     "source": {
@@ -61,6 +62,10 @@ client = TestClient(app)
         {key: value for key, value in _READY_AUTHORITY.items() if key != "sustainable_capacity_eur"},
         {**_READY_AUTHORITY, "sustainable_capacity_eur": "260"},
         {**_READY_AUTHORITY, "weekly_budget_eur": 260.01},
+        {**_READY_AUTHORITY, "weekly_budget_eur": 260.0},
+        {**_READY_AUTHORITY, "deployable_capacity_eur": 259.99},
+        {**_READY_AUTHORITY, "remaining_weekly_windows": True},
+        {**_READY_AUTHORITY, "remaining_weekly_windows": 0},
     ],
 )
 def test_malformed_authority_is_sanitized_to_a_safe_block(authority: dict) -> None:
@@ -74,6 +79,16 @@ def test_malformed_authority_is_sanitized_to_a_safe_block(authority: dict) -> No
         "blockers": ["Cash-flow authority payload is invalid."],
         "weekly_budget_eur": 0.0,
     }
+
+
+def test_ready_authority_uses_calculator_cent_rounding_for_three_windows() -> None:
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY,
+    ):
+        result = finance._cashflow_authority_for_today(date(2026, 8, 12))
+
+    assert result == _READY_AUTHORITY
 
 
 @pytest.mark.parametrize(
@@ -385,6 +400,93 @@ def test_chat_ready_finance_allocation_is_deterministic_and_authoritative() -> N
     assert data["cashflow_authority"] == _READY_AUTHORITY
 
 
+@pytest.mark.parametrize(
+    ("applied_transactions", "latest_brief"),
+    [
+        ([{"asset": "btc", "amount_eur": 20.0}], None),
+        ([], {"id": 1, "status": "approved", "user_action_at": "2026-08-12"}),
+        ([], {"id": 2, "status": "executed", "user_action_at": "2026-08-12"}),
+    ],
+)
+def test_closed_chat_builds_closed_authority_once_without_an_open_budget(
+    applied_transactions: list[dict], latest_brief: dict | None
+) -> None:
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY,
+    ) as builder, patch(
+        "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+        return_value=applied_transactions,
+    ), patch(
+        "jarvis.api.routers.finance.database.get_latest_brief_for_week",
+        return_value=latest_brief,
+    ):
+        data = client.post(
+            "/jarvis/chat", json={"domain": "finance", "message": "What should I buy?"}
+        ).json()
+
+    builder.assert_called_once_with(
+        clock.today().strftime("%Y-%m"), week_closed=True, today=clock.today()
+    )
+    assert "€" not in data["response"]
+    assert data["cashflow_authority"] == _READY_AUTHORITY
+
+
+def test_open_chat_builds_open_authority_once() -> None:
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY,
+    ) as builder, patch(
+        "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+        return_value=[],
+    ), patch(
+        "jarvis.api.routers.finance.database.get_latest_brief_for_week", return_value=None
+    ):
+        client.post(
+            "/jarvis/chat", json={"domain": "finance", "message": "What should I buy?"}
+        )
+
+    builder.assert_called_once_with(
+        clock.today().strftime("%Y-%m"), week_closed=False, today=clock.today()
+    )
+
+
+@pytest.mark.parametrize(
+    ("applied_transactions", "latest_brief"),
+    [
+        ([{"asset": "btc", "amount_eur": 20.0}], None),
+        ([], {"id": 1, "status": "approved", "user_action_at": "2026-08-12"}),
+        ([], {"id": 2, "status": "executed", "user_action_at": "2026-08-12"}),
+    ],
+)
+def test_closed_research_autopilot_skips_new_allocation(
+    applied_transactions: list[dict], latest_brief: dict | None
+) -> None:
+    constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+    profile = engine.load_json(engine.DEFAULT_PROFILE_PATH)
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY,
+    ) as builder, patch(
+        "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+        return_value=applied_transactions,
+    ), patch(
+        "jarvis.api.routers.finance.database.get_latest_brief_for_week",
+        return_value=latest_brief,
+    ), patch("jarvis.api.routers.finance.engine.allocate_weekly_budget") as allocate:
+        data = finance._run_research_autopilot_internal(
+            constitution, portfolio_state, profile
+        )
+
+    builder.assert_called_once_with(
+        clock.today().strftime("%Y-%m"), week_closed=True, today=clock.today()
+    )
+    allocate.assert_not_called()
+    assert data["legs"] == []
+    assert data["cashflow_authority"] == _READY_AUTHORITY
+
+
 def _configured_ai_status() -> MagicMock:
     status = MagicMock()
     status.configured = True
@@ -458,6 +560,8 @@ def test_home_investment_intent_uses_blocked_finance_authority() -> None:
         "Should I deploy capital into bonds?",
         "Should I buy Nasdaq shares?",
         "Should I add crypto to my portfolio?",
+        "Should I sell ETH?",
+        "What should I do with my stocks?",
     ],
 )
 def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
@@ -478,7 +582,14 @@ def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
 
 @pytest.mark.parametrize(
     "message",
-    ["Show me my design portfolio", "What should I buy for dinner?", "Build a shopping list"],
+    [
+        "Show me my design portfolio",
+        "Build a portfolio website",
+        "Should I invest in a new dinner table?",
+        "What should I buy for dinner?",
+        "Build a shopping list",
+        "Which furniture should I buy?",
+    ],
 )
 def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str) -> None:
     with patch("jarvis.api.routers.budget._build_cashflow_authority") as build_authority, patch(

@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 
 from jarvis.api.routers import finance
 from jarvis.api.main import app
+from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.finance import engine
 
@@ -49,6 +50,7 @@ _READY_AUTHORITY = {
     "cash_capacity_eur": 461.52,
     "sustainable_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
+    "remaining_weekly_windows": 4,
     "input_hash": "6" * 64,
     "policy_version": 2,
     "source": {"parser": "lhv_pdf", "quality_status": "reconciled", "receipt_verified": True, "balance_difference_eur": 0.0, "statement_end_date": "2026-08-11", "filename_hash": "0" * 64},
@@ -228,6 +230,7 @@ def test_generate_evidence_uses_authoritative_overlay_without_mutating_input() -
         "cash_capacity_eur": 260.0,
         "sustainable_capacity_eur": 260.0,
         "deployable_capacity_eur": 260.0,
+        "remaining_weekly_windows": 3,
         "input_hash": "7" * 64,
     }
     with patch(
@@ -257,6 +260,36 @@ def test_generate_evidence_blocks_allocation_when_authority_is_blocked() -> None
     assert data["data_ready"] is False
     assert data["cashflow_authority"] == authority
     assert "stale" in data["warnings"][0].lower()
+
+
+@pytest.mark.parametrize(
+    ("applied_transactions", "latest_brief"),
+    [
+        ([{"asset": "btc", "amount_eur": 20.0}], None),
+        ([], {"id": 1, "status": "approved", "user_action_at": "2026-08-12"}),
+    ],
+)
+def test_closed_generate_evidence_builds_closed_authority_without_allocation(
+    applied_transactions: list[dict], latest_brief: dict | None
+) -> None:
+    memo_id = _create_memo(asset="btc")
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY,
+    ) as builder, patch(
+        "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+        return_value=applied_transactions,
+    ), patch(
+        "jarvis.api.routers.finance.database.get_latest_brief_for_week",
+        return_value=latest_brief,
+    ), patch("jarvis.api.routers.finance.engine.allocate_weekly_budget") as allocate:
+        data = _generate(memo_id)
+
+    builder.assert_called_once_with(
+        clock.today().strftime("%Y-%m"), week_closed=True, today=clock.today()
+    )
+    allocate.assert_not_called()
+    assert data["cashflow_authority"] == _READY_AUTHORITY
 
 
 # ---------------------------------------------------------------------------

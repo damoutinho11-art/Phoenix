@@ -13,6 +13,7 @@ from jarvis.api.finance_authority import (
     authoritative_portfolio_state,
     build_cashflow_authority,
 )
+from jarvis.api.finance_lifecycle import current_week_lifecycle
 from jarvis.domains.news import engine as news_engine
 from jarvis.domains.calendar import engine as calendar_engine
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
@@ -83,7 +84,14 @@ def _build_finance_context(*, include_authority: bool = False) -> tuple:
         except FileNotFoundError:
             profile = None
 
-        authority = build_cashflow_authority(clock.today())
+        today = clock.today()
+        lifecycle = current_week_lifecycle(today)
+        authority = build_cashflow_authority(
+            today, week_closed=lifecycle["week_closed"]
+        )
+        if lifecycle["week_closed"]:
+            result = "FINANCE: Current investment week is closed. No new allocation is available."
+            return (result, False, authority) if include_authority else (result, False)
         if authority.get("data_ready") is not True:
             result = (
                 "FINANCE: Cash-flow authority is blocked. No allocation is available. "
@@ -147,24 +155,49 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
         return True
     if domain != "home":
         return False
+    if re.search(
+        r"\b(?:design|website|dinner|table|furniture|shopping|supermarket)\b",
+        message,
+        re.IGNORECASE,
+    ):
+        return False
     financial_action = re.search(
-        r"\b(?:invest(?:ment)?|allocate|allocation|deploy(?:\s+capital)?|buy|put|add)\b",
+        r"\b(?:invest(?:ment)?|allocate|allocation|deploy(?:\s+capital)?|buy|sell|put|add)\b",
         message,
         re.IGNORECASE,
     )
-    financial_asset = re.search(
+    concrete_financial_asset = re.search(
         r"\b(?:btc|bitcoin|eth|ethereum|etf|shares?|stocks?|crypto|bonds?|"
-        r"nasdaq|s&p(?:\s*500)?|market)\b",
+        r"nasdaq|s&p(?:\s*500)?)\b",
         message,
         re.IGNORECASE,
     )
+    advice_question = re.search(
+        r"\b(?:should|what\s+should|can\s+i|do\s+i|help)\b",
+        message,
+        re.IGNORECASE,
+    )
+    generic_invest = re.search(
+        r"\b(?:invest|investment|allocate|allocation|deploy\s+capital)\b",
+        message,
+        re.IGNORECASE,
+    )
+    finance_context = re.search(
+        r"\b(?:money|cash|capital|euros?|eur|market|weekly|this\s+week|finance|financial)\b",
+        message,
+        re.IGNORECASE,
+    )
+    market_action = financial_action and re.search(r"\bmarket\b", message, re.IGNORECASE)
     return bool(
-        re.search(r"\b(?:invest|investment|allocate|allocation|deploy\s+capital)\b", message, re.IGNORECASE)
-        or (financial_action and financial_asset)
+        (concrete_financial_asset and (financial_action or advice_question))
+        or (market_action and finance_context)
+        or (generic_invest and finance_context)
     )
 
 
 def _deterministic_finance_chat_response(authority: dict | None, context: str) -> str:
+    if context.startswith("FINANCE: Current investment week is closed."):
+        return "Sir, the current investment week is closed. No new allocation is available."
     if not authority or authority.get("data_ready") is not True:
         blocker = "; ".join((authority or {}).get("blockers") or ["Finance context is unavailable."])
         return (

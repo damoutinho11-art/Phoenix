@@ -14,6 +14,7 @@ _AUTHORITY = {
     "cash_capacity_eur": 260.0,
     "sustainable_capacity_eur": 260.0,
     "deployable_capacity_eur": 260.0,
+    "remaining_weekly_windows": 3,
     "input_hash": "a" * 64,
     "policy_version": 2,
     "source": {

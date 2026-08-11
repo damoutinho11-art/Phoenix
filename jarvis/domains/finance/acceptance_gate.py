@@ -41,6 +41,7 @@ def ready_cashflow_authority_for_today(today: date) -> dict[str, Any]:
         "cash_capacity_eur": 461.52,
         "sustainable_capacity_eur": 461.52,
         "deployable_capacity_eur": 461.52,
+        "remaining_weekly_windows": 4,
         "input_hash": "a" * 64,
         "policy_version": 2,
         "source": {

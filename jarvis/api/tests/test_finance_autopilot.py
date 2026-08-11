@@ -24,6 +24,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
+from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.finance import engine
 
@@ -52,6 +53,7 @@ _READY_AUTHORITY = {
     "cash_capacity_eur": 461.52,
     "sustainable_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
+    "remaining_weekly_windows": 4,
     "input_hash": "3" * 64,
     "policy_version": 2,
     "source": {"parser": "lhv_pdf", "quality_status": "reconciled", "receipt_verified": True, "balance_difference_eur": 0.0, "statement_end_date": "2026-08-11", "filename_hash": "0" * 64},
@@ -237,6 +239,36 @@ def test_memo_autopilot_response_has_all_safety_flags(mock_yf_fail):
     assert data["broker_connection"] is False
     assert data["portfolio_state_updated"] is False
     assert data["recommendation_overridden"] is False
+
+
+@pytest.mark.parametrize(
+    ("applied_transactions", "latest_brief"),
+    [
+        ([{"asset": "btc", "amount_eur": 20.0}], None),
+        ([], {"id": 1, "status": "approved", "user_action_at": "2026-08-12"}),
+    ],
+)
+def test_closed_memo_autopilot_builds_closed_authority_without_allocation(
+    mock_yf_fail, applied_transactions: list[dict], latest_brief: dict | None
+):
+    memo_id = _create_btc_memo()
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value=_READY_AUTHORITY,
+    ) as builder, patch(
+        "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+        return_value=applied_transactions,
+    ), patch(
+        "jarvis.api.routers.finance.database.get_latest_brief_for_week",
+        return_value=latest_brief,
+    ), patch("jarvis.api.routers.finance.engine.allocate_weekly_budget") as allocate:
+        data = client.post(f"/finance/research/memos/{memo_id}/autopilot").json()
+
+    builder.assert_called_once_with(
+        clock.today().strftime("%Y-%m"), week_closed=True, today=clock.today()
+    )
+    allocate.assert_not_called()
+    assert data["cashflow_authority"] == _READY_AUTHORITY
 
 
 def test_autopilot_never_sets_buy_candidate(mock_yf_fail):

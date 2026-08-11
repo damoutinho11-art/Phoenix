@@ -16,6 +16,7 @@ from jarvis.api.finance_authority import (
     build_cashflow_authority,
     validate_cashflow_authority,
 )
+from jarvis.api.finance_lifecycle import current_week_lifecycle
 from jarvis.core import clock
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.etf_scoring import load_etf_universe
@@ -526,14 +527,13 @@ def _build_finance_recommendation(
     persist_brief: bool,
 ) -> dict:
     today = clock.today()
-    week_label = _iso_week_label(today)
-
-    applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
-    latest_brief = database.get_latest_brief_for_week(week_label, "finance")
-    week_closed = bool(applied_this_week) or bool(
-        latest_brief and latest_brief.get("status") == "approved"
+    lifecycle = current_week_lifecycle(today)
+    week_label = lifecycle["week_label"]
+    applied_this_week = lifecycle["applied_transactions"]
+    latest_brief = lifecycle["latest_brief"]
+    authority = _cashflow_authority_for_today(
+        today, week_closed=lifecycle["week_closed"]
     )
-    authority = _cashflow_authority_for_today(today, week_closed=week_closed)
     # Closure is historical fact and must not be reopened by a stale current statement.
     if applied_this_week:
         return _closed_finance_recommendation(
@@ -542,7 +542,7 @@ def _build_finance_recommendation(
             latest_brief=latest_brief,
             applied_transactions=applied_this_week,
         )
-    if latest_brief and latest_brief.get("status") == "approved":
+    if lifecycle["week_closed"]:
         return _closed_finance_recommendation(
             week_label=week_label,
             authority=authority,
@@ -1945,6 +1945,7 @@ def _generate_evidence_records(
     portfolio_state: dict,
     profile: dict,
     cashflow_authority: dict | None = None,
+    lifecycle: dict | None = None,
 ) -> tuple[list[dict], int, int]:  # (created, skipped, updated)
     """Build validation records from local PHOENIX data only.
 
@@ -1953,10 +1954,13 @@ def _generate_evidence_records(
     Returns (created_records, skipped_count).
     """
     today = clock.today()
+    lifecycle = lifecycle or current_week_lifecycle(today)
     authority = (
         validate_cashflow_authority(cashflow_authority, today=today)
         if cashflow_authority is not None
-        else _cashflow_authority_for_today(today)
+        else _cashflow_authority_for_today(
+            today, week_closed=lifecycle["week_closed"]
+        )
     )
     portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
     asset = memo.get("asset") or ""
@@ -1965,7 +1969,7 @@ def _generate_evidence_records(
     holdings = portfolio_state.get("holdings", {})
 
     mandate: dict = {}
-    if authority.get("data_ready") is True:
+    if authority.get("data_ready") is True and not lifecycle["week_closed"]:
         try:
             regime = detect_market_regime(portfolio_state)
         except Exception:
@@ -2508,6 +2512,7 @@ def _run_memo_autopilot(
     portfolio_state: dict,
     profile: dict,
     cashflow_authority: dict | None = None,
+    lifecycle: dict | None = None,
 ) -> dict:
     """Run the full autonomous research pipeline for one memo.
 
@@ -2525,10 +2530,13 @@ def _run_memo_autopilot(
         raise ValueError(f"Memo {memo_id} not found")
 
     today = clock.today()
+    lifecycle = lifecycle or current_week_lifecycle(today)
     authority = (
         validate_cashflow_authority(cashflow_authority, today=today)
         if cashflow_authority is not None
-        else _cashflow_authority_for_today(today)
+        else _cashflow_authority_for_today(
+            today, week_closed=lifecycle["week_closed"]
+        )
     )
     portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
 
@@ -2540,6 +2548,7 @@ def _run_memo_autopilot(
         portfolio_state=portfolio_state,
         profile=profile,
         cashflow_authority=authority,
+        lifecycle=lifecycle,
     )
     evidence_result = {
         "generated_count": len(created_records) - updated_count,
@@ -2620,10 +2629,14 @@ def _run_research_autopilot_internal(
         except Exception:
             profile = {}
 
-    authority = _cashflow_authority_for_today(clock.today())
+    today = clock.today()
+    lifecycle = current_week_lifecycle(today)
+    authority = _cashflow_authority_for_today(
+        today, week_closed=lifecycle["week_closed"]
+    )
     portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
     alloc_result = {}
-    if authority.get("data_ready") is True:
+    if authority.get("data_ready") is True and not lifecycle["week_closed"]:
         try:
             regime = detect_market_regime(portfolio_state)
         except Exception:
@@ -2666,7 +2679,12 @@ def _run_research_autopilot_internal(
             memo_id = memo["id"]
 
         autopilot_result = _run_memo_autopilot(
-            memo_id, constitution, portfolio_state, profile, authority
+            memo_id,
+            constitution,
+            portfolio_state,
+            profile,
+            authority,
+            lifecycle,
         )
         final_memo = autopilot_result["final_memo"] or {}
 
@@ -2728,7 +2746,11 @@ def finance_research_generate_evidence(
     if memo is None:
         raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
 
-    authority = _cashflow_authority_for_today(clock.today())
+    today = clock.today()
+    lifecycle = current_week_lifecycle(today)
+    authority = _cashflow_authority_for_today(
+        today, week_closed=lifecycle["week_closed"]
+    )
     created_records, skipped_count, updated_count = _generate_evidence_records(
         memo_id=memo_id,
         memo=memo,
@@ -2736,6 +2758,7 @@ def finance_research_generate_evidence(
         portfolio_state=portfolio_state,
         profile=profile,
         cashflow_authority=authority,
+        lifecycle=lifecycle,
     )
 
     response: dict = {

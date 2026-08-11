@@ -89,11 +89,20 @@ def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
     )
     if not all(_valid_nonnegative_json_number(value) for value in capacities):
         return False
-    weekly = Decimal(str(authority["weekly_budget_eur"]))
+    windows = authority.get("remaining_weekly_windows")
+    if type(windows) is not int or windows < 1:
+        return False
     cash_capacity, sustainable_capacity, deployable_capacity = (
-        Decimal(str(value)) for value in capacities
+        _cents(value) for value in capacities
     )
-    return weekly <= cash_capacity and weekly <= sustainable_capacity and weekly <= deployable_capacity
+    if deployable_capacity != min(cash_capacity, sustainable_capacity):
+        return False
+    expected_weekly = int(
+        (Decimal(deployable_capacity) / windows).quantize(
+            Decimal("1"), rounding=ROUND_HALF_UP
+        )
+    )
+    return _cents(authority["weekly_budget_eur"]) == expected_weekly
 
 
 def _valid_nonnegative_json_number(value: object) -> bool:
