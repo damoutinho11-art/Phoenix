@@ -1264,9 +1264,12 @@ def test_parse_pdf_rejects_oversized_upload(monkeypatch) -> None:
     assert response.json()["detail"] == "PDF is too large. Maximum size is 8 MB"
 
 
-def _save_authoritative_statement_for_investment_capacity() -> None:
+def _save_authoritative_statement_for_investment_capacity(
+    raw_text: str | None = None,
+    month: str = "2026-08",
+) -> None:
     parsed = _parse_reconciled_statement_receipt(
-        """
+        raw_text or """
 01.08.2026 Starting balance 1 000.00
 11.08.2026 Shop
 1500000001 -240.00 760.00
@@ -1284,13 +1287,13 @@ def _save_authoritative_statement_for_investment_capacity() -> None:
     database.save_budget_transactions(
         [
             {
-                "date": "2026-08-01",
+                "date": f"{month}-01",
                 "merchant": "Salary",
                 "amount_eur": 3006.84,
                 "category": "Income",
                 "description": "Salary",
                 "source": "test",
-                "month": "2026-08",
+                "month": month,
                 "is_income": 1,
             }
         ]
@@ -1383,6 +1386,102 @@ def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
     assert budget_router._unpaid_recurring_bills(
         profile, [{"merchant": "Alexela", "description": "electricity"}]
     ) == 0.0
+
+
+@pytest.mark.parametrize(
+    "obligations",
+    [
+        "utilities",
+        [{"amount_eur": 120, "contains": "utilities"}],
+        [{"amount_eur": 120, "contains": None}],
+        [{"amount_eur": 120, "contains": 1}],
+        [{"amount_eur": 120, "contains": []}],
+        [{"contains": ["utilities"]}],
+        [{"amount_eur": "NaN", "contains": ["utilities"]}],
+        [{"amount_eur": -1, "contains": ["utilities"]}],
+        ["utilities"],
+    ],
+)
+def test_unpaid_recurring_bills_rejects_malformed_obligations(obligations) -> None:
+    assert budget_router._unpaid_recurring_bills(
+        {"recurring_obligations": obligations}, []
+    ) is None
+
+
+@pytest.mark.parametrize(
+    "obligations",
+    [
+        "utilities",
+        [{"amount_eur": 120, "contains": "utilities"}],
+        [{"amount_eur": 120, "contains": None}],
+        [{"amount_eur": 120, "contains": 1}],
+        [{"amount_eur": 120, "contains": []}],
+        [{"contains": ["utilities"]}],
+        [{"amount_eur": "NaN", "contains": ["utilities"]}],
+        [{"amount_eur": -1, "contains": ["utilities"]}],
+        ["utilities"],
+    ],
+)
+def test_investment_capacity_blocks_malformed_recurring_obligations(
+    monkeypatch, tmp_path, obligations
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile({"recurring_obligations": obligations})
+    _save_authoritative_statement_for_investment_capacity()
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert any("recurring_obligations" in blocker for blocker in data["blockers"])
+
+
+def test_investment_capacity_blocks_explicitly_null_required_policy(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile({"emergency_fund_balance_eur": None})
+    _save_authoritative_statement_for_investment_capacity()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "Cash-flow policy is missing emergency_fund_balance_eur." in data["blockers"]
+
+
+def test_investment_capacity_reads_clock_once_for_default_month_and_authority_date(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity(
+        """
+25.08.2026 Starting balance 1 000.00
+25.08.2026 Shop
+1500000001 -240.00 760.00
+25.08.2026 Final balance 760.00
+"""
+    )
+
+    with patch(
+        "jarvis.api.routers.budget.clock.today",
+        side_effect=[date(2026, 8, 31), date(2026, 9, 2)],
+    ) as today:
+        response = client.get("/budget/investment-capacity")
+
+    assert response.status_code == 200
+    assert today.call_count == 1
+    assert response.json()["data_ready"] is True
 
 
 @pytest.mark.parametrize("month", ["2026-8", "2026-13", "not-a-month"])

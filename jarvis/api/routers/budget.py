@@ -65,6 +65,16 @@ DEFAULT_BUDGET_MEMORY = {
     ],
 }
 
+_AUTHORITY_POLICY_FIELDS = {
+    "emergency_fund_floor_eur",
+    "emergency_fund_balance_eur",
+    "checking_buffer_eur",
+    "food_budget_eur",
+    "essential_spending_ceiling_eur",
+    "salary_day_cutoff",
+    "recurring_obligations",
+}
+
 
 class ParseRequest(BaseModel):
     raw_text: str
@@ -102,6 +112,17 @@ def _budget_memory_profile() -> dict:
     return profile
 
 
+def _cashflow_authority_policy() -> dict:
+    """Preserve explicitly supplied authority values, including invalid nulls."""
+    profile = _budget_memory_profile()
+    stored = database.get_budget_memory_profile()
+    if isinstance(stored, dict):
+        for key in _AUTHORITY_POLICY_FIELDS:
+            if key in stored:
+                profile[key] = stored[key]
+    return profile
+
+
 def _validated_budget_month(month: str) -> str:
     if not isinstance(month, str) or not re.fullmatch(r"\d{4}-\d{2}", month):
         raise HTTPException(status_code=422, detail="month must use YYYY-MM format")
@@ -129,19 +150,24 @@ def _unpaid_recurring_bills(
     for obligation in obligations:
         if not isinstance(obligation, dict):
             return None
-        tokens = [
-            str(token).lower()
-            for token in obligation.get("contains", [])
-            if str(token).strip()
-        ]
-        if tokens and any(any(token in row for token in tokens) for row in searchable):
-            continue
+        if "amount_eur" not in obligation or isinstance(obligation["amount_eur"], bool):
+            return None
+        contains = obligation.get("contains")
+        if not isinstance(contains, list) or not contains:
+            return None
+        tokens: list[str] = []
+        for token in contains:
+            if not isinstance(token, str) or not token.strip():
+                return None
+            tokens.append(token.lower())
         try:
-            amount = float(obligation.get("amount_eur") or 0)
+            amount = float(obligation["amount_eur"])
         except (TypeError, ValueError):
             return None
         if not math.isfinite(amount) or amount < 0:
             return None
+        if any(any(token in row for token in tokens) for row in searchable):
+            continue
         total += amount
     return round(total, 2)
 
@@ -171,14 +197,15 @@ def _cashflow_input_hash(
     return hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
 
 
-def _build_cashflow_authority(month: str, week_closed: bool = False) -> dict:
+def _build_cashflow_authority(
+    month: str, week_closed: bool = False, *, today: date
+) -> dict:
     target_month = _validated_budget_month(month)
-    profile = _budget_memory_profile()
+    profile = _cashflow_authority_policy()
     snapshot = database.get_latest_reconciled_budget_statement()
     summary = database.get_budget_summary(target_month)
     transactions = database.get_budget_transactions(target_month)
     unpaid_bills_eur = _unpaid_recurring_bills(profile, transactions)
-    today = clock.today()
     input_hash = _cashflow_input_hash(
         policy=profile,
         snapshot=snapshot,
@@ -187,7 +214,13 @@ def _build_cashflow_authority(month: str, week_closed: bool = False) -> dict:
         today=today,
         week_closed=week_closed,
     )
-    if snapshot is None:
+    if unpaid_bills_eur is None:
+        result = {
+            "data_ready": False,
+            "blockers": ["Cash-flow policy has invalid recurring_obligations."],
+            "weekly_budget_eur": 0.0,
+        }
+    elif snapshot is None:
         result = {
             "data_ready": False,
             "blockers": ["No reconciled checking-account statement is available."],
@@ -822,8 +855,9 @@ def budget_summary(month: str = "") -> dict:
 
 @router.get("/investment-capacity")
 def budget_investment_capacity(month: str = "") -> dict:
-    target_month = month or clock.today().strftime("%Y-%m")
-    return _build_cashflow_authority(target_month)
+    today = clock.today()
+    target_month = month or today.strftime("%Y-%m")
+    return _build_cashflow_authority(target_month, today=today)
 
 
 @router.get("/transactions")
