@@ -1398,8 +1398,14 @@ def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
         [{"amount_eur": 120, "contains": []}],
         [{"contains": ["utilities"]}],
         [{"amount_eur": "NaN", "contains": ["utilities"]}],
+        [{"amount_eur": "120", "contains": ["utilities"]}],
+        [{"amount_eur": True, "contains": ["utilities"]}],
         [{"amount_eur": -1, "contains": ["utilities"]}],
         ["utilities"],
+        [
+            {"amount_eur": 1e308, "contains": ["utilities"]},
+            {"amount_eur": 1e308, "contains": ["electricity"]},
+        ],
     ],
 )
 def test_unpaid_recurring_bills_rejects_malformed_obligations(obligations) -> None:
@@ -1418,8 +1424,14 @@ def test_unpaid_recurring_bills_rejects_malformed_obligations(obligations) -> No
         [{"amount_eur": 120, "contains": []}],
         [{"contains": ["utilities"]}],
         [{"amount_eur": "NaN", "contains": ["utilities"]}],
+        [{"amount_eur": "120", "contains": ["utilities"]}],
+        [{"amount_eur": True, "contains": ["utilities"]}],
         [{"amount_eur": -1, "contains": ["utilities"]}],
         ["utilities"],
+        [
+            {"amount_eur": 1e308, "contains": ["utilities"]},
+            {"amount_eur": 1e308, "contains": ["electricity"]},
+        ],
     ],
 )
 def test_investment_capacity_blocks_malformed_recurring_obligations(
@@ -1457,6 +1469,79 @@ def test_investment_capacity_blocks_explicitly_null_required_policy(
     assert data["data_ready"] is False
     assert data["weekly_budget_eur"] == 0.0
     assert "Cash-flow policy is missing emergency_fund_balance_eur." in data["blockers"]
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("checking_buffer_eur", True),
+        ("checking_buffer_eur", "300"),
+        ("checking_buffer_eur", float("nan")),
+        ("checking_buffer_eur", float("inf")),
+        ("salary_day_cutoff", True),
+        ("salary_day_cutoff", "25"),
+        ("salary_day_cutoff", 0),
+        ("salary_day_cutoff", 32),
+    ],
+)
+def test_investment_capacity_blocks_invalid_required_policy_value(
+    monkeypatch, tmp_path, field: str, invalid_value: object
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile({field: invalid_value})
+    _save_authoritative_statement_for_investment_capacity()
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert f"Cash-flow policy has invalid {field}." in data["blockers"]
+    assert "input_hash" not in data
+    json.dumps(data, allow_nan=False)
+
+
+@pytest.mark.parametrize("malformed_component", ["snapshot", "summary"])
+def test_investment_capacity_blocks_non_json_safe_hash_input(
+    monkeypatch, malformed_component: str
+) -> None:
+    snapshot = {
+        "closing_balance_eur": 760,
+        "statement_end_date": "2026-08-11",
+        "quality_status": "reconciled",
+        "parser": "lhv_pdf",
+        "receipt_verified": 1,
+    }
+    summary = {
+        "income_total": 3006.84,
+        "expenses_total": 622.32,
+        "invested_total": 0,
+        "emergency_fund_total": 1392,
+        "by_category": {},
+    }
+    if malformed_component == "snapshot":
+        snapshot["closing_balance_eur"] = float("nan")
+    else:
+        summary["income_total"] = float("nan")
+    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
+    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = TestClient(app, raise_server_exceptions=False).get(
+            "/budget/investment-capacity?month=2026-08"
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "input_hash" not in data
+    json.dumps(data, allow_nan=False)
 
 
 def test_investment_capacity_reads_clock_once_for_default_month_and_authority_date(

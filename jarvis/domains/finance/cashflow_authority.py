@@ -1,11 +1,111 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from sys import float_info
+
+
+_MONETARY_POLICY_FIELDS = (
+    "emergency_fund_floor_eur",
+    "emergency_fund_balance_eur",
+    "checking_buffer_eur",
+    "food_budget_eur",
+    "essential_spending_ceiling_eur",
+)
+_SUMMARY_MONETARY_FIELDS = (
+    "income_total",
+    "expenses_total",
+    "invested_total",
+    "emergency_fund_total",
+)
+_MAX_SAFE_EUROS = Decimal(str(float_info.max)) / Decimal("100")
+
+
+def _json_number(value: object, *, nonnegative: bool) -> bool:
+    if type(value) not in (int, float):
+        return False
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    if not decimal_value.is_finite() or abs(decimal_value) > _MAX_SAFE_EUROS:
+        return False
+    return not nonnegative or decimal_value >= 0
+
+
+def cashflow_authority_input_blockers(
+    *,
+    policy: dict,
+    snapshot: dict,
+    month_summary: dict,
+    unpaid_bills_eur: float | None,
+    today: date,
+    week_closed: bool,
+) -> list[str]:
+    blockers: list[str] = []
+    if not isinstance(policy, dict):
+        return ["Cash-flow policy is invalid."]
+    if not isinstance(snapshot, dict):
+        return ["Checking-account snapshot is invalid."]
+    if not isinstance(month_summary, dict):
+        return ["Cash-flow month summary is invalid."]
+    if not isinstance(today, date):
+        return ["Cash-flow decision date is invalid."]
+    if type(week_closed) is not bool:
+        return ["Cash-flow week_closed flag is invalid."]
+
+    if snapshot.get("quality_status") != "reconciled":
+        blockers.append("Checking-account statement is not reconciled.")
+    try:
+        statement_date = date.fromisoformat(str(snapshot.get("statement_end_date")))
+    except (TypeError, ValueError):
+        statement_date = None
+        blockers.append("Checking-account statement date is missing or invalid.")
+    if statement_date and (today - statement_date).days > 7:
+        blockers.append("Checking-account statement is older than seven days.")
+    if snapshot.get("closing_balance_eur") is None:
+        blockers.append("Checking-account snapshot is missing closing_balance_eur.")
+    elif not _json_number(snapshot["closing_balance_eur"], nonnegative=False):
+        blockers.append("Checking-account snapshot has invalid closing_balance_eur.")
+    if unpaid_bills_eur is None:
+        blockers.append("Cash-flow input is missing unpaid_bills_eur.")
+    elif not _json_number(unpaid_bills_eur, nonnegative=True):
+        blockers.append("Cash-flow input has invalid unpaid_bills_eur.")
+
+    for key in _MONETARY_POLICY_FIELDS:
+        if policy.get(key) is None:
+            blockers.append(f"Cash-flow policy is missing {key}.")
+        elif not _json_number(policy[key], nonnegative=True):
+            blockers.append(f"Cash-flow policy has invalid {key}.")
+    cutoff = policy.get("salary_day_cutoff")
+    if cutoff is None:
+        blockers.append("Cash-flow policy is missing salary_day_cutoff.")
+    elif type(cutoff) is not int or not 1 <= cutoff <= 31:
+        blockers.append("Cash-flow policy has invalid salary_day_cutoff.")
+
+    for key in _SUMMARY_MONETARY_FIELDS:
+        if month_summary.get(key) is None:
+            blockers.append(f"Cash-flow month summary is missing {key}.")
+        elif not _json_number(month_summary[key], nonnegative=True):
+            blockers.append(f"Cash-flow month summary has invalid {key}.")
+    by_category = month_summary.get("by_category")
+    if by_category is None:
+        blockers.append("Cash-flow month summary is missing by_category.")
+    elif not isinstance(by_category, dict):
+        blockers.append("Cash-flow month summary has invalid by_category.")
+    else:
+        food = by_category.get("Food & Groceries")
+        if food is not None and (
+            not isinstance(food, dict)
+            or not _json_number(food.get("total"), nonnegative=True)
+        ):
+            blockers.append("Cash-flow month summary has invalid Food & Groceries total.")
+    return blockers
 
 
 def _cents(value: object) -> int:
-    return int((Decimal(str(value or 0)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int((Decimal(str(value)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 def _euros(value: int) -> float:
@@ -13,10 +113,12 @@ def _euros(value: int) -> float:
 
 
 def _next_income_date(today: date, cutoff: int) -> date:
-    if today.day <= cutoff:
-        return date(today.year, today.month, cutoff)
+    current_cutoff = min(cutoff, monthrange(today.year, today.month)[1])
+    if today.day <= current_cutoff:
+        return date(today.year, today.month, current_cutoff)
     first_next = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
-    return date(first_next.year, first_next.month, min(cutoff, 28))
+    next_cutoff = min(cutoff, monthrange(first_next.year, first_next.month)[1])
+    return date(first_next.year, first_next.month, next_cutoff)
 
 
 def remaining_weekly_windows(today: date, cutoff: int, week_closed: bool) -> int:
@@ -32,28 +134,14 @@ def remaining_weekly_windows(today: date, cutoff: int, week_closed: bool) -> int
 
 
 def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary: dict, unpaid_bills_eur: float | None, today: date, week_closed: bool) -> dict:
-    blockers: list[str] = []
-    if snapshot.get("quality_status") != "reconciled":
-        blockers.append("Checking-account statement is not reconciled.")
-    try:
-        statement_date = date.fromisoformat(str(snapshot.get("statement_end_date")))
-    except ValueError:
-        statement_date = None
-        blockers.append("Checking-account statement date is missing or invalid.")
-    if statement_date and (today - statement_date).days > 7:
-        blockers.append("Checking-account statement is older than seven days.")
-    if snapshot.get("closing_balance_eur") is None:
-        blockers.append("Checking-account snapshot is missing closing_balance_eur.")
-    if unpaid_bills_eur is None:
-        blockers.append("Cash-flow input is missing unpaid_bills_eur.")
-    required = ("emergency_fund_floor_eur", "emergency_fund_balance_eur", "checking_buffer_eur", "food_budget_eur", "essential_spending_ceiling_eur", "salary_day_cutoff")
-    for key in required:
-        if policy.get(key) is None:
-            blockers.append(f"Cash-flow policy is missing {key}.")
-    required_month_summary = ("income_total", "expenses_total", "invested_total", "emergency_fund_total", "by_category")
-    for key in required_month_summary:
-        if month_summary.get(key) is None:
-            blockers.append(f"Cash-flow month summary is missing {key}.")
+    blockers = cashflow_authority_input_blockers(
+        policy=policy,
+        snapshot=snapshot,
+        month_summary=month_summary,
+        unpaid_bills_eur=unpaid_bills_eur,
+        today=today,
+        week_closed=week_closed,
+    )
     if blockers:
         return {"data_ready": False, "blockers": blockers, "weekly_budget_eur": 0.0}
 

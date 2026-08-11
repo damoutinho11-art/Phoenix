@@ -182,3 +182,50 @@ def test_none_unpaid_bills_blocks() -> None:
     assert result["data_ready"] is False
     assert result["weekly_budget_eur"] == 0.0
     assert "Cash-flow input is missing unpaid_bills_eur." in result["blockers"]
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("checking_buffer_eur", True),
+        ("checking_buffer_eur", "300"),
+        ("checking_buffer_eur", float("nan")),
+        ("checking_buffer_eur", float("inf")),
+        ("salary_day_cutoff", True),
+        ("salary_day_cutoff", "25"),
+        ("salary_day_cutoff", 0),
+        ("salary_day_cutoff", 32),
+    ],
+)
+def test_invalid_required_policy_value_blocks_without_calculation(
+    field: str, invalid_value: object
+) -> None:
+    result = calculate_cashflow_authority(
+        policy={**POLICY, field: invalid_value},
+        snapshot=VALID_SNAPSHOT,
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert f"Cash-flow policy has invalid {field}." in result["blockers"]
+
+
+def test_salary_cutoff_31_uses_last_day_of_short_month() -> None:
+    result = calculate_cashflow_authority(
+        policy={**POLICY, "salary_day_cutoff": 31},
+        snapshot={
+            "closing_balance_eur": 760,
+            "statement_end_date": "2026-02-20",
+            "quality_status": "reconciled",
+        },
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=date(2026, 2, 20),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is True

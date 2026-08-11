@@ -16,7 +16,10 @@ from pypdf import PdfReader
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
-from jarvis.domains.finance.cashflow_authority import calculate_cashflow_authority
+from jarvis.domains.finance.cashflow_authority import (
+    calculate_cashflow_authority,
+    cashflow_authority_input_blockers,
+)
 
 router = APIRouter()
 
@@ -143,14 +146,14 @@ def _unpaid_recurring_bills(
         for row in transactions
         if isinstance(row, dict)
     ]
-    total = 0.0
+    total = Decimal("0")
     obligations = profile.get("recurring_obligations", [])
     if not isinstance(obligations, list):
         return None
     for obligation in obligations:
         if not isinstance(obligation, dict):
             return None
-        if "amount_eur" not in obligation or isinstance(obligation["amount_eur"], bool):
+        if "amount_eur" not in obligation or type(obligation["amount_eur"]) not in (int, float):
             return None
         contains = obligation.get("contains")
         if not isinstance(contains, list) or not contains:
@@ -161,15 +164,21 @@ def _unpaid_recurring_bills(
                 return None
             tokens.append(token.lower())
         try:
-            amount = float(obligation["amount_eur"])
-        except (TypeError, ValueError):
+            amount = Decimal(str(obligation["amount_eur"]))
+        except (InvalidOperation, TypeError, ValueError):
             return None
-        if not math.isfinite(amount) or amount < 0:
+        if not amount.is_finite() or amount < 0:
             return None
         if any(any(token in row for token in tokens) for row in searchable):
             continue
         total += amount
-    return round(total, 2)
+    try:
+        result = float(total)
+    except (OverflowError, ValueError):
+        return None
+    if not math.isfinite(result):
+        return None
+    return round(result, 2)
 
 
 def _cashflow_input_hash(
@@ -206,7 +215,19 @@ def _build_cashflow_authority(
     summary = database.get_budget_summary(target_month)
     transactions = database.get_budget_transactions(target_month)
     unpaid_bills_eur = _unpaid_recurring_bills(profile, transactions)
-    input_hash = _cashflow_input_hash(
+    if unpaid_bills_eur is None:
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow policy has invalid recurring_obligations."],
+            "weekly_budget_eur": 0.0,
+        }
+    if snapshot is None:
+        return {
+            "data_ready": False,
+            "blockers": ["No reconciled checking-account statement is available."],
+            "weekly_budget_eur": 0.0,
+        }
+    blockers = cashflow_authority_input_blockers(
         policy=profile,
         snapshot=snapshot,
         month_summary=summary,
@@ -214,20 +235,10 @@ def _build_cashflow_authority(
         today=today,
         week_closed=week_closed,
     )
-    if unpaid_bills_eur is None:
-        result = {
-            "data_ready": False,
-            "blockers": ["Cash-flow policy has invalid recurring_obligations."],
-            "weekly_budget_eur": 0.0,
-        }
-    elif snapshot is None:
-        result = {
-            "data_ready": False,
-            "blockers": ["No reconciled checking-account statement is available."],
-            "weekly_budget_eur": 0.0,
-        }
-    else:
-        result = calculate_cashflow_authority(
+    if blockers:
+        return {"data_ready": False, "blockers": blockers, "weekly_budget_eur": 0.0}
+    try:
+        input_hash = _cashflow_input_hash(
             policy=profile,
             snapshot=snapshot,
             month_summary=summary,
@@ -235,6 +246,20 @@ def _build_cashflow_authority(
             today=today,
             week_closed=week_closed,
         )
+    except (TypeError, ValueError):
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow authority inputs are not JSON-safe."],
+            "weekly_budget_eur": 0.0,
+        }
+    result = calculate_cashflow_authority(
+        policy=profile,
+        snapshot=snapshot,
+        month_summary=summary,
+        unpaid_bills_eur=unpaid_bills_eur,
+        today=today,
+        week_closed=week_closed,
+    )
     return {
         **result,
         "policy": profile,
