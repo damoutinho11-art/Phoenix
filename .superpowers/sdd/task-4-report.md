@@ -168,6 +168,90 @@ Result: `278 passed in 39.25s`.
 No implementation concerns. The pre-existing modification to
 `.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
 
+## P1 Follow-Up: Arithmetic and Shared Closure
+
+### RED
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `7 failed, 57 passed`. The ready-authority sanitizer accepted an
+impossible weekly amount (`€260` from `€260 / 3`), incorrect deployable
+capacity, boolean/zero window counts, missed sell/hold stock intent, and
+misclassified a dinner-table purchase as Finance.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `6 failed, 65 passed` after lifecycle tests were added. Chat and
+research/autopilot passed `week_closed=False` despite applied, approved, or
+executed current-week state.
+
+### GREEN
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
+
+Result: `55 passed in 6.27s`.
+
+```powershell
+$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
+python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `250 passed in 81.57s`. `rg --files` found no standalone chat test;
+chat authority coverage is in `test_finance_cashflow_authority_review.py`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `319 passed in 52.50s`.
+
+```powershell
+python -m pytest jarvis/domains/finance/tests -q
+```
+
+Result: `94 passed in 6.00s`.
+
+### Changed Files
+
+- `jarvis/domains/finance/cashflow_authority.py`
+- `jarvis/api/finance_lifecycle.py`
+- `jarvis/api/routers/finance.py`
+- `jarvis/api/routers/chat.py`
+- Finance authority, brief, checklist, research, autopilot, and domain weekly
+  authority tests
+
+### Self-Review
+
+- Ready authority verifies integer `remaining_weekly_windows >= 1`, cent-level
+  deployable minimum, and Decimal `ROUND_HALF_UP` weekly arithmetic.
+- One lifecycle snapshot determines closure from applied transactions or
+  approved/executed briefs for recommendation, chat, research autopilot, memo
+  autopilot, and evidence generation. Nested paths reuse the captured
+  authority/lifecycle rather than rebuilding either.
+- Closed chat returns deterministic non-actionable text without an open-week
+  euro amount; research allocation paths return no new legs and do not invoke
+  the allocation engine.
+- Home intent recognizes concrete asset-management questions while excluding
+  design/site, dinner, furniture, and shopping language. Bare `portfolio` is
+  not a financial trigger.
+- `portfolio_state.json` was not modified.
+
+### Commit
+
+`b816bf082c5f125be493a8e682bcb59b7219c82e` -
+`fix(finance): validate authority arithmetic and closure`
+
+### Concerns
+
+No implementation concerns. The pre-existing modification to
+`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
+
 ## Final Gate: Domain Authority and Intent Isolation
 
 ### RED
