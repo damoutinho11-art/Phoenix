@@ -1478,6 +1478,7 @@ def test_investment_capacity_blocks_explicitly_null_required_policy(
         ("checking_buffer_eur", "300"),
         ("checking_buffer_eur", float("nan")),
         ("checking_buffer_eur", float("inf")),
+        ("checking_buffer_eur", 1e28),
         ("salary_day_cutoff", True),
         ("salary_day_cutoff", "25"),
         ("salary_day_cutoff", 0),
@@ -1503,6 +1504,172 @@ def test_investment_capacity_blocks_invalid_required_policy_value(
     assert f"Cash-flow policy has invalid {field}." in data["blockers"]
     assert "input_hash" not in data
     json.dumps(data, allow_nan=False)
+
+
+@pytest.mark.parametrize(
+    "transactions",
+    [
+        None,
+        "not-a-list",
+        {"merchant": "Alexela"},
+        [None],
+        [{"merchant": None}],
+        [{"description": 1}],
+    ],
+)
+def test_unpaid_recurring_bills_rejects_malformed_transactions(transactions) -> None:
+    profile = {
+        "recurring_obligations": [
+            {"amount_eur": 120, "contains": ["utilities", "alexela"]}
+        ]
+    }
+
+    assert budget_router._unpaid_recurring_bills(profile, transactions) is None
+
+
+@pytest.mark.parametrize(
+    "transactions",
+    [
+        None,
+        "not-a-list",
+        {"merchant": "Alexela"},
+        [None],
+        [{"merchant": None}],
+        [{"description": 1}],
+    ],
+)
+def test_investment_capacity_blocks_malformed_transactions(
+    monkeypatch, tmp_path, transactions
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: transactions)
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "recurring_obligations" in data["blockers"][0]
+
+
+def test_build_cashflow_authority_accepts_omitted_today(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)) as today:
+        result = budget_router._build_cashflow_authority("2026-08")
+
+    assert result["data_ready"] is True
+    assert today.call_count == 1
+
+
+def test_investment_capacity_blocks_deep_json_hash_recursion(monkeypatch) -> None:
+    snapshot = {
+        "closing_balance_eur": 760,
+        "statement_end_date": "2026-08-11",
+        "quality_status": "reconciled",
+        "parser": "lhv_pdf",
+        "receipt_verified": 1,
+    }
+    summary = {
+        "income_total": 3006.84,
+        "expenses_total": 622.32,
+        "invested_total": 0,
+        "emergency_fund_total": 1392,
+        "by_category": {},
+    }
+    nested: list[object] = []
+    cursor = nested
+    for _ in range(1200):
+        child: list[object] = []
+        cursor.append(child)
+        cursor = child
+    summary["audit"] = nested
+    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
+    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = TestClient(app, raise_server_exceptions=False).get(
+            "/budget/investment-capacity?month=2026-08"
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "JSON-safe" in data["blockers"][0]
+    assert "input_hash" not in data
+
+
+@pytest.mark.parametrize("extra", [object(), float("nan")], ids=["type", "value"])
+def test_investment_capacity_blocks_hash_serialization_errors(
+    monkeypatch, extra: object
+) -> None:
+    snapshot = {
+        "closing_balance_eur": 760,
+        "statement_end_date": "2026-08-11",
+        "quality_status": "reconciled",
+    }
+    summary = {
+        "income_total": 3006.84,
+        "expenses_total": 622.32,
+        "invested_total": 0,
+        "emergency_fund_total": 1392,
+        "by_category": {},
+        "audit": extra,
+    }
+    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
+    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = TestClient(app, raise_server_exceptions=False).get(
+            "/budget/investment-capacity?month=2026-08"
+        )
+
+    assert response.status_code == 200
+    assert response.json()["blockers"] == [
+        "Cash-flow authority inputs are not JSON-safe."
+    ]
+
+
+def test_investment_capacity_blocks_hash_overflow_error(monkeypatch) -> None:
+    snapshot = {
+        "closing_balance_eur": 760,
+        "statement_end_date": "2026-08-11",
+        "quality_status": "reconciled",
+    }
+    summary = {
+        "income_total": 3006.84,
+        "expenses_total": 622.32,
+        "invested_total": 0,
+        "emergency_fund_total": 1392,
+        "by_category": {},
+    }
+    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
+    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+
+    def raise_overflow(**kwargs) -> str:
+        raise OverflowError("simulated canonical serialization overflow")
+
+    monkeypatch.setattr(budget_router, "_cashflow_input_hash", raise_overflow)
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = TestClient(app, raise_server_exceptions=False).get(
+            "/budget/investment-capacity?month=2026-08"
+        )
+
+    assert response.status_code == 200
+    assert response.json()["blockers"] == [
+        "Cash-flow authority inputs are not JSON-safe."
+    ]
 
 
 @pytest.mark.parametrize("malformed_component", ["snapshot", "summary"])

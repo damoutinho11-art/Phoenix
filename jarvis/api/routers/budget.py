@@ -139,13 +139,19 @@ def _validated_budget_month(month: str) -> str:
 
 
 def _unpaid_recurring_bills(
-    profile: dict, transactions: list[dict]
+    profile: dict, transactions: object
 ) -> float | None:
-    searchable = [
-        f"{row.get('merchant', '')} {row.get('description', '')}".lower()
-        for row in transactions
-        if isinstance(row, dict)
-    ]
+    if not isinstance(profile, dict) or not isinstance(transactions, list):
+        return None
+    searchable: list[str] = []
+    for row in transactions:
+        if not isinstance(row, dict):
+            return None
+        merchant = row.get("merchant", "")
+        description = row.get("description", "")
+        if not isinstance(merchant, str) or not isinstance(description, str):
+            return None
+        searchable.append(f"{merchant} {description}".lower())
     total = Decimal("0")
     obligations = profile.get("recurring_obligations", [])
     if not isinstance(obligations, list):
@@ -207,8 +213,9 @@ def _cashflow_input_hash(
 
 
 def _build_cashflow_authority(
-    month: str, week_closed: bool = False, *, today: date
+    month: str, week_closed: bool = False, *, today: date | None = None
 ) -> dict:
+    decision_today = today or clock.today()
     target_month = _validated_budget_month(month)
     profile = _cashflow_authority_policy()
     snapshot = database.get_latest_reconciled_budget_statement()
@@ -232,7 +239,7 @@ def _build_cashflow_authority(
         snapshot=snapshot,
         month_summary=summary,
         unpaid_bills_eur=unpaid_bills_eur,
-        today=today,
+        today=decision_today,
         week_closed=week_closed,
     )
     if blockers:
@@ -243,10 +250,10 @@ def _build_cashflow_authority(
             snapshot=snapshot,
             month_summary=summary,
             unpaid_bills_eur=unpaid_bills_eur,
-            today=today,
+            today=decision_today,
             week_closed=week_closed,
         )
-    except (TypeError, ValueError):
+    except (RecursionError, OverflowError, TypeError, ValueError):
         return {
             "data_ready": False,
             "blockers": ["Cash-flow authority inputs are not JSON-safe."],
@@ -257,7 +264,7 @@ def _build_cashflow_authority(
         snapshot=snapshot,
         month_summary=summary,
         unpaid_bills_eur=unpaid_bills_eur,
-        today=today,
+        today=decision_today,
         week_closed=week_closed,
     )
     return {

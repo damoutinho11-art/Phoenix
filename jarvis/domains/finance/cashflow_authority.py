@@ -3,7 +3,6 @@ from __future__ import annotations
 from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-from sys import float_info
 
 
 _MONETARY_POLICY_FIELDS = (
@@ -19,7 +18,8 @@ _SUMMARY_MONETARY_FIELDS = (
     "invested_total",
     "emergency_fund_total",
 )
-_MAX_SAFE_EUROS = Decimal(str(float_info.max)) / Decimal("100")
+# Keep cent quantization and every downstream JSON float safely representable.
+_MAX_SAFE_EUROS = Decimal("100000000000000000000")
 
 
 def _json_number(value: object, *, nonnegative: bool) -> bool:

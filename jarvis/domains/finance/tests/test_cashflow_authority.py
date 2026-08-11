@@ -191,6 +191,7 @@ def test_none_unpaid_bills_blocks() -> None:
         ("checking_buffer_eur", "300"),
         ("checking_buffer_eur", float("nan")),
         ("checking_buffer_eur", float("inf")),
+        ("checking_buffer_eur", 1e28),
         ("salary_day_cutoff", True),
         ("salary_day_cutoff", "25"),
         ("salary_day_cutoff", 0),
