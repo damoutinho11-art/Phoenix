@@ -266,11 +266,19 @@ def _build_cashflow_authority(
         today=decision_today,
         week_closed=week_closed,
     )
+    if type(snapshot.get("receipt_verified")) is not int or snapshot["receipt_verified"] != 1:
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow statement receipt is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
+    source = dict(snapshot)
+    source["receipt_verified"] = True
     return {
         **result,
         "policy": profile,
         "policy_version": profile["version"],
-        "source": snapshot,
+        "source": source,
         "input_hash": input_hash,
     }
 

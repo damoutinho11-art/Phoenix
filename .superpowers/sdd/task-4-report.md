@@ -167,3 +167,72 @@ Result: `278 passed in 39.25s`.
 
 No implementation concerns. The pre-existing modification to
 `.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
+
+## P1 Re-Review Follow-Up
+
+### RED
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `8 failed`. The failures reproduced a nutrition-domain
+`UnboundLocalError`, generic home shopping loading blocked Finance authority,
+integer `1` accepted by the Finance sanitizer, Budget exposing SQLite's integer
+receipt flag, and coverage reporting `BLOCKED` before lifecycle closure.
+
+### GREEN
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `228 passed in 41.35s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
+
+Result: `55 passed in 6.75s`.
+
+```powershell
+$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
+python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `210 passed in 59.68s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `283 passed in 53.94s`.
+
+### Changed Files
+
+- `jarvis/api/routers/chat.py`
+- `jarvis/api/routers/budget.py`
+- `jarvis/api/finance_authority.py`
+- `jarvis/api/routers/finance.py`
+- Budget, Finance, chat, coverage, research, and autopilot tests
+
+### Self-Review
+
+- Home only loads Finance context for unambiguous investment intent; generic
+  shopping and nutrition/training/calendar traffic never enters the Finance
+  safety path.
+- Budget converts only a trusted SQLite integer `receipt_verified == 1` into
+  literal `True` on its returned source copy. The shared sanitizer accepts only
+  `True` by identity.
+- Coverage now returns `WEEK_CLOSED` before authority state, `AUTHORITY_BLOCKED`
+  for open authority failures, and retains `BLOCKED` for other blockers.
+- No `portfolio_state.json` changes were made.
+
+### Commit
+
+Final re-review implementation SHA is recorded in the delivery response.
+
+### Concerns
+
+No implementation concerns. The pre-existing modification to
+`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.

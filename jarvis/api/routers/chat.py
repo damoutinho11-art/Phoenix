@@ -145,10 +145,15 @@ def _build_finance_context(*, include_authority: bool = False) -> tuple:
 def _finance_allocation_intent(domain: str, message: str) -> bool:
     if domain == "finance":
         return True
-    message = message.lower()
-    return any(
-        term in message
-        for term in ("allocation", "allocate", "invest", "buy", "portfolio", "weekly budget")
+    if domain != "home":
+        return False
+    return bool(
+        re.search(
+            r"\b(?:invest|investment|portfolio|btc|bitcoin|etf|allocation)\b"
+            r"|\bdeploy\s+capital\b|\bbuy\s+shares\b",
+            message,
+            re.IGNORECASE,
+        )
     )
 
 
@@ -402,6 +407,8 @@ def jarvis_chat(request: ChatRequest) -> dict:
     domain = request.domain.lower()
     context_parts = []
     requires_approval = False
+    cashflow_authority: dict | None = None
+    finance_ctx = ""
     lower_message = request.message.lower()
     app_status_intent = domain in ("home", "app", "system") or any(
         phrase in lower_message
@@ -434,7 +441,8 @@ def jarvis_chat(request: ChatRequest) -> dict:
         except Exception:
             pass
 
-    if domain in ("finance", "home"):
+    finance_allocation_request = _finance_allocation_intent(domain, request.message)
+    if finance_allocation_request:
         finance_ctx, fin_approval, cashflow_authority = _build_finance_context(
             include_authority=True
         )
@@ -479,10 +487,10 @@ def jarvis_chat(request: ChatRequest) -> dict:
         tools = [{"type": "web_search_20250305", "name": "web_search"}]
         system_prompt = _SYSTEM_PROMPT + _FINANCE_WEB_SEARCH_ADDENDUM
 
-    finance_context_blocked = domain in ("finance", "home") and (
+    finance_context_blocked = finance_allocation_request and (
         cashflow_authority is None or cashflow_authority.get("data_ready") is not True
     )
-    if finance_context_blocked or _finance_allocation_intent(domain, request.message):
+    if finance_context_blocked or finance_allocation_request:
         response_text = _deterministic_finance_chat_response(cashflow_authority, finance_ctx)
     else:
         ai_status = ai_gateway.status()
@@ -509,6 +517,6 @@ def jarvis_chat(request: ChatRequest) -> dict:
         "ai": ai_gateway.status().as_dict(),
         "context_summary": f"{domain} context loaded as of {clock.today().isoformat()}",
     }
-    if domain in ("finance", "home"):
+    if finance_allocation_request:
         response["cashflow_authority"] = cashflow_authority
     return response

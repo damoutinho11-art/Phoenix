@@ -60,8 +60,7 @@ def _valid_ready_provenance(authority: dict) -> bool:
         r"[0-9a-fA-F]{64}", source["filename_hash"]
     ):
         return False
-    receipt_verified = source.get("receipt_verified")
-    if receipt_verified is not True and not (type(receipt_verified) is int and receipt_verified == 1):
+    if source.get("receipt_verified") is not True:
         return False
     if not _valid_number(source.get("balance_difference_eur"), positive=False):
         return False

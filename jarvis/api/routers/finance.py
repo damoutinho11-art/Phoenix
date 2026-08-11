@@ -1029,8 +1029,12 @@ def _build_data_coverage_from_recommendation(
 
     blockers: list[str] = []
     authority = recommendation.get("cashflow_authority") or {}
-    if authority.get("data_ready") is not True:
-        blockers.extend(authority.get("blockers") or ["Cash-flow authority is unavailable."])
+    authority_blockers = (
+        list(authority.get("blockers") or ["Cash-flow authority is unavailable."])
+        if authority.get("data_ready") is not True
+        else []
+    )
+    blockers.extend(authority_blockers)
     for leg in recommendation_legs:
         asset = leg["asset"]
         research = research_by_asset.get(asset) or {}
@@ -1110,7 +1114,11 @@ def _build_data_coverage_from_recommendation(
         "current_legs_with_validated_research": validated_research,
         "universe_type": universe_type,
         "coverage_verdict": (
-            "BLOCKED_DATA_OPAQUE" if blockers else (
+            "WEEK_CLOSED"
+            if recommendation.get("week_closed") is True or recommendation.get("week_done") is True
+            else "AUTHORITY_BLOCKED"
+            if authority_blockers
+            else "BLOCKED_DATA_OPAQUE" if blockers else (
                 "TRANSPARENT_SMALL_UNIVERSE"
                 if universe_type in {"CURATED_SMALL_UNIVERSE", "CURATED_EXPANDED_UNIVERSE"}
                 else "BROAD_DATA_READY"
@@ -1136,9 +1144,16 @@ def _build_data_coverage_from_recommendation(
         "fail_soft": True,
         "failures_exposed_in_candidate_fetch_status": True,
     }
-    verdict = "BLOCKED" if blockers else "DATA_TRANSPARENT"
+    week_closed = recommendation.get("week_closed") is True or recommendation.get("week_done") is True
+    if week_closed:
+        verdict = "WEEK_CLOSED"
+    elif authority_blockers:
+        verdict = "AUTHORITY_BLOCKED"
+    else:
+        verdict = "BLOCKED" if blockers else "DATA_TRANSPARENT"
     return {
         "verdict": verdict,
+        "status": verdict,
         "blockers": blockers,
         "warnings": warnings,
         "cashflow_authority": recommendation.get("cashflow_authority"),
@@ -1151,7 +1166,11 @@ def _build_data_coverage_from_recommendation(
             "safety": dict(_DATA_COVERAGE_SAFETY),
         },
         "next_action": (
-            "Resolve the listed provenance blockers before relying on this audit."
+            "This week's allocation window is closed; no new action is prepared."
+            if week_closed
+            else "Resolve the listed cash-flow authority blockers before relying on this audit."
+            if authority_blockers
+            else "Resolve the listed provenance blockers before relying on this audit."
             if blockers
             else "Keep the curated universe explicit; expand it only in a separate reviewed sprint."
         ),

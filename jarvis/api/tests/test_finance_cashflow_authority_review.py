@@ -2,12 +2,13 @@
 
 import copy
 from datetime import date
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
+from jarvis.api.ai_gateway import AIResult
 from jarvis.api.routers import chat, finance
 from jarvis.domains.finance import engine
 
@@ -52,6 +53,7 @@ client = TestClient(app)
         {key: value for key, value in _READY_AUTHORITY.items() if key != "source"},
         {**_READY_AUTHORITY, "source": {"parser": "lhv_pdf"}},
         {**_READY_AUTHORITY, "source": {key: value for key, value in _READY_AUTHORITY["source"].items() if key != "filename_hash"}},
+        {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "receipt_verified": 1}},
     ],
 )
 def test_malformed_authority_is_sanitized_to_a_safe_block(authority: dict) -> None:
@@ -175,6 +177,12 @@ def test_executed_week_remains_closed_before_a_blocked_current_authority() -> No
     assert recommendation["recommendations"] == []
     assert recommendation["cashflow_authority"] == authority
     assert finance._build_manual_buy_checklist(recommendation)["checklist_status"] == "WEEK_CLOSED"
+    coverage = finance._build_data_coverage_from_recommendation(
+        recommendation, {"sleeves": {}}
+    )
+    assert coverage["verdict"] == "WEEK_CLOSED"
+    assert coverage["status"] == "WEEK_CLOSED"
+    assert coverage["blockers"] == authority["blockers"]
 
 
 def test_blocked_authority_blocks_checklist_and_data_coverage() -> None:
@@ -195,7 +203,31 @@ def test_blocked_authority_blocks_checklist_and_data_coverage() -> None:
     )
 
     assert finance._build_manual_buy_checklist(recommendation)["checklist_status"] == "AUTHORITY_BLOCKED"
-    assert coverage["verdict"] == "BLOCKED"
+    assert coverage["verdict"] == "AUTHORITY_BLOCKED"
+    assert coverage["status"] == "AUTHORITY_BLOCKED"
+    assert coverage["blockers"] == authority["blockers"]
+
+
+def test_approved_week_coverage_remains_closed_when_current_authority_is_blocked() -> None:
+    authority = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+    }
+    recommendation = {
+        "week_closed": True,
+        "week_done": False,
+        "recommendations": [],
+        "cashflow_authority": authority,
+    }
+
+    coverage = finance._build_data_coverage_from_recommendation(
+        recommendation, {"sleeves": {}}
+    )
+
+    assert finance._build_manual_buy_checklist(recommendation)["checklist_status"] == "WEEK_CLOSED"
+    assert coverage["verdict"] == "WEEK_CLOSED"
+    assert coverage["status"] == "WEEK_CLOSED"
     assert coverage["blockers"] == authority["blockers"]
 
 
@@ -303,3 +335,65 @@ def test_chat_ready_finance_allocation_is_deterministic_and_authoritative() -> N
     assert "€86.67" in data["response"]
     assert "€115.38" not in data["response"]
     assert data["cashflow_authority"] == _READY_AUTHORITY
+
+
+def _configured_ai_status() -> MagicMock:
+    status = MagicMock()
+    status.configured = True
+    status.supports_web_search_tool = False
+    status.as_dict.return_value = {"configured": True, "provider": "test"}
+    return status
+
+
+def test_nutrition_dinner_buy_query_does_not_enter_finance_safety_path() -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
+        "jarvis.api.routers.chat.ai_gateway.generate_text",
+        return_value=AIResult(text="Dinner response", provider="test", model="test", ok=True),
+    ) as generate:
+        response = client.post(
+            "/jarvis/chat", json={"domain": "nutrition", "message": "What should I buy for dinner?"}
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    generate.assert_called_once()
+    assert data["response"] == "Dinner response"
+    assert "cash-flow authority is blocked" not in data["response"].lower()
+    assert "cashflow_authority" not in data
+
+
+def test_home_generic_shopping_does_not_load_or_report_finance_authority() -> None:
+    with patch("jarvis.api.routers.budget._build_cashflow_authority") as build_authority, patch(
+        "jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()
+    ), patch(
+        "jarvis.api.routers.chat.ai_gateway.generate_text",
+        return_value=AIResult(text="Shopping response", provider="test", model="test", ok=True),
+    ):
+        response = client.post(
+            "/jarvis/chat", json={"domain": "home", "message": "What should I buy at the supermarket?"}
+        )
+
+    assert response.status_code == 200
+    build_authority.assert_not_called()
+    data = response.json()
+    assert data["response"] == "Shopping response"
+    assert "cashflow_authority" not in data
+
+
+def test_home_investment_intent_uses_blocked_finance_authority() -> None:
+    authority = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ), patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post(
+            "/jarvis/chat", json={"domain": "home", "message": "What should I invest this week?"}
+        )
+
+    assert response.status_code == 200
+    generate.assert_not_called()
+    assert "stale" in response.json()["response"].lower()
+    assert response.json()["cashflow_authority"] == authority

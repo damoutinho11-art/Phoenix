@@ -1339,7 +1339,7 @@ def test_investment_capacity_uses_approved_policy_and_receipt_backed_snapshot(
     data = response.json()
     assert data["cash_capacity_eur"] == 260.00
     assert data["source"]["statement_end_date"] == "2026-08-11"
-    assert data["source"]["receipt_verified"] == 1
+    assert data["source"]["receipt_verified"] is True
     assert data["policy_version"] == 2
     assert len(data["input_hash"]) == 64
     json.dumps(data)
@@ -1791,6 +1791,7 @@ def test_build_cashflow_authority_accepts_omitted_today(monkeypatch, tmp_path) -
 
     assert result["data_ready"] is True
     assert today.call_count == 1
+    assert result["source"]["receipt_verified"] is True
 
 
 def test_investment_capacity_blocks_deep_json_hash_recursion(monkeypatch) -> None:
