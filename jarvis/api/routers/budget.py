@@ -6,7 +6,7 @@ import json
 import math
 import re
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -265,12 +265,17 @@ def _validated_statement_snapshot(statement: StatementSavePayload) -> dict:
     if quality.get("statement_end_date") is None:
         raise HTTPException(status_code=422, detail="Reconciled statement metadata is incomplete")
 
+    raw_statement_end_date = quality["statement_end_date"]
     try:
-        statement_end_date = datetime.strptime(
-            str(quality["statement_end_date"]), "%Y-%m-%d"
-        ).date().isoformat()
-    except (TypeError, ValueError) as exc:
+        statement_end_date = (
+            date.fromisoformat(raw_statement_end_date).isoformat()
+            if isinstance(raw_statement_end_date, str)
+            else None
+        )
+    except ValueError as exc:
         raise HTTPException(status_code=422, detail="Reconciled statement metadata is invalid") from exc
+    if statement_end_date is None or statement_end_date != raw_statement_end_date:
+        raise HTTPException(status_code=422, detail="Reconciled statement metadata is invalid")
 
     def finite_number(field: str, *, optional: bool = False) -> float | None:
         value = quality.get(field)
@@ -295,6 +300,15 @@ def _validated_statement_snapshot(statement: StatementSavePayload) -> dict:
     if abs(balance_difference) > 0.005:
         raise HTTPException(status_code=422, detail="Statement balance difference must be zero")
 
+    def row_count(field: str) -> int:
+        value = quality.get(field)
+        if type(value) is not int or value < 0:
+            raise HTTPException(status_code=422, detail=f"{field} must be a non-negative integer")
+        return value
+
+    statement_rows = row_count("statement_rows")
+    parsed_rows = row_count("parsed_rows")
+
     normalized_filename = unicodedata.normalize("NFC", statement.filename).strip()
     if not normalized_filename:
         raise HTTPException(status_code=422, detail="Statement filename is required")
@@ -305,8 +319,8 @@ def _validated_statement_snapshot(statement: StatementSavePayload) -> dict:
         "closing_balance_eur": closing_balance,
         "parser": statement.parser,
         "quality_status": quality["status"],
-        "statement_rows": quality.get("statement_rows"),
-        "parsed_rows": quality.get("parsed_rows"),
+        "statement_rows": statement_rows,
+        "parsed_rows": parsed_rows,
         "balance_difference_eur": balance_difference,
         "filename_hash": hashlib.sha256(normalized_filename.encode("utf-8")).hexdigest(),
     }

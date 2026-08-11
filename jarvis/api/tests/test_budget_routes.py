@@ -478,6 +478,8 @@ def test_statement_save_rolls_back_transactions_when_snapshot_insert_fails(
                 "parser": "lhv_pdf",
                 "quality": {
                     "status": "reconciled",
+                    "statement_rows": 1,
+                    "parsed_rows": 1,
                     "opening_balance_eur": 770.00,
                     "closing_balance_eur": 760.00,
                     "balance_difference_eur": 0.0,
@@ -510,6 +512,145 @@ def test_parse_pdf_marks_impossible_final_balance_date_for_review() -> None:
     assert quality["status"] == "review_required"
     assert quality["statement_end_date"] is None
     assert any("date" in warning.lower() for warning in quality["warnings"])
+
+
+@pytest.mark.parametrize("field", ["statement_rows", "parsed_rows"])
+@pytest.mark.parametrize("invalid_value", [True, "1", "MQ==", [], {}, -1])
+def test_save_rejects_invalid_statement_row_counts_without_writes(
+    monkeypatch, tmp_path, field, invalid_value
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    quality = {
+        "status": "reconciled",
+        "statement_rows": 1,
+        "parsed_rows": 1,
+        "opening_balance_eur": 770.00,
+        "closing_balance_eur": 760.00,
+        "balance_difference_eur": 0.0,
+        "statement_end_date": "2026-08-11",
+    }
+    quality[field] = invalid_value
+
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": [
+                {
+                    "date": "2026-08-11",
+                    "merchant": "Must roll back",
+                    "amount_eur": 10.00,
+                    "category": "Other",
+                    "month": "2026-08",
+                }
+            ],
+            "statement": {
+                "filename": "account.pdf",
+                "parser": "lhv_pdf",
+                "quality": quality,
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    assert database.get_budget_transactions("2026-08") == []
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+@pytest.mark.parametrize("field", ["statement_rows", "parsed_rows"])
+@pytest.mark.parametrize(
+    "invalid_value",
+    [True, "1", "MQ==", b"1", b"MQ==", [], {}, -1],
+)
+def test_database_snapshot_rejects_invalid_row_counts_without_writes(
+    monkeypatch, tmp_path, field, invalid_value
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    snapshot = {
+        "statement_end_date": "2026-08-11",
+        "opening_balance_eur": 770.00,
+        "closing_balance_eur": 760.00,
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "statement_rows": 1,
+        "parsed_rows": 1,
+        "balance_difference_eur": 0.0,
+        "filename_hash": "a" * 64,
+    }
+    snapshot[field] = invalid_value
+
+    with pytest.raises(ValueError, match=field):
+        database.save_budget_statement_snapshot(snapshot)
+
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_save_rejects_noncanonical_statement_end_date_without_writes(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": [
+                {
+                    "date": "2026-08-11",
+                    "merchant": "Must not persist",
+                    "amount_eur": 10.00,
+                    "category": "Other",
+                    "month": "2026-08",
+                }
+            ],
+            "statement": {
+                "filename": "account.pdf",
+                "parser": "lhv_pdf",
+                "quality": {
+                    "status": "reconciled",
+                    "statement_rows": 1,
+                    "parsed_rows": 1,
+                    "opening_balance_eur": 770.00,
+                    "closing_balance_eur": 760.00,
+                    "balance_difference_eur": 0.0,
+                    "statement_end_date": "2026-8-1",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    assert database.get_budget_transactions("2026-08") == []
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+@pytest.mark.parametrize(
+    "statement_end_date",
+    ["2026-8-1", "2026-02-31", "not-a-date", {}, b"2026-08-11"],
+)
+def test_database_snapshot_rejects_invalid_statement_end_date_without_writes(
+    monkeypatch, tmp_path, statement_end_date
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    with pytest.raises(ValueError, match="statement_end_date"):
+        database.save_budget_statement_snapshot(
+            {
+                "statement_end_date": statement_end_date,
+                "opening_balance_eur": 770.00,
+                "closing_balance_eur": 760.00,
+                "parser": "lhv_pdf",
+                "quality_status": "reconciled",
+                "statement_rows": 1,
+                "parsed_rows": 1,
+                "balance_difference_eur": 0.0,
+                "filename_hash": "a" * 64,
+            }
+        )
+
+    assert database.get_latest_reconciled_budget_statement() is None
 
 
 def test_lhv_salary_paid_at_month_end_belongs_to_next_budget_month() -> None:

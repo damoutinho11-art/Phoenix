@@ -3044,6 +3044,28 @@ def _normalize_budget_statement_number(
     return normalized
 
 
+def _normalize_budget_statement_row_count(
+    snapshot: dict[str, Any], field: str
+) -> int:
+    value = snapshot.get(field)
+    if type(value) is not int or value < 0:
+        raise ValueError(f"{field} must be a non-negative integer")
+    return value
+
+
+def _normalize_budget_statement_end_date(snapshot: dict[str, Any]) -> str:
+    value = snapshot.get("statement_end_date")
+    if not isinstance(value, str):
+        raise ValueError("statement_end_date must use YYYY-MM-DD format")
+    try:
+        normalized = date.fromisoformat(value).isoformat()
+    except ValueError as exc:
+        raise ValueError("statement_end_date must use YYYY-MM-DD format") from exc
+    if normalized != value:
+        raise ValueError("statement_end_date must use YYYY-MM-DD format")
+    return normalized
+
+
 def save_budget_statement_snapshot(
     snapshot: dict[str, Any],
     connection: sqlite3.Connection | None = None,
@@ -3068,14 +3090,18 @@ def save_budget_statement_snapshot(
     if not isinstance(filename_hash, str) or not _SHA256_HEX_RE.fullmatch(filename_hash):
         raise ValueError("filename_hash must be exactly 64 hexadecimal characters")
 
+    statement_end_date = _normalize_budget_statement_end_date(snapshot)
+    statement_rows = _normalize_budget_statement_row_count(snapshot, "statement_rows")
+    parsed_rows = _normalize_budget_statement_row_count(snapshot, "parsed_rows")
+
     payload = {
-        "statement_end_date": snapshot["statement_end_date"],
+        "statement_end_date": statement_end_date,
         "opening_balance_eur": opening_balance,
         "closing_balance_eur": closing_balance,
         "parser": snapshot["parser"],
         "quality_status": snapshot["quality_status"],
-        "statement_rows": snapshot.get("statement_rows"),
-        "parsed_rows": snapshot.get("parsed_rows"),
+        "statement_rows": statement_rows,
+        "parsed_rows": parsed_rows,
         "balance_difference_eur": balance_difference,
         "filename_hash": filename_hash.lower(),
         "imported_at": _utc_now(),
