@@ -160,7 +160,8 @@ Result: `278 passed in 39.25s`.
 
 ### Commit
 
-Final commit SHA is recorded in the delivery response.
+`cde9cf6cef63c9e1736992cd2bdd0db1cb08eb61` -
+`feat(finance): authorize weekly budget from cash flow`
 
 ### Concerns
 
