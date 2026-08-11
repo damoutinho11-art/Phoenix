@@ -79,6 +79,7 @@ def _paused_finance_recommendation(
         "news_thesis": "",
         "requires_approval": False,
         "week_done": False,
+        "week_closed": False,
         "data_ready": False,
         "etf_scoring_verdict": {},
         "weekly_dual_lane_mandate": {},
@@ -105,6 +106,71 @@ def _paused_finance_recommendation(
         "brief_id": None,
         "brief_status": None,
         "cashflow_authority": cashflow_authority,
+    }
+
+
+def _closed_finance_recommendation(
+    *,
+    week_label: str,
+    authority: dict,
+    latest_brief: dict | None,
+    applied_transactions: list[dict] | None = None,
+) -> dict:
+    """Project an already-applied or approved week without reopening allocation."""
+    next_week = _next_iso_week_label()
+    applied_transactions = applied_transactions or []
+    week_done = bool(applied_transactions)
+    warnings = list(authority.get("blockers") or []) if not authority.get("data_ready") else []
+    if week_done:
+        assets = ", ".join(sorted({item["asset"].upper() for item in applied_transactions}))
+        total_deployed = round(sum(item["amount_eur"] for item in applied_transactions), 2)
+        rationale = (
+            f"{week_label} buys already executed: {assets} (€{total_deployed:.2f} deployed). "
+            f"Next window opens {next_week}."
+        )
+        portfolio_mode = "week_done"
+    else:
+        approved_at = str((latest_brief or {}).get("user_action_at") or "")[:10]
+        rationale = (
+            f"{week_label} brief approved on {approved_at or 'the recorded approval date'}. "
+            f"Recommendation window closed; next window opens {next_week}."
+        )
+        portfolio_mode = "week_approved"
+        total_deployed = 0.0
+        assets = ""
+    return {
+        "week_label": week_label,
+        "week_budget": authority["weekly_budget_eur"] if authority.get("data_ready") else 0.0,
+        "recommendations": [],
+        "rationale": rationale,
+        "portfolio_mode": portfolio_mode,
+        "regime": None,
+        "phase": None,
+        "phase_label": None,
+        "dynamic_targets": None,
+        "sleeve_targets": None,
+        "warnings": warnings,
+        "news_thesis": "",
+        "requires_approval": False,
+        "data_ready": authority.get("data_ready") is True,
+        "week_done": week_done,
+        "week_closed": True,
+        "assets_executed": assets,
+        "total_deployed_eur": total_deployed,
+        "next_window": next_week,
+        "etf_scoring_verdict": {},
+        "weekly_dual_lane_mandate": {},
+        "portfolio_mode_details": {"mode": portfolio_mode},
+        "approval_ticket_summary": {},
+        "research_context": [],
+        "research_gate_summary": {},
+        "autopilot_available": False,
+        "research_autopilot_hint": "",
+        "brief_id": latest_brief["id"] if latest_brief else None,
+        "brief_status": latest_brief["status"] if latest_brief else None,
+        "brief_user_action": latest_brief.get("user_action") if latest_brief else None,
+        "brief_user_action_at": latest_brief.get("user_action_at") if latest_brief else None,
+        "cashflow_authority": authority,
     }
 
 
@@ -457,9 +523,23 @@ def _build_finance_recommendation(
     today = clock.today()
     week_label = _iso_week_label(today)
 
-    # If buys were already applied this week, return a locked "week done" response.
     applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
     authority = _cashflow_authority_for_today(today)
+    latest_brief = database.get_latest_brief_for_week(week_label, "finance")
+    # Closure is historical fact and must not be reopened by a stale current statement.
+    if applied_this_week:
+        return _closed_finance_recommendation(
+            week_label=week_label,
+            authority=authority,
+            latest_brief=latest_brief,
+            applied_transactions=applied_this_week,
+        )
+    if latest_brief and latest_brief.get("status") == "approved":
+        return _closed_finance_recommendation(
+            week_label=week_label,
+            authority=authority,
+            latest_brief=latest_brief,
+        )
     if not authority.get("data_ready"):
         paused_state = authoritative_portfolio_state(portfolio_state, authority)
         return _paused_finance_recommendation(
@@ -471,53 +551,6 @@ def _build_finance_recommendation(
         )
 
     portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
-    if applied_this_week:
-        assets_done = ", ".join(sorted({t["asset"].upper() for t in applied_this_week}))
-        total_deployed = sum(t["amount_eur"] for t in applied_this_week)
-        iso = clock.today().isocalendar()
-        next_week_num = iso[1] + 1
-        next_week_year = iso[0]
-        if next_week_num > 52:
-            next_week_num = 1
-            next_week_year += 1
-        next_week = f"W{next_week_num} {next_week_year}"
-        latest_brief = database.get_latest_brief_for_week(week_label, "finance")
-        return {
-            "week_label": week_label,
-            "week_budget": portfolio_state.get("weekly_investment_budget", 0),
-            "recommendations": [],
-            "rationale": (
-                f"{week_label} buys already executed: {assets_done} "
-                f"(€{total_deployed:.2f} deployed). Next window opens {next_week}."
-            ),
-            "portfolio_mode": "week_done",
-            "regime": None,
-            "phase": None,
-            "phase_label": None,
-            "dynamic_targets": None,
-            "sleeve_targets": None,
-            "warnings": [],
-            "news_thesis": "",
-            "requires_approval": False,
-            "data_ready": True,
-            "week_done": True,
-            "week_closed": True,
-            "assets_executed": assets_done,
-            "total_deployed_eur": round(total_deployed, 2),
-            "next_window": next_week,
-            "etf_scoring_verdict": {},
-            "weekly_dual_lane_mandate": {},
-            "portfolio_mode_details": {},
-            "approval_ticket_summary": {},
-            "research_context": [],
-            "research_gate_summary": {},
-            "autopilot_available": False,
-            "research_autopilot_hint": "",
-            "brief_id": latest_brief["id"] if latest_brief else None,
-            "brief_status": latest_brief["status"] if latest_brief else None,
-            "cashflow_authority": authority,
-        }
-
     if _finance_fail_closed_enabled():
         blockers = engine.portfolio_state_freshness_blockers(portfolio_state)
         if blockers:
@@ -716,25 +749,7 @@ def finance_recommendation(
     response = _build_finance_recommendation(
         constitution, portfolio_state, profile, persist_brief=True
     )
-    if response.get("brief_status") != "approved":
-        return response
-
-    approved_at = response.get("brief_user_action_at")
-    approved_date = str(approved_at)[:10] if approved_at else "the recorded approval date"
-    next_window = _next_iso_week_label()
-    return {
-        **response,
-        "recommendations": [],
-        "rationale": (
-            f"{response['week_label']} brief approved on {approved_date}. "
-            f"Recommendation window closed; next window opens {next_window}."
-        ),
-        "portfolio_mode": "week_approved",
-        "requires_approval": False,
-        "week_closed": True,
-        "week_done": False,
-        "next_window": next_window,
-    }
+    return response
 
 
 _DATA_COVERAGE_SAFETY = {
@@ -1013,6 +1028,9 @@ def _build_data_coverage_from_recommendation(
     )
 
     blockers: list[str] = []
+    authority = recommendation.get("cashflow_authority") or {}
+    if authority.get("data_ready") is not True:
+        blockers.extend(authority.get("blockers") or ["Cash-flow authority is unavailable."])
     for leg in recommendation_legs:
         asset = leg["asset"]
         research = research_by_asset.get(asset) or {}
@@ -1300,6 +1318,7 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
         recommendation.get("week_closed") is True
         or recommendation.get("week_done") is True
     )
+    authority_blocked = (recommendation.get("cashflow_authority") or {}).get("data_ready") is not True
     safety_flags = dict(_MANUAL_BUY_SAFETY_FLAGS)
     if week_closed:
         safety_flags["manual_broker_action_required"] = False
@@ -1313,6 +1332,8 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
         "checklist_status": (
             "WEEK_CLOSED"
             if week_closed
+            else "AUTHORITY_BLOCKED"
+            if authority_blocked
             else "NEEDS_RESEARCH_REVIEW" if needs_research else "READY_FOR_MANUAL_REVIEW"
         ),
         "research_gate_summary": recommendation.get("research_gate_summary") or {},
@@ -1492,26 +1513,55 @@ def _deterministic_finance_brief(result: dict, ticket: dict, constitution: dict)
     return f"{first} {second} {third} {_BRIEF_REQUIRED_CLOSE}"
 
 
+def _closed_finance_brief(recommendation: dict) -> str:
+    rationale = recommendation.get("rationale") or "No further allocation is prepared this week."
+    if recommendation.get("week_done") is True:
+        return (
+            "Sir, this week's manual purchases are already recorded and the allocation "
+            f"window is closed. {rationale} No further action is prepared."
+        )
+    return (
+        "Sir, this week's finance brief is approved and the allocation window is closed. "
+        f"{rationale} No further action is prepared."
+    )
+
+
 @router.get("/brief")
 def finance_brief(
     constitution: dict = Depends(get_finance_constitution),
     portfolio_state: dict = Depends(get_portfolio_state),
     profile: dict = Depends(get_finance_profile),
 ) -> dict:
-    recommendation = _build_finance_recommendation(
-        constitution, portfolio_state, profile, persist_brief=False
+    recommendation = finance_recommendation(
+        constitution, portfolio_state, profile
     )
     authority = recommendation["cashflow_authority"]
+    if recommendation.get("week_closed") is True:
+        return {
+            "brief": _closed_finance_brief(recommendation),
+            "recommendations": [],
+            "requires_approval": False,
+            "data_ready": recommendation.get("data_ready") is True,
+            "warnings": recommendation["warnings"],
+            "cashflow_authority": authority,
+            "week_closed": True,
+            "week_done": recommendation.get("week_done") is True,
+            "portfolio_mode": recommendation.get("portfolio_mode"),
+        }
     if not recommendation["data_ready"]:
         return {
             "brief": (
-                "Sir, finance recommendations are paused because the required "
-                "finance inputs are not verified. No action has been prepared."
+                "Sir, finance recommendations are paused because cash-flow authority "
+                "is blocked. No action has been prepared."
             ),
+            "recommendations": [],
             "requires_approval": False,
             "data_ready": False,
             "warnings": recommendation["warnings"],
             "cashflow_authority": authority,
+            "week_closed": False,
+            "week_done": False,
+            "portfolio_mode": recommendation.get("portfolio_mode"),
         }
 
     ticket = {
@@ -1527,76 +1577,11 @@ def finance_brief(
         "portfolio_mode": recommendation.get("portfolio_mode_details")
         or {"mode": recommendation["portfolio_mode"]},
     }
-    holdings = engine.investable_holdings(constitution, portfolio_state)
-    statuses = engine.current_statuses(constitution, holdings)
-
-    sleeve_lines = "\n".join(
-        f"  {s.name}: €{engine.euros(s.current_value_cents):.2f}, "
-        f"gap={s.gap:+.2%}, status={s.band_status}"
-        for s in statuses
-    )
-
-    rec_lines = "\n".join(
-        f"  {asset.upper()}: €{amount:.2f} via {constitution['asset_routes'].get(asset)} "
-        f"({'crypto' if asset in _CRYPTO_ASSETS else 'etf'} lane)"
-        for asset, amount in ticket["executable_allocation"].items()
-        if amount > 0
-    ) or "  None"
-
-    mandate = ticket["weekly_dual_lane_mandate"]
-    rationale_parts = []
-    crypto_lane = mandate.get("crypto_lane") or {}
-    if crypto_lane.get("status") == "READY_FOR_MANUAL_BUY":
-        c = crypto_lane
-        rationale_parts.append(f"Buy {c['asset'].upper()} €{c['amount']:.2f} (crypto lane)")
-    stock_lane = mandate.get("stock_fund_etf_lane") or {}
-    if stock_lane.get("status") == "READY_FOR_MANUAL_BUY":
-        s = stock_lane
-        rationale_parts.append(f"Buy {s['asset']} €{s['amount']:.2f} (ETF lane)")
-    rationale = "; ".join(rationale_parts) or "No buys recommended this week."
-
-    warnings_text = "; ".join(ticket["warnings"]) if ticket["warnings"] else "None"
-
-    user_message = f"""\
-Portfolio state as of {portfolio_state.get('as_of')}:
-Total invested: €{engine.euros(sum(holdings.values())):.2f}
-Weekly budget: €{ticket['weekly_budget']:.2f}
-Portfolio mode: {result['portfolio_mode']['mode']}
-
-Sleeve status:
-{sleeve_lines}
-
-Recommended actions:
-{rec_lines}
-
-Rationale from engine: {rationale}
-
-Warnings: {warnings_text}
-
-Constitution key rules:
-- Dual lane mandate: crypto lane and ETF lane run independently
-- Performance day heavy training blocked
-- No API keys stored
-- Manual approval required for all actions
-
-Provide a brief, direct investment summary for this week.\
-"""
-
-    try:
-        ai_result = ai_gateway.generate_text(
-            system_prompt=_BRIEF_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message}],
-            max_tokens=256,
-        )
-        brief_text = ai_result.text if ai_result.ok else ""
-    except Exception:
-        brief_text = ""
-
-    if not _brief_text_matches_authoritative_amounts(brief_text, ticket):
-        brief_text = _deterministic_finance_brief(result, ticket, constitution)
+    brief_text = _deterministic_finance_brief(result, ticket, constitution)
 
     return {
         "brief": brief_text,
+        "recommendations": recommendation["recommendations"],
         "requires_approval": recommendation["requires_approval"],
         "data_ready": True,
         "warnings": recommendation["warnings"],

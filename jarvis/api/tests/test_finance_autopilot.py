@@ -49,8 +49,11 @@ _READY_AUTHORITY = {
     "data_ready": True,
     "blockers": [],
     "weekly_budget_eur": 115.38,
+    "cash_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
-    "input_hash": "autopilot-authority",
+    "input_hash": "3" * 64,
+    "policy_version": 2,
+    "source": {"parser": "lhv_pdf", "quality_status": "reconciled", "receipt_verified": 1, "balance_difference_eur": 0.0, "statement_end_date": "2026-08-11", "filename_hash": "0" * 64},
 }
 
 _MOCK_ALLOC_RESULT = {

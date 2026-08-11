@@ -26,8 +26,11 @@ _READY_CASHFLOW_AUTHORITY = {
     "data_ready": True,
     "blockers": [],
     "weekly_budget_eur": 115.38,
+    "cash_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
-    "input_hash": "test-cashflow-authority",
+    "input_hash": "e" * 64,
+    "policy_version": 2,
+    "source": {"parser": "lhv_pdf", "quality_status": "reconciled", "receipt_verified": 1, "balance_difference_eur": 0.0, "statement_end_date": "2026-08-11", "filename_hash": "0" * 64},
 }
 
 _SAFE_ETF_RESOLUTION = {
@@ -159,20 +162,14 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         self.assertIn("warnings", data)
 
     def test_recommendation_replaces_fixed_budget_with_cashflow_authority(self) -> None:
-        authority = {
-            "data_ready": True,
-            "blockers": [],
-            "weekly_budget_eur": 86.67,
-            "deployable_capacity_eur": 260.0,
-            "input_hash": "cash-123",
-        }
+        authority = {**_READY_CASHFLOW_AUTHORITY, "weekly_budget_eur": 86.67, "cash_capacity_eur": 260.0, "deployable_capacity_eur": 260.0, "input_hash": "c" * 64}
         self.authority_builder.return_value = authority
 
         data = client.get("/finance/recommendation").json()
 
         self.assertEqual(data["week_budget"], 86.67)
         self.assertEqual(round(sum(item["amount"] for item in data["recommendations"]), 2), 86.67)
-        self.assertEqual(data["cashflow_authority"]["input_hash"], "cash-123")
+        self.assertEqual(data["cashflow_authority"]["input_hash"], "c" * 64)
 
     def test_recommendation_blocks_instead_of_using_legacy_fixed_budget(self) -> None:
         authority = {
@@ -202,13 +199,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         self.assertFalse(data["cashflow_authority"]["data_ready"])
 
     def test_data_coverage_exposes_the_recommendation_authority(self) -> None:
-        authority = {
-            "data_ready": True,
-            "blockers": [],
-            "weekly_budget_eur": 86.67,
-            "deployable_capacity_eur": 260.0,
-            "input_hash": "coverage-cash-123",
-        }
+        authority = {**_READY_CASHFLOW_AUTHORITY, "weekly_budget_eur": 86.67, "cash_capacity_eur": 260.0, "deployable_capacity_eur": 260.0, "input_hash": "f" * 64}
         self.authority_builder.return_value = authority
 
         data = client.get("/finance/data-coverage").json()

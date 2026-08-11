@@ -17,8 +17,18 @@ _READY_CASHFLOW_AUTHORITY = {
     "data_ready": True,
     "blockers": [],
     "weekly_budget_eur": 115.38,
+    "cash_capacity_eur": 461.52,
     "deployable_capacity_eur": 461.52,
-    "input_hash": "brief-cashflow-authority",
+    "input_hash": "b" * 64,
+    "policy_version": 2,
+    "source": {
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "receipt_verified": True,
+        "balance_difference_eur": 0.0,
+        "statement_end_date": "2026-08-11",
+        "filename_hash": "0" * 64,
+    },
 }
 
 _SAFE_ETF_RESOLUTION = {
@@ -89,10 +99,11 @@ class TestFinanceBriefRoute:
             data = client.get("/finance/brief").json()
         assert data["requires_approval"] is True
 
-    def test_brief_contains_mock_text(self):
-        with patch("jarvis.api.routers.finance.ai_gateway.generate_text", return_value=_make_ai_result()):
+    def test_brief_is_deterministic_and_does_not_call_ai(self):
+        with patch("jarvis.api.routers.finance.ai_gateway.generate_text") as gateway:
             data = client.get("/finance/brief").json()
-        assert data["brief"] == _MOCK_BRIEF
+        gateway.assert_not_called()
+        assert "€115.38" in data["brief"]
 
     def test_brief_uses_executive_assistant_voice(self):
         with patch("jarvis.api.routers.finance.ai_gateway.generate_text", return_value=_make_ai_result(ok=False)):
@@ -104,11 +115,10 @@ class TestFinanceBriefRoute:
         assert "engine-selected allocation" not in data["brief"]
         assert data["brief"].endswith("Requires your approval before any action.")
 
-    def test_gateway_called_with_expected_boundary(self):
-        with patch("jarvis.api.routers.finance.ai_gateway.generate_text", return_value=_make_ai_result()) as gateway:
+    def test_brief_never_calls_the_gateway(self):
+        with patch("jarvis.api.routers.finance.ai_gateway.generate_text") as gateway:
             client.get("/finance/brief")
-        assert gateway.call_args.kwargs["max_tokens"] == 256
-        assert gateway.call_args.kwargs["system_prompt"]
+        gateway.assert_not_called()
 
     def test_missing_portfolio_state_returns_503(self):
         def _raise():
@@ -142,8 +152,11 @@ class TestFinanceBriefRoute:
             "data_ready": True,
             "blockers": [],
             "weekly_budget_eur": 86.67,
+            "cash_capacity_eur": 260.0,
             "deployable_capacity_eur": 260.0,
-            "input_hash": "brief-authority-86",
+            "input_hash": "c" * 64,
+            "policy_version": 2,
+            "source": _READY_CASHFLOW_AUTHORITY["source"],
         }
         legacy_brief = (
             "Sir, I recommend deploying this week's €115.38 allocation: €46.15 to BTC. "
@@ -153,12 +166,10 @@ class TestFinanceBriefRoute:
         )
         with patch(
             "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
-        ), patch(
-            "jarvis.api.routers.finance.ai_gateway.generate_text",
-            return_value=_make_ai_result(legacy_brief),
-        ):
+        ), patch("jarvis.api.routers.finance.ai_gateway.generate_text") as gateway:
             data = client.get("/finance/brief").json()
 
+        gateway.assert_not_called()
         assert "€86.67" in data["brief"]
         assert "€115.38" not in data["brief"]
         assert data["cashflow_authority"] == authority
@@ -168,8 +179,11 @@ class TestFinanceBriefRoute:
             "data_ready": True,
             "blockers": [],
             "weekly_budget_eur": 86.67,
+            "cash_capacity_eur": 260.0,
             "deployable_capacity_eur": 260.0,
-            "input_hash": "week-done-authority",
+            "input_hash": "d" * 64,
+            "policy_version": 2,
+            "source": _READY_CASHFLOW_AUTHORITY["source"],
         }
         week_done = {
             "data_ready": True,
@@ -228,3 +242,34 @@ class TestFinanceBriefRoute:
         assert data["data_ready"] is False
         assert data["requires_approval"] is False
         assert "paused" in data["brief"].lower()
+
+    def test_brief_closes_an_approved_week_before_a_blocked_current_authority(self):
+        approved = {
+            "id": 17,
+            "status": "approved",
+            "user_action": "approved",
+            "user_action_at": "2026-08-12T09:00:00+00:00",
+        }
+        blocked = {
+            "data_ready": False,
+            "blockers": ["Checking-account statement is stale."],
+            "weekly_budget_eur": 0.0,
+        }
+        with patch(
+            "jarvis.api.routers.budget._build_cashflow_authority", return_value=blocked
+        ) as builder, patch(
+            "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+            return_value=[],
+        ), patch(
+            "jarvis.api.routers.finance.database.get_latest_brief_for_week",
+            return_value=approved,
+        ), patch("jarvis.api.routers.finance.ai_gateway.generate_text") as gateway:
+            data = client.get("/finance/brief").json()
+
+        builder.assert_called_once()
+        gateway.assert_not_called()
+        assert data["week_closed"] is True
+        assert data["week_done"] is False
+        assert data["requires_approval"] is False
+        assert data["recommendations"] == []
+        assert data["cashflow_authority"] == blocked

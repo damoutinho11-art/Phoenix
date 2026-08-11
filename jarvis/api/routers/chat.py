@@ -142,6 +142,37 @@ def _build_finance_context(*, include_authority: bool = False) -> tuple:
         return (result, True, None) if include_authority else (result, True)
 
 
+def _finance_allocation_intent(domain: str, message: str) -> bool:
+    if domain == "finance":
+        return True
+    message = message.lower()
+    return any(
+        term in message
+        for term in ("allocation", "allocate", "invest", "buy", "portfolio", "weekly budget")
+    )
+
+
+def _deterministic_finance_chat_response(authority: dict | None, context: str) -> str:
+    if not authority or authority.get("data_ready") is not True:
+        blocker = "; ".join((authority or {}).get("blockers") or ["Finance context is unavailable."])
+        return (
+            f"Sir, cash-flow authority is blocked: {blocker} "
+            "No allocation or buy amount is available until the inputs are verified."
+        )
+    legs = re.findall(r"^\s+([A-Z0-9_]+): €(\d+(?:\.\d{2})?)", context, re.MULTILINE)
+    total = authority["weekly_budget_eur"]
+    if legs:
+        allocation = "; ".join(f"{asset} €{amount}" for asset, amount in legs)
+        return (
+            f"Sir, the verified cash-flow authority permits €{total:.2f} this week. "
+            f"Current manual-review allocation: {allocation}. Requires your approval before any action."
+        )
+    return (
+        f"Sir, the verified cash-flow authority permits €{total:.2f} this week, "
+        "but no manual allocation is currently prepared."
+    )
+
+
 def _build_training_context() -> str:
     try:
         with open(training_engine.DEFAULT_CONSTITUTION_PATH) as f:
@@ -448,19 +479,25 @@ def jarvis_chat(request: ChatRequest) -> dict:
         tools = [{"type": "web_search_20250305", "name": "web_search"}]
         system_prompt = _SYSTEM_PROMPT + _FINANCE_WEB_SEARCH_ADDENDUM
 
-    ai_status = ai_gateway.status()
-    if app_status_intent and not ai_status.configured:
-        response_text = _build_app_context()
-        if news_engine.should_fetch_for_message(domain, request.message):
-            response_text += "\n\n" + news_engine.context_text(topic=domain if domain != "home" else "markets", limit=5)
+    finance_context_blocked = domain in ("finance", "home") and (
+        cashflow_authority is None or cashflow_authority.get("data_ready") is not True
+    )
+    if finance_context_blocked or _finance_allocation_intent(domain, request.message):
+        response_text = _deterministic_finance_chat_response(cashflow_authority, finance_ctx)
     else:
-        ai_result = ai_gateway.generate_text(
-            system_prompt=system_prompt,
-            messages=messages,
-            max_tokens=512,
-            tools=tools if ai_status.supports_web_search_tool else None,
-        )
-        response_text = ai_result.text
+        ai_status = ai_gateway.status()
+        if app_status_intent and not ai_status.configured:
+            response_text = _build_app_context()
+            if news_engine.should_fetch_for_message(domain, request.message):
+                response_text += "\n\n" + news_engine.context_text(topic=domain if domain != "home" else "markets", limit=5)
+        else:
+            ai_result = ai_gateway.generate_text(
+                system_prompt=system_prompt,
+                messages=messages,
+                max_tokens=512,
+                tools=tools if ai_status.supports_web_search_tool else None,
+            )
+            response_text = ai_result.text
 
     if not requires_approval and "requires your approval" in response_text.lower():
         requires_approval = True
