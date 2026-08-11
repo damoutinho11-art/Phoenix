@@ -251,7 +251,8 @@ Result: `94 passed in 6.09s`.
 
 ### Commit
 
-SHA recorded after commit amendment.
+`b734dfa3fded3b47599805a79f7d4e48706e451d` (superseded by the report-only
+amendment SHA below).
 
 ### Concerns
 
