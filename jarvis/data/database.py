@@ -428,7 +428,8 @@ CREATE TABLE IF NOT EXISTS budget_statement_snapshots (
     parsed_rows INTEGER,
     balance_difference_eur REAL NOT NULL,
     filename_hash TEXT NOT NULL,
-    metadata_json TEXT NOT NULL
+    metadata_json TEXT NOT NULL,
+    receipt_verified INTEGER NOT NULL DEFAULT 0 CHECK (receipt_verified IN (0, 1))
 );
 
 CREATE INDEX IF NOT EXISTS idx_budget_statement_snapshots_end
@@ -593,6 +594,25 @@ def _migrate_portfolio_state_store(connection: sqlite3.Connection) -> None:
             connection.commit()
 
 
+def _migrate_budget_statement_snapshot_provenance(
+    connection: sqlite3.Connection,
+) -> None:
+    """Keep pre-receipt snapshots as non-authoritative history."""
+    existing = {
+        row[1]
+        for row in connection.execute(
+            "PRAGMA table_info(budget_statement_snapshots)"
+        ).fetchall()
+    }
+    if "receipt_verified" not in existing:
+        connection.execute(
+            """ALTER TABLE budget_statement_snapshots
+               ADD COLUMN receipt_verified INTEGER NOT NULL DEFAULT 0
+               CHECK (receipt_verified IN (0, 1))"""
+        )
+        connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
@@ -604,6 +624,7 @@ def init_db() -> None:
         _migrate_research_memos_quality_columns(connection)
         _migrate_training_session_evidence(connection)
         _migrate_portfolio_state_store(connection)
+        _migrate_budget_statement_snapshot_provenance(connection)
     finally:
         connection.close()
 
@@ -2995,46 +3016,64 @@ _SHA256_HEX_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _BUDGET_STATEMENT_RECEIPT_TTL = timedelta(minutes=15)
 
 
+def _save_budget_transactions_with_connection(
+    transactions: list[dict],
+    connection: sqlite3.Connection,
+    *,
+    strict: bool,
+) -> int:
+    now = clock.utc_now_iso()
+    count = 0
+    for transaction in transactions:
+        try:
+            amount = float(transaction["amount_eur"])
+            if (
+                not math.isfinite(amount)
+                or amount < 0
+                or amount > MAX_SANE_BUDGET_AMOUNT_EUR
+            ):
+                raise ValueError("Transaction amount_eur is outside the accepted range")
+            connection.execute(
+                """INSERT INTO budget_transactions
+                   (date, merchant, amount_eur, category, description, source, month, is_income, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(date, merchant, amount_eur) DO UPDATE SET
+                     category=excluded.category,
+                     month=excluded.month,
+                     is_income=excluded.is_income""",
+                (
+                    transaction["date"],
+                    transaction["merchant"],
+                    transaction["amount_eur"],
+                    transaction["category"],
+                    transaction.get("description", ""),
+                    transaction.get("source", "text"),
+                    transaction["month"],
+                    int(transaction.get("is_income", 0)),
+                    now,
+                ),
+            )
+            count += connection.execute("SELECT changes()").fetchone()[0]
+        except Exception as exc:
+            if strict:
+                raise ValueError("Invalid budget transaction") from exc
+    return count
+
+
 def save_budget_transactions(
     transactions: list[dict],
     connection: sqlite3.Connection | None = None,
 ) -> int:
-    """Insert transactions; refresh matching imports by (date, merchant, amount_eur).
-
-    Also silently skips any transaction whose amount is not a sane personal
-    bank figure (e.g. a mis-parsed statement row producing a garbage huge
-    number) — this guards against corrupted budget totals like the April/May
-    2026 multi-trillion-euro "income" bug caused by a bad PDF/AI parse.
-    """
+    """Insert transactions, skipping malformed legacy/manual rows."""
     owns_connection = connection is None
     connection = connection or get_db()
-    now = clock.utc_now_iso()
-    count = 0
     try:
-        for t in transactions:
-            try:
-                amount = float(t["amount_eur"])
-                if not (amount == amount) or amount < 0 or amount > MAX_SANE_BUDGET_AMOUNT_EUR:  # NaN or out of range
-                    continue
-                connection.execute(
-                    """INSERT INTO budget_transactions
-                       (date, merchant, amount_eur, category, description, source, month, is_income, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                       ON CONFLICT(date, merchant, amount_eur) DO UPDATE SET
-                         category=excluded.category,
-                         description=excluded.description,
-                         source=excluded.source,
-                         month=excluded.month,
-                         is_income=excluded.is_income""",
-                    (t["date"], t["merchant"], t["amount_eur"], t["category"],
-                     t.get("description", ""), t.get("source", "text"),
-                     t["month"], int(t.get("is_income", 0)), now),
-                )
-                count += connection.execute("SELECT changes()").fetchone()[0]
-            except Exception:
-                pass
+        count = _save_budget_transactions_with_connection(
+            transactions, connection, strict=False
+        )
         if owns_connection:
             connection.commit()
+        return count
     except Exception:
         if owns_connection:
             connection.rollback()
@@ -3042,7 +3081,6 @@ def save_budget_transactions(
     finally:
         if owns_connection:
             connection.close()
-    return count
 
 
 def _normalize_budget_statement_number(
@@ -3183,42 +3221,55 @@ def create_budget_statement_parse_receipt(
         connection.close()
 
 
+def _save_budget_statement_snapshot_with_connection(
+    snapshot: dict[str, Any],
+    connection: sqlite3.Connection,
+    *,
+    receipt_verified: bool,
+) -> dict[str, Any]:
+    payload = {**_validated_budget_statement_snapshot(snapshot), "imported_at": _utc_now()}
+    cursor = connection.execute(
+        """INSERT INTO budget_statement_snapshots
+           (imported_at, statement_end_date, opening_balance_eur, closing_balance_eur,
+            parser, quality_status, statement_rows, parsed_rows,
+            balance_difference_eur, filename_hash, metadata_json, receipt_verified)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            payload["imported_at"],
+            payload["statement_end_date"],
+            payload["opening_balance_eur"],
+            payload["closing_balance_eur"],
+            payload["parser"],
+            payload["quality_status"],
+            payload["statement_rows"],
+            payload["parsed_rows"],
+            payload["balance_difference_eur"],
+            payload["filename_hash"],
+            json.dumps(payload, sort_keys=True),
+            int(receipt_verified),
+        ),
+    )
+    row = connection.execute(
+        "SELECT * FROM budget_statement_snapshots WHERE id=?",
+        (cursor.lastrowid,),
+    ).fetchone()
+    return dict(row)
+
+
 def save_budget_statement_snapshot(
     snapshot: dict[str, Any],
     connection: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """Persist a reconciled PDF statement snapshot as cash-balance authority."""
-    payload = {**_validated_budget_statement_snapshot(snapshot), "imported_at": _utc_now()}
+    """Persist a validated statement as non-authoritative history."""
     owns_connection = connection is None
     connection = connection or get_db()
     try:
-        cursor = connection.execute(
-            """INSERT INTO budget_statement_snapshots
-               (imported_at, statement_end_date, opening_balance_eur, closing_balance_eur,
-                parser, quality_status, statement_rows, parsed_rows,
-                balance_difference_eur, filename_hash, metadata_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                payload["imported_at"],
-                payload["statement_end_date"],
-                payload["opening_balance_eur"],
-                payload["closing_balance_eur"],
-                payload["parser"],
-                payload["quality_status"],
-                payload["statement_rows"],
-                payload["parsed_rows"],
-                payload["balance_difference_eur"],
-                payload["filename_hash"],
-                json.dumps(payload, sort_keys=True),
-            ),
+        saved = _save_budget_statement_snapshot_with_connection(
+            snapshot, connection, receipt_verified=False
         )
-        row = connection.execute(
-            "SELECT * FROM budget_statement_snapshots WHERE id=?",
-            (cursor.lastrowid,),
-        ).fetchone()
         if owns_connection:
             connection.commit()
-        return dict(row)
+        return saved
     except Exception:
         if owns_connection:
             connection.rollback()
@@ -3234,8 +3285,12 @@ def save_budget_statement_import(
     """Persist transactions and their statement snapshot in one transaction."""
     connection = get_db()
     try:
-        saved = save_budget_transactions(transactions, connection=connection)
-        save_budget_statement_snapshot(snapshot, connection=connection)
+        saved = _save_budget_transactions_with_connection(
+            transactions, connection, strict=True
+        )
+        _save_budget_statement_snapshot_with_connection(
+            snapshot, connection, receipt_verified=False
+        )
         connection.commit()
         return saved
     except Exception:
@@ -3293,8 +3348,12 @@ def save_budget_statement_receipt_import(
             raise ValueError("Submitted transactions do not match statement receipt")
 
         snapshot = _validated_budget_statement_receipt_snapshot(receipt)
-        saved = save_budget_transactions(transactions, connection=connection)
-        save_budget_statement_snapshot(snapshot, connection=connection)
+        saved = _save_budget_transactions_with_connection(
+            transactions, connection, strict=True
+        )
+        _save_budget_statement_snapshot_with_connection(
+            snapshot, connection, receipt_verified=True
+        )
         consumed_at = _utc_now()
         consumed = connection.execute(
             """UPDATE budget_statement_parse_receipts
@@ -3318,7 +3377,8 @@ def get_latest_reconciled_budget_statement() -> dict[str, Any] | None:
     try:
         row = connection.execute(
             """SELECT * FROM budget_statement_snapshots
-               WHERE quality_status='reconciled' AND balance_difference_eur = 0
+               WHERE receipt_verified=1 AND parser='lhv_pdf'
+                 AND quality_status='reconciled' AND balance_difference_eur = 0
                ORDER BY statement_end_date DESC, imported_at DESC, id DESC LIMIT 1"""
         ).fetchone()
         return _row_to_dict(row)

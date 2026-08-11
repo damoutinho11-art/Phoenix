@@ -13,8 +13,8 @@ from jarvis.data import database
 client = TestClient(app)
 
 
-def _parse_reconciled_statement_receipt() -> dict:
-    raw_text = """
+def _parse_reconciled_statement_receipt(raw_text: str | None = None) -> dict:
+    raw_text = raw_text or """
 05.05.2026 Starting balance 100.00
 05.05.2026 Shop
 1500000001 -10.00 90.00
@@ -425,6 +425,62 @@ def test_save_rejects_expired_statement_receipt(monkeypatch, tmp_path) -> None:
     assert database.get_latest_reconciled_budget_statement() is None
 
 
+def test_receipt_save_rolls_back_partial_transaction_failure_and_can_retry(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt(
+        """
+05.05.2026 Starting balance 100.00
+05.05.2026 Shop
+1500000001 -10.00 90.00
+05.05.2026 Cafe
+1500000002 -5.00 85.00
+05.05.2026 Final balance 85.00
+"""
+    )
+    invalid_transactions = [dict(transaction) for transaction in parsed["transactions"]]
+    invalid_transactions[1].pop("category")
+
+    rejected = client.post(
+        "/budget/save",
+        json={
+            "transactions": invalid_transactions,
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+
+    assert rejected.status_code == 422
+    assert database.get_budget_transactions("2026-05") == []
+    assert database.get_latest_reconciled_budget_statement() is None
+    connection = database.get_db()
+    try:
+        consumed_at = connection.execute(
+            """SELECT consumed_at FROM budget_statement_parse_receipts
+               WHERE receipt_id=?""",
+            (parsed["receipt_id"],),
+        ).fetchone()["consumed_at"]
+        snapshot_count = connection.execute(
+            "SELECT COUNT(*) FROM budget_statement_snapshots"
+        ).fetchone()[0]
+    finally:
+        connection.close()
+    assert consumed_at is None
+    assert snapshot_count == 0
+
+    corrected = client.post(
+        "/budget/save",
+        json={
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+
+    assert corrected.status_code == 200
+    assert len(database.get_budget_transactions("2026-05")) == 2
+
+
 def test_save_rejects_receipt_with_nonzero_subcent_difference(
     monkeypatch, tmp_path
 ) -> None:
@@ -632,6 +688,81 @@ def test_database_snapshot_whitelists_metadata_and_normalizes_values(monkeypatch
     assert not {"filename", "raw_pdf", "base64", "caller_extra"} & metadata.keys()
 
 
+def test_direct_snapshot_helper_cannot_mint_authoritative_balance(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    saved = database.save_budget_statement_snapshot(
+        {
+            "statement_end_date": "2026-08-11",
+            "opening_balance_eur": 770.00,
+            "closing_balance_eur": 760.00,
+            "parser": "lhv_pdf",
+            "quality_status": "reconciled",
+            "statement_rows": 1,
+            "parsed_rows": 1,
+            "balance_difference_eur": 0.0,
+            "filename_hash": "a" * 64,
+        }
+    )
+
+    assert saved["receipt_verified"] == 0
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_direct_statement_import_helper_cannot_mint_authoritative_balance(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    database.save_budget_statement_import(
+        [],
+        {
+            "statement_end_date": "2026-08-11",
+            "opening_balance_eur": 770.00,
+            "closing_balance_eur": 760.00,
+            "parser": "lhv_pdf",
+            "quality_status": "reconciled",
+            "statement_rows": 1,
+            "parsed_rows": 1,
+            "balance_difference_eur": 0.0,
+            "filename_hash": "a" * 64,
+        },
+    )
+
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_latest_authoritative_statement_requires_lhv_parser(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
+    saved = client.post(
+        "/budget/save",
+        json={
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+    assert saved.status_code == 200
+
+    connection = database.get_db()
+    try:
+        connection.execute(
+            "UPDATE budget_statement_snapshots SET parser='ai_fallback'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
 @pytest.mark.parametrize(
     "filename_hash",
     [None, "", "a" * 63, "a" * 65, "g" * 64, "a" * 63 + "-"],
@@ -711,10 +842,12 @@ def test_statement_save_rolls_back_transactions_when_snapshot_insert_fails(
     database.init_db()
     parsed = _parse_reconciled_statement_receipt()
 
-    def fail_snapshot_insert(snapshot, connection=None):
+    def fail_snapshot_insert(snapshot, connection, *, receipt_verified):
         raise RuntimeError("simulated snapshot insertion failure")
 
-    monkeypatch.setattr(database, "save_budget_statement_snapshot", fail_snapshot_insert)
+    monkeypatch.setattr(
+        database, "_save_budget_statement_snapshot_with_connection", fail_snapshot_insert
+    )
     response = TestClient(app, raise_server_exceptions=False).post(
         "/budget/save",
         json={
@@ -985,30 +1118,43 @@ def test_budget_summary_counts_income_positive_and_separates_savings_buckets(mon
     assert summary["by_category"]["Income"]["total"] == 2236.54
 
 
-def test_budget_reimport_refreshes_a_matching_transaction_instead_of_ignoring_it(monkeypatch, tmp_path) -> None:
-    db_path = tmp_path / "budget-reimport.db"
-    monkeypatch.setattr(database, "DB_PATH", db_path)
+def test_transaction_only_conflict_preserves_receipt_identity_and_updates_review_fields(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "budget-reimport.db")
     database.init_db()
-    original = {
-        "date": "2026-08-03",
-        "merchant": "UBER *EATS",
-        "amount_eur": 30.23,
-        "category": "Transport",
-        "description": "Imported before category fix",
-        "source": "pdf",
-        "month": "2026-08",
-        "is_income": 0,
+    parsed = _parse_reconciled_statement_receipt()
+    original = parsed["transactions"][0]
+    saved = client.post(
+        "/budget/save",
+        json={
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+    assert saved.status_code == 200
+    corrected = {
+        **original,
+        "category": "Reviewed category",
+        "description": "Untrusted replacement",
+        "source": "text",
+        "month": "2026-06",
+        "is_income": 1,
     }
-    corrected = {**original, "category": "Eating Out", "description": "Reviewed import"}
 
-    database.save_budget_transactions([original])
     changed = database.save_budget_transactions([corrected])
 
-    transactions = database.get_budget_transactions("2026-08")
+    transactions = database.get_budget_transactions("2026-06")
     assert changed == 1
     assert len(transactions) == 1
-    assert transactions[0]["category"] == "Eating Out"
-    assert transactions[0]["description"] == "Reviewed import"
+    assert transactions[0]["date"] == original["date"]
+    assert transactions[0]["merchant"] == original["merchant"]
+    assert transactions[0]["amount_eur"] == original["amount_eur"]
+    assert transactions[0]["description"] == original["description"]
+    assert transactions[0]["source"] == original["source"]
+    assert transactions[0]["category"] == "Reviewed category"
+    assert transactions[0]["month"] == "2026-06"
+    assert transactions[0]["is_income"] == 1
 
 
 def test_budget_memory_profile_can_be_persisted(monkeypatch, tmp_path) -> None:
