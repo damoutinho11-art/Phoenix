@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from unittest.mock import patch
 
@@ -334,6 +335,181 @@ def test_database_rejects_non_pdf_statement_snapshot(monkeypatch, tmp_path) -> N
                 "filename_hash": "digest",
             }
         )
+
+
+def test_database_snapshot_whitelists_metadata_and_normalizes_values(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    saved = database.save_budget_statement_snapshot(
+        {
+            "statement_end_date": "2026-08-11",
+            "opening_balance_eur": "1363.38",
+            "closing_balance_eur": "760.00",
+            "parser": "lhv_pdf",
+            "quality_status": "reconciled",
+            "statement_rows": 258,
+            "parsed_rows": 258,
+            "balance_difference_eur": "0.0",
+            "filename_hash": "A" * 64,
+            "filename": "account.pdf",
+            "raw_pdf": b"%PDF secret",
+            "base64": "c2VjcmV0",
+            "caller_extra": "must not persist",
+        }
+    )
+
+    assert saved["opening_balance_eur"] == 1363.38
+    assert saved["closing_balance_eur"] == 760.00
+    assert saved["balance_difference_eur"] == 0.0
+    assert saved["filename_hash"] == "a" * 64
+    metadata = json.loads(saved["metadata_json"])
+    assert set(metadata) == {
+        "imported_at",
+        "statement_end_date",
+        "opening_balance_eur",
+        "closing_balance_eur",
+        "parser",
+        "quality_status",
+        "statement_rows",
+        "parsed_rows",
+        "balance_difference_eur",
+        "filename_hash",
+    }
+    assert not {"filename", "raw_pdf", "base64", "caller_extra"} & metadata.keys()
+
+
+@pytest.mark.parametrize(
+    "filename_hash",
+    [None, "", "a" * 63, "a" * 65, "g" * 64, "a" * 63 + "-"],
+)
+def test_database_snapshot_rejects_invalid_filename_hash(
+    monkeypatch, tmp_path, filename_hash
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    with pytest.raises(ValueError, match="filename_hash"):
+        database.save_budget_statement_snapshot(
+            {
+                "statement_end_date": "2026-08-11",
+                "closing_balance_eur": 760.00,
+                "parser": "lhv_pdf",
+                "quality_status": "reconciled",
+                "balance_difference_eur": 0.0,
+                "filename_hash": filename_hash,
+            }
+        )
+
+
+@pytest.mark.parametrize("field", ["opening_balance_eur", "closing_balance_eur", "balance_difference_eur"])
+@pytest.mark.parametrize("invalid_value", [{}, "NaN", "Infinity", "-Infinity"])
+def test_save_rejects_invalid_statement_balance_values(field, invalid_value) -> None:
+    quality = {
+        "status": "reconciled",
+        "opening_balance_eur": 1363.38,
+        "closing_balance_eur": 760.00,
+        "balance_difference_eur": 0.0,
+        "statement_end_date": "2026-08-11",
+    }
+    quality[field] = invalid_value
+
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/budget/save",
+        json={
+            "transactions": [],
+            "statement": {
+                "filename": "account.pdf",
+                "parser": "lhv_pdf",
+                "quality": quality,
+            },
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("field", ["opening_balance_eur", "closing_balance_eur", "balance_difference_eur"])
+@pytest.mark.parametrize("invalid_value", [{}, "NaN", "Infinity", "-Infinity"])
+def test_database_snapshot_rejects_invalid_balance_values(
+    monkeypatch, tmp_path, field, invalid_value
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    snapshot = {
+        "statement_end_date": "2026-08-11",
+        "opening_balance_eur": 1363.38,
+        "closing_balance_eur": 760.00,
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "balance_difference_eur": 0.0,
+        "filename_hash": "a" * 64,
+    }
+    snapshot[field] = invalid_value
+
+    with pytest.raises(ValueError, match=field):
+        database.save_budget_statement_snapshot(snapshot)
+
+
+def test_statement_save_rolls_back_transactions_when_snapshot_insert_fails(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    def fail_snapshot_insert(snapshot, connection=None):
+        raise RuntimeError("simulated snapshot insertion failure")
+
+    monkeypatch.setattr(database, "save_budget_statement_snapshot", fail_snapshot_insert)
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/budget/save",
+        json={
+            "transactions": [
+                {
+                    "date": "2026-08-11",
+                    "merchant": "Atomic transaction",
+                    "amount_eur": 10.00,
+                    "category": "Other",
+                    "month": "2026-08",
+                }
+            ],
+            "statement": {
+                "filename": "account.pdf",
+                "parser": "lhv_pdf",
+                "quality": {
+                    "status": "reconciled",
+                    "opening_balance_eur": 770.00,
+                    "closing_balance_eur": 760.00,
+                    "balance_difference_eur": 0.0,
+                    "statement_end_date": "2026-08-11",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 500
+    assert database.get_budget_transactions("2026-08") == []
+
+
+def test_parse_pdf_marks_impossible_final_balance_date_for_review() -> None:
+    raw_text = """
+01.02.2026 Starting balance 100.00
+01.02.2026 Shop
+1500000001 -10.00 90.00
+31.02.2026 Final balance 90.00
+"""
+
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value=raw_text):
+        response = TestClient(app, raise_server_exceptions=False).post(
+            "/budget/parse-pdf",
+            files={"file": ("lhv-statement.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+
+    assert response.status_code == 200
+    quality = response.json()["quality"]
+    assert quality["status"] == "review_required"
+    assert quality["statement_end_date"] is None
+    assert any("date" in warning.lower() for warning in quality["warnings"])
 
 
 def test_lhv_salary_paid_at_month_end_belongs_to_next_budget_month() -> None:

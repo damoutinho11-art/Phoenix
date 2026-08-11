@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -2973,9 +2974,13 @@ def brief_exists_by_id(brief_id: int) -> bool:
 
 
 MAX_SANE_BUDGET_AMOUNT_EUR = 100_000.0  # a personal bank transaction above this is a parse error, not real money
+_SHA256_HEX_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
-def save_budget_transactions(transactions: list[dict]) -> int:
+def save_budget_transactions(
+    transactions: list[dict],
+    connection: sqlite3.Connection | None = None,
+) -> int:
     """Insert transactions; refresh matching imports by (date, merchant, amount_eur).
 
     Also silently skips any transaction whose amount is not a sane personal
@@ -2983,7 +2988,8 @@ def save_budget_transactions(transactions: list[dict]) -> int:
     number) — this guards against corrupted budget totals like the April/May
     2026 multi-trillion-euro "income" bug caused by a bad PDF/AI parse.
     """
-    connection = get_db()
+    owns_connection = connection is None
+    connection = connection or get_db()
     now = clock.utc_now_iso()
     count = 0
     try:
@@ -3009,31 +3015,73 @@ def save_budget_transactions(transactions: list[dict]) -> int:
                 count += connection.execute("SELECT changes()").fetchone()[0]
             except Exception:
                 pass
-        connection.commit()
+        if owns_connection:
+            connection.commit()
+    except Exception:
+        if owns_connection:
+            connection.rollback()
+        raise
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
     return count
 
 
-def save_budget_statement_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+def _normalize_budget_statement_number(
+    snapshot: dict[str, Any], field: str, *, optional: bool = False
+) -> float | None:
+    value = snapshot.get(field)
+    if value is None and optional:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be a finite numeric value")
+    try:
+        normalized = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field} must be a finite numeric value") from exc
+    if not math.isfinite(normalized):
+        raise ValueError(f"{field} must be a finite numeric value")
+    return normalized
+
+
+def save_budget_statement_snapshot(
+    snapshot: dict[str, Any],
+    connection: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
     """Persist a reconciled PDF statement snapshot as cash-balance authority."""
     if snapshot.get("parser") != "lhv_pdf":
         raise ValueError("Only PDF statements can become authoritative")
     if snapshot.get("quality_status") != "reconciled":
         raise ValueError("Only reconciled statements can become authoritative")
-    try:
-        balance_difference = float(snapshot["balance_difference_eur"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError("Statement balance difference must be zero") from exc
-    if not math.isfinite(balance_difference) or abs(balance_difference) > 0.005:
+
+    opening_balance = _normalize_budget_statement_number(
+        snapshot, "opening_balance_eur", optional=True
+    )
+    closing_balance = _normalize_budget_statement_number(snapshot, "closing_balance_eur")
+    balance_difference = _normalize_budget_statement_number(
+        snapshot, "balance_difference_eur"
+    )
+    if abs(balance_difference) > 0.005:
         raise ValueError("Statement balance difference must be zero")
 
+    filename_hash = snapshot.get("filename_hash")
+    if not isinstance(filename_hash, str) or not _SHA256_HEX_RE.fullmatch(filename_hash):
+        raise ValueError("filename_hash must be exactly 64 hexadecimal characters")
+
     payload = {
-        **snapshot,
+        "statement_end_date": snapshot["statement_end_date"],
+        "opening_balance_eur": opening_balance,
+        "closing_balance_eur": closing_balance,
+        "parser": snapshot["parser"],
+        "quality_status": snapshot["quality_status"],
+        "statement_rows": snapshot.get("statement_rows"),
+        "parsed_rows": snapshot.get("parsed_rows"),
         "balance_difference_eur": balance_difference,
+        "filename_hash": filename_hash.lower(),
         "imported_at": _utc_now(),
     }
-    connection = get_db()
+    owns_connection = connection is None
+    connection = connection or get_db()
     try:
         cursor = connection.execute(
             """INSERT INTO budget_statement_snapshots
@@ -3044,24 +3092,46 @@ def save_budget_statement_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
             (
                 payload["imported_at"],
                 payload["statement_end_date"],
-                payload.get("opening_balance_eur"),
+                payload["opening_balance_eur"],
                 payload["closing_balance_eur"],
                 payload["parser"],
                 payload["quality_status"],
-                payload.get("statement_rows"),
-                payload.get("parsed_rows"),
+                payload["statement_rows"],
+                payload["parsed_rows"],
                 payload["balance_difference_eur"],
                 payload["filename_hash"],
                 json.dumps(payload, sort_keys=True),
             ),
         )
+        row = connection.execute(
+            "SELECT * FROM budget_statement_snapshots WHERE id=?",
+            (cursor.lastrowid,),
+        ).fetchone()
+        if owns_connection:
+            connection.commit()
+        return dict(row)
+    except Exception:
+        if owns_connection:
+            connection.rollback()
+        raise
+    finally:
+        if owns_connection:
+            connection.close()
+
+
+def save_budget_statement_import(
+    transactions: list[dict], snapshot: dict[str, Any]
+) -> int:
+    """Persist transactions and their statement snapshot in one transaction."""
+    connection = get_db()
+    try:
+        saved = save_budget_transactions(transactions, connection=connection)
+        save_budget_statement_snapshot(snapshot, connection=connection)
         connection.commit()
-        return dict(
-            connection.execute(
-                "SELECT * FROM budget_statement_snapshots WHERE id=?",
-                (cursor.lastrowid,),
-            ).fetchone()
-        )
+        return saved
+    except Exception:
+        connection.rollback()
+        raise
     finally:
         connection.close()
 

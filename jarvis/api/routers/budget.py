@@ -214,18 +214,24 @@ def _lhv_statement_quality(raw_text: str, parsed_rows: int) -> dict:
     )
     opening = _parse_statement_money(opening_match.group("value")) if opening_match else None
     closing = _parse_statement_money(closing_match.group("value")) if closing_match else None
-    statement_end_date = (
-        datetime.strptime(closing_row[:10], "%d.%m.%Y").date().isoformat()
-        if closing_row and _LHV_DATE_RE.match(closing_row)
-        else None
-    )
+    statement_end_date = None
+    statement_end_date_invalid = False
+    if closing_row and _LHV_DATE_RE.match(closing_row):
+        try:
+            statement_end_date = datetime.strptime(
+                closing_row[:10], "%d.%m.%Y"
+            ).date().isoformat()
+        except ValueError:
+            statement_end_date_invalid = True
     movement = round(sum(_parse_statement_money(match.group("bank_amount")) for match in matched), 2)
     difference = round(closing - (opening + movement), 2) if opening is not None and closing is not None else None
 
     warnings: list[str] = []
     if opening is None or closing is None:
         warnings.append("Opening or closing balance was not found.")
-    if statement_end_date is None:
+    if statement_end_date_invalid:
+        warnings.append("Statement end date is invalid.")
+    elif statement_end_date is None:
         warnings.append("Statement end date was not found.")
     if len(matched) != len(transaction_rows):
         warnings.append(f"Parsed {len(matched)} of {len(transaction_rows)} statement rows.")
@@ -256,18 +262,37 @@ def _validated_statement_snapshot(statement: StatementSavePayload) -> dict:
     if quality.get("status") != "reconciled":
         raise HTTPException(status_code=422, detail="Only reconciled statements can become authoritative")
 
-    required_fields = ("closing_balance_eur", "balance_difference_eur", "statement_end_date")
-    if any(quality.get(field) is None for field in required_fields):
+    if quality.get("statement_end_date") is None:
         raise HTTPException(status_code=422, detail="Reconciled statement metadata is incomplete")
 
     try:
-        balance_difference = float(quality["balance_difference_eur"])
         statement_end_date = datetime.strptime(
             str(quality["statement_end_date"]), "%Y-%m-%d"
         ).date().isoformat()
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail="Reconciled statement metadata is invalid") from exc
-    if not math.isfinite(balance_difference) or abs(balance_difference) > 0.005:
+
+    def finite_number(field: str, *, optional: bool = False) -> float | None:
+        value = quality.get(field)
+        if value is None and optional:
+            return None
+        if isinstance(value, bool):
+            raise HTTPException(status_code=422, detail=f"{field} must be a finite numeric value")
+        try:
+            normalized = float(value)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field} must be a finite numeric value",
+            ) from exc
+        if not math.isfinite(normalized):
+            raise HTTPException(status_code=422, detail=f"{field} must be a finite numeric value")
+        return normalized
+
+    opening_balance = finite_number("opening_balance_eur", optional=True)
+    closing_balance = finite_number("closing_balance_eur")
+    balance_difference = finite_number("balance_difference_eur")
+    if abs(balance_difference) > 0.005:
         raise HTTPException(status_code=422, detail="Statement balance difference must be zero")
 
     normalized_filename = unicodedata.normalize("NFC", statement.filename).strip()
@@ -276,8 +301,8 @@ def _validated_statement_snapshot(statement: StatementSavePayload) -> dict:
 
     return {
         "statement_end_date": statement_end_date,
-        "opening_balance_eur": quality.get("opening_balance_eur"),
-        "closing_balance_eur": quality["closing_balance_eur"],
+        "opening_balance_eur": opening_balance,
+        "closing_balance_eur": closing_balance,
         "parser": statement.parser,
         "quality_status": quality["status"],
         "statement_rows": quality.get("statement_rows"),
@@ -616,9 +641,10 @@ def save_transactions(request: SaveRequest) -> dict:
         if request.statement is not None
         else None
     )
-    saved = database.save_budget_transactions(request.transactions)
     if snapshot is not None:
-        database.save_budget_statement_snapshot(snapshot)
+        saved = database.save_budget_statement_import(request.transactions, snapshot)
+    else:
+        saved = database.save_budget_transactions(request.transactions)
     return {"saved": saved}
 
 
