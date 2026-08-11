@@ -412,6 +412,24 @@ CREATE TABLE IF NOT EXISTS budget_memory (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS budget_statement_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    imported_at TEXT NOT NULL,
+    statement_end_date TEXT NOT NULL,
+    opening_balance_eur REAL,
+    closing_balance_eur REAL NOT NULL,
+    parser TEXT NOT NULL,
+    quality_status TEXT NOT NULL,
+    statement_rows INTEGER,
+    parsed_rows INTEGER,
+    balance_difference_eur REAL NOT NULL,
+    filename_hash TEXT NOT NULL,
+    metadata_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_budget_statement_snapshots_end
+ON budget_statement_snapshots(statement_end_date, imported_at);
+
 CREATE TABLE IF NOT EXISTS sleep_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_type TEXT NOT NULL CHECK (event_type IN ('bedtime', 'wakeup')),
@@ -2995,6 +3013,71 @@ def save_budget_transactions(transactions: list[dict]) -> int:
     finally:
         connection.close()
     return count
+
+
+def save_budget_statement_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Persist a reconciled PDF statement snapshot as cash-balance authority."""
+    if snapshot.get("parser") != "lhv_pdf":
+        raise ValueError("Only PDF statements can become authoritative")
+    if snapshot.get("quality_status") != "reconciled":
+        raise ValueError("Only reconciled statements can become authoritative")
+    try:
+        balance_difference = float(snapshot["balance_difference_eur"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("Statement balance difference must be zero") from exc
+    if not math.isfinite(balance_difference) or abs(balance_difference) > 0.005:
+        raise ValueError("Statement balance difference must be zero")
+
+    payload = {
+        **snapshot,
+        "balance_difference_eur": balance_difference,
+        "imported_at": _utc_now(),
+    }
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """INSERT INTO budget_statement_snapshots
+               (imported_at, statement_end_date, opening_balance_eur, closing_balance_eur,
+                parser, quality_status, statement_rows, parsed_rows,
+                balance_difference_eur, filename_hash, metadata_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                payload["imported_at"],
+                payload["statement_end_date"],
+                payload.get("opening_balance_eur"),
+                payload["closing_balance_eur"],
+                payload["parser"],
+                payload["quality_status"],
+                payload.get("statement_rows"),
+                payload.get("parsed_rows"),
+                payload["balance_difference_eur"],
+                payload["filename_hash"],
+                json.dumps(payload, sort_keys=True),
+            ),
+        )
+        connection.commit()
+        return dict(
+            connection.execute(
+                "SELECT * FROM budget_statement_snapshots WHERE id=?",
+                (cursor.lastrowid,),
+            ).fetchone()
+        )
+    finally:
+        connection.close()
+
+
+def get_latest_reconciled_budget_statement() -> dict[str, Any] | None:
+    """Return the newest reconciled statement snapshot by statement end date."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """SELECT * FROM budget_statement_snapshots
+               WHERE quality_status='reconciled' AND ABS(balance_difference_eur) <= 0.005
+               ORDER BY statement_end_date DESC, imported_at DESC, id DESC LIMIT 1"""
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        connection.close()
 
 
 def get_budget_transactions(month: str) -> list[dict[str, Any]]:

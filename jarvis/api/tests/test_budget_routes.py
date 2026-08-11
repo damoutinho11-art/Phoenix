@@ -1,6 +1,7 @@
 from datetime import date
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
@@ -216,6 +217,123 @@ def test_parse_pdf_reports_reconciled_statement_quality() -> None:
     assert quality["statement_rows"] == 2
     assert quality["parsed_rows"] == 2
     assert quality["balance_difference_eur"] == 0.0
+    assert quality["statement_end_date"] == "2026-05-05"
+
+
+def test_save_reconciled_pdf_persists_authoritative_balance(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    payload = {
+        "transactions": [],
+        "statement": {
+            "filename": "account.pdf",
+            "parser": "lhv_pdf",
+            "quality": {
+                "status": "reconciled",
+                "statement_rows": 258,
+                "parsed_rows": 258,
+                "opening_balance_eur": 1363.38,
+                "closing_balance_eur": 760.00,
+                "balance_difference_eur": 0.0,
+                "statement_end_date": "2026-08-11",
+            },
+        },
+    }
+
+    response = client.post("/budget/save", json=payload)
+
+    assert response.status_code == 200
+    snapshot = database.get_latest_reconciled_budget_statement()
+    assert snapshot["closing_balance_eur"] == 760.00
+    assert snapshot["statement_end_date"] == "2026-08-11"
+    assert snapshot["filename_hash"]
+    assert "account.pdf" not in snapshot["metadata_json"]
+
+
+def test_save_rejects_unreconciled_statement_metadata(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": [
+                {
+                    "date": "2026-08-11",
+                    "merchant": "Should not save",
+                    "amount_eur": 1.00,
+                    "category": "Other",
+                    "month": "2026-08",
+                }
+            ],
+            "statement": {
+                "filename": "bad.pdf",
+                "parser": "lhv_pdf",
+                "quality": {"status": "review_required", "balance_difference_eur": 10},
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    assert database.get_budget_transactions("2026-08") == []
+
+
+def test_save_rejects_text_statement_metadata() -> None:
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": [],
+            "statement": {
+                "filename": "pasted-statement.txt",
+                "parser": "text",
+                "quality": {
+                    "status": "reconciled",
+                    "closing_balance_eur": 760.00,
+                    "balance_difference_eur": 0.0,
+                    "statement_end_date": "2026-08-11",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_save_rejects_nonfinite_statement_balance_difference() -> None:
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/budget/save",
+        json={
+            "transactions": [],
+            "statement": {
+                "filename": "account.pdf",
+                "parser": "lhv_pdf",
+                "quality": {
+                    "status": "reconciled",
+                    "closing_balance_eur": 760.00,
+                    "balance_difference_eur": "NaN",
+                    "statement_end_date": "2026-08-11",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_database_rejects_non_pdf_statement_snapshot(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+
+    with pytest.raises(ValueError, match="Only PDF statements"):
+        database.save_budget_statement_snapshot(
+            {
+                "statement_end_date": "2026-08-11",
+                "closing_balance_eur": 760.00,
+                "parser": "text",
+                "quality_status": "reconciled",
+                "balance_difference_eur": 0.0,
+                "filename_hash": "digest",
+            }
+        )
 
 
 def test_lhv_salary_paid_at_month_end_belongs_to_next_budget_month() -> None:

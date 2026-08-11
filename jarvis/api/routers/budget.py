@@ -1,8 +1,11 @@
 """Budget API — parse, save, and summarise personal bank transactions."""
 
 import io
+import hashlib
 import json
+import math
 import re
+import unicodedata
 from datetime import datetime
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -60,8 +63,15 @@ class ParseRequest(BaseModel):
     source: str = "text"
 
 
+class StatementSavePayload(BaseModel):
+    filename: str
+    parser: str
+    quality: dict
+
+
 class SaveRequest(BaseModel):
     transactions: list[dict]
+    statement: StatementSavePayload | None = None
 
 
 class BudgetMemoryRequest(BaseModel):
@@ -196,18 +206,27 @@ def _lhv_statement_quality(raw_text: str, parsed_rows: int) -> dict:
         (re.search(rf"Starting balance\s+(?P<value>{_LHV_MONEY_RE})", row) for row in rows if "Starting balance" in row),
         None,
     )
-    closing_match = next(
-        (re.search(rf"Final balance\s+(?P<value>{_LHV_MONEY_RE})", row) for row in rows if "Final balance" in row),
-        None,
+    closing_row = next((row for row in rows if "Final balance" in row), None)
+    closing_match = (
+        re.search(rf"Final balance\s+(?P<value>{_LHV_MONEY_RE})", closing_row)
+        if closing_row
+        else None
     )
     opening = _parse_statement_money(opening_match.group("value")) if opening_match else None
     closing = _parse_statement_money(closing_match.group("value")) if closing_match else None
+    statement_end_date = (
+        datetime.strptime(closing_row[:10], "%d.%m.%Y").date().isoformat()
+        if closing_row and _LHV_DATE_RE.match(closing_row)
+        else None
+    )
     movement = round(sum(_parse_statement_money(match.group("bank_amount")) for match in matched), 2)
     difference = round(closing - (opening + movement), 2) if opening is not None and closing is not None else None
 
     warnings: list[str] = []
     if opening is None or closing is None:
         warnings.append("Opening or closing balance was not found.")
+    if statement_end_date is None:
+        warnings.append("Statement end date was not found.")
     if len(matched) != len(transaction_rows):
         warnings.append(f"Parsed {len(matched)} of {len(transaction_rows)} statement rows.")
     if parsed_rows != len(matched):
@@ -221,9 +240,50 @@ def _lhv_statement_quality(raw_text: str, parsed_rows: int) -> dict:
         "parsed_rows": parsed_rows,
         "opening_balance_eur": opening,
         "closing_balance_eur": closing,
+        "statement_end_date": statement_end_date,
         "net_movement_eur": movement,
         "balance_difference_eur": difference,
         "warnings": warnings,
+    }
+
+
+def _validated_statement_snapshot(statement: StatementSavePayload) -> dict:
+    """Create a storage-safe snapshot only from a reconciled LHV PDF parse."""
+    if statement.parser != "lhv_pdf" or not statement.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=422, detail="Only reconciled PDF statements can become authoritative")
+
+    quality = statement.quality
+    if quality.get("status") != "reconciled":
+        raise HTTPException(status_code=422, detail="Only reconciled statements can become authoritative")
+
+    required_fields = ("closing_balance_eur", "balance_difference_eur", "statement_end_date")
+    if any(quality.get(field) is None for field in required_fields):
+        raise HTTPException(status_code=422, detail="Reconciled statement metadata is incomplete")
+
+    try:
+        balance_difference = float(quality["balance_difference_eur"])
+        statement_end_date = datetime.strptime(
+            str(quality["statement_end_date"]), "%Y-%m-%d"
+        ).date().isoformat()
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="Reconciled statement metadata is invalid") from exc
+    if not math.isfinite(balance_difference) or abs(balance_difference) > 0.005:
+        raise HTTPException(status_code=422, detail="Statement balance difference must be zero")
+
+    normalized_filename = unicodedata.normalize("NFC", statement.filename).strip()
+    if not normalized_filename:
+        raise HTTPException(status_code=422, detail="Statement filename is required")
+
+    return {
+        "statement_end_date": statement_end_date,
+        "opening_balance_eur": quality.get("opening_balance_eur"),
+        "closing_balance_eur": quality["closing_balance_eur"],
+        "parser": statement.parser,
+        "quality_status": quality["status"],
+        "statement_rows": quality.get("statement_rows"),
+        "parsed_rows": quality.get("parsed_rows"),
+        "balance_difference_eur": balance_difference,
+        "filename_hash": hashlib.sha256(normalized_filename.encode("utf-8")).hexdigest(),
     }
 
 
@@ -551,7 +611,14 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
 
 @router.post("/save")
 def save_transactions(request: SaveRequest) -> dict:
+    snapshot = (
+        _validated_statement_snapshot(request.statement)
+        if request.statement is not None
+        else None
+    )
     saved = database.save_budget_transactions(request.transactions)
+    if snapshot is not None:
+        database.save_budget_statement_snapshot(snapshot)
     return {"saved": saved}
 
 
