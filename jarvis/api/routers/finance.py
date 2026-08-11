@@ -4,13 +4,14 @@ import copy
 import json
 import os
 import re
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.api import ai_gateway
+from jarvis.api.routers import budget as budget_router
 from jarvis.core import clock
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.etf_scoring import load_etf_universe
@@ -28,9 +29,9 @@ from jarvis.data import database
 router = APIRouter()
 
 
-def _iso_week_label() -> str:
+def _iso_week_label(today: date | None = None) -> str:
     """Return e.g. 'W26 2026' for the current ISO week."""
-    today = clock.today()
+    today = today or clock.today()
     iso = today.isocalendar()
     return f"W{iso[1]} {iso[0]}"
 
@@ -48,8 +49,33 @@ def _finance_fail_closed_enabled() -> bool:
     }
 
 
+def _cashflow_authority_for_today(today: date) -> dict:
+    """Load the sole allocation authority, treating infrastructure failures as blocked."""
+    try:
+        authority = budget_router._build_cashflow_authority(today.strftime("%Y-%m"))
+    except Exception:
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow authority is unavailable."],
+            "weekly_budget_eur": 0.0,
+        }
+
+    if not isinstance(authority, dict):
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow authority is unavailable."],
+            "weekly_budget_eur": 0.0,
+        }
+    return authority
+
+
 def _paused_finance_recommendation(
-    portfolio_state: dict, week_label: str, warnings: list[str], *, regime: str | None
+    portfolio_state: dict,
+    week_label: str,
+    warnings: list[str],
+    *,
+    regime: str | None,
+    cashflow_authority: dict,
 ) -> dict:
     return {
         "week_label": week_label,
@@ -91,6 +117,7 @@ def _paused_finance_recommendation(
         "research_autopilot_hint": "",
         "brief_id": None,
         "brief_status": None,
+        "cashflow_authority": cashflow_authority,
     }
 
 
@@ -440,10 +467,26 @@ def _build_finance_recommendation(
     *,
     persist_brief: bool,
 ) -> dict:
-    week_label = _iso_week_label()
+    today = clock.today()
+    week_label = _iso_week_label(today)
 
     # If buys were already applied this week, return a locked "week done" response.
     applied_this_week = database.get_applied_transactions_for_iso_week(week_label)
+    authority = _cashflow_authority_for_today(today)
+    if not authority.get("data_ready"):
+        paused_state = copy.deepcopy(portfolio_state)
+        paused_state["weekly_investment_budget"] = 0.0
+        return _paused_finance_recommendation(
+            paused_state,
+            week_label,
+            authority.get("blockers") or ["Cash-flow authority is unavailable."],
+            regime=None,
+            cashflow_authority=authority,
+        )
+
+    authoritative_state = copy.deepcopy(portfolio_state)
+    authoritative_state["weekly_investment_budget"] = authority["weekly_budget_eur"]
+    portfolio_state = authoritative_state
     if applied_this_week:
         assets_done = ", ".join(sorted({t["asset"].upper() for t in applied_this_week}))
         total_deployed = sum(t["amount_eur"] for t in applied_this_week)
@@ -487,13 +530,18 @@ def _build_finance_recommendation(
             "research_autopilot_hint": "",
             "brief_id": latest_brief["id"] if latest_brief else None,
             "brief_status": latest_brief["status"] if latest_brief else None,
+            "cashflow_authority": authority,
         }
 
     if _finance_fail_closed_enabled():
         blockers = engine.portfolio_state_freshness_blockers(portfolio_state)
         if blockers:
             return _paused_finance_recommendation(
-                portfolio_state, week_label, blockers, regime=None
+                portfolio_state,
+                week_label,
+                blockers,
+                regime=None,
+                cashflow_authority=authority,
             )
 
     regime = detect_market_regime(portfolio_state)
@@ -503,6 +551,7 @@ def _build_finance_recommendation(
             week_label,
             ["Market regime is unavailable; live VIX could not be verified."],
             regime="unknown",
+            cashflow_authority=authority,
         )
     result = engine.allocate_weekly_budget(
         constitution, portfolio_state, regime=regime, profile=profile
@@ -579,6 +628,7 @@ def _build_finance_recommendation(
             "reserve_actions": ticket.get("reserve_actions") or [],
             "safety_checks": ticket.get("safety_checks") or [],
         },
+        "cashflow_authority": authority,
     }
 
     # Research context — advisory only; never overrides amounts or routes
@@ -1088,6 +1138,7 @@ def _build_data_coverage_from_recommendation(
         "verdict": verdict,
         "blockers": blockers,
         "warnings": warnings,
+        "cashflow_authority": recommendation.get("cashflow_authority"),
         "sections": {
             "live_price_sources": live_sources,
             "etf_candidate_universe": etf_coverage,
@@ -1277,6 +1328,7 @@ def _build_manual_buy_checklist(recommendation: dict) -> dict:
             else "NEEDS_RESEARCH_REVIEW" if needs_research else "READY_FOR_MANUAL_REVIEW"
         ),
         "research_gate_summary": recommendation.get("research_gate_summary") or {},
+        "cashflow_authority": recommendation.get("cashflow_authority"),
         "checklist_items": checklist_items,
         "safety_flags": safety_flags,
     }
@@ -1441,24 +1493,37 @@ def _deterministic_finance_brief(result: dict, ticket: dict, constitution: dict)
 def finance_brief(
     constitution: dict = Depends(get_finance_constitution),
     portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
 ) -> dict:
-    if _finance_fail_closed_enabled():
-        blockers = engine.portfolio_state_freshness_blockers(portfolio_state)
-        if not blockers and detect_market_regime(portfolio_state) == "unknown":
-            blockers = ["Market regime is unavailable; live VIX could not be verified."]
-        if blockers:
-            return {
-                "brief": (
-                    "Sir, finance recommendations are paused because the required "
-                    "portfolio and market inputs are not verified. No action has been prepared."
-                ),
-                "requires_approval": False,
-                "data_ready": False,
-                "warnings": blockers,
-            }
+    recommendation = _build_finance_recommendation(
+        constitution, portfolio_state, profile, persist_brief=False
+    )
+    authority = recommendation["cashflow_authority"]
+    if not recommendation["data_ready"]:
+        return {
+            "brief": (
+                "Sir, finance recommendations are paused because the required "
+                "finance inputs are not verified. No action has been prepared."
+            ),
+            "requires_approval": False,
+            "data_ready": False,
+            "warnings": recommendation["warnings"],
+            "cashflow_authority": authority,
+        }
 
-    result = engine.allocate_weekly_budget(constitution, portfolio_state)
-    ticket = result["approval_ticket"]
+    ticket = {
+        "weekly_budget": recommendation["week_budget"],
+        "executable_allocation": {
+            leg["asset"]: leg["amount"]
+            for leg in recommendation["recommendations"]
+        },
+        "weekly_dual_lane_mandate": recommendation["weekly_dual_lane_mandate"],
+        "warnings": recommendation["warnings"],
+    }
+    result = {
+        "portfolio_mode": recommendation.get("portfolio_mode_details")
+        or {"mode": recommendation["portfolio_mode"]},
+    }
     holdings = engine.investable_holdings(constitution, portfolio_state)
     statuses = engine.current_statuses(constitution, holdings)
 
@@ -1525,7 +1590,13 @@ Provide a brief, direct investment summary for this week.\
     if not _brief_text_is_safe(brief_text):
         brief_text = _deterministic_finance_brief(result, ticket, constitution)
 
-    return {"brief": brief_text, "requires_approval": True, "data_ready": True}
+    return {
+        "brief": brief_text,
+        "requires_approval": recommendation["requires_approval"],
+        "data_ready": True,
+        "warnings": recommendation["warnings"],
+        "cashflow_authority": authority,
+    }
 
 
 @router.get("/portfolio-state")

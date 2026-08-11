@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from jarvis.api import dependencies
 from jarvis.api.main import app
 from jarvis.data import database
 from jarvis.domains.finance import engine
@@ -67,6 +68,15 @@ def isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         return_value=_RESOLUTION,
     ), patch(
         "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+    ), patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        return_value={
+            "data_ready": True,
+            "blockers": [],
+            "weekly_budget_eur": 115.38,
+            "deployable_capacity_eur": 461.52,
+            "input_hash": "checklist-cashflow-authority",
+        },
     ):
         yield
 
@@ -210,3 +220,37 @@ def test_checklist_does_not_mutate_portfolio_or_create_ledger_transaction() -> N
     assert response.status_code == 200
     assert portfolio_path.read_bytes() == before_portfolio
     assert database.get_finance_transactions(limit=50) == before_ledger == []
+
+
+def test_allocation_surfaces_use_authority_without_mutating_dependency_state() -> None:
+    authority = {
+        "data_ready": True,
+        "blockers": [],
+        "weekly_budget_eur": 86.67,
+        "deployable_capacity_eur": 260.0,
+        "input_hash": "shared-cash-123",
+    }
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+    assert portfolio_state["weekly_investment_budget"] == 115.38
+    app.dependency_overrides[dependencies.get_portfolio_state] = lambda: portfolio_state
+    try:
+        with patch(
+            "jarvis.api.routers.budget._build_cashflow_authority",
+            return_value=authority,
+        ), patch(
+            "jarvis.api.routers.finance.ai_gateway.generate_text",
+            return_value=type("FailedAIResult", (), {"ok": False, "text": ""})(),
+        ):
+            recommendation = client.get("/finance/recommendation").json()
+            checklist = client.get("/finance/manual-buy-checklist").json()
+            brief = client.get("/finance/brief").json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert recommendation["week_budget"] == 86.67
+    assert checklist["week_budget"] == 86.67
+    assert "€86.67" in brief["brief"]
+    assert recommendation["cashflow_authority"] == authority
+    assert checklist["cashflow_authority"] == authority
+    assert brief["cashflow_authority"] == authority
+    assert portfolio_state["weekly_investment_budget"] == 115.38

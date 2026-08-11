@@ -13,6 +13,26 @@ from jarvis.domains.finance import engine
 
 client = TestClient(app)
 
+_READY_CASHFLOW_AUTHORITY = {
+    "data_ready": True,
+    "blockers": [],
+    "weekly_budget_eur": 115.38,
+    "deployable_capacity_eur": 461.52,
+    "input_hash": "brief-cashflow-authority",
+}
+
+_SAFE_ETF_RESOLUTION = {
+    "selected_candidate": None,
+    "candidates": [],
+    "source": "yfinance",
+    "broker_source": "lightyear_public_fund_screener",
+    "broker_verification": "not_verified",
+    "confirmation_required": True,
+    "lightyear_available": "unknown",
+    "confidence": "unresolved",
+    "reason": "test fixture",
+}
+
 _MOCK_BRIEF = (
     "Sir, I recommend deploying the weekly allocation: €46.15 to BTC via lhv_crypto "
     "and €69.23 to quality_etf via lightyear. "
@@ -30,6 +50,27 @@ def _make_ai_result(text=_MOCK_BRIEF, ok=True):
 
 
 class TestFinanceBriefRoute:
+    def setup_method(self):
+        self.authority_patch = patch(
+            "jarvis.api.routers.budget._build_cashflow_authority",
+            return_value=_READY_CASHFLOW_AUTHORITY.copy(),
+        )
+        self.regime_patch = patch(
+            "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+        )
+        self.resolver_patch = patch(
+            "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
+            return_value=_SAFE_ETF_RESOLUTION,
+        )
+        self.authority_patch.start()
+        self.regime_patch.start()
+        self.resolver_patch.start()
+
+    def teardown_method(self):
+        self.resolver_patch.stop()
+        self.regime_patch.stop()
+        self.authority_patch.stop()
+
     def test_brief_returns_200(self):
         with patch("jarvis.api.routers.finance.ai_gateway.generate_text", return_value=_make_ai_result()):
             response = client.get("/finance/brief")

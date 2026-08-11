@@ -8,7 +8,7 @@ No business logic is asserted here beyond the API contract shape.
 import tempfile
 import unittest
 import copy
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,6 +21,26 @@ from jarvis.data import database
 from jarvis.domains.finance import engine
 
 client = TestClient(app)
+
+_READY_CASHFLOW_AUTHORITY = {
+    "data_ready": True,
+    "blockers": [],
+    "weekly_budget_eur": 115.38,
+    "deployable_capacity_eur": 461.52,
+    "input_hash": "test-cashflow-authority",
+}
+
+_SAFE_ETF_RESOLUTION = {
+    "selected_candidate": None,
+    "candidates": [],
+    "source": "yfinance",
+    "broker_source": "lightyear_public_fund_screener",
+    "broker_verification": "not_verified",
+    "confirmation_required": True,
+    "lightyear_available": "unknown",
+    "confidence": "unresolved",
+    "reason": "test fixture",
+}
 
 
 class HealthRouteTests(unittest.TestCase):
@@ -104,6 +124,27 @@ class FinanceSummaryRouteTests(unittest.TestCase):
 
 
 class FinanceRecommendationRouteTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.authority_patch = patch(
+            "jarvis.api.routers.budget._build_cashflow_authority",
+            return_value=_READY_CASHFLOW_AUTHORITY.copy(),
+        )
+        self.regime_patch = patch(
+            "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+        )
+        self.resolver_patch = patch(
+            "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
+            return_value=_SAFE_ETF_RESOLUTION,
+        )
+        self.authority_builder = self.authority_patch.start()
+        self.regime_patch.start()
+        self.resolver_patch.start()
+
+    def tearDown(self) -> None:
+        self.resolver_patch.stop()
+        self.regime_patch.stop()
+        self.authority_patch.stop()
+
     def test_recommendation_returns_200(self) -> None:
         response = client.get("/finance/recommendation")
         self.assertEqual(response.status_code, 200)
@@ -116,6 +157,63 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
         self.assertIn("requires_approval", data)
         self.assertIn("portfolio_mode", data)
         self.assertIn("warnings", data)
+
+    def test_recommendation_replaces_fixed_budget_with_cashflow_authority(self) -> None:
+        authority = {
+            "data_ready": True,
+            "blockers": [],
+            "weekly_budget_eur": 86.67,
+            "deployable_capacity_eur": 260.0,
+            "input_hash": "cash-123",
+        }
+        self.authority_builder.return_value = authority
+
+        data = client.get("/finance/recommendation").json()
+
+        self.assertEqual(data["week_budget"], 86.67)
+        self.assertEqual(round(sum(item["amount"] for item in data["recommendations"]), 2), 86.67)
+        self.assertEqual(data["cashflow_authority"]["input_hash"], "cash-123")
+
+    def test_recommendation_blocks_instead_of_using_legacy_fixed_budget(self) -> None:
+        authority = {
+            "data_ready": False,
+            "blockers": ["Checking-account statement is stale."],
+            "weekly_budget_eur": 0.0,
+        }
+        self.authority_builder.return_value = authority
+
+        data = client.get("/finance/recommendation").json()
+
+        self.assertFalse(data["data_ready"])
+        self.assertEqual(data["recommendations"], [])
+        self.assertEqual(data["week_budget"], 0.0)
+        self.assertIn("stale", data["warnings"][0].lower())
+        self.assertEqual(data["cashflow_authority"], authority)
+
+    def test_recommendation_fails_closed_when_authority_builder_raises(self) -> None:
+        self.authority_builder.side_effect = RuntimeError("budget database unavailable")
+
+        data = client.get("/finance/recommendation").json()
+
+        self.assertFalse(data["data_ready"])
+        self.assertEqual(data["week_budget"], 0.0)
+        self.assertEqual(data["recommendations"], [])
+        self.assertIn("unavailable", data["warnings"][0].lower())
+        self.assertFalse(data["cashflow_authority"]["data_ready"])
+
+    def test_data_coverage_exposes_the_recommendation_authority(self) -> None:
+        authority = {
+            "data_ready": True,
+            "blockers": [],
+            "weekly_budget_eur": 86.67,
+            "deployable_capacity_eur": 260.0,
+            "input_hash": "coverage-cash-123",
+        }
+        self.authority_builder.return_value = authority
+
+        data = client.get("/finance/data-coverage").json()
+
+        self.assertEqual(data["cashflow_authority"], authority)
 
     def test_recommendation_requires_approval_is_always_true(self) -> None:
         data = client.get("/finance/recommendation").json()
@@ -185,7 +283,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
 
     def test_recommendation_pauses_when_portfolio_prices_are_stale(self) -> None:
         state = copy.deepcopy(engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH))
-        state["as_of"] = date.today().isoformat()
+        state["as_of"] = datetime.now(timezone.utc).date().isoformat()
         state["prices_refreshed_at"] = "2020-01-01T00:00:00+00:00"
         app.dependency_overrides[dependencies.get_portfolio_state] = lambda: state
         try:
@@ -202,7 +300,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
 
     def test_recommendation_pauses_when_market_regime_is_unknown(self) -> None:
         state = copy.deepcopy(engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH))
-        state["as_of"] = date.today().isoformat()
+        state["as_of"] = datetime.now(timezone.utc).date().isoformat()
         state["prices_refreshed_at"] = datetime.now(timezone.utc).isoformat()
         app.dependency_overrides[dependencies.get_portfolio_state] = lambda: state
         try:
@@ -263,10 +361,16 @@ class FinanceBriefIdentityTests(unittest.TestCase):
         self.regime_patch = patch(
             "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
         )
+        self.authority_patch = patch(
+            "jarvis.api.routers.budget._build_cashflow_authority",
+            return_value=_READY_CASHFLOW_AUTHORITY.copy(),
+        )
         self.resolver_patch.start()
         self.regime_patch.start()
+        self.authority_patch.start()
 
     def tearDown(self) -> None:
+        self.authority_patch.stop()
         self.regime_patch.stop()
         self.resolver_patch.stop()
         self.db_patch.stop()
