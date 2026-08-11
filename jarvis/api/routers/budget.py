@@ -16,6 +16,7 @@ from pypdf import PdfReader
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
+from jarvis.domains.finance.cashflow_authority import calculate_cashflow_authority
 
 router = APIRouter()
 
@@ -32,9 +33,15 @@ NON_SPENDING_CATEGORIES = {"Income", "Investment", "Emergency Fund", "Transfers"
 FIXED_COST_CATEGORIES = {"Housing"}
 
 DEFAULT_BUDGET_MEMORY = {
-    "version": 1,
+    "version": 2,
     "savings_target_pct": 25,
     "salary_day_cutoff": 25,
+    "emergency_fund_floor_eur": 5000,
+    "emergency_fund_balance_eur": 5000,
+    "checking_buffer_eur": 300,
+    "food_budget_eur": 200,
+    "essential_spending_ceiling_eur": 950,
+    "recurring_obligations": [],
     "salary_next_month": True,
     "fixed_categories": sorted(FIXED_COST_CATEGORIES),
     "non_spending_categories": sorted(NON_SPENDING_CATEGORIES),
@@ -93,6 +100,115 @@ def _budget_memory_profile() -> dict:
             if value is not None:
                 profile[key] = value
     return profile
+
+
+def _validated_budget_month(month: str) -> str:
+    if not isinstance(month, str) or not re.fullmatch(r"\d{4}-\d{2}", month):
+        raise HTTPException(status_code=422, detail="month must use YYYY-MM format")
+    try:
+        normalized = date.fromisoformat(f"{month}-01").strftime("%Y-%m")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="month must use YYYY-MM format") from exc
+    if normalized != month:
+        raise HTTPException(status_code=422, detail="month must use YYYY-MM format")
+    return month
+
+
+def _unpaid_recurring_bills(
+    profile: dict, transactions: list[dict]
+) -> float | None:
+    searchable = [
+        f"{row.get('merchant', '')} {row.get('description', '')}".lower()
+        for row in transactions
+        if isinstance(row, dict)
+    ]
+    total = 0.0
+    obligations = profile.get("recurring_obligations", [])
+    if not isinstance(obligations, list):
+        return None
+    for obligation in obligations:
+        if not isinstance(obligation, dict):
+            return None
+        tokens = [
+            str(token).lower()
+            for token in obligation.get("contains", [])
+            if str(token).strip()
+        ]
+        if tokens and any(any(token in row for token in tokens) for row in searchable):
+            continue
+        try:
+            amount = float(obligation.get("amount_eur") or 0)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(amount) or amount < 0:
+            return None
+        total += amount
+    return round(total, 2)
+
+
+def _cashflow_input_hash(
+    *,
+    policy: dict,
+    snapshot: dict | None,
+    month_summary: dict,
+    unpaid_bills_eur: float | None,
+    today: date,
+    week_closed: bool,
+) -> str:
+    fingerprint = json.dumps(
+        {
+            "policy": policy,
+            "snapshot": snapshot,
+            "month_summary": month_summary,
+            "unpaid_bills_eur": unpaid_bills_eur,
+            "today": today.isoformat(),
+            "week_closed": week_closed,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+
+
+def _build_cashflow_authority(month: str, week_closed: bool = False) -> dict:
+    target_month = _validated_budget_month(month)
+    profile = _budget_memory_profile()
+    snapshot = database.get_latest_reconciled_budget_statement()
+    summary = database.get_budget_summary(target_month)
+    transactions = database.get_budget_transactions(target_month)
+    unpaid_bills_eur = _unpaid_recurring_bills(profile, transactions)
+    today = clock.today()
+    input_hash = _cashflow_input_hash(
+        policy=profile,
+        snapshot=snapshot,
+        month_summary=summary,
+        unpaid_bills_eur=unpaid_bills_eur,
+        today=today,
+        week_closed=week_closed,
+    )
+    if snapshot is None:
+        result = {
+            "data_ready": False,
+            "blockers": ["No reconciled checking-account statement is available."],
+            "weekly_budget_eur": 0.0,
+        }
+    else:
+        result = calculate_cashflow_authority(
+            policy=profile,
+            snapshot=snapshot,
+            month_summary=summary,
+            unpaid_bills_eur=unpaid_bills_eur,
+            today=today,
+            week_closed=week_closed,
+        )
+    return {
+        **result,
+        "policy": profile,
+        "policy_version": profile.get("version"),
+        "source": snapshot,
+        "input_hash": input_hash,
+    }
 
 
 def _text_matches_rule(text: str, rule: dict) -> bool:
@@ -702,6 +818,12 @@ def budget_summary(month: str = "") -> dict:
         "non_spending_categories": sorted(NON_SPENDING_CATEGORIES),
     }
     return summary
+
+
+@router.get("/investment-capacity")
+def budget_investment_capacity(month: str = "") -> dict:
+    target_month = month or clock.today().strftime("%Y-%m")
+    return _build_cashflow_authority(target_month)
 
 
 @router.get("/transactions")

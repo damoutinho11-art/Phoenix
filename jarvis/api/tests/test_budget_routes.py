@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
+from jarvis.api.routers import budget as budget_router
 from jarvis.api.routers.budget import _generate_budget_insight, _parse_lhv_statement_transactions
 from jarvis.data import database
 
@@ -1261,3 +1262,131 @@ def test_parse_pdf_rejects_oversized_upload(monkeypatch) -> None:
 
     assert response.status_code == 413
     assert response.json()["detail"] == "PDF is too large. Maximum size is 8 MB"
+
+
+def _save_authoritative_statement_for_investment_capacity() -> None:
+    parsed = _parse_reconciled_statement_receipt(
+        """
+01.08.2026 Starting balance 1 000.00
+11.08.2026 Shop
+1500000001 -240.00 760.00
+11.08.2026 Final balance 760.00
+"""
+    )
+    saved = client.post(
+        "/budget/save",
+        json={
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+    assert saved.status_code == 200
+    database.save_budget_transactions(
+        [
+            {
+                "date": "2026-08-01",
+                "merchant": "Salary",
+                "amount_eur": 3006.84,
+                "category": "Income",
+                "description": "Salary",
+                "source": "test",
+                "month": "2026-08",
+                "is_income": 1,
+            }
+        ]
+    )
+
+
+def test_investment_capacity_uses_approved_policy_and_receipt_backed_snapshot(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile(
+        {
+            "version": 2,
+            "emergency_fund_floor_eur": 5000,
+            "emergency_fund_balance_eur": 5000,
+            "checking_buffer_eur": 300,
+            "food_budget_eur": 200,
+            "essential_spending_ceiling_eur": 950,
+            "salary_day_cutoff": 25,
+            "recurring_obligations": [],
+            "merchant_rules": [],
+        }
+    )
+    _save_authoritative_statement_for_investment_capacity()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["cash_capacity_eur"] == 260.00
+    assert data["source"]["statement_end_date"] == "2026-08-11"
+    assert data["source"]["receipt_verified"] == 1
+    assert data["policy_version"] == 2
+    assert len(data["input_hash"]) == 64
+    json.dumps(data)
+
+
+def test_investment_capacity_hash_covers_full_decision_inputs(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        first = client.get("/budget/investment-capacity?month=2026-08").json()
+        repeated = client.get("/budget/investment-capacity?month=2026-08").json()
+    database.save_budget_memory_profile({"recurring_obligations": [{"name": "utilities", "amount_eur": 120, "contains": ["utilities"]}]})
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        changed = client.get("/budget/investment-capacity?month=2026-08").json()
+
+    assert first["input_hash"] == repeated["input_hash"]
+    assert changed["input_hash"] != first["input_hash"]
+    assert changed["protected_cash"]["unpaid_bills_eur"] == 120.0
+
+
+def test_investment_capacity_blocks_without_receipt_backed_snapshot(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "missing.db")
+    database.init_db()
+    database.save_budget_statement_snapshot(
+        {
+            "statement_end_date": "2026-08-11",
+            "opening_balance_eur": 1000,
+            "closing_balance_eur": 760,
+            "parser": "lhv_pdf",
+            "quality_status": "reconciled",
+            "statement_rows": 1,
+            "parsed_rows": 1,
+            "balance_difference_eur": 0,
+            "filename_hash": "a" * 64,
+        }
+    )
+
+    response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    assert response.json()["data_ready"] is False
+    assert "No reconciled" in response.json()["blockers"][0]
+    assert response.json()["weekly_budget_eur"] == 0.0
+
+
+def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
+    profile = {
+        "recurring_obligations": [
+            {"name": "utilities", "amount_eur": 120, "contains": ["utilities", "alexela"]}
+        ]
+    }
+
+    assert budget_router._unpaid_recurring_bills(profile, []) == 120.0
+    assert budget_router._unpaid_recurring_bills(
+        profile, [{"merchant": "Alexela", "description": "electricity"}]
+    ) == 0.0
+
+
+@pytest.mark.parametrize("month", ["2026-8", "2026-13", "not-a-month"])
+def test_investment_capacity_rejects_noncanonical_month(month: str) -> None:
+    response = client.get(f"/budget/investment-capacity?month={month}")
+
+    assert response.status_code == 422
