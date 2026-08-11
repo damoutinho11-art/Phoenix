@@ -3187,9 +3187,10 @@ def budget_transaction_identity_hash(transactions: list[dict]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def create_budget_statement_parse_receipt(
+def _create_budget_statement_parse_receipt(
     transactions: list[dict], snapshot: dict[str, Any]
 ) -> dict[str, Any]:
+    """Mint authority proof from trusted reconciled server PDF parse output."""
     normalized_snapshot = _validated_budget_statement_snapshot(snapshot)
     created_at = clock.utc_now()
     receipt_id = secrets.token_urlsafe(32)
@@ -3320,10 +3321,10 @@ def _validated_budget_statement_receipt_snapshot(
     return normalized
 
 
-def save_budget_statement_receipt_import(
+def _save_budget_statement_receipt_import(
     transactions: list[dict], receipt_id: str
 ) -> int:
-    """Consume one parse receipt while atomically persisting its import."""
+    """Consume server-issued PDF parse proof while atomically saving its import."""
     if not isinstance(receipt_id, str) or not receipt_id:
         raise ValueError("Statement receipt is missing or invalid")
 

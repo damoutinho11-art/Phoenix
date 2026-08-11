@@ -13,6 +13,13 @@ from jarvis.data import database
 client = TestClient(app)
 
 
+def test_statement_receipt_helpers_are_private_implementation_apis() -> None:
+    assert not hasattr(database, "create_budget_statement_parse_receipt")
+    assert not hasattr(database, "save_budget_statement_receipt_import")
+    assert callable(database._create_budget_statement_parse_receipt)
+    assert callable(database._save_budget_statement_receipt_import)
+
+
 def _parse_reconciled_statement_receipt(raw_text: str | None = None) -> dict:
     raw_text = raw_text or """
 05.05.2026 Starting balance 100.00
@@ -733,6 +740,72 @@ def test_direct_statement_import_helper_cannot_mint_authoritative_balance(
         },
     )
 
+    assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_legacy_snapshot_schema_migrates_rows_as_non_authoritative(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "legacy-cashflow.db")
+    connection = database.get_db()
+    try:
+        connection.execute(
+            """CREATE TABLE budget_statement_snapshots (
+                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   imported_at TEXT NOT NULL,
+                   statement_end_date TEXT NOT NULL,
+                   opening_balance_eur REAL,
+                   closing_balance_eur REAL NOT NULL,
+                   parser TEXT NOT NULL,
+                   quality_status TEXT NOT NULL,
+                   statement_rows INTEGER,
+                   parsed_rows INTEGER,
+                   balance_difference_eur REAL NOT NULL,
+                   filename_hash TEXT NOT NULL,
+                   metadata_json TEXT NOT NULL
+               )"""
+        )
+        connection.execute(
+            """INSERT INTO budget_statement_snapshots
+               (imported_at, statement_end_date, opening_balance_eur, closing_balance_eur,
+                parser, quality_status, statement_rows, parsed_rows,
+                balance_difference_eur, filename_hash, metadata_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "2026-08-11T12:00:00+00:00",
+                "2026-08-11",
+                770.00,
+                760.00,
+                "lhv_pdf",
+                "reconciled",
+                1,
+                1,
+                0.0,
+                "a" * 64,
+                "{}",
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    database.init_db()
+
+    connection = database.get_db()
+    try:
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(budget_statement_snapshots)"
+            ).fetchall()
+        }
+        receipt_verified = connection.execute(
+            "SELECT receipt_verified FROM budget_statement_snapshots WHERE id=1"
+        ).fetchone()["receipt_verified"]
+    finally:
+        connection.close()
+    assert "receipt_verified" in columns
+    assert receipt_verified == 0
     assert database.get_latest_reconciled_budget_statement() is None
 
 

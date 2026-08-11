@@ -660,10 +660,11 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
         "quality": quality,
     }
     if parser == "lhv_pdf" and quality.get("status") == "reconciled":
+        # Statement authority originates only from this trusted server PDF parse path.
         snapshot = _validated_statement_snapshot(
             StatementSavePayload(filename=filename, parser=parser, quality=quality)
         )
-        receipt = database.create_budget_statement_parse_receipt(
+        receipt = database._create_budget_statement_parse_receipt(
             transactions, snapshot
         )
         response["receipt_id"] = receipt["receipt_id"]
@@ -675,7 +676,7 @@ def save_transactions(request: SaveRequest) -> dict:
     if request.statement_receipt_id is None:
         return {"saved": database.save_budget_transactions(request.transactions)}
     try:
-        saved = database.save_budget_statement_receipt_import(
+        saved = database._save_budget_statement_receipt_import(
             request.transactions, request.statement_receipt_id
         )
     except ValueError as exc:
