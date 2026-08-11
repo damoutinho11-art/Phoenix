@@ -1375,6 +1375,60 @@ def test_investment_capacity_blocks_without_receipt_backed_snapshot(monkeypatch,
     assert response.json()["weekly_budget_eur"] == 0.0
 
 
+def test_investment_capacity_blocks_receipt_backed_future_statement(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity(
+        """
+12.08.2026 Starting balance 1 000.00
+12.08.2026 Shop
+1500000001 -240.00 760.00
+12.08.2026 Final balance 760.00
+"""
+    )
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "future" in data["blockers"][0].lower()
+
+
+@pytest.mark.parametrize("raw_profile", ["[]", "null", "not valid json"])
+def test_investment_capacity_blocks_malformed_persisted_profile(
+    monkeypatch, tmp_path, raw_profile: str
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+    connection = database.get_db()
+    try:
+        connection.execute(
+            """INSERT INTO budget_memory (key, value_json, created_at, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json""",
+            ("profile", raw_profile, "2026-08-11T00:00:00+00:00", "2026-08-11T00:00:00+00:00"),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "policy" in data["blockers"][0].lower()
+
+
 def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
     profile = {
         "recurring_obligations": [

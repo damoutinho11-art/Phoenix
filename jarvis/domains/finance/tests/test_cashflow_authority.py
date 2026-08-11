@@ -13,6 +13,7 @@ POLICY = {
     "food_budget_eur": 200,
     "essential_spending_ceiling_eur": 950,
     "salary_day_cutoff": 25,
+    "recurring_obligations": [],
 }
 
 VALID_SNAPSHOT = {
@@ -86,6 +87,25 @@ def test_statement_older_than_seven_days_blocks() -> None:
 
     assert result["data_ready"] is False
     assert "older than seven days" in result["blockers"][0]
+
+
+def test_future_statement_date_blocks() -> None:
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot={
+            "closing_balance_eur": 760,
+            "statement_end_date": "2026-08-12",
+            "quality_status": "reconciled",
+        },
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert "future" in result["blockers"][0].lower()
 
 
 def test_actual_spending_above_ceiling_lowers_sustainable_capacity() -> None:
@@ -230,3 +250,31 @@ def test_salary_cutoff_31_uses_last_day_of_short_month() -> None:
     )
 
     assert result["data_ready"] is True
+
+
+@pytest.mark.parametrize(
+    "recurring_obligations",
+    [
+        "utilities",
+        [{"amount_eur": "120", "contains": ["utilities"]}],
+        [{"amount_eur": True, "contains": ["utilities"]}],
+        [{"amount_eur": 1e28, "contains": ["utilities"]}],
+        [{"amount_eur": 120, "contains": []}],
+        ["utilities"],
+    ],
+)
+def test_malformed_recurring_policy_blocks_direct_calculator(
+    recurring_obligations: object,
+) -> None:
+    result = calculate_cashflow_authority(
+        policy={**POLICY, "recurring_obligations": recurring_obligations},
+        snapshot=VALID_SNAPSHOT,
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert "recurring_obligations" in result["blockers"][0]

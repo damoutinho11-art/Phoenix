@@ -19,6 +19,7 @@ from jarvis.data import database
 from jarvis.domains.finance.cashflow_authority import (
     calculate_cashflow_authority,
     cashflow_authority_input_blockers,
+    valid_recurring_obligations,
 )
 
 router = APIRouter()
@@ -115,14 +116,24 @@ def _budget_memory_profile() -> dict:
     return profile
 
 
-def _cashflow_authority_policy() -> dict:
-    """Preserve explicitly supplied authority values, including invalid nulls."""
-    profile = _budget_memory_profile()
-    stored = database.get_budget_memory_profile()
-    if isinstance(stored, dict):
-        for key in _AUTHORITY_POLICY_FIELDS:
-            if key in stored:
-                profile[key] = stored[key]
+def _cashflow_authority_policy() -> dict | None:
+    """Read authority policy strictly without changing generic memory consumers."""
+    raw_profile = database._get_budget_memory_profile_raw()
+    if raw_profile is None:
+        return _deepcopy_default_budget_memory()
+    try:
+        stored = json.loads(raw_profile)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(stored, dict):
+        return None
+    profile = _deepcopy_default_budget_memory()
+    for key, value in stored.items():
+        if value is not None:
+            profile[key] = value
+    for key in _AUTHORITY_POLICY_FIELDS:
+        if key in stored:
+            profile[key] = stored[key]
     return profile
 
 
@@ -154,21 +165,10 @@ def _unpaid_recurring_bills(
         searchable.append(f"{merchant} {description}".lower())
     total = Decimal("0")
     obligations = profile.get("recurring_obligations", [])
-    if not isinstance(obligations, list):
+    if not valid_recurring_obligations(obligations):
         return None
     for obligation in obligations:
-        if not isinstance(obligation, dict):
-            return None
-        if "amount_eur" not in obligation or type(obligation["amount_eur"]) not in (int, float):
-            return None
-        contains = obligation.get("contains")
-        if not isinstance(contains, list) or not contains:
-            return None
-        tokens: list[str] = []
-        for token in contains:
-            if not isinstance(token, str) or not token.strip():
-                return None
-            tokens.append(token.lower())
+        tokens = [token.lower() for token in obligation["contains"]]
         try:
             amount = Decimal(str(obligation["amount_eur"]))
         except (InvalidOperation, TypeError, ValueError):
@@ -218,6 +218,12 @@ def _build_cashflow_authority(
     decision_today = today or clock.today()
     target_month = _validated_budget_month(month)
     profile = _cashflow_authority_policy()
+    if profile is None:
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow policy is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
     snapshot = database.get_latest_reconciled_budget_statement()
     summary = database.get_budget_summary(target_month)
     transactions = database.get_budget_transactions(target_month)

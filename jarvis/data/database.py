@@ -3483,6 +3483,20 @@ def get_budget_memory_profile() -> dict[str, Any] | None:
         connection.close()
 
 
+def _get_budget_memory_profile_raw() -> str | None:
+    """Return persisted profile JSON for authority-only strict validation."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT value_json FROM budget_memory WHERE key = ?", ("profile",)
+        ).fetchone()
+        return None if row is None else row["value_json"]
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        connection.close()
+
+
 def save_budget_memory_profile(profile: dict[str, Any]) -> dict[str, Any]:
     """Persist the personal budget memory profile used for classification."""
     now = _utc_now()

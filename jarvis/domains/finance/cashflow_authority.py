@@ -34,6 +34,22 @@ def _json_number(value: object, *, nonnegative: bool) -> bool:
     return not nonnegative or decimal_value >= 0
 
 
+def valid_recurring_obligations(value: object) -> bool:
+    if not isinstance(value, list):
+        return False
+    for obligation in value:
+        if not isinstance(obligation, dict):
+            return False
+        if not _json_number(obligation.get("amount_eur"), nonnegative=True):
+            return False
+        contains = obligation.get("contains")
+        if not isinstance(contains, list) or not contains:
+            return False
+        if any(not isinstance(token, str) or not token.strip() for token in contains):
+            return False
+    return True
+
+
 def cashflow_authority_input_blockers(
     *,
     policy: dict,
@@ -62,7 +78,9 @@ def cashflow_authority_input_blockers(
     except (TypeError, ValueError):
         statement_date = None
         blockers.append("Checking-account statement date is missing or invalid.")
-    if statement_date and (today - statement_date).days > 7:
+    if statement_date and statement_date > today:
+        blockers.append("Checking-account statement date is in the future.")
+    elif statement_date and (today - statement_date).days > 7:
         blockers.append("Checking-account statement is older than seven days.")
     if snapshot.get("closing_balance_eur") is None:
         blockers.append("Checking-account snapshot is missing closing_balance_eur.")
@@ -83,6 +101,8 @@ def cashflow_authority_input_blockers(
         blockers.append("Cash-flow policy is missing salary_day_cutoff.")
     elif type(cutoff) is not int or not 1 <= cutoff <= 31:
         blockers.append("Cash-flow policy has invalid salary_day_cutoff.")
+    if not valid_recurring_obligations(policy.get("recurring_obligations")):
+        blockers.append("Cash-flow policy has invalid recurring_obligations.")
 
     for key in _SUMMARY_MONETARY_FIELDS:
         if month_summary.get(key) is None:
