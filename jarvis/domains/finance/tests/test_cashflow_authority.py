@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from jarvis.domains.finance.cashflow_authority import calculate_cashflow_authority
 
 
@@ -11,6 +13,19 @@ POLICY = {
     "food_budget_eur": 200,
     "essential_spending_ceiling_eur": 950,
     "salary_day_cutoff": 25,
+}
+
+VALID_SNAPSHOT = {
+    "closing_balance_eur": 760,
+    "statement_end_date": "2026-08-11",
+    "quality_status": "reconciled",
+}
+VALID_MONTH_SUMMARY = {
+    "income_total": 3006.84,
+    "expenses_total": 622.32,
+    "invested_total": 0,
+    "emergency_fund_total": 1392,
+    "by_category": {},
 }
 
 
@@ -98,3 +113,57 @@ def test_closed_current_week_counts_only_future_windows() -> None:
 
     assert result["remaining_weekly_windows"] == 2
     assert result["weekly_budget_eur"] == 130.00
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "income_total",
+        "expenses_total",
+        "invested_total",
+        "emergency_fund_total",
+        "by_category",
+    ],
+)
+@pytest.mark.parametrize("invalid_value", [pytest.param("missing", id="missing"), pytest.param(None, id="none")])
+def test_missing_or_none_month_summary_field_blocks(field: str, invalid_value: object) -> None:
+    month_summary = dict(VALID_MONTH_SUMMARY)
+    if invalid_value == "missing":
+        month_summary.pop(field)
+    else:
+        month_summary[field] = None
+
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot=VALID_SNAPSHOT,
+        month_summary=month_summary,
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert f"Cash-flow month summary is missing {field}." in result["blockers"]
+
+
+@pytest.mark.parametrize("invalid_value", [pytest.param("missing", id="missing"), pytest.param(None, id="none")])
+def test_missing_or_none_closing_balance_blocks(invalid_value: object) -> None:
+    snapshot = dict(VALID_SNAPSHOT)
+    if invalid_value == "missing":
+        snapshot.pop("closing_balance_eur")
+    else:
+        snapshot["closing_balance_eur"] = None
+
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot=snapshot,
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert "Checking-account snapshot is missing closing_balance_eur." in result["blockers"]

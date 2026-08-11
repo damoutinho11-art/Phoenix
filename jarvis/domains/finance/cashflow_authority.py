@@ -42,10 +42,16 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
         blockers.append("Checking-account statement date is missing or invalid.")
     if statement_date and (today - statement_date).days > 7:
         blockers.append("Checking-account statement is older than seven days.")
+    if snapshot.get("closing_balance_eur") is None:
+        blockers.append("Checking-account snapshot is missing closing_balance_eur.")
     required = ("emergency_fund_floor_eur", "emergency_fund_balance_eur", "checking_buffer_eur", "food_budget_eur", "essential_spending_ceiling_eur", "salary_day_cutoff")
     for key in required:
         if policy.get(key) is None:
             blockers.append(f"Cash-flow policy is missing {key}.")
+    required_month_summary = ("income_total", "expenses_total", "invested_total", "emergency_fund_total", "by_category")
+    for key in required_month_summary:
+        if month_summary.get(key) is None:
+            blockers.append(f"Cash-flow month summary is missing {key}.")
     if blockers:
         return {"data_ready": False, "blockers": blockers, "weekly_budget_eur": 0.0}
 
