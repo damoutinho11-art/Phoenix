@@ -7,7 +7,7 @@ import math
 import re
 import unicodedata
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict
@@ -18,7 +18,7 @@ from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.finance.cashflow_authority import (
     calculate_cashflow_authority,
-    cashflow_authority_input_blockers,
+    cashflow_authority_structural_blockers,
     valid_recurring_obligations,
 )
 
@@ -70,6 +70,7 @@ DEFAULT_BUDGET_MEMORY = {
 }
 
 _AUTHORITY_POLICY_FIELDS = {
+    "version",
     "emergency_fund_floor_eur",
     "emergency_fund_balance_eur",
     "checking_buffer_eur",
@@ -123,7 +124,7 @@ def _cashflow_authority_policy() -> dict | None:
         return _deepcopy_default_budget_memory()
     try:
         stored = json.loads(raw_profile)
-    except (TypeError, ValueError):
+    except (RecursionError, TypeError, ValueError):
         return None
     if not isinstance(stored, dict):
         return None
@@ -184,7 +185,11 @@ def _unpaid_recurring_bills(
         return None
     if not math.isfinite(result):
         return None
-    return round(result, 2)
+    rounded = total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    try:
+        return float(rounded)
+    except (OverflowError, ValueError):
+        return None
 
 
 def _cashflow_input_hash(
@@ -215,7 +220,7 @@ def _cashflow_input_hash(
 def _build_cashflow_authority(
     month: str, week_closed: bool = False, *, today: date | None = None
 ) -> dict:
-    decision_today = today or clock.today()
+    decision_today = today if today is not None else clock.today()
     target_month = _validated_budget_month(month)
     profile = _cashflow_authority_policy()
     if profile is None:
@@ -240,7 +245,7 @@ def _build_cashflow_authority(
             "blockers": ["No reconciled checking-account statement is available."],
             "weekly_budget_eur": 0.0,
         }
-    blockers = cashflow_authority_input_blockers(
+    structural_blockers = cashflow_authority_structural_blockers(
         policy=profile,
         snapshot=snapshot,
         month_summary=summary,
@@ -248,8 +253,12 @@ def _build_cashflow_authority(
         today=decision_today,
         week_closed=week_closed,
     )
-    if blockers:
-        return {"data_ready": False, "blockers": blockers, "weekly_budget_eur": 0.0}
+    if structural_blockers:
+        return {
+            "data_ready": False,
+            "blockers": structural_blockers,
+            "weekly_budget_eur": 0.0,
+        }
     try:
         input_hash = _cashflow_input_hash(
             policy=profile,
@@ -276,7 +285,7 @@ def _build_cashflow_authority(
     return {
         **result,
         "policy": profile,
-        "policy_version": profile.get("version"),
+        "policy_version": profile["version"],
         "source": snapshot,
         "input_hash": input_hash,
     }

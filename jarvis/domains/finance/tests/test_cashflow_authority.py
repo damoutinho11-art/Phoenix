@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -106,6 +106,59 @@ def test_future_statement_date_blocks() -> None:
     assert result["data_ready"] is False
     assert result["weekly_budget_eur"] == 0.0
     assert "future" in result["blockers"][0].lower()
+
+
+@pytest.mark.parametrize("invalid_version", [None, True, "2", 2.0, 1, 3])
+def test_invalid_policy_version_blocks_direct_calculator(invalid_version: object) -> None:
+    result = calculate_cashflow_authority(
+        policy={**POLICY, "version": invalid_version},
+        snapshot=VALID_SNAPSHOT,
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert "Cash-flow policy has invalid version." in result["blockers"]
+
+
+def test_calculator_rejects_datetime_decision_date() -> None:
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot=VALID_SNAPSHOT,
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=datetime(2026, 8, 11, 0, 0),
+        week_closed=False,
+    )
+
+    assert result == {
+        "data_ready": False,
+        "blockers": ["Cash-flow decision date is invalid."],
+        "weekly_budget_eur": 0.0,
+    }
+
+
+def test_calculator_rejects_date_subclass_decision_date() -> None:
+    class DerivedDate(date):
+        pass
+
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot=VALID_SNAPSHOT,
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=DerivedDate(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result == {
+        "data_ready": False,
+        "blockers": ["Cash-flow decision date is invalid."],
+        "weekly_budget_eur": 0.0,
+    }
 
 
 def test_actual_spending_above_ceiling_lowers_sustainable_capacity() -> None:

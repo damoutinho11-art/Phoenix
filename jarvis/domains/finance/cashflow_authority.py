@@ -20,6 +20,7 @@ _SUMMARY_MONETARY_FIELDS = (
 )
 # Keep cent quantization and every downstream JSON float safely representable.
 _MAX_SAFE_EUROS = Decimal("100000000000000000000")
+_APPROVED_POLICY_VERSION = 2
 
 
 def _json_number(value: object, *, nonnegative: bool) -> bool:
@@ -50,7 +51,7 @@ def valid_recurring_obligations(value: object) -> bool:
     return True
 
 
-def cashflow_authority_input_blockers(
+def cashflow_authority_structural_blockers(
     *,
     policy: dict,
     snapshot: dict,
@@ -66,22 +67,15 @@ def cashflow_authority_input_blockers(
         return ["Checking-account snapshot is invalid."]
     if not isinstance(month_summary, dict):
         return ["Cash-flow month summary is invalid."]
-    if not isinstance(today, date):
+    if type(today) is not date:
         return ["Cash-flow decision date is invalid."]
     if type(week_closed) is not bool:
         return ["Cash-flow week_closed flag is invalid."]
 
-    if snapshot.get("quality_status") != "reconciled":
-        blockers.append("Checking-account statement is not reconciled.")
     try:
         statement_date = date.fromisoformat(str(snapshot.get("statement_end_date")))
     except (TypeError, ValueError):
-        statement_date = None
         blockers.append("Checking-account statement date is missing or invalid.")
-    if statement_date and statement_date > today:
-        blockers.append("Checking-account statement date is in the future.")
-    elif statement_date and (today - statement_date).days > 7:
-        blockers.append("Checking-account statement is older than seven days.")
     if snapshot.get("closing_balance_eur") is None:
         blockers.append("Checking-account snapshot is missing closing_balance_eur.")
     elif not _json_number(snapshot["closing_balance_eur"], nonnegative=False):
@@ -101,6 +95,9 @@ def cashflow_authority_input_blockers(
         blockers.append("Cash-flow policy is missing salary_day_cutoff.")
     elif type(cutoff) is not int or not 1 <= cutoff <= 31:
         blockers.append("Cash-flow policy has invalid salary_day_cutoff.")
+    version = policy.get("version", _APPROVED_POLICY_VERSION)
+    if type(version) is not int or version != _APPROVED_POLICY_VERSION:
+        blockers.append("Cash-flow policy has invalid version.")
     if not valid_recurring_obligations(policy.get("recurring_obligations")):
         blockers.append("Cash-flow policy has invalid recurring_obligations.")
 
@@ -121,6 +118,36 @@ def cashflow_authority_input_blockers(
             or not _json_number(food.get("total"), nonnegative=True)
         ):
             blockers.append("Cash-flow month summary has invalid Food & Groceries total.")
+    return blockers
+
+
+def cashflow_authority_input_blockers(
+    *,
+    policy: dict,
+    snapshot: dict,
+    month_summary: dict,
+    unpaid_bills_eur: float | None,
+    today: date,
+    week_closed: bool,
+) -> list[str]:
+    blockers = cashflow_authority_structural_blockers(
+        policy=policy,
+        snapshot=snapshot,
+        month_summary=month_summary,
+        unpaid_bills_eur=unpaid_bills_eur,
+        today=today,
+        week_closed=week_closed,
+    )
+    if blockers:
+        return blockers
+
+    if snapshot.get("quality_status") != "reconciled":
+        blockers.append("Checking-account statement is not reconciled.")
+    statement_date = date.fromisoformat(str(snapshot["statement_end_date"]))
+    if statement_date > today:
+        blockers.append("Checking-account statement date is in the future.")
+    elif (today - statement_date).days > 7:
+        blockers.append("Checking-account statement is older than seven days.")
     return blockers
 
 

@@ -1397,6 +1397,36 @@ def test_investment_capacity_blocks_receipt_backed_future_statement(
     assert data["data_ready"] is False
     assert data["weekly_budget_eur"] == 0.0
     assert "future" in data["blockers"][0].lower()
+    assert data["source"]["statement_end_date"] == "2026-08-12"
+    assert data["policy_version"] == 2
+    assert len(data["input_hash"]) == 64
+
+
+def test_investment_capacity_stale_receipt_keeps_auditable_provenance(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity(
+        """
+03.08.2026 Starting balance 1 000.00
+03.08.2026 Shop
+1500000001 -240.00 760.00
+03.08.2026 Final balance 760.00
+"""
+    )
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "older than seven days" in data["blockers"][0].lower()
+    assert data["source"]["statement_end_date"] == "2026-08-03"
+    assert data["policy_version"] == 2
+    assert len(data["input_hash"]) == 64
 
 
 @pytest.mark.parametrize("raw_profile", ["[]", "null", "not valid json"])
@@ -1429,6 +1459,57 @@ def test_investment_capacity_blocks_malformed_persisted_profile(
     assert "policy" in data["blockers"][0].lower()
 
 
+def test_investment_capacity_blocks_deeply_nested_persisted_profile(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+    connection = database.get_db()
+    try:
+        connection.execute(
+            """INSERT INTO budget_memory (key, value_json, created_at, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json""",
+            ("profile", "[" * 1500 + "]" * 1500, "2026-08-11T00:00:00+00:00", "2026-08-11T00:00:00+00:00"),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "policy" in data["blockers"][0].lower()
+
+
+@pytest.mark.parametrize("invalid_version", [None, True, "2", 2.0, 1, 3])
+def test_investment_capacity_blocks_invalid_persisted_policy_version(
+    monkeypatch, tmp_path, invalid_version: object
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile({"version": invalid_version})
+    _save_authoritative_statement_for_investment_capacity()
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/budget/investment-capacity?month=2026-08"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "Cash-flow policy has invalid version." in data["blockers"]
+    assert "policy_version" not in data
+    assert "input_hash" not in data
+
+
 def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
     profile = {
         "recurring_obligations": [
@@ -1440,6 +1521,17 @@ def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
     assert budget_router._unpaid_recurring_bills(
         profile, [{"merchant": "Alexela", "description": "electricity"}]
     ) == 0.0
+
+
+@pytest.mark.parametrize(("amount", "expected"), [(2.675, 2.68), (100.005, 100.01)])
+def test_unpaid_recurring_bills_rounds_total_half_up(amount: float, expected: float) -> None:
+    profile = {
+        "recurring_obligations": [
+            {"amount_eur": amount, "contains": ["utilities"]}
+        ]
+    }
+
+    assert budget_router._unpaid_recurring_bills(profile, []) == expected
 
 
 @pytest.mark.parametrize(
