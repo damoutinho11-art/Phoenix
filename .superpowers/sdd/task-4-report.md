@@ -168,6 +168,90 @@ Result: `278 passed in 39.25s`.
 No implementation concerns. The pre-existing modification to
 `.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
 
+## Final Reproduced Findings: Intent Exclusions and Blocked Evidence
+
+### RED
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `7 failed, 108 passed in 10.53s`. The failures showed that blocked
+authorities could carry sub-cent or non-finite `opening_balance_eur` evidence,
+the Finance intent classifier missed `bought`, `sold`, and `held`, and plural
+stock/furniture and website-design text entered the Finance authority path.
+
+### GREEN
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `116 passed in 5.10s`.
+
+```powershell
+python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `368 passed in 42.59s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
+
+Result: `55 passed in 6.65s`.
+
+```powershell
+$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
+python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `295 passed in 60.14s`. This retains the established research/autopilot
+set plus Finance/chat authority regression coverage; `rg --files` found no
+standalone chat test file.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `369 passed in 46.42s`.
+
+```powershell
+python -m pytest jarvis/domains/finance/tests -q
+```
+
+Result: `105 passed in 6.22s`.
+
+### Changed Files
+
+- `jarvis/domains/finance/cashflow_authority.py`
+- `jarvis/api/routers/chat.py`
+- `jarvis/api/tests/test_finance_cashflow_authority_review.py`
+
+### Self-Review
+
+- Blocked authority payloads now receive the same recursive, schema-aware
+  exact-cent validation and normalization as ready payloads. Optional
+  `opening_balance_eur=None` remains valid; sub-cent and non-finite evidence
+  is replaced by the deterministic invalid-authority projection.
+- Finance intent recognizes `bought`, `sold`, and `held` for concrete assets
+  and takes the deterministic authority path without an AI call.
+- Explicit nonfinancial contexts are checked before asset classification:
+  plural stock inventory/media and furniture-shop language, plus website
+  design, remain general chat. Named-company stock/shares questions continue
+  to receive Finance protection.
+- `jarvis/domains/finance/portfolio_state.json` was not modified.
+
+### Commit
+
+`b4acf58cf6ddb3ebafc52c6608d6e016512a934d` -
+`feat(finance): authorize weekly budget from cash flow`
+
+### Concerns
+
+No implementation concerns. The pre-existing modification to
+`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
+
 ## Final Narrow Fixes: Optional Opening Balance and Lifecycle Context
 
 ### RED
