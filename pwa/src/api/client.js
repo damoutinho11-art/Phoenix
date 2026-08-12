@@ -410,12 +410,16 @@ export async function parseBudgetPdf(file) {
   })
 }
 
-export async function saveBudgetTransactions(transactions) {
+export async function saveBudgetTransactions(transactions, statementReceiptId = null) {
   return apiFetch('/budget/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ transactions }),
+    body: JSON.stringify({ transactions, statement_receipt_id: statementReceiptId }),
   })
+}
+
+export async function getBudgetInvestmentCapacity(month) {
+  return apiFetch(`/budget/investment-capacity?month=${encodeURIComponent(month)}`)
 }
 
 export async function getBudgetSummary(month) {

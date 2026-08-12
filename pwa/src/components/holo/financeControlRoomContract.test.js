@@ -260,6 +260,30 @@ test('budget lane can upload a statement: parse text/pdf, review categories, sav
   assert.match(budget, /afterSave/)
 })
 
+test('budget authority uses a one-time server receipt and refreshes verified capacity', async () => {
+  const client = await src('../../api/client.js')
+  const budget = await src('./subs/BudgetContent.jsx')
+  const saveStart = client.indexOf('export async function saveBudgetTransactions')
+  const saveEnd = client.indexOf('export async function getBudgetSummary', saveStart)
+  const saveSource = client.slice(saveStart, saveEnd)
+
+  assert.match(saveSource, /saveBudgetTransactions\(transactions, statementReceiptId = null\)/)
+  assert.match(saveSource, /statement_receipt_id:\s*statementReceiptId/)
+  assert.doesNotMatch(saveSource, /filename|parser|quality/)
+  assert.match(client, /export async function getBudgetInvestmentCapacity\(month\)/)
+  assert.match(client, /\/budget\/investment-capacity\?month=/)
+
+  assert.match(budget, /getBudgetInvestmentCapacity/)
+  assert.match(budget, /statementReceiptId/)
+  assert.match(budget, /saveBudgetTransactions\(transactions, statementReceiptId\)/)
+  assert.match(budget, /setStatementReceiptId\(null\)/)
+  assert.match(budget, /Re-upload and parse the PDF again before saving\./)
+  assert.match(budget, /CASH AUTHORITY/)
+  assert.match(budget, /authority\.data_ready \? 'VERIFIED' : 'BLOCKED'/)
+  assert.match(budget, /authority\.blockers/)
+  assert.match(budget, /STATEMENT SAVED · AUTHORITY REFRESHED/)
+})
+
 test('performance lane plots real snapshots only and never fabricates returns', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
   const perf = await src('./subs/PerformanceContent.jsx')
@@ -323,6 +347,26 @@ test('budget lane can edit and save budget memory (savings target + category lan
   assert.match(budget, /savings_target_pct/)
   assert.match(budget, /fixed_categories/)
   assert.match(budget, /merchant_rules/)
+})
+
+test('budget memory exposes validated authority policy inputs without blank coercion', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+
+  for (const field of [
+    'emergency_fund_floor_eur',
+    'emergency_fund_balance_eur',
+    'checking_buffer_eur',
+    'food_budget_eur',
+    'essential_spending_ceiling_eur',
+    'salary_day_cutoff',
+    'recurring_obligations',
+  ]) {
+    assert.match(budget, new RegExp(field))
+  }
+  assert.match(budget, /validateAuthorityPolicy/)
+  assert.match(budget, /validRecurringObligations/)
+  assert.match(budget, /recurringDraft/)
+  assert.doesNotMatch(budget, /salary_day_cutoff:\s*Number\(e\.target\.value \|\| 25\)/)
 })
 
 test('finance control room reuses existing finance instrument designs', async () => {
