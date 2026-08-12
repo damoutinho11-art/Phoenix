@@ -168,6 +168,88 @@ Result: `278 passed in 39.25s`.
 No implementation concerns. The pre-existing modification to
 `.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
 
+## Final Review: Producer Inputs and Structured Chat
+
+### RED
+
+```powershell
+python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `20 failed, 320 passed`. The failures showed sub-cent source inputs
+were silently rounded, the Budget endpoint accepted a sub-cent policy value,
+new financial intent language reached the general AI path, stock-media text
+could enter Finance, and Finance chat lacked structured lifecycle fields and
+a single captured decision date.
+
+### GREEN
+
+```powershell
+python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `340 passed in 56.37s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
+
+Result: `55 passed in 7.03s`.
+
+```powershell
+$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
+python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `273 passed in 70.94s`. Chat coverage remains in
+`test_finance_cashflow_authority_review.py`; there is no standalone chat test
+file.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `344 passed in 51.81s`.
+
+```powershell
+python -m pytest jarvis/domains/finance/tests -q
+```
+
+Result: `102 passed in 5.68s`.
+
+### Changed Files
+
+- `jarvis/domains/finance/cashflow_authority.py`
+- `jarvis/api/routers/chat.py`
+- Budget, Finance authority/chat, and domain cash-flow authority tests
+
+### Self-Review
+
+- Every producer monetary input used by cash-flow calculation now must already
+  be an exact cent: policy, recurring obligations, statement balance, unpaid
+  bills, summary totals, and food-category totals. Computed results retain
+  Decimal `ROUND_HALF_UP` cent semantics.
+- Home Finance intent handles planning, scheduling, moving money, purchases,
+  buy/sell/hold/review/rebalance/advice with concrete financial assets. Stock
+  media is explicitly non-financial, while a financial asset plus `table` is
+  still recognized.
+- Deterministic Finance chat responses consistently expose `week_closed`,
+  `week_budget`, `recommendations`, `cashflow_authority`, and captured `as_of`.
+- One chat decision date is captured at route entry and reused by Finance,
+  training, nutrition, budget context, and response summary; the midnight
+  side-effect test confirms one logical Finance date.
+- `jarvis/domains/finance/portfolio_state.json` was not modified.
+
+### Commit
+
+`29e3a74ff7215da4964f720d2421c2381f45b623` -
+`feat(finance): authorize weekly budget from cash flow`
+
+### Concerns
+
+No implementation concerns. The pre-existing modification to
+`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
+
 ## Final Gate: Intent, Exact Cents, and Closed Research
 
 ### RED
