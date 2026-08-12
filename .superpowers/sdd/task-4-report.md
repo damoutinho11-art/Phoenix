@@ -168,6 +168,82 @@ Result: `278 passed in 39.25s`.
 No implementation concerns. The pre-existing modification to
 `.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
 
+## Final Narrow Fixes: Optional Opening Balance and Lifecycle Context
+
+### RED
+
+```powershell
+python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `9 failed, 348 passed`. The failures demonstrated that sub-cent
+`opening_balance_eur` was not validated by the producer, `None` was rejected
+by the generic Finance EUR recursion, intent stems missed moved/allocated/
+invested forms, stock inventory text entered Finance, and missing state erased
+the lifecycle/authority projection.
+
+### GREEN
+
+```powershell
+python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `357 passed in 37.88s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+```
+
+Result: `55 passed in 6.34s`.
+
+```powershell
+$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
+python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+```
+
+Result: `284 passed in 53.03s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
+```
+
+Result: `358 passed in 42.32s`.
+
+```powershell
+python -m pytest jarvis/domains/finance/tests -q
+```
+
+Result: `105 passed in 6.18s`.
+
+### Changed Files
+
+- `jarvis/domains/finance/cashflow_authority.py`
+- `jarvis/api/routers/chat.py`
+- Budget, Finance/chat authority, and domain authority tests
+
+### Self-Review
+
+- `opening_balance_eur` is explicitly optional provenance: `None` is accepted;
+  every present value must be finite, bounded, numeric, and exact-cent at both
+  producer and consumer boundaries.
+- Intent classification recognizes moved, allocated, invested, rebalanced, and
+  other action inflections. Stock media/inventory/shop usage is excluded before
+  asset classification, while shares/stock in a company remains financial.
+- Finance captures lifecycle and cash-flow authority before loading state. A
+  missing constitution/state now yields a structured zero-budget blocked
+  authority, while a closed week remains closed without consulting state.
+- `jarvis/domains/finance/portfolio_state.json` was not modified.
+
+### Commit
+
+`8424978ccfa90c7d0e535d425d2c5eec50ee4d34` -
+`feat(finance): authorize weekly budget from cash flow`
+
+### Concerns
+
+No implementation concerns. The pre-existing modification to
+`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
+
 ## Final Review: Producer Inputs and Structured Chat
 
 ### RED
