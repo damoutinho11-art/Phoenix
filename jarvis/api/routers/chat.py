@@ -2,6 +2,7 @@
 
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -65,15 +66,18 @@ class ChatRequest(BaseModel):
     history: list[dict] = []
 
 
-def _build_finance_context(*, include_authority: bool = False) -> tuple:
+def _build_finance_context(
+    *, include_authority: bool = False, decision_today: date | None = None
+) -> tuple:
     """Returns (context_text, requires_approval)."""
+    today = decision_today or clock.today()
     try:
         constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
         finance_engine.validate_constitution(constitution)
         portfolio_state = database.load_portfolio_state()
     except (FileNotFoundError, ValueError):
         result = "FINANCE: Constitution or portfolio state unavailable."
-        return (result, True, None) if include_authority else (result, True)
+        return (result, True, None, today) if include_authority else (result, True)
 
     try:
         from jarvis.domains.finance.market_data import detect_market_regime
@@ -84,20 +88,19 @@ def _build_finance_context(*, include_authority: bool = False) -> tuple:
         except FileNotFoundError:
             profile = None
 
-        today = clock.today()
         lifecycle = current_week_lifecycle(today)
         authority = build_cashflow_authority(
             today, week_closed=lifecycle["week_closed"]
         )
         if lifecycle["week_closed"]:
             result = "FINANCE: Current investment week is closed. No new allocation is available."
-            return (result, False, authority) if include_authority else (result, False)
+            return (result, False, authority, today) if include_authority else (result, False)
         if authority.get("data_ready") is not True:
             result = (
                 "FINANCE: Cash-flow authority is blocked. No allocation is available. "
                 f"Blockers: {'; '.join(authority.get('blockers') or [])}"
             )
-            return (result, True, authority) if include_authority else (result, True)
+            return (result, True, authority, today) if include_authority else (result, True)
 
         portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
         regime = detect_market_regime(portfolio_state)
@@ -134,7 +137,7 @@ def _build_finance_context(*, include_authority: bool = False) -> tuple:
         phase_str = f"Portfolio phase: {dyn.get('phase', '?')} ({dyn.get('phase_label', '')})"
 
         context = (
-            f"FINANCE (as of {portfolio_state.get('as_of')}):\n"
+            f"FINANCE (decision as of {today.isoformat()}; portfolio as of {portfolio_state.get('as_of')}):\n"
             f"Total invested: €{finance_engine.euros(sum(holdings.values())):.2f}\n"
             f"Weekly budget: €{ticket['weekly_budget']:.2f}\n"
             f"Portfolio mode: {result['portfolio_mode']['mode']}\n"
@@ -144,10 +147,10 @@ def _build_finance_context(*, include_authority: bool = False) -> tuple:
             f"Engine rationale: {'; '.join(rationale_parts) or 'No buys this week'}\n"
             f"Warnings: {'; '.join(ticket['warnings']) or 'None'}"
         )
-        return (context, True, authority) if include_authority else (context, True)
+        return (context, True, authority, today) if include_authority else (context, True)
     except Exception:
         result = "FINANCE: Engine error loading context."
-        return (result, True, None) if include_authority else (result, True)
+        return (result, True, None, today) if include_authority else (result, True)
 
 
 def _finance_allocation_intent(domain: str, message: str) -> bool:
@@ -156,15 +159,15 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
     if domain != "home":
         return False
     if re.search(
-        r"\b(?:stock\s+(?:photos?|images?|footage)|design\s+portfolio|"
-        r"portfolio\s+website|dinner|table|furniture|shopping|supermarket)\b",
+        r"\bstock\s+(?:photos?|photography|images?|footage|media)\b",
         message,
         re.IGNORECASE,
     ):
         return False
     financial_action = re.search(
         r"\b(?:invest(?:ing|ment)?|allocat(?:e|ing|ion)|deploy(?:ing)?(?:\s+capital)?|"
-        r"buy(?:ing)?|sell(?:ing)?|hold(?:ing)?|put|add|rebalance(?:ing)?|review(?:ing)?)\b",
+        r"plan(?:ning)?|schedule(?:d|ing)?|move|purchas(?:e|ing)|buys?|buying|"
+        r"sell(?:ing)?|hold(?:ing)?|put|add|rebalance(?:ing)?|review(?:ing)?)\b",
         message,
         re.IGNORECASE,
     )
@@ -190,12 +193,36 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
         message,
         re.IGNORECASE,
     )
+    if concrete_financial_asset:
+        return bool(financial_action or advice_question)
+    if re.search(
+        r"\b(?:design\s+portfolio|portfolio\s+website|dinner\s+table|"
+        r"furniture|shopping|supermarket)\b",
+        message,
+        re.IGNORECASE,
+    ):
+        return False
     market_action = financial_action and re.search(r"\bmarket\b", message, re.IGNORECASE)
     return bool(
-        (concrete_financial_asset and (financial_action or advice_question))
-        or (market_action and finance_context)
+        (market_action and finance_context)
         or (generic_invest and finance_context)
     )
+
+
+def _finance_chat_projection(authority: dict | None, context: str) -> dict:
+    week_closed = context.startswith("FINANCE: Current investment week is closed.")
+    ready = authority is not None and authority.get("data_ready") is True and not week_closed
+    recommendations = [
+        {"asset": asset.lower(), "amount": float(amount)}
+        for asset, amount in re.findall(
+            r"^\s+([A-Z0-9_]+): €(\d+(?:\.\d{2})?)", context, re.MULTILINE
+        )
+    ] if ready else []
+    return {
+        "week_closed": week_closed,
+        "week_budget": authority["weekly_budget_eur"] if ready else 0.0,
+        "recommendations": recommendations,
+    }
 
 
 def _deterministic_finance_chat_response(authority: dict | None, context: str) -> str:
@@ -221,12 +248,13 @@ def _deterministic_finance_chat_response(authority: dict | None, context: str) -
     )
 
 
-def _build_training_context() -> str:
+def _build_training_context(*, today: date | None = None) -> str:
     try:
+        decision_today = today or clock.today()
         with open(training_engine.DEFAULT_CONSTITUTION_PATH) as f:
             constitution = json.load(f)
         status = training_engine.check_training(
-            constitution, today=clock.today(), opera_snapshot_raw=LIVE_SNAPSHOT_RAW
+            constitution, today=decision_today, opera_snapshot_raw=LIVE_SNAPSHOT_RAW
         )
         g = status.dunk_goal
         c = status.cut_status
@@ -284,16 +312,19 @@ def _build_training_context() -> str:
         return "TRAINING: Context unavailable."
 
 
-def _build_nutrition_context() -> str:
+def _build_nutrition_context(*, today: date | None = None) -> str:
     try:
+        decision_today = today or clock.today()
         with open(_NUTRITION_CONSTITUTION_PATH) as f:
             constitution = json.load(f)
-        meals = database.get_meals_for_date(clock.today())
+        meals = database.get_meals_for_date(decision_today)
         items = [
             {k: m[k] for k in ("item_id", "item_type", "name", "servings", "calories", "protein_g", "fat_g", "carbs_g")}
             for m in meals
         ]
-        status = nutrition_engine.check_nutrition(constitution, daily_log_items=items, today=clock.today())
+        status = nutrition_engine.check_nutrition(
+            constitution, daily_log_items=items, today=decision_today
+        )
         t = status.target
 
         return (
@@ -448,10 +479,12 @@ def jarvis_activity() -> dict:
 @router.post("/chat")
 def jarvis_chat(request: ChatRequest) -> dict:
     domain = request.domain.lower()
+    decision_today = clock.today()
     context_parts = []
     requires_approval = False
     cashflow_authority: dict | None = None
     finance_ctx = ""
+    finance_projection = {"week_closed": False, "week_budget": 0.0, "recommendations": []}
     lower_message = request.message.lower()
     app_status_intent = domain in ("home", "app", "system") or any(
         phrase in lower_message
@@ -471,7 +504,7 @@ def jarvis_chat(request: ChatRequest) -> dict:
     bodyweight = _detect_bodyweight(request.message)
     if bodyweight:
         try:
-            database.log_weight(clock.today(), bodyweight)
+            database.log_weight(decision_today, bodyweight)
             sleep_logged_note += f"\n[SYSTEM: bodyweight {bodyweight}kg logged]"
         except Exception:
             pass
@@ -486,25 +519,26 @@ def jarvis_chat(request: ChatRequest) -> dict:
 
     finance_allocation_request = _finance_allocation_intent(domain, request.message)
     if finance_allocation_request:
-        finance_ctx, fin_approval, cashflow_authority = _build_finance_context(
-            include_authority=True
+        finance_ctx, fin_approval, cashflow_authority, _finance_as_of = _build_finance_context(
+            include_authority=True, decision_today=decision_today
         )
+        finance_projection = _finance_chat_projection(cashflow_authority, finance_ctx)
         context_parts.append(finance_ctx)
         if fin_approval:
             requires_approval = True
 
     if domain in ("training", "home"):
-        context_parts.append(_build_training_context())
+        context_parts.append(_build_training_context(today=decision_today))
 
     if domain in ("nutrition", "home"):
-        context_parts.append(_build_nutrition_context())
+        context_parts.append(_build_nutrition_context(today=decision_today))
 
     if domain in ("calendar", "home"):
         context_parts.append(_build_calendar_context())
 
     if domain == "budget":
         try:
-            month = clock.today().strftime("%Y-%m")
+            month = decision_today.strftime("%Y-%m")
             budget_summary = database.get_budget_summary(month)
             context_parts.append(f"BUDGET ({month}):\n{json.dumps(budget_summary)}")
         except Exception:
@@ -558,8 +592,10 @@ def jarvis_chat(request: ChatRequest) -> dict:
         "domain": domain,
         "requires_approval": requires_approval,
         "ai": ai_gateway.status().as_dict(),
-        "context_summary": f"{domain} context loaded as of {clock.today().isoformat()}",
+        "context_summary": f"{domain} context loaded as of {decision_today.isoformat()}",
+        "as_of": decision_today.isoformat(),
     }
     if finance_allocation_request:
         response["cashflow_authority"] = cashflow_authority
+        response.update(finance_projection)
     return response

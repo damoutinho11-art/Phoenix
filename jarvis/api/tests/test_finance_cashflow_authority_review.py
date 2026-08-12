@@ -106,6 +106,25 @@ def test_ready_authority_uses_calculator_cent_rounding_for_three_windows() -> No
     )
 
 
+def test_finance_agrees_with_producer_subcent_policy_block() -> None:
+    authority = {
+        "data_ready": False,
+        "blockers": ["Cash-flow policy has invalid checking_buffer_eur."],
+        "weekly_budget_eur": 0.0,
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ):
+        sanitized = finance._cashflow_authority_for_today(date(2026, 8, 12))
+        data = client.get("/finance/recommendation").json()
+
+    assert sanitized == authority
+    assert data["data_ready"] is False
+    assert data["week_budget"] == 0.0
+    assert data["recommendations"] == []
+    assert data["cashflow_authority"] == authority
+
+
 @pytest.mark.parametrize(
     "authority",
     [
@@ -396,13 +415,14 @@ def test_chat_finance_context_preserves_authority_shape_when_state_is_unavailabl
         "jarvis.api.routers.chat.finance_engine.load_json",
         side_effect=FileNotFoundError,
     ):
-        context, requires_approval, authority = chat._build_finance_context(
+        context, requires_approval, authority, as_of = chat._build_finance_context(
             include_authority=True
         )
 
     assert "unavailable" in context.lower()
     assert requires_approval is True
     assert authority is None
+    assert as_of == clock.today()
 
 
 @pytest.mark.parametrize(
@@ -425,6 +445,9 @@ def test_chat_blocked_finance_never_calls_ai_or_suggests_legacy_amount(message: 
     assert "115.38" not in data["response"]
     assert "€" not in data["response"]
     assert data["cashflow_authority"] == authority
+    assert data["week_closed"] is False
+    assert data["week_budget"] == 0.0
+    assert data["recommendations"] == []
 
 
 def test_chat_ready_finance_allocation_is_deterministic_and_authoritative() -> None:
@@ -444,6 +467,9 @@ def test_chat_ready_finance_allocation_is_deterministic_and_authoritative() -> N
     assert "€86.67" in data["response"]
     assert "€115.38" not in data["response"]
     assert data["cashflow_authority"] == _READY_AUTHORITY
+    assert data["week_closed"] is False
+    assert data["week_budget"] == 86.67
+    assert isinstance(data["recommendations"], list)
 
 
 @pytest.mark.parametrize(
@@ -477,6 +503,9 @@ def test_closed_chat_builds_closed_authority_once_without_an_open_budget(
     assert "€" not in data["response"]
     assert data["cashflow_authority"]["data_ready"] is False
     assert data["cashflow_authority"]["weekly_budget_eur"] == 0.0
+    assert data["week_closed"] is True
+    assert data["week_budget"] == 0.0
+    assert data["recommendations"] == []
 
 
 def test_open_chat_builds_open_authority_once() -> None:
@@ -619,6 +648,10 @@ def test_home_investment_intent_uses_blocked_finance_authority() -> None:
         "Review my ETF allocation.",
         "Can you advise on rebalancing shares?",
         "What should I do with ETH?",
+        "Plan my ETF buys this week.",
+        "Schedule a stock purchase this week.",
+        "Move 100 euros into BTC.",
+        "Please review my ETF allocation in a table.",
     ],
 )
 def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
@@ -650,6 +683,8 @@ def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
         "Show me stock images from the concert",
         "Do you have stock footage for this trailer?",
         "Review my portfolio website",
+        "Should I buy stock photography for the site?",
+        "Find stock media for my design site",
     ],
 )
 def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str) -> None:
@@ -665,3 +700,19 @@ def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str
     generate.assert_called_once()
     assert data["response"] == "Normal response"
     assert "cashflow_authority" not in data
+
+
+def test_finance_chat_captures_one_decision_date_for_context_and_response() -> None:
+    decision_today = date(2026, 8, 16)
+    with patch("jarvis.api.routers.chat.clock.today", side_effect=[decision_today, date(2026, 8, 17)]) as today, patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=_READY_AUTHORITY
+    ), patch(
+        "jarvis.domains.finance.market_data.detect_market_regime", return_value="risk_on"
+    ):
+        data = client.post(
+            "/jarvis/chat", json={"domain": "finance", "message": "What should I buy this week?"}
+        ).json()
+
+    assert today.call_count == 1
+    assert data["as_of"] == decision_today.isoformat()
+    assert decision_today.isoformat() in data["context_summary"]

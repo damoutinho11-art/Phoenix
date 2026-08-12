@@ -1387,6 +1387,39 @@ def test_investment_capacity_blocks_positive_cash_that_rounds_below_one_cent(
     assert "weekly" in data["blockers"][0].lower()
 
 
+def test_investment_capacity_rejects_subcent_policy_evidence(monkeypatch) -> None:
+    snapshot = {
+        "closing_balance_eur": 760,
+        "statement_end_date": "2026-08-11",
+        "quality_status": "reconciled",
+        "parser": "lhv_pdf",
+        "receipt_verified": 1,
+        "balance_difference_eur": 0.0,
+        "filename_hash": "0" * 64,
+    }
+    summary = {
+        "income_total": 3006.84,
+        "expenses_total": 622.32,
+        "invested_total": 0,
+        "emergency_fund_total": 1392,
+        "by_category": {},
+    }
+    policy = {**_COMPLETE_AUTHORITY_POLICY, "version": 2, "checking_buffer_eur": 300.001}
+    monkeypatch.setattr(budget_router, "_cashflow_authority_policy", lambda: policy)
+    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
+    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "checking_buffer_eur" in data["blockers"][0]
+
+
 def test_investment_capacity_hash_covers_full_decision_inputs(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
     database.init_db()
@@ -1643,15 +1676,15 @@ def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
     ) == 0.0
 
 
-@pytest.mark.parametrize(("amount", "expected"), [(2.675, 2.68), (100.005, 100.01)])
-def test_unpaid_recurring_bills_rounds_total_half_up(amount: float, expected: float) -> None:
+@pytest.mark.parametrize("amount", [2.675, 100.005])
+def test_unpaid_recurring_bills_rejects_subcent_policy_input(amount: float) -> None:
     profile = {
         "recurring_obligations": [
             {"amount_eur": amount, "contains": ["utilities"]}
         ]
     }
 
-    assert budget_router._unpaid_recurring_bills(profile, []) == expected
+    assert budget_router._unpaid_recurring_bills(profile, []) is None
 
 
 @pytest.mark.parametrize(

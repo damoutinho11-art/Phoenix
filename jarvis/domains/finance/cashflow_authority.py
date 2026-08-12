@@ -56,6 +56,10 @@ def _is_exact_cent(value: object) -> bool:
     return cents_value == cents_value.to_integral_value(rounding=ROUND_HALF_UP)
 
 
+def _valid_exact_cent_json_number(value: object, *, nonnegative: bool) -> bool:
+    return _json_number(value, nonnegative=nonnegative) and _is_exact_cent(value)
+
+
 def _nested_monetary_values_are_exact(value: object) -> bool:
     """Reject any carried EUR evidence that would need hidden rounding."""
     if isinstance(value, dict):
@@ -236,7 +240,9 @@ def valid_recurring_obligations(value: object) -> bool:
     for obligation in value:
         if not isinstance(obligation, dict):
             return False
-        if not _json_number(obligation.get("amount_eur"), nonnegative=True):
+        if not _valid_exact_cent_json_number(
+            obligation.get("amount_eur"), nonnegative=True
+        ):
             return False
         contains = obligation.get("contains")
         if not isinstance(contains, list) or not contains:
@@ -273,17 +279,19 @@ def cashflow_authority_structural_blockers(
         blockers.append("Checking-account statement date is missing or invalid.")
     if snapshot.get("closing_balance_eur") is None:
         blockers.append("Checking-account snapshot is missing closing_balance_eur.")
-    elif not _json_number(snapshot["closing_balance_eur"], nonnegative=False):
+    elif not _valid_exact_cent_json_number(
+        snapshot["closing_balance_eur"], nonnegative=False
+    ):
         blockers.append("Checking-account snapshot has invalid closing_balance_eur.")
     if unpaid_bills_eur is None:
         blockers.append("Cash-flow input is missing unpaid_bills_eur.")
-    elif not _json_number(unpaid_bills_eur, nonnegative=True):
+    elif not _valid_exact_cent_json_number(unpaid_bills_eur, nonnegative=True):
         blockers.append("Cash-flow input has invalid unpaid_bills_eur.")
 
     for key in _MONETARY_POLICY_FIELDS:
         if policy.get(key) is None:
             blockers.append(f"Cash-flow policy is missing {key}.")
-        elif not _json_number(policy[key], nonnegative=True):
+        elif not _valid_exact_cent_json_number(policy[key], nonnegative=True):
             blockers.append(f"Cash-flow policy has invalid {key}.")
     cutoff = policy.get("salary_day_cutoff")
     if cutoff is None:
@@ -301,7 +309,7 @@ def cashflow_authority_structural_blockers(
     for key in _SUMMARY_MONETARY_FIELDS:
         if month_summary.get(key) is None:
             blockers.append(f"Cash-flow month summary is missing {key}.")
-        elif not _json_number(month_summary[key], nonnegative=True):
+        elif not _valid_exact_cent_json_number(month_summary[key], nonnegative=True):
             blockers.append(f"Cash-flow month summary has invalid {key}.")
     by_category = month_summary.get("by_category")
     if by_category is None:
@@ -312,7 +320,7 @@ def cashflow_authority_structural_blockers(
         food = by_category.get("Food & Groceries")
         if food is not None and (
             not isinstance(food, dict)
-            or not _json_number(food.get("total"), nonnegative=True)
+            or not _valid_exact_cent_json_number(food.get("total"), nonnegative=True)
         ):
             blockers.append("Cash-flow month summary has invalid Food & Groceries total.")
     return blockers

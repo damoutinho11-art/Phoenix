@@ -359,3 +359,35 @@ def test_positive_deployable_cash_that_rounds_below_one_cent_blocks() -> None:
     assert result["data_ready"] is False
     assert result["weekly_budget_eur"] == 0.0
     assert "weekly" in result["blockers"][0].lower()
+
+
+@pytest.mark.parametrize(
+    ("policy", "snapshot", "month_summary", "unpaid_bills_eur", "field"),
+    [
+        ({**POLICY, "checking_buffer_eur": 300.001}, VALID_SNAPSHOT, VALID_MONTH_SUMMARY, 0, "checking_buffer_eur"),
+        (POLICY, {**VALID_SNAPSHOT, "closing_balance_eur": 760.001}, VALID_MONTH_SUMMARY, 0, "closing_balance_eur"),
+        (POLICY, VALID_SNAPSHOT, VALID_MONTH_SUMMARY, 0.001, "unpaid_bills_eur"),
+        (POLICY, VALID_SNAPSHOT, {**VALID_MONTH_SUMMARY, "income_total": 3006.841}, 0, "income_total"),
+        (POLICY, VALID_SNAPSHOT, {**VALID_MONTH_SUMMARY, "by_category": {"Food & Groceries": {"total": 1.001}}}, 0, "Food & Groceries total"),
+        ({**POLICY, "recurring_obligations": [{"amount_eur": 1.001, "contains": ["utilities"]}]}, VALID_SNAPSHOT, VALID_MONTH_SUMMARY, 0, "recurring_obligations"),
+    ],
+)
+def test_subcent_authority_inputs_fail_closed_before_calculation(
+    policy: dict,
+    snapshot: dict,
+    month_summary: dict,
+    unpaid_bills_eur: float,
+    field: str,
+) -> None:
+    result = calculate_cashflow_authority(
+        policy=policy,
+        snapshot=snapshot,
+        month_summary=month_summary,
+        unpaid_bills_eur=unpaid_bills_eur,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert field in result["blockers"][0]
