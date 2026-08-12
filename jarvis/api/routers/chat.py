@@ -163,8 +163,8 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
     if domain != "home":
         return False
     stock_inventory_or_media = re.search(
-        r"\bstock\s+(?:photos?|photography|images?|footage|media)\b|"
-        r"\bstock\b.*\b(?:inventory|furniture\s+shop|shop|store|design|site)\b",
+        r"\bstocks?\s+(?:photos?|photography|images?|footage|media)\b|"
+        r"\bstocks?\b.*\b(?:inventory|furniture\s+shop|shop|store|design|site)\b",
         message,
         re.IGNORECASE,
     )
@@ -173,12 +173,21 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
         message,
         re.IGNORECASE,
     )
-    if stock_inventory_or_media and not stock_security_company:
+    explicit_nonfinancial_context = re.search(
+        r"\b(?:design\s+portfolio|portfolio\s+website|website\s+design|"
+        r"site\s+design|dinner\s+table|furniture|shopping|supermarket)\b",
+        message,
+        re.IGNORECASE,
+    )
+    # A named company's securities remain a Finance question even when the
+    # company itself makes furniture. All other explicit non-finance contexts
+    # must win before concrete asset tokens are considered.
+    if (stock_inventory_or_media or explicit_nonfinancial_context) and not stock_security_company:
         return False
     financial_action = re.search(
         r"\b(?:invest(?:ed|ing|ment)?|allocat(?:e|ed|ing|ion)|deploy(?:ed|ing)?(?:\s+capital)?|"
         r"plan(?:ning)?|schedule(?:d|ing)?|mov(?:e|ed|ing)|purchas(?:e|ed|ing)|buys?|buying|"
-        r"sell(?:ing)?|hold(?:ing)?|put|add|rebalanc(?:e|ed|ing)|review(?:ed|ing)?)\b",
+        r"bought|sell(?:ing)?|sold|hold(?:ing)?|held|put|add|rebalanc(?:e|ed|ing)|review(?:ed|ing)?)\b",
         message,
         re.IGNORECASE,
     )
@@ -206,13 +215,6 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
     )
     if concrete_financial_asset:
         return bool(financial_action or advice_question)
-    if re.search(
-        r"\b(?:design\s+portfolio|portfolio\s+website|dinner\s+table|"
-        r"furniture|shopping|supermarket)\b",
-        message,
-        re.IGNORECASE,
-    ):
-        return False
     market_action = financial_action and re.search(r"\bmarket\b", message, re.IGNORECASE)
     return bool(
         (market_action and finance_context)

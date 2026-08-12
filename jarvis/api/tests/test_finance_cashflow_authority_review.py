@@ -129,6 +129,34 @@ def test_finance_sanitizer_agrees_with_optional_opening_balance_contract(
         assert result["weekly_budget_eur"] == 0.0
 
 
+@pytest.mark.parametrize(
+    ("opening_balance_eur", "valid"),
+    [(None, True), (1000.0, True), (1000.001, False), (float("inf"), False)],
+)
+def test_blocked_authority_validates_optional_opening_balance_provenance(
+    opening_balance_eur: float | None, valid: bool
+) -> None:
+    authority = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+        "source": {"opening_balance_eur": opening_balance_eur},
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ):
+        result = finance._cashflow_authority_for_today(date(2026, 8, 12))
+
+    if valid:
+        assert result == authority
+    else:
+        assert result == {
+            "data_ready": False,
+            "blockers": ["Cash-flow authority payload is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
+
+
 def test_finance_agrees_with_producer_subcent_policy_block() -> None:
     authority = {
         "data_ready": False,
@@ -682,6 +710,9 @@ def test_home_investment_intent_uses_blocked_finance_authority() -> None:
         "Should I rebalance my ETH allocation?",
         "I allocated cash to an ETF.",
         "I invested in bitcoin this week.",
+        "I bought BTC this week.",
+        "I sold ETH this week.",
+        "I held shares this week.",
     ],
 )
 def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
@@ -716,6 +747,9 @@ def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
         "Should I buy stock photography for the site?",
         "Find stock media for my design site",
         "Should I buy stock for my furniture shop?",
+        "Should I buy stocks for my furniture shop?",
+        "Should I buy stock inventory for my shop?",
+        "Should I invest euros in website design?",
     ],
 )
 def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str) -> None:
@@ -733,7 +767,14 @@ def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str
     assert "cashflow_authority" not in data
 
 
-def test_home_security_stock_in_furniture_company_stays_finance() -> None:
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Should I buy stock in Acme Furniture Company?",
+        "Should I buy shares in Acme Furniture Company?",
+    ],
+)
+def test_home_security_stock_in_furniture_company_stays_finance(message: str) -> None:
     authority = {
         "data_ready": False,
         "blockers": ["Checking-account statement is stale."],
@@ -744,7 +785,7 @@ def test_home_security_stock_in_furniture_company_stays_finance() -> None:
     ), patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
         data = client.post(
             "/jarvis/chat",
-            json={"domain": "home", "message": "Should I buy shares in a furniture company?"},
+            json={"domain": "home", "message": message},
         ).json()
 
     generate.assert_not_called()

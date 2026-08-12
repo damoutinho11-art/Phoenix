@@ -228,9 +228,10 @@ def validate_cashflow_authority(authority: object, *, today: date) -> dict:
         or not blockers
         or any(not isinstance(blocker, str) or not blocker.strip() for blocker in blockers)
         or not _valid_exact_zero(authority.get("weekly_budget_eur"))
+        or not _nested_monetary_values_are_exact(authority)
     ):
         return blocked_cashflow_authority()
-    return copy.deepcopy(authority)
+    return _normalize_nested_monetary_values(copy.deepcopy(authority))
 
 
 def authoritative_portfolio_state(portfolio_state: dict, authority: dict) -> dict:
