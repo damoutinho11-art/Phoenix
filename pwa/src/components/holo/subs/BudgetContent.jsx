@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTokens'
 import {
   getBudgetSummary,
@@ -11,6 +11,15 @@ import {
   getBudgetInvestmentCapacity,
 } from '../../../api/client'
 import { financeBody, financeButton, financeLabel, financeMicro } from './financeReadability'
+import {
+  AUTHORITY_NUMERIC_FIELDS,
+  createAuthorityLoader,
+  formatAuthorityMoney,
+  formatAuthorityWindows,
+  protectedCashLabel,
+  receiptSaveOutcome,
+  validateAuthorityPolicyDraft,
+} from './budgetAuthorityModel'
 
 // Category grouping mirrors the original BudgetDashboard so the holo view
 // classifies transactions identically (savings-rate math stays the same).
@@ -50,46 +59,6 @@ const fmtMonth = m => {
   if (!m) return ''
   const [y, mo] = m.split('-')
   return new Date(+y, +mo - 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' })
-}
-
-const AUTHORITY_NUMERIC_FIELDS = [
-  ['emergency_fund_floor_eur', 'EMERGENCY FLOOR EUR', 0, null],
-  ['emergency_fund_balance_eur', 'EMERGENCY BALANCE EUR', 0, null],
-  ['checking_buffer_eur', 'CHECKING BUFFER EUR', 0, null],
-  ['food_budget_eur', 'FOOD BUDGET EUR', 0, null],
-  ['essential_spending_ceiling_eur', 'ESSENTIAL CEILING EUR', 0, null],
-  ['salary_day_cutoff', 'SALARY CUTOFF DAY', 1, 31],
-]
-
-const authorityEuro = value => `€${Number(value || 0).toFixed(2)}`
-
-function validRecurringObligations(value) {
-  return Array.isArray(value) && value.every(obligation => {
-    const amount = obligation?.amount_eur
-    const cents = Math.round(Number(amount) * 100)
-    return obligation && typeof obligation === 'object'
-      && typeof amount === 'number'
-      && Number.isFinite(amount)
-      && amount >= 0
-      && Math.abs(amount * 100 - cents) < 1e-8
-      && Array.isArray(obligation.contains)
-      && obligation.contains.length > 0
-      && obligation.contains.every(token => typeof token === 'string' && token.trim())
-  })
-}
-
-function validateAuthorityPolicy(profile) {
-  for (const [key, label, min, max] of AUTHORITY_NUMERIC_FIELDS) {
-    const value = profile[key]
-    if (value === '' || value === null || value === undefined || typeof value !== 'number' || !Number.isFinite(value)) {
-      return `${label} requires a finite numeric value.`
-    }
-    if (value < min || (max !== null && value > max) || (key === 'salary_day_cutoff' && !Number.isInteger(value))) {
-      return `${label} is outside its allowed range.`
-    }
-  }
-  if (!validRecurringObligations(profile.recurring_obligations)) return 'RECURRING OBLIGATIONS require amount_eur and contains values.'
-  return ''
 }
 
 function BreakdownGroup({ title, subtitle, rows, color }) {
@@ -141,7 +110,7 @@ export function BudgetContent() {
   const [month, setMonth] = useState(thisMonth)
   const [months, setMonths] = useState([thisMonth])
   const [summary, setSummary] = useState(null)
-  const [authority, setAuthority] = useState(null)
+  const [authorityState, setAuthorityState] = useState({ status: 'loading', month: thisMonth, authority: null })
   const [authorityNotice, setAuthorityNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState('view') // 'view' | 'upload'
@@ -166,40 +135,33 @@ export function BudgetContent() {
     return () => { alive = false }
   }, [])
 
-  const loadAuthority = useCallback(m => (
-    getBudgetInvestmentCapacity(m)
-      .then(result => {
-        setAuthority(result)
-        return result
-      })
-      .catch(() => {
-        const blocked = {
-          data_ready: false,
-          blockers: ['Cash authority could not be loaded. Refresh the ledger and try again.'],
-          deployable_capacity_eur: 0,
-          weekly_budget_eur: 0,
-          remaining_weekly_windows: 0,
-        }
-        setAuthority(blocked)
-        return blocked
-      })
-  ), [])
+  const authorityLoader = useMemo(() => createAuthorityLoader({
+    request: getBudgetInvestmentCapacity,
+    onState: setAuthorityState,
+  }), [])
 
   useEffect(() => { loadMonths() }, [loadMonths])
   useEffect(() => loadSummary(month), [month, loadSummary])
-  useEffect(() => { loadAuthority(month) }, [month, loadAuthority])
+  useEffect(() => {
+    authorityLoader.load(month)
+    return () => authorityLoader.dispose()
+  }, [month, authorityLoader])
 
   const idx = months.indexOf(month)
-  const prev = () => { if (idx < months.length - 1) setMonth(months[idx + 1]) }
-  const next = () => { if (idx > 0) setMonth(months[idx - 1]) }
+  const selectMonth = nextMonth => {
+    setAuthorityState({ status: 'loading', month: nextMonth, authority: null })
+    setMonth(nextMonth)
+  }
+  const prev = () => { if (idx < months.length - 1) selectMonth(months[idx + 1]) }
+  const next = () => { if (idx > 0) selectMonth(months[idx - 1]) }
 
   const afterSave = receiptConsumed => {
     loadMonths()
     loadSummary(month)
     setMode('view')
     if (receiptConsumed) setAuthorityNotice('STATEMENT SAVED · REFRESHING CASH AUTHORITY')
-    loadAuthority(month).then(() => {
-      if (receiptConsumed) setAuthorityNotice('STATEMENT SAVED · AUTHORITY REFRESHED')
+    authorityLoader.load(month).then(applied => {
+      if (receiptConsumed && applied) setAuthorityNotice('STATEMENT SAVED · AUTHORITY REFRESHED')
     })
   }
 
@@ -207,7 +169,7 @@ export function BudgetContent() {
     return <UploadStage onDone={afterSave} onCancel={() => setMode('view')} />
   }
   if (mode === 'memory') {
-    return <MemoryStage onDone={() => { loadSummary(month); loadAuthority(month); setMode('view') }} onCancel={() => setMode('view')} />
+    return <MemoryStage onDone={() => { loadSummary(month); authorityLoader.load(month); setMode('view') }} onCancel={() => setMode('view')} />
   }
 
   const hasData = summary && (summary.income_total > 0 || summary.expenses_total > 0)
@@ -220,6 +182,8 @@ export function BudgetContent() {
   const totalSavings = (summary?.invested_total || 0) + (cats['Emergency Fund']?.total || 0)
   const rate = summary?.savings_rate || 0
   const savingsGood = rate >= 25
+  const authority = authorityState.authority
+  const authorityLoading = authorityState.status === 'loading'
 
   return (
     <div>
@@ -240,14 +204,14 @@ export function BudgetContent() {
         <div style={{ ...financeMicro({ color: a(ACC, '99') }), marginBottom: 10 }}>{authorityNotice}</div>
       )}
 
-      {!loading && authority && (
+      {!loading && (authorityLoading || authority) && (
         <section style={{ marginTop: 16, padding: '12px 0', borderTop: `1px solid ${a(ACC, '30')}`, borderBottom: `1px solid ${a(ACC, '20')}` }}>
-          <div style={financeLabel({ color: authority.data_ready ? G : Y })}>CASH AUTHORITY · {authority.data_ready ? 'VERIFIED' : 'BLOCKED'}</div>
+          <div style={financeLabel({ color: authorityLoading ? a(ACC, '99') : authority.data_ready ? G : Y })}>CASH AUTHORITY · {authorityLoading ? 'LOADING' : authority.data_ready ? 'VERIFIED' : 'BLOCKED'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0, marginTop: 10 }}>
             {[
-              ['DEPLOYABLE', authorityEuro(authority.deployable_capacity_eur), ACC],
-              ['WEEKLY', authorityEuro(authority.weekly_budget_eur), authority.data_ready ? G : Y],
-              ['WINDOWS', String(authority.remaining_weekly_windows || 0), W],
+              ['DEPLOYABLE', formatAuthorityMoney(authority?.deployable_capacity_eur), ACC],
+              ['WEEKLY', formatAuthorityMoney(authority?.weekly_budget_eur), authority?.data_ready ? G : Y],
+              ['WINDOWS', formatAuthorityWindows(authority?.remaining_weekly_windows), W],
             ].map(([label, value, color], index) => (
               <div key={label} style={{ minWidth: 0, padding: '0 9px', borderLeft: index ? `1px solid ${a(ACC, '20')}` : 'none' }}>
                 <div style={financeMicro({ color: a(ACC, '88') })}>{label}</div>
@@ -256,9 +220,9 @@ export function BudgetContent() {
             ))}
           </div>
           <div style={{ ...financeMicro({ marginTop: 10, color: a(ACC, '99') }), overflowWrap: 'anywhere' }}>
-            STATEMENT {authority.source?.statement_end_date || 'UNKNOWN'} · PROTECTED {authorityEuro(Object.values(authority.protected_cash || {}).reduce((sum, value) => sum + Number(value || 0), 0))}
+            STATEMENT {authority?.source?.statement_end_date || 'UNKNOWN'} · PROTECTED {protectedCashLabel(authority?.protected_cash)}
           </div>
-          {!authority.data_ready && (authority.blockers || []).map((blocker, index) => (
+          {!authorityLoading && !authority.data_ready && (authority.blockers || []).map((blocker, index) => (
             <div key={`${blocker}-${index}`} style={financeBody({ marginTop: index ? 4 : 9, color: Y })}>{blocker}</div>
           ))}
         </section>
@@ -323,6 +287,7 @@ function UploadStage({ onDone, onCancel }) {
   const [transactions, setTransactions] = useState(null)
   const [quality, setQuality] = useState(null)
   const [statementReceiptId, setStatementReceiptId] = useState(null)
+  const [reuploadRequired, setReuploadRequired] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pickerIdx, setPickerIdx] = useState(null)
 
@@ -334,6 +299,7 @@ function UploadStage({ onDone, onCancel }) {
       setTransactions(r.transactions || [])
       setQuality(null)
       setStatementReceiptId(null)
+      setReuploadRequired(false)
     } catch (err) {
       setError(err.message || 'Parse failed. Check your text and try again.')
     } finally { setParsing(false) }
@@ -346,7 +312,9 @@ function UploadStage({ onDone, onCancel }) {
       const r = await parseBudgetPdf(pdfFile)
       setTransactions(r.transactions || [])
       setQuality(r.quality || null)
-      setStatementReceiptId(r.quality?.status === 'reconciled' ? r.receipt_id || null : null)
+      const receipt = r.quality?.status === 'reconciled' ? r.receipt_id || null : null
+      setStatementReceiptId(receipt)
+      setReuploadRequired(r.quality?.status === 'reconciled' && !receipt)
     } catch (err) {
       setError(err.message || 'PDF parse failed. Use a text-based PDF or paste the statement.')
     } finally { setParsing(false) }
@@ -361,19 +329,19 @@ function UploadStage({ onDone, onCancel }) {
       setStatementReceiptId(null)
       onDone(receiptConsumed)
     } catch (err) {
-      const message = err.message || 'Save failed — link down. Try again.'
-      setError(statementReceiptId && /transactions do not match statement receipt/i.test(message)
-        ? 'Transactions changed outside review fields. Re-upload and parse the PDF again before saving.'
-        : message)
+      const outcome = receiptSaveOutcome(statementReceiptId, err.message)
+      setStatementReceiptId(outcome.statementReceiptId)
+      setReuploadRequired(outcome.reuploadRequired)
+      setError(outcome.message)
       setSaving(false)
     }
   }
 
   const inputTab = (id, label) => (
-    <button key={id} onClick={() => { setInput(id); setError(''); setQuality(null); setStatementReceiptId(null) }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
+    <button key={id} onClick={() => { setInput(id); setError(''); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
   )
   const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
-  const reconciledReceipt = quality?.status === 'reconciled' && Boolean(statementReceiptId)
+  const reconciledReceipt = quality?.status === 'reconciled' && Boolean(statementReceiptId) && !reuploadRequired
   const saveBlocked = !!quality && !reconciledReceipt
 
   return (
@@ -394,7 +362,7 @@ function UploadStage({ onDone, onCancel }) {
             <>
               <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>UPLOAD A TEXT-BASED BANK PDF</div>
               <label htmlFor="holo-budget-pdf" style={{ display: 'block', padding: '26px 14px', textAlign: 'center', cursor: 'pointer', border: `1px ${pdfFile ? 'solid' : 'dashed'} ${a(ACC, pdfFile ? '60' : '30')}`, background: deep(pdfFile ? 66 : 55) }}>
-                <input id="holo-budget-pdf" type="file" accept="application/pdf,.pdf" onChange={e => { setPdfFile(e.target.files?.[0] || null); setError(''); setStatementReceiptId(null) }} style={{ display: 'none' }} />
+                <input id="holo-budget-pdf" type="file" accept="application/pdf,.pdf" onChange={e => { setPdfFile(e.target.files?.[0] || null); setError(''); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ display: 'none' }} />
                 <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, letterSpacing: '.14em', color: pdfFile ? W : a(ACC, '99'), marginBottom: 6 }}>{pdfFile ? pdfFile.name : 'TAP TO SELECT PDF'}</div>
                 <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.06em', color: a(ACC, '77'), lineHeight: 1.6 }}>Text-based PDFs only · max 8 MB · parsed, not stored</div>
               </label>
@@ -424,7 +392,7 @@ function UploadStage({ onDone, onCancel }) {
                   OPEN €{Number(quality.opening_balance_eur || 0).toFixed(2)} · CLOSE €{Number(quality.closing_balance_eur || 0).toFixed(2)} · DIFFERENCE €{Number(quality.balance_difference_eur || 0).toFixed(2)}
                 </div>
               )}
-              {quality.status === 'reconciled' && !statementReceiptId && <div style={financeBody({ marginTop: 7, color: R })}>Server receipt unavailable. Re-upload and parse the PDF again before saving.</div>}
+              {quality.status === 'reconciled' && !reconciledReceipt && <div style={financeBody({ marginTop: 7, color: R })}>Re-upload and parse the PDF again before saving.</div>}
               {saveBlocked && (quality.warnings || []).map((warning, index) => (
                 <div key={index} style={{ fontFamily: FB, fontSize: 12, lineHeight: 1.5, color: mix(BODY, 85), marginTop: 6 }}>{warning}</div>
               ))}
@@ -451,7 +419,7 @@ function UploadStage({ onDone, onCancel }) {
           </div>
           {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginBottom: 10 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => { setTransactions(null); setQuality(null); setStatementReceiptId(null) }} style={{ flex: 1, minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>← RE-PARSE</button>
+            <button onClick={() => { setTransactions(null); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: 1, minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>← RE-PARSE</button>
             <button onClick={save} disabled={saving || saveBlocked} style={{ flex: 2, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', color: saveBlocked ? a(ACC, '66') : INK, background: saveBlocked ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${saveBlocked ? a(ACC, '30') : ACC}`, cursor: saving ? 'wait' : saveBlocked ? 'not-allowed' : 'pointer', boxShadow: saveBlocked ? 'none' : `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : saveBlocked ? 'SAVE BLOCKED' : `SAVE ALL · ${transactions.length}`}</button>
           </div>
         </>
@@ -495,6 +463,7 @@ function ChipRow({ items }) {
 function MemoryStage({ onDone, onCancel }) {
   const [profile, setProfile] = useState(null)
   const [draft, setDraft] = useState('')
+  const [authorityDraft, setAuthorityDraft] = useState({})
   const [recurringDraft, setRecurringDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -503,7 +472,17 @@ function MemoryStage({ onDone, onCancel }) {
   useEffect(() => {
     let alive = true
     getBudgetMemory()
-      .then(p => { if (alive) { const loaded = p.profile || {}; setProfile(loaded); setDraft(prettyJson(loaded)); setRecurringDraft(prettyJson(loaded.recurring_obligations || [])) } })
+      .then(p => {
+        if (!alive) return
+        const loaded = p.profile || {}
+        setProfile(loaded)
+        setDraft(prettyJson(loaded))
+        setAuthorityDraft(Object.fromEntries(AUTHORITY_NUMERIC_FIELDS.map(([key]) => [
+          key,
+          loaded[key] == null ? '' : key === 'salary_day_cutoff' ? String(loaded[key]) : typeof loaded[key] === 'number' && Number.isFinite(loaded[key]) ? loaded[key].toFixed(2) : String(loaded[key]),
+        ])))
+        setRecurringDraft(prettyJson(loaded.recurring_obligations || []))
+      })
       .catch(err => { if (alive) setError(err.message || 'Could not load budget memory') })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
@@ -517,15 +496,22 @@ function MemoryStage({ onDone, onCancel }) {
     setError('')
   }
   const updateList = (key, value) => update({ [key]: parseList(value) })
-  const updateAuthorityNumber = (key, rawValue) => update({ [key]: rawValue === '' ? '' : Number(rawValue) })
+  const updateAuthorityRaw = (key, value) => {
+    setAuthorityDraft(previous => ({ ...previous, [key]: value }))
+    setError('')
+  }
 
   const save = async () => {
     if (saving) return
     let payload
     try { payload = JSON.parse(draft || '{}') } catch { setError('Memory JSON is not valid.'); return }
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) { setError('Memory JSON is not valid.'); return }
-    const authorityError = validateAuthorityPolicy(payload)
-    if (authorityError) { setError(authorityError); return }
+    const validated = validateAuthorityPolicyDraft(payload, authorityDraft, recurringDraft)
+    if (!validated.ok) { setError(validated.error); return }
+    payload = validated.profile
+    setProfile(payload)
+    setDraft(prettyJson(payload))
+    setRecurringDraft(prettyJson(payload.recurring_obligations))
     setSaving(true); setError('')
     try {
       await saveBudgetMemory(payload)
@@ -570,9 +556,9 @@ function MemoryStage({ onDone, onCancel }) {
 
           <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CASH AUTHORITY POLICY</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(144px, 1fr))', gap: 10 }}>
-            {AUTHORITY_NUMERIC_FIELDS.map(([key, label, min, max]) => (
+            {AUTHORITY_NUMERIC_FIELDS.map(([key, label]) => (
               <MemField key={key} label={label}>
-                <input className="phx-input" type="number" min={min} max={max ?? undefined} step={key === 'salary_day_cutoff' ? '1' : '0.01'} style={inputStyle} value={profile[key] ?? ''} onChange={e => updateAuthorityNumber(key, e.target.value)} />
+                <input className="phx-input" inputMode="decimal" style={inputStyle} value={authorityDraft[key] ?? ''} onChange={e => updateAuthorityRaw(key, e.target.value)} />
               </MemField>
             ))}
           </div>
@@ -580,13 +566,7 @@ function MemoryStage({ onDone, onCancel }) {
           <MemField label="RECURRING OBLIGATIONS JSON">
             <textarea className="phx-input" value={recurringDraft} spellCheck={false} onChange={e => {
               setRecurringDraft(e.target.value)
-              try {
-                const obligations = JSON.parse(e.target.value)
-                if (!validRecurringObligations(obligations)) throw new Error('invalid obligations')
-                update({ recurring_obligations: obligations })
-              } catch {
-                setError('RECURRING OBLIGATIONS require amount_eur and contains values.')
-              }
+              setError('')
             }} style={{ ...inputStyle, minHeight: 94, resize: 'vertical', fontFamily: FM, fontSize: 10, lineHeight: 1.5 }} />
           </MemField>
 

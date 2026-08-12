@@ -418,8 +418,8 @@ export async function saveBudgetTransactions(transactions, statementReceiptId = 
   })
 }
 
-export async function getBudgetInvestmentCapacity(month) {
-  return apiFetch(`/budget/investment-capacity?month=${encodeURIComponent(month)}`)
+export async function getBudgetInvestmentCapacity(month, options = {}) {
+  return apiFetch(`/budget/investment-capacity?month=${encodeURIComponent(month)}`, options)
 }
 
 export async function getBudgetSummary(month) {

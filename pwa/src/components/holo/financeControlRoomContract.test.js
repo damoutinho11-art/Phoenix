@@ -270,7 +270,7 @@ test('budget authority uses a one-time server receipt and refreshes verified cap
   assert.match(saveSource, /saveBudgetTransactions\(transactions, statementReceiptId = null\)/)
   assert.match(saveSource, /statement_receipt_id:\s*statementReceiptId/)
   assert.doesNotMatch(saveSource, /filename|parser|quality/)
-  assert.match(client, /export async function getBudgetInvestmentCapacity\(month\)/)
+  assert.match(client, /export async function getBudgetInvestmentCapacity\(month, options = \{\}\)/)
   assert.match(client, /\/budget\/investment-capacity\?month=/)
 
   assert.match(budget, /getBudgetInvestmentCapacity/)
@@ -351,7 +351,12 @@ test('budget lane can edit and save budget memory (savings target + category lan
 
 test('budget memory exposes validated authority policy inputs without blank coercion', async () => {
   const budget = await src('./subs/BudgetContent.jsx')
+  const model = await import('./subs/budgetAuthorityModel.js')
 
+  assert.match(budget, /authorityDraft/)
+  assert.match(budget, /validateAuthorityPolicyDraft/)
+  assert.match(budget, /recurringDraft/)
+  assert.doesNotMatch(budget, /updateAuthorityNumber/)
   for (const field of [
     'emergency_fund_floor_eur',
     'emergency_fund_balance_eur',
@@ -359,14 +364,9 @@ test('budget memory exposes validated authority policy inputs without blank coer
     'food_budget_eur',
     'essential_spending_ceiling_eur',
     'salary_day_cutoff',
-    'recurring_obligations',
   ]) {
-    assert.match(budget, new RegExp(field))
+    assert.equal(model.AUTHORITY_NUMERIC_FIELDS.some(([key]) => key === field), true)
   }
-  assert.match(budget, /validateAuthorityPolicy/)
-  assert.match(budget, /validRecurringObligations/)
-  assert.match(budget, /recurringDraft/)
-  assert.doesNotMatch(budget, /salary_day_cutoff:\s*Number\(e\.target\.value \|\| 25\)/)
 })
 
 test('finance control room reuses existing finance instrument designs', async () => {
