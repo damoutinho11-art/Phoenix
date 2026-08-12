@@ -106,6 +106,29 @@ def test_ready_authority_uses_calculator_cent_rounding_for_three_windows() -> No
     )
 
 
+@pytest.mark.parametrize(
+    ("opening_balance_eur", "data_ready"),
+    [(None, True), (1000.0, True), (1000.001, False)],
+)
+def test_finance_sanitizer_agrees_with_optional_opening_balance_contract(
+    opening_balance_eur: float | None, data_ready: bool
+) -> None:
+    authority = {
+        **_READY_AUTHORITY,
+        "source": {**_READY_AUTHORITY["source"], "opening_balance_eur": opening_balance_eur},
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ):
+        result = finance._cashflow_authority_for_today(date(2026, 8, 12))
+
+    assert result["data_ready"] is data_ready
+    if data_ready:
+        assert result["source"]["opening_balance_eur"] == opening_balance_eur
+    else:
+        assert result["weekly_budget_eur"] == 0.0
+
+
 def test_finance_agrees_with_producer_subcent_policy_block() -> None:
     authority = {
         "data_ready": False,
@@ -412,6 +435,8 @@ def test_chat_finance_context_explains_blocked_authority() -> None:
 
 def test_chat_finance_context_preserves_authority_shape_when_state_is_unavailable() -> None:
     with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=_READY_AUTHORITY
+    ), patch(
         "jarvis.api.routers.chat.finance_engine.load_json",
         side_effect=FileNotFoundError,
     ):
@@ -421,7 +446,8 @@ def test_chat_finance_context_preserves_authority_shape_when_state_is_unavailabl
 
     assert "unavailable" in context.lower()
     assert requires_approval is True
-    assert authority is None
+    assert authority["data_ready"] is False
+    assert authority["weekly_budget_eur"] == 0.0
     assert as_of == clock.today()
 
 
@@ -652,6 +678,10 @@ def test_home_investment_intent_uses_blocked_finance_authority() -> None:
         "Schedule a stock purchase this week.",
         "Move 100 euros into BTC.",
         "Please review my ETF allocation in a table.",
+        "I moved 100 euros into BTC.",
+        "Should I rebalance my ETH allocation?",
+        "I allocated cash to an ETF.",
+        "I invested in bitcoin this week.",
     ],
 )
 def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
@@ -685,6 +715,7 @@ def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
         "Review my portfolio website",
         "Should I buy stock photography for the site?",
         "Find stock media for my design site",
+        "Should I buy stock for my furniture shop?",
     ],
 )
 def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str) -> None:
@@ -700,6 +731,56 @@ def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str
     generate.assert_called_once()
     assert data["response"] == "Normal response"
     assert "cashflow_authority" not in data
+
+
+def test_home_security_stock_in_furniture_company_stays_finance() -> None:
+    authority = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+    }
+    with patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ), patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        data = client.post(
+            "/jarvis/chat",
+            json={"domain": "home", "message": "Should I buy shares in a furniture company?"},
+        ).json()
+
+    generate.assert_not_called()
+    assert data["cashflow_authority"] == authority
+
+
+@pytest.mark.parametrize(
+    ("lifecycle", "expected_closed"),
+    [
+        ({"week_closed": True, "applied_transactions": [{"asset": "btc"}], "latest_brief": None}, True),
+        ({"week_closed": False, "applied_transactions": [], "latest_brief": None}, False),
+    ],
+)
+def test_finance_context_preserves_lifecycle_when_state_is_unavailable(
+    lifecycle: dict, expected_closed: bool
+) -> None:
+    decision_today = date(2026, 8, 12)
+    with patch("jarvis.api.routers.chat.current_week_lifecycle", return_value=lifecycle), patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=_READY_AUTHORITY
+    ), patch(
+        "jarvis.api.routers.chat.finance_engine.load_json", side_effect=FileNotFoundError
+    ):
+        context, requires_approval, authority, as_of = chat._build_finance_context(
+            include_authority=True, decision_today=decision_today
+        )
+
+    assert as_of == decision_today
+    assert authority is not None
+    assert authority["data_ready"] is False
+    assert authority["weekly_budget_eur"] == 0.0
+    if expected_closed:
+        assert "closed" in context.lower()
+        assert requires_approval is False
+    else:
+        assert "unavailable" in context.lower()
+        assert requires_approval is True
 
 
 def test_finance_chat_captures_one_decision_date_for_context_and_response() -> None:

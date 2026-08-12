@@ -1420,6 +1420,47 @@ def test_investment_capacity_rejects_subcent_policy_evidence(monkeypatch) -> Non
     assert "checking_buffer_eur" in data["blockers"][0]
 
 
+@pytest.mark.parametrize(
+    ("opening_balance_eur", "data_ready"),
+    [(None, True), (1000.0, True), (1000.001, False)],
+)
+def test_investment_capacity_opening_balance_contract(
+    monkeypatch, opening_balance_eur: float | None, data_ready: bool
+) -> None:
+    snapshot = {
+        "opening_balance_eur": opening_balance_eur,
+        "closing_balance_eur": 760,
+        "statement_end_date": "2026-08-11",
+        "quality_status": "reconciled",
+        "parser": "lhv_pdf",
+        "receipt_verified": 1,
+        "balance_difference_eur": 0.0,
+        "filename_hash": "0" * 64,
+    }
+    summary = {
+        "income_total": 3006.84,
+        "expenses_total": 622.32,
+        "invested_total": 0,
+        "emergency_fund_total": 1392,
+        "by_category": {},
+    }
+    policy = {**_COMPLETE_AUTHORITY_POLICY, "version": 2}
+    monkeypatch.setattr(budget_router, "_cashflow_authority_policy", lambda: policy)
+    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
+    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        data = client.get("/budget/investment-capacity?month=2026-08").json()
+
+    assert data["data_ready"] is data_ready
+    if data_ready:
+        assert data["source"]["opening_balance_eur"] == opening_balance_eur
+    else:
+        assert data["weekly_budget_eur"] == 0.0
+        assert "opening_balance_eur" in data["blockers"][0]
+
+
 def test_investment_capacity_hash_covers_full_decision_inputs(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
     database.init_db()

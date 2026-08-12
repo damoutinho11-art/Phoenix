@@ -15,6 +15,7 @@ from jarvis.api.finance_authority import (
     build_cashflow_authority,
 )
 from jarvis.api.finance_lifecycle import current_week_lifecycle
+from jarvis.domains.finance.cashflow_authority import blocked_cashflow_authority
 from jarvis.domains.news import engine as news_engine
 from jarvis.domains.calendar import engine as calendar_engine
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
@@ -69,15 +70,31 @@ class ChatRequest(BaseModel):
 def _build_finance_context(
     *, include_authority: bool = False, decision_today: date | None = None
 ) -> tuple:
-    """Returns (context_text, requires_approval)."""
+    """Build a Finance context from one lifecycle and decision-date snapshot."""
     today = decision_today or clock.today()
+    lifecycle = current_week_lifecycle(today)
+    authority = build_cashflow_authority(
+        today, week_closed=lifecycle["week_closed"]
+    )
+    if lifecycle["week_closed"]:
+        result = "FINANCE: Current investment week is closed. No new allocation is available."
+        return (result, False, authority, today) if include_authority else (result, False)
+    if authority.get("data_ready") is not True:
+        result = (
+            "FINANCE: Cash-flow authority is blocked. No allocation is available. "
+            f"Blockers: {'; '.join(authority.get('blockers') or [])}"
+        )
+        return (result, True, authority, today) if include_authority else (result, True)
     try:
         constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
         finance_engine.validate_constitution(constitution)
         portfolio_state = database.load_portfolio_state()
     except (FileNotFoundError, ValueError):
         result = "FINANCE: Constitution or portfolio state unavailable."
-        return (result, True, None, today) if include_authority else (result, True)
+        authority = blocked_cashflow_authority(
+            "Finance constitution or portfolio state is unavailable."
+        )
+        return (result, True, authority, today) if include_authority else (result, True)
 
     try:
         from jarvis.domains.finance.market_data import detect_market_regime
@@ -87,20 +104,6 @@ def _build_finance_context(
             profile = finance_engine.load_json(finance_engine.DEFAULT_PROFILE_PATH)
         except FileNotFoundError:
             profile = None
-
-        lifecycle = current_week_lifecycle(today)
-        authority = build_cashflow_authority(
-            today, week_closed=lifecycle["week_closed"]
-        )
-        if lifecycle["week_closed"]:
-            result = "FINANCE: Current investment week is closed. No new allocation is available."
-            return (result, False, authority, today) if include_authority else (result, False)
-        if authority.get("data_ready") is not True:
-            result = (
-                "FINANCE: Cash-flow authority is blocked. No allocation is available. "
-                f"Blockers: {'; '.join(authority.get('blockers') or [])}"
-            )
-            return (result, True, authority, today) if include_authority else (result, True)
 
         portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
         regime = detect_market_regime(portfolio_state)
@@ -150,7 +153,8 @@ def _build_finance_context(
         return (context, True, authority, today) if include_authority else (context, True)
     except Exception:
         result = "FINANCE: Engine error loading context."
-        return (result, True, None, today) if include_authority else (result, True)
+        authority = blocked_cashflow_authority("Finance context is unavailable.")
+        return (result, True, authority, today) if include_authority else (result, True)
 
 
 def _finance_allocation_intent(domain: str, message: str) -> bool:
@@ -158,16 +162,23 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
         return True
     if domain != "home":
         return False
-    if re.search(
-        r"\bstock\s+(?:photos?|photography|images?|footage|media)\b",
+    stock_inventory_or_media = re.search(
+        r"\bstock\s+(?:photos?|photography|images?|footage|media)\b|"
+        r"\bstock\b.*\b(?:inventory|furniture\s+shop|shop|store|design|site)\b",
         message,
         re.IGNORECASE,
-    ):
+    )
+    stock_security_company = re.search(
+        r"\b(?:stock|shares?)\s+(?:in|of)\s+(?:a\s+)?(?:[\w-]+\s+)*company\b",
+        message,
+        re.IGNORECASE,
+    )
+    if stock_inventory_or_media and not stock_security_company:
         return False
     financial_action = re.search(
-        r"\b(?:invest(?:ing|ment)?|allocat(?:e|ing|ion)|deploy(?:ing)?(?:\s+capital)?|"
-        r"plan(?:ning)?|schedule(?:d|ing)?|move|purchas(?:e|ing)|buys?|buying|"
-        r"sell(?:ing)?|hold(?:ing)?|put|add|rebalance(?:ing)?|review(?:ing)?)\b",
+        r"\b(?:invest(?:ed|ing|ment)?|allocat(?:e|ed|ing|ion)|deploy(?:ed|ing)?(?:\s+capital)?|"
+        r"plan(?:ning)?|schedule(?:d|ing)?|mov(?:e|ed|ing)|purchas(?:e|ed|ing)|buys?|buying|"
+        r"sell(?:ing)?|hold(?:ing)?|put|add|rebalanc(?:e|ed|ing)|review(?:ed|ing)?)\b",
         message,
         re.IGNORECASE,
     )
@@ -184,7 +195,7 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
         re.IGNORECASE,
     )
     generic_invest = re.search(
-        r"\b(?:invest(?:ing|ment)?|allocat(?:e|ing|ion)|deploy(?:ing)?\s+capital)\b",
+        r"\b(?:invest(?:ed|ing|ment)?|allocat(?:e|ed|ing|ion)|deploy(?:ed|ing)?\s+capital)\b",
         message,
         re.IGNORECASE,
     )

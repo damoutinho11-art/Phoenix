@@ -391,3 +391,25 @@ def test_subcent_authority_inputs_fail_closed_before_calculation(
     assert result["data_ready"] is False
     assert result["weekly_budget_eur"] == 0.0
     assert field in result["blockers"][0]
+
+
+@pytest.mark.parametrize(
+    ("opening_balance_eur", "data_ready"),
+    [(None, True), (1000.00, True), (1000.001, False)],
+)
+def test_opening_balance_is_optional_but_must_be_exact_cent_when_present(
+    opening_balance_eur: float | None, data_ready: bool
+) -> None:
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot={**VALID_SNAPSHOT, "opening_balance_eur": opening_balance_eur},
+        month_summary=VALID_MONTH_SUMMARY,
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["data_ready"] is data_ready
+    if not data_ready:
+        assert result["weekly_budget_eur"] == 0.0
+        assert "opening_balance_eur" in result["blockers"][0]

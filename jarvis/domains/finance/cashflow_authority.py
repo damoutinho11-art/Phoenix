@@ -31,6 +31,7 @@ _READY_MONETARY_FIELDS = (
     "sustainable_capacity_eur",
     "deployable_capacity_eur",
 )
+_OPTIONAL_MONETARY_PROVENANCE_FIELDS = {"opening_balance_eur"}
 
 
 def _json_number(value: object, *, nonnegative: bool) -> bool:
@@ -66,11 +67,14 @@ def _nested_monetary_values_are_exact(value: object) -> bool:
         for key, nested_value in value.items():
             if not isinstance(key, str):
                 return False
-            if key.endswith("_eur") and (
-                not _json_number(nested_value, nonnegative=False)
-                or not _is_exact_cent(nested_value)
-            ):
-                return False
+            if key.endswith("_eur"):
+                if nested_value is None and key in _OPTIONAL_MONETARY_PROVENANCE_FIELDS:
+                    continue
+                if (
+                    not _json_number(nested_value, nonnegative=False)
+                    or not _is_exact_cent(nested_value)
+                ):
+                    return False
             if isinstance(nested_value, (dict, list)) and not _nested_monetary_values_are_exact(
                 nested_value
             ):
@@ -85,7 +89,11 @@ def _normalize_nested_monetary_values(value: object) -> object:
         return {
             key: (
                 _euros(_cents(nested_value))
-                if isinstance(key, str) and key.endswith("_eur")
+                if (
+                    isinstance(key, str)
+                    and key.endswith("_eur")
+                    and nested_value is not None
+                )
                 else _normalize_nested_monetary_values(nested_value)
             )
             for key, nested_value in value.items()
@@ -283,6 +291,11 @@ def cashflow_authority_structural_blockers(
         snapshot["closing_balance_eur"], nonnegative=False
     ):
         blockers.append("Checking-account snapshot has invalid closing_balance_eur.")
+    opening_balance = snapshot.get("opening_balance_eur")
+    if opening_balance is not None and not _valid_exact_cent_json_number(
+        opening_balance, nonnegative=False
+    ):
+        blockers.append("Checking-account snapshot has invalid opening_balance_eur.")
     if unpaid_bills_eur is None:
         blockers.append("Cash-flow input is missing unpaid_bills_eur.")
     elif not _valid_exact_cent_json_number(unpaid_bills_eur, nonnegative=True):
