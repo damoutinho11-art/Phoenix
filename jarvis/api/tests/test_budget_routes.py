@@ -1345,6 +1345,48 @@ def test_investment_capacity_uses_approved_policy_and_receipt_backed_snapshot(
     json.dumps(data)
 
 
+def test_investment_capacity_blocks_positive_cash_that_rounds_below_one_cent(
+    monkeypatch,
+) -> None:
+    snapshot = {
+        "closing_balance_eur": 0.01,
+        "statement_end_date": "2026-08-11",
+        "quality_status": "reconciled",
+        "parser": "lhv_pdf",
+        "receipt_verified": 1,
+        "balance_difference_eur": 0.0,
+        "filename_hash": "0" * 64,
+    }
+    summary = {
+        "income_total": 0.01,
+        "expenses_total": 0,
+        "invested_total": 0,
+        "emergency_fund_total": 0,
+        "by_category": {},
+    }
+    policy = {
+        **_COMPLETE_AUTHORITY_POLICY,
+        "version": 2,
+        "checking_buffer_eur": 0,
+        "food_budget_eur": 0,
+        "essential_spending_ceiling_eur": 0,
+    }
+    monkeypatch.setattr(budget_router, "_cashflow_authority_policy", lambda: policy)
+    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
+    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
+    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        response = client.get("/budget/investment-capacity?month=2026-08")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["deployable_capacity_eur"] == 0.01
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert "weekly" in data["blockers"][0].lower()
+
+
 def test_investment_capacity_hash_covers_full_decision_inputs(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
     database.init_db()

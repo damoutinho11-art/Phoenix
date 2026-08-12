@@ -289,7 +289,12 @@ def test_closed_generate_evidence_builds_closed_authority_without_allocation(
         clock.today().strftime("%Y-%m"), week_closed=True, today=clock.today()
     )
     allocate.assert_not_called()
-    assert data["cashflow_authority"] == _READY_AUTHORITY
+    assert data["data_ready"] is False
+    assert data["week_closed"] is True
+    assert data["week_budget"] == 0.0
+    assert data["recommendations"] == []
+    assert data["cashflow_authority"]["data_ready"] is False
+    assert data["cashflow_authority"]["weekly_budget_eur"] == 0.0
 
 
 # ---------------------------------------------------------------------------

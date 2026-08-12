@@ -66,6 +66,11 @@ client = TestClient(app)
         {**_READY_AUTHORITY, "deployable_capacity_eur": 259.99},
         {**_READY_AUTHORITY, "remaining_weekly_windows": True},
         {**_READY_AUTHORITY, "remaining_weekly_windows": 0},
+        {**_READY_AUTHORITY, "weekly_budget_eur": 86.674},
+        {**_READY_AUTHORITY, "cash_capacity_eur": 260.004},
+        {**_READY_AUTHORITY, "sustainable_capacity_eur": 260.004},
+        {**_READY_AUTHORITY, "deployable_capacity_eur": 260.004},
+        {**_READY_AUTHORITY, "protected_cash": {"food_eur": 0.004}},
     ],
 )
 def test_malformed_authority_is_sanitized_to_a_safe_block(authority: dict) -> None:
@@ -89,6 +94,16 @@ def test_ready_authority_uses_calculator_cent_rounding_for_three_windows() -> No
         result = finance._cashflow_authority_for_today(date(2026, 8, 12))
 
     assert result == _READY_AUTHORITY
+    assert result is not _READY_AUTHORITY
+    assert all(
+        isinstance(result[field], float)
+        for field in (
+            "weekly_budget_eur",
+            "cash_capacity_eur",
+            "sustainable_capacity_eur",
+            "deployable_capacity_eur",
+        )
+    )
 
 
 @pytest.mark.parametrize(
@@ -199,14 +214,45 @@ def test_executed_week_remains_closed_before_a_blocked_current_authority() -> No
     assert recommendation["week_closed"] is True
     assert recommendation["week_budget"] == 0.0
     assert recommendation["recommendations"] == []
-    assert recommendation["cashflow_authority"] == authority
+    assert recommendation["cashflow_authority"]["data_ready"] is False
+    assert recommendation["cashflow_authority"]["weekly_budget_eur"] == 0.0
+    assert authority["blockers"][0] in recommendation["cashflow_authority"]["blockers"]
     assert finance._build_manual_buy_checklist(recommendation)["checklist_status"] == "WEEK_CLOSED"
     coverage = finance._build_data_coverage_from_recommendation(
         recommendation, {"sleeves": {}}
     )
     assert coverage["verdict"] == "WEEK_CLOSED"
     assert coverage["status"] == "WEEK_CLOSED"
-    assert coverage["blockers"] == authority["blockers"]
+    assert authority["blockers"][0] in coverage["blockers"]
+    assert "Current investment week is closed." in coverage["blockers"]
+
+
+def test_closed_recommendation_uses_one_captured_sunday_decision_date() -> None:
+    sunday = date(2026, 8, 16)
+    authority = {
+        "data_ready": False,
+        "blockers": ["Checking-account statement is stale."],
+        "weekly_budget_eur": 0.0,
+    }
+    constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+    profile = engine.load_json(engine.DEFAULT_PROFILE_PATH)
+    portfolio_state = engine.load_json(engine.DEFAULT_PORTFOLIO_STATE_PATH)
+
+    with patch("jarvis.api.routers.finance.clock.today", side_effect=[sunday, date(2026, 8, 17)]) as today, patch(
+        "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+    ), patch(
+        "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
+        return_value=[{"asset": "btc", "amount_eur": 20.0}],
+    ), patch(
+        "jarvis.api.routers.finance.database.get_latest_brief_for_week", return_value=None
+    ):
+        recommendation = finance._build_finance_recommendation(
+            constitution, portfolio_state, profile, persist_brief=False
+        )
+
+    assert today.call_count == 1
+    assert recommendation["week_label"] == "W33 2026"
+    assert recommendation["next_window"] == "W34 2026"
 
 
 @pytest.mark.parametrize(
@@ -429,7 +475,8 @@ def test_closed_chat_builds_closed_authority_once_without_an_open_budget(
         clock.today().strftime("%Y-%m"), week_closed=True, today=clock.today()
     )
     assert "€" not in data["response"]
-    assert data["cashflow_authority"] == _READY_AUTHORITY
+    assert data["cashflow_authority"]["data_ready"] is False
+    assert data["cashflow_authority"]["weekly_budget_eur"] == 0.0
 
 
 def test_open_chat_builds_open_authority_once() -> None:
@@ -484,7 +531,12 @@ def test_closed_research_autopilot_skips_new_allocation(
     )
     allocate.assert_not_called()
     assert data["legs"] == []
-    assert data["cashflow_authority"] == _READY_AUTHORITY
+    assert data["week_closed"] is True
+    assert data["data_ready"] is False
+    assert data["week_budget"] == 0.0
+    assert data["recommendations"] == []
+    assert data["cashflow_authority"]["data_ready"] is False
+    assert data["cashflow_authority"]["weekly_budget_eur"] == 0.0
 
 
 def _configured_ai_status() -> MagicMock:
@@ -562,6 +614,11 @@ def test_home_investment_intent_uses_blocked_finance_authority() -> None:
         "Should I add crypto to my portfolio?",
         "Should I sell ETH?",
         "What should I do with my stocks?",
+        "I am selling BTC. Any advice?",
+        "Should I hold crypto?",
+        "Review my ETF allocation.",
+        "Can you advise on rebalancing shares?",
+        "What should I do with ETH?",
     ],
 )
 def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
@@ -589,6 +646,10 @@ def test_home_financial_action_intent_is_authority_gated(message: str) -> None:
         "What should I buy for dinner?",
         "Build a shopping list",
         "Which furniture should I buy?",
+        "Find stock photos for my website",
+        "Show me stock images from the concert",
+        "Do you have stock footage for this trailer?",
+        "Review my portfolio website",
     ],
 )
 def test_home_nonfinancial_portfolio_words_do_not_trigger_authority(message: str) -> None:

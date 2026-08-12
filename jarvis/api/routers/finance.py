@@ -41,8 +41,8 @@ def _iso_week_label(today: date | None = None) -> str:
     return f"W{iso[1]} {iso[0]}"
 
 
-def _next_iso_week_label() -> str:
-    next_iso = (clock.today() + timedelta(days=7)).isocalendar()
+def _next_iso_week_label(today: date) -> str:
+    next_iso = (today + timedelta(days=7)).isocalendar()
     return f"W{next_iso[1]} {next_iso[0]}"
 
 _CRYPTO_ASSETS = {"btc", "hype", "tao"}
@@ -120,10 +120,11 @@ def _closed_finance_recommendation(
     week_label: str,
     authority: dict,
     latest_brief: dict | None,
+    today: date,
     applied_transactions: list[dict] | None = None,
 ) -> dict:
     """Project an already-applied or approved week without reopening allocation."""
-    next_week = _next_iso_week_label()
+    next_week = _next_iso_week_label(today)
     applied_transactions = applied_transactions or []
     week_done = bool(applied_transactions)
     warnings = list(authority.get("blockers") or []) if not authority.get("data_ready") else []
@@ -540,6 +541,7 @@ def _build_finance_recommendation(
             week_label=week_label,
             authority=authority,
             latest_brief=latest_brief,
+            today=today,
             applied_transactions=applied_this_week,
         )
     if lifecycle["week_closed"]:
@@ -547,6 +549,7 @@ def _build_finance_recommendation(
             week_label=week_label,
             authority=authority,
             latest_brief=latest_brief,
+            today=today,
         )
     if not authority.get("data_ready"):
         paused_state = authoritative_portfolio_state(portfolio_state, authority)
@@ -1946,6 +1949,7 @@ def _generate_evidence_records(
     profile: dict,
     cashflow_authority: dict | None = None,
     lifecycle: dict | None = None,
+    decision_today: date | None = None,
 ) -> tuple[list[dict], int, int]:  # (created, skipped, updated)
     """Build validation records from local PHOENIX data only.
 
@@ -1953,7 +1957,7 @@ def _generate_evidence_records(
     portfolio_allocation_context). No external APIs, no broker execution, no portfolio mutation.
     Returns (created_records, skipped_count).
     """
-    today = clock.today()
+    today = decision_today or clock.today()
     lifecycle = lifecycle or current_week_lifecycle(today)
     authority = (
         validate_cashflow_authority(cashflow_authority, today=today)
@@ -2513,6 +2517,7 @@ def _run_memo_autopilot(
     profile: dict,
     cashflow_authority: dict | None = None,
     lifecycle: dict | None = None,
+    decision_today: date | None = None,
 ) -> dict:
     """Run the full autonomous research pipeline for one memo.
 
@@ -2529,7 +2534,7 @@ def _run_memo_autopilot(
     if memo is None:
         raise ValueError(f"Memo {memo_id} not found")
 
-    today = clock.today()
+    today = decision_today or clock.today()
     lifecycle = lifecycle or current_week_lifecycle(today)
     authority = (
         validate_cashflow_authority(cashflow_authority, today=today)
@@ -2549,6 +2554,7 @@ def _run_memo_autopilot(
         profile=profile,
         cashflow_authority=authority,
         lifecycle=lifecycle,
+        decision_today=today,
     )
     evidence_result = {
         "generated_count": len(created_records) - updated_count,
@@ -2587,7 +2593,10 @@ def _run_memo_autopilot(
         "synthesis_result": synthesis_result,
         "quality_gate_result": quality_gate_result,
         "final_memo": final_memo,
-        "data_ready": authority["data_ready"],
+        "data_ready": authority["data_ready"] and not lifecycle["week_closed"],
+        "week_closed": lifecycle["week_closed"],
+        "week_budget": 0.0 if lifecycle["week_closed"] else authority["weekly_budget_eur"],
+        "recommendations": [],
         "warnings": authority.get("blockers") or [],
         "cashflow_authority": authority,
     }
@@ -2609,7 +2618,20 @@ def finance_research_memo_autopilot(
     if memo is None:
         raise HTTPException(status_code=404, detail=f"Research memo {memo_id} not found")
 
-    result = _run_memo_autopilot(memo_id, constitution, portfolio_state, profile)
+    today = clock.today()
+    lifecycle = current_week_lifecycle(today)
+    authority = _cashflow_authority_for_today(
+        today, week_closed=lifecycle["week_closed"]
+    )
+    result = _run_memo_autopilot(
+        memo_id,
+        constitution,
+        portfolio_state,
+        profile,
+        authority,
+        lifecycle,
+        today,
+    )
     return {**result, **_AUTOPILOT_SAFETY_FLAGS}
 
 
@@ -2617,6 +2639,7 @@ def _run_research_autopilot_internal(
     constitution: dict | None = None,
     portfolio_state: dict | None = None,
     profile: dict | None = None,
+    decision_today: date | None = None,
 ) -> dict:
     """Core autopilot logic — callable from both the endpoint and background task."""
     if constitution is None:
@@ -2629,7 +2652,7 @@ def _run_research_autopilot_internal(
         except Exception:
             profile = {}
 
-    today = clock.today()
+    today = decision_today or clock.today()
     lifecycle = current_week_lifecycle(today)
     authority = _cashflow_authority_for_today(
         today, week_closed=lifecycle["week_closed"]
@@ -2685,6 +2708,7 @@ def _run_research_autopilot_internal(
             profile,
             authority,
             lifecycle,
+            today,
         )
         final_memo = autopilot_result["final_memo"] or {}
 
@@ -2706,7 +2730,10 @@ def _run_research_autopilot_internal(
     return {
         "legs": leg_results,
         "total_legs": len(leg_results),
-        "data_ready": authority["data_ready"],
+        "data_ready": authority["data_ready"] and not lifecycle["week_closed"],
+        "week_closed": lifecycle["week_closed"],
+        "week_budget": 0.0 if lifecycle["week_closed"] else authority["weekly_budget_eur"],
+        "recommendations": [],
         "warnings": authority.get("blockers") or [],
         "cashflow_authority": authority,
         **_AUTOPILOT_SAFETY_FLAGS,
@@ -2759,6 +2786,7 @@ def finance_research_generate_evidence(
         profile=profile,
         cashflow_authority=authority,
         lifecycle=lifecycle,
+        decision_today=today,
     )
 
     response: dict = {
@@ -2767,7 +2795,10 @@ def finance_research_generate_evidence(
         "updated_count": updated_count,
         "skipped_count": skipped_count,
         "records": created_records,
-        "data_ready": authority["data_ready"],
+        "data_ready": authority["data_ready"] and not lifecycle["week_closed"],
+        "week_closed": lifecycle["week_closed"],
+        "week_budget": 0.0 if lifecycle["week_closed"] else authority["weekly_budget_eur"],
+        "recommendations": [],
         "warnings": authority.get("blockers") or [],
         "cashflow_authority": authority,
         **_GENERATE_EVIDENCE_SAFETY_FLAGS,

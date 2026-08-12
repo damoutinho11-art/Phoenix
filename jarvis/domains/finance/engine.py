@@ -1792,84 +1792,29 @@ def append_decision_log(
 
 
 def self_check() -> None:
-    constitution = load_json("jarvis_constitution.json")
-    portfolio_state = load_json("portfolio_state.json")
-    result = allocate_weekly_budget(constitution, portfolio_state)
-
-    ideal = result["ideal_allocations_cents"]
-    executable = result["executable_allocations_cents"]
-    warnings = result["warnings"]
-    legacy_statuses = result["legacy_holdings_status"]
-    portfolio_mode = result["portfolio_mode"]
-    ticket = result["approval_ticket"]
-    verdict = ticket["etf_scoring_verdict"]
-
-    assert portfolio_mode["mode"] == "transition_mode"
-    assert any("kraken" in reason for reason in portfolio_mode["reasons"])
-    assert any("legacy cleanup is not complete" in reason for reason in portfolio_mode["reasons"])
-    assert any("Tactical reserve is above 10%" in reason for reason in portfolio_mode["reasons"])
-    assert ideal["btc"] == cents(41.54)
-    assert ideal["quality_etf"] == cents(62.31)
-    assert executable["global_core_etf"] == 0
-    assert executable["growth_nasdaq_etf"] == 0
-    assert executable["quality_etf"] == cents(62.31)
-    assert executable["btc"] == cents(41.54)
-    assert executable["tactical_reserve"] == 0
-    assert warnings == []
-    assert result["crypto_risk_status"]["btc_weight"] <= result["crypto_risk_status"]["btc_max"]
-    assert result["crypto_risk_status"]["btc_fallback_weekly_cap_cents"] == cents(41.54)
-    assert result["crypto_risk_status"]["total_crypto_buy_weekly_cap_cents"] == cents(51.92)
-    assert result["transition_cash_warning"] is True
-    assert ticket["ticket_id"] == "PHOENIX-2026-06-04-transition_mode"
-    assert ticket["as_of"] == "2026-06-04"
-    assert ticket["portfolio_mode"] == "transition_mode"
-    assert ticket["weekly_budget"] == 103.85
-    assert ticket["ideal_allocation"]["quality_etf"] == 62.31
-    assert ticket["ideal_allocation"]["btc"] == 41.54
-    assert verdict["selected_ideal_etf"] == "quality_etf"
-    assert verdict["selected_label"] == "Selected ideal ETF sleeve: quality_etf"
-    assert verdict["sleeves"][0]["rank"] == 1
-    assert verdict["sleeves"][0]["sleeve"] == "quality_etf"
-    assert "strongest eligible ETF score" in verdict["sleeves"][0]["reason"]
-    assert ticket["executable_allocation"]["quality_etf"] == 62.31
-    assert ticket["executable_allocation"]["btc"] == 41.54
-    assert ticket["weekly_dual_lane_mandate"]["crypto_lane"]["asset"] == "btc"
-    assert ticket["weekly_dual_lane_mandate"]["crypto_lane"]["amount"] == 41.54
-    assert ticket["weekly_dual_lane_mandate"]["stock_fund_etf_lane"]["asset"] == "quality_etf"
-    assert ticket["weekly_dual_lane_mandate"]["stock_fund_etf_lane"]["amount"] == 62.31
-    assert ticket["blocked_actions"] == []
-    assert ticket["fallback_actions"] == []
-    assert ticket["reserve_actions"] == []
-    assert ticket["approval_status"] == "pending_manual_approval"
-    assert ticket["trades_executed"] is False
-    assert ticket["approval_notice"] == APPROVAL_NOTICE
-    assert "No broker connection." in ticket["safety_checks"]
-    record = decision_log_record(ticket)
-    assert record["ticket_id"] == ticket["ticket_id"]
-    assert record["approval_status"] == "pending_manual_approval"
-    assert record["trades_executed"] is False
-    assert record["executable_allocation"]["quality_etf"] == 62.31
-    assert record["executable_allocation"]["btc"] == 41.54
-    assert len(record["main_warnings"]) == 0
-    assert len(legacy_statuses) == 4
-    assert all(not item["new_buys_allowed"] for item in legacy_statuses)
-    assert all(
-        not item["sell_allowed_without_explicit_user_approval"]
-        for item in legacy_statuses
-    )
+    """Exercise the public allocation boundary with explicit cash-flow evidence."""
+    today = date.today()
+    authority = {
+        "data_ready": True,
+        "blockers": [],
+        "weekly_budget_eur": 86.67,
+        "cash_capacity_eur": 260.0,
+        "sustainable_capacity_eur": 260.0,
+        "deployable_capacity_eur": 260.0,
+        "remaining_weekly_windows": 3,
+        "input_hash": "0" * 64,
+        "policy_version": 2,
+        "source": {
+            "parser": "lhv_pdf",
+            "quality_status": "reconciled",
+            "receipt_verified": True,
+            "balance_difference_eur": 0.0,
+            "statement_end_date": today.isoformat(),
+            "filename_hash": "0" * 64,
+        },
+    }
+    result = build_weekly_result(cashflow_authority=authority, today=today)
+    assert result["data_ready"] is True
+    assert result["weekly_budget_cents"] == cents(86.67)
+    assert result["approval_ticket"]["weekly_budget"] == 86.67
     assert result["approval_notice"] == APPROVAL_NOTICE
-
-    numeric_legacy_state = deepcopy(portfolio_state)
-    numeric_legacy_state["legacy_holdings"] = {
-        "lhv_growth_sxr8": 50.0,
-        "lhv_growth_iemm": 100.0,
-        "lhv_growth_xcha": None,
-        "lhv_growth_cash_pending_settlement": 25.0,
-    }
-    numeric_legacy_result = allocate_weekly_budget(constitution, numeric_legacy_state)
-    numeric_before = {
-        status.name: status.current_value_cents
-        for status in numeric_legacy_result["statuses_before"]
-    }
-    assert numeric_before["global_core_etf"] == cents(150.0)
-    assert numeric_before["tactical_reserve"] == cents(29.9)

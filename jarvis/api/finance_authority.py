@@ -6,6 +6,7 @@ from jarvis.api.routers import budget as budget_router
 from jarvis.domains.finance.cashflow_authority import (
     authoritative_portfolio_state,
     blocked_cashflow_authority,
+    closed_cashflow_authority,
     validate_cashflow_authority,
 )
 
@@ -20,4 +21,5 @@ def build_cashflow_authority(today: date, *, week_closed: bool = False) -> dict:
         )
     except Exception:
         return blocked_cashflow_authority("Cash-flow authority is unavailable.")
-    return validate_cashflow_authority(authority, today=today)
+    authority = validate_cashflow_authority(authority, today=today)
+    return closed_cashflow_authority(authority) if week_closed else authority

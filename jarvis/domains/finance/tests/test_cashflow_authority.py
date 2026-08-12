@@ -331,3 +331,31 @@ def test_malformed_recurring_policy_blocks_direct_calculator(
     assert result["data_ready"] is False
     assert result["weekly_budget_eur"] == 0.0
     assert "recurring_obligations" in result["blockers"][0]
+
+
+def test_positive_deployable_cash_that_rounds_below_one_cent_blocks() -> None:
+    result = calculate_cashflow_authority(
+        policy={
+            **POLICY,
+            "checking_buffer_eur": 0,
+            "food_budget_eur": 0,
+            "essential_spending_ceiling_eur": 0,
+        },
+        snapshot={**VALID_SNAPSHOT, "closing_balance_eur": 0.01},
+        month_summary={
+            "income_total": 0.01,
+            "expenses_total": 0,
+            "invested_total": 0,
+            "emergency_fund_total": 0,
+            "by_category": {},
+        },
+        unpaid_bills_eur=0,
+        today=date(2026, 8, 11),
+        week_closed=False,
+    )
+
+    assert result["deployable_capacity_eur"] == 0.01
+    assert result["remaining_weekly_windows"] == 3
+    assert result["data_ready"] is False
+    assert result["weekly_budget_eur"] == 0.0
+    assert "weekly" in result["blockers"][0].lower()

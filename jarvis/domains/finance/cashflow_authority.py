@@ -25,6 +25,12 @@ _MAX_SAFE_EUROS = Decimal("100000000000000000000")
 _APPROVED_POLICY_VERSION = 2
 _INVALID_PAYLOAD_BLOCKER = "Cash-flow authority payload is invalid."
 _UNAVAILABLE_BLOCKER = "Cash-flow authority is unavailable."
+_READY_MONETARY_FIELDS = (
+    "weekly_budget_eur",
+    "cash_capacity_eur",
+    "sustainable_capacity_eur",
+    "deployable_capacity_eur",
+)
 
 
 def _json_number(value: object, *, nonnegative: bool) -> bool:
@@ -39,6 +45,52 @@ def _json_number(value: object, *, nonnegative: bool) -> bool:
     return not nonnegative or decimal_value >= 0
 
 
+def _is_exact_cent(value: object) -> bool:
+    """Accept monetary evidence only when it is already expressed in cents."""
+    if type(value) not in (int, float):
+        return False
+    try:
+        cents_value = Decimal(str(value)) * 100
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return cents_value == cents_value.to_integral_value(rounding=ROUND_HALF_UP)
+
+
+def _nested_monetary_values_are_exact(value: object) -> bool:
+    """Reject any carried EUR evidence that would need hidden rounding."""
+    if isinstance(value, dict):
+        for key, nested_value in value.items():
+            if not isinstance(key, str):
+                return False
+            if key.endswith("_eur") and (
+                not _json_number(nested_value, nonnegative=False)
+                or not _is_exact_cent(nested_value)
+            ):
+                return False
+            if isinstance(nested_value, (dict, list)) and not _nested_monetary_values_are_exact(
+                nested_value
+            ):
+                return False
+    elif isinstance(value, list):
+        return all(_nested_monetary_values_are_exact(item) for item in value)
+    return True
+
+
+def _normalize_nested_monetary_values(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: (
+                _euros(_cents(nested_value))
+                if isinstance(key, str) and key.endswith("_eur")
+                else _normalize_nested_monetary_values(nested_value)
+            )
+            for key, nested_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_normalize_nested_monetary_values(item) for item in value]
+    return value
+
+
 def blocked_cashflow_authority(blocker: str = _INVALID_PAYLOAD_BLOCKER) -> dict:
     """Return the deterministic, zero-budget authority failure shape."""
     return {
@@ -46,6 +98,21 @@ def blocked_cashflow_authority(blocker: str = _INVALID_PAYLOAD_BLOCKER) -> dict:
         "blockers": [blocker],
         "weekly_budget_eur": 0.0,
     }
+
+
+def closed_cashflow_authority(authority: object) -> dict:
+    """Project a lifecycle-closed week without exposing a future allocation budget."""
+    if not isinstance(authority, dict):
+        authority = blocked_cashflow_authority()
+    closed = copy.deepcopy(authority)
+    blockers = list(closed.get("blockers") or [])
+    closure_blocker = "Current investment week is closed."
+    if closure_blocker not in blockers:
+        blockers.append(closure_blocker)
+    closed["data_ready"] = False
+    closed["blockers"] = blockers
+    closed["weekly_budget_eur"] = 0.0
+    return closed
 
 
 def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
@@ -87,7 +154,10 @@ def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
         authority.get("sustainable_capacity_eur"),
         authority.get("deployable_capacity_eur"),
     )
-    if not all(_valid_nonnegative_json_number(value) for value in capacities):
+    if not all(
+        _valid_nonnegative_json_number(value) and _is_exact_cent(value)
+        for value in capacities
+    ):
         return False
     windows = authority.get("remaining_weekly_windows")
     if type(windows) is not int or windows < 1:
@@ -102,7 +172,10 @@ def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
             Decimal("1"), rounding=ROUND_HALF_UP
         )
     )
-    return _cents(authority["weekly_budget_eur"]) == expected_weekly
+    return (
+        _is_exact_cent(authority["weekly_budget_eur"])
+        and _cents(authority["weekly_budget_eur"]) == expected_weekly
+    )
 
 
 def _valid_nonnegative_json_number(value: object) -> bool:
@@ -129,9 +202,13 @@ def validate_cashflow_authority(authority: object, *, today: date) -> dict:
         if (
             not _valid_positive_json_number(authority.get("weekly_budget_eur"))
             or not _valid_ready_provenance(authority, today=today)
+            or not _nested_monetary_values_are_exact(authority)
         ):
             return blocked_cashflow_authority()
-        return authority
+        normalized = _normalize_nested_monetary_values(copy.deepcopy(authority))
+        for field in _READY_MONETARY_FIELDS:
+            normalized[field] = _euros(_cents(normalized[field]))
+        return normalized
 
     blockers = authority.get("blockers")
     if (
@@ -141,7 +218,7 @@ def validate_cashflow_authority(authority: object, *, today: date) -> dict:
         or not _valid_exact_zero(authority.get("weekly_budget_eur"))
     ):
         return blocked_cashflow_authority()
-    return authority
+    return copy.deepcopy(authority)
 
 
 def authoritative_portfolio_state(portfolio_state: dict, authority: dict) -> dict:
@@ -325,13 +402,22 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
     deployable = min(cash_capacity, sustainable)
     windows = remaining_weekly_windows(today, int(policy["salary_day_cutoff"]), week_closed)
     weekly = int((Decimal(deployable) / windows).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    weekly_is_positive = weekly > 0
     return {
-        "data_ready": deployable > 0,
-        "blockers": [] if deployable > 0 else ["No deployable cash remains after protected reserves."],
+        "data_ready": weekly_is_positive,
+        "blockers": (
+            []
+            if weekly_is_positive
+            else [
+                "Available deployable cash rounds below €0.01 per weekly window."
+                if deployable > 0
+                else "No deployable cash remains after protected reserves."
+            ]
+        ),
         "cash_capacity_eur": _euros(cash_capacity),
         "sustainable_capacity_eur": _euros(sustainable),
         "deployable_capacity_eur": _euros(deployable),
-        "weekly_budget_eur": _euros(weekly),
+        "weekly_budget_eur": _euros(weekly) if weekly_is_positive else 0.0,
         "remaining_weekly_windows": windows,
         "protected_cash": {"checking_buffer_eur": _euros(buffer_cents), "food_eur": _euros(food_remaining), "unpaid_bills_eur": _euros(bills), "emergency_shortfall_eur": _euros(emergency_shortfall)},
     }

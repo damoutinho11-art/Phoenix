@@ -156,13 +156,15 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
     if domain != "home":
         return False
     if re.search(
-        r"\b(?:design|website|dinner|table|furniture|shopping|supermarket)\b",
+        r"\b(?:stock\s+(?:photos?|images?|footage)|design\s+portfolio|"
+        r"portfolio\s+website|dinner|table|furniture|shopping|supermarket)\b",
         message,
         re.IGNORECASE,
     ):
         return False
     financial_action = re.search(
-        r"\b(?:invest(?:ment)?|allocate|allocation|deploy(?:\s+capital)?|buy|sell|put|add)\b",
+        r"\b(?:invest(?:ing|ment)?|allocat(?:e|ing|ion)|deploy(?:ing)?(?:\s+capital)?|"
+        r"buy(?:ing)?|sell(?:ing)?|hold(?:ing)?|put|add|rebalance(?:ing)?|review(?:ing)?)\b",
         message,
         re.IGNORECASE,
     )
@@ -173,12 +175,13 @@ def _finance_allocation_intent(domain: str, message: str) -> bool:
         re.IGNORECASE,
     )
     advice_question = re.search(
-        r"\b(?:should|what\s+should|can\s+i|do\s+i|help)\b",
+        r"\b(?:should|what\s+should|what\s+do\s+i\s+do\s+with|can\s+i|"
+        r"do\s+i|help|advice|advise|review)\b",
         message,
         re.IGNORECASE,
     )
     generic_invest = re.search(
-        r"\b(?:invest|investment|allocate|allocation|deploy\s+capital)\b",
+        r"\b(?:invest(?:ing|ment)?|allocat(?:e|ing|ion)|deploy(?:ing)?\s+capital)\b",
         message,
         re.IGNORECASE,
     )

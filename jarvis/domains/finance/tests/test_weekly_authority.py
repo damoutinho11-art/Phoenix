@@ -2,6 +2,7 @@
 
 import copy
 from datetime import date
+from unittest.mock import patch
 
 from jarvis.domains.finance import engine
 
@@ -62,3 +63,14 @@ def test_weekly_result_rejects_malformed_authority_capacity() -> None:
     assert result["data_ready"] is False
     assert result["weekly_budget_cents"] == 0
     assert "approval_ticket" not in result
+
+
+def test_self_check_uses_an_explicit_authority_not_the_legacy_state_budget() -> None:
+    original_allocate = engine.allocate_weekly_budget
+
+    def assert_authoritative_allocation(constitution: dict, state: dict, **kwargs):
+        assert state["weekly_investment_budget"] == 86.67
+        return original_allocate(constitution, state, **kwargs)
+
+    with patch.object(engine, "allocate_weekly_budget", side_effect=assert_authoritative_allocation):
+        engine.self_check()

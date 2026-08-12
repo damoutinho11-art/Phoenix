@@ -278,4 +278,6 @@ class TestFinanceBriefRoute:
         assert data["week_done"] is False
         assert data["requires_approval"] is False
         assert data["recommendations"] == []
-        assert data["cashflow_authority"] == blocked
+        assert data["cashflow_authority"]["data_ready"] is False
+        assert data["cashflow_authority"]["weekly_budget_eur"] == 0.0
+        assert blocked["blockers"][0] in data["cashflow_authority"]["blockers"]

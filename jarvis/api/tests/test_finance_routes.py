@@ -411,7 +411,8 @@ class FinanceBriefIdentityTests(unittest.TestCase):
         self.assertEqual(checklist["checklist_items"], [])
         self.assertFalse(checklist["requires_approval"])
         self.assertFalse(checklist["safety_flags"]["manual_broker_action_required"])
-        self.assertEqual(checklist["cashflow_authority"], _READY_CASHFLOW_AUTHORITY)
+        self.assertFalse(checklist["cashflow_authority"]["data_ready"])
+        self.assertEqual(checklist["cashflow_authority"]["weekly_budget_eur"], 0.0)
 
     def test_approval_response_has_no_trade_safety_flags(self) -> None:
         brief = client.get("/finance/recommendation").json()
