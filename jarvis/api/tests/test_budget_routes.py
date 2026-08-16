@@ -69,6 +69,58 @@ def test_budget_memory_defaults_are_available() -> None:
     )
 
 
+def test_budget_memory_explicit_save_upgrades_legacy_policy(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "policy.db")
+    database.init_db()
+    legacy = {
+        **budget_router.DEFAULT_BUDGET_MEMORY,
+        "version": 1,
+        "recurring_obligations": [],
+    }
+    database.save_budget_memory_profile(legacy)
+
+    editor = client.get("/budget/memory").json()
+    assert editor["migration_required"] is True
+    assert editor["profile"]["version"] == 2
+    assert editor["profile"]["recurring_obligations"] == [
+        {
+            "name": "Utilities",
+            "amount_eur": 150.0,
+            "contains": ["utility", "electric", "water"],
+            "enabled": True,
+        }
+    ]
+
+    saved = client.post("/budget/memory", json={"profile": editor["profile"]})
+    assert saved.status_code == 200
+    assert saved.json()["profile"]["version"] == 2
+    assert json.loads(database._get_budget_memory_profile_raw())["version"] == 2
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        {"checking_buffer_eur": ""},
+        {"checking_buffer_eur": 300.001},
+        {"salary_day_cutoff": 32},
+        {"recurring_obligations": [{"amount_eur": 150, "contains": []}]},
+        [],
+    ],
+)
+def test_budget_memory_rejects_invalid_policy_without_persisting(
+    monkeypatch, tmp_path, profile
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "policy.db")
+    database.init_db()
+    original = {"version": 1, "checking_buffer_eur": 300}
+    database.save_budget_memory_profile(original)
+
+    response = client.post("/budget/memory", json={"profile": profile})
+
+    assert response.status_code == 422
+    assert json.loads(database._get_budget_memory_profile_raw()) == original
+
+
 def test_budget_insight_is_deterministic_and_does_not_leak_prompt_text() -> None:
     summary = {
         "income_total": 0,

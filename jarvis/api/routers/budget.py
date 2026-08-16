@@ -69,6 +69,26 @@ DEFAULT_BUDGET_MEMORY = {
     ],
 }
 
+APPROVED_CASH_POLICY_VERSION = 2
+DEFAULT_UTILITY_OBLIGATION = {
+    "name": "Utilities",
+    "amount_eur": 150.0,
+    "contains": ["utility", "electric", "water"],
+    "enabled": True,
+}
+_AUTHORITY_MONEY_FIELDS = (
+    "emergency_fund_floor_eur",
+    "emergency_fund_balance_eur",
+    "checking_buffer_eur",
+    "food_budget_eur",
+    "essential_spending_ceiling_eur",
+)
+_CATEGORY_LIST_FIELDS = (
+    "fixed_categories",
+    "non_spending_categories",
+    "flexible_categories",
+)
+
 class ParseRequest(BaseModel):
     raw_text: str
     source: str = "text"
@@ -88,7 +108,7 @@ class SaveRequest(BaseModel):
 
 
 class BudgetMemoryRequest(BaseModel):
-    profile: dict
+    profile: object
 
 
 def _deepcopy_default_budget_memory() -> dict:
@@ -103,6 +123,82 @@ def _budget_memory_profile() -> dict:
             if value is not None:
                 profile[key] = value
     return profile
+
+
+def _budget_memory_editor_payload() -> dict:
+    """Return display-safe version 2 values plus explicit migration status."""
+    raw_profile = database._get_budget_memory_profile_raw()
+    migration_required = False
+    if raw_profile is not None:
+        try:
+            stored = json.loads(raw_profile)
+        except (RecursionError, TypeError, ValueError):
+            stored = None
+        migration_required = (
+            not isinstance(stored, dict)
+            or stored.get("version") != APPROVED_CASH_POLICY_VERSION
+        )
+
+    profile = _budget_memory_profile()
+    profile["version"] = APPROVED_CASH_POLICY_VERSION
+    if not profile.get("recurring_obligations"):
+        profile["recurring_obligations"] = [dict(DEFAULT_UTILITY_OBLIGATION)]
+    return {
+        "profile": profile,
+        "migration_required": migration_required,
+    }
+
+
+def _is_valid_authority_money(value: object) -> bool:
+    if type(value) not in (int, float):
+        return False
+    try:
+        amount = Decimal(str(value))
+        cents = amount * 100
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return (
+        amount.is_finite()
+        and amount >= 0
+        and cents == cents.to_integral_value(rounding=ROUND_HALF_UP)
+    )
+
+
+def _validated_budget_memory_for_save(profile: object) -> dict:
+    """Return canonical version 2 memory or raise ValueError with a stable field message."""
+    if not isinstance(profile, dict):
+        raise ValueError("profile must be an object")
+
+    canonical = _deepcopy_default_budget_memory()
+    canonical.update(profile)
+    for field in _AUTHORITY_MONEY_FIELDS:
+        if not _is_valid_authority_money(canonical.get(field)):
+            raise ValueError(
+                f"{field} must be a finite non-negative exact-cent JSON number"
+            )
+
+    cutoff = canonical.get("salary_day_cutoff")
+    if type(cutoff) is not int or not 1 <= cutoff <= 31:
+        raise ValueError("salary_day_cutoff must be an integer from 1 through 31")
+
+    if not valid_recurring_obligations(canonical.get("recurring_obligations")):
+        raise ValueError("recurring_obligations must be valid recurring obligations")
+
+    for field in _CATEGORY_LIST_FIELDS:
+        categories = canonical.get(field)
+        if not isinstance(categories, list) or any(
+            not isinstance(category, str) for category in categories
+        ):
+            raise ValueError(f"{field} must be a list of category names")
+
+    merchant_rules = canonical.get("merchant_rules")
+    if not isinstance(merchant_rules, list) or any(
+        not isinstance(rule, dict) for rule in merchant_rules
+    ):
+        raise ValueError("merchant_rules must be a list of objects")
+
+    canonical["version"] = APPROVED_CASH_POLICY_VERSION
+    return canonical
 
 
 def _cashflow_authority_policy() -> dict | None:
@@ -795,13 +891,15 @@ def _generate_budget_insight(summary: dict, month: str) -> str:
 
 @router.get("/memory")
 def budget_memory() -> dict:
-    return {"profile": _budget_memory_profile()}
+    return _budget_memory_editor_payload()
 
 
 @router.post("/memory")
 def save_budget_memory(request: BudgetMemoryRequest) -> dict:
-    profile = _deepcopy_default_budget_memory()
-    profile.update(request.profile or {})
+    try:
+        profile = _validated_budget_memory_for_save(request.profile)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     saved = database.save_budget_memory_profile(profile)
     return {"profile": saved}
 
