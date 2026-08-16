@@ -955,11 +955,12 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
 
     raw_text = _extract_pdf_text(pdf_bytes)
     transactions = _parse_lhv_statement_transactions(raw_text, source="pdf")
+    lhv_quality = _lhv_statement_quality(raw_text, len(transactions))
     parser = "lhv_pdf"
     if not transactions:
         transactions = _parse_transactions_with_claude(raw_text, source="pdf")
         parser = "ai_fallback"
-    quality = _lhv_statement_quality(raw_text, len(transactions)) if parser == "lhv_pdf" else {
+    quality = lhv_quality if parser == "lhv_pdf" else {
         "status": "review_required",
         "statement_rows": None,
         "parsed_rows": len(transactions),
@@ -969,7 +970,7 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
         "net_movement_eur": None,
         "balance_difference_eur": None,
         "warnings": ["AI fallback results require manual review."],
-        "unmatched_rows": [],
+        "unmatched_rows": lhv_quality["unmatched_rows"],
     }
     response = {
         "transactions": transactions,

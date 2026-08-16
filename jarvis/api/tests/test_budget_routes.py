@@ -492,8 +492,43 @@ def test_ai_fallback_pdf_parse_does_not_issue_statement_receipt() -> None:
         "warnings",
         "unmatched_rows",
     }
-    assert payload["quality"]["unmatched_rows"] == []
     assert "receipt_id" not in payload
+
+
+def test_ai_fallback_pdf_parse_preserves_unmatched_lhv_rows_without_receipt(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    raw_text = """
+05.05.2026 Starting balance 100.00
+05.05.2026 row that cannot match
+05.05.2026 Final balance 100.00
+"""
+
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value=raw_text):
+        with patch(
+            "jarvis.api.routers.budget._parse_transactions_with_claude",
+            return_value=[],
+        ):
+            response = client.post(
+                "/budget/parse-pdf",
+                files={"file": ("account.pdf", b"%PDF-1.4 fake", "application/pdf")},
+            )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["parser"] == "ai_fallback"
+    assert payload["quality"]["status"] == "review_required"
+    assert payload["quality"]["unmatched_rows"] == ["05.05.2026 row that cannot match"]
+    assert "receipt_id" not in payload
+    connection = database.get_db()
+    try:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM budget_statement_parse_receipts"
+        ).fetchone()[0] == 0
+    finally:
+        connection.close()
 
 
 def test_text_parse_does_not_issue_statement_receipt() -> None:
