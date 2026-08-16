@@ -385,6 +385,7 @@ test('budget cash policy uses structured bills and an explicit legacy upgrade co
   assert.match(budget, /MATCHING TERMS/)
   assert.match(budget, /ADD BILL/)
   assert.match(budget, /REMOVE BILL/)
+  assert.match(budget, /\.\.\.utility, enabled: false, name: '', amount_eur: '0\.00', contains: ''/)
   assert.doesNotMatch(budget, /RECURRING OBLIGATIONS JSON/)
   assert.doesNotMatch(budget, /recurringDraft/)
 })

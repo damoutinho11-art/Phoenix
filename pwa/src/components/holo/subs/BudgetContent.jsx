@@ -557,7 +557,7 @@ function MemoryStage({ onDone, onCancel }) {
   }
   const addBill = () => {
     const utility = createDefaultUtilityBill()
-    setBillDrafts(previous => [...previous, { ...utility, name: '', amount_eur: '0.00', contains: '' }])
+    setBillDrafts(previous => [...previous, { ...utility, enabled: false, name: '', amount_eur: '0.00', contains: '' }])
     setError('')
   }
   const removeBill = index => {
