@@ -95,6 +95,8 @@ test('receipt terminal errors require a new PDF parse while retryable failures r
     'Statement receipt has expired',
     'Statement receipt has already been consumed',
     'Statement receipt is missing or invalid',
+    'Statement receipt snapshot is invalid',
+    'Statement receipt expiry is invalid',
   ]) {
     assert.deepEqual(receiptSaveOutcome('receipt-1', message), {
       statementReceiptId: null,

@@ -417,6 +417,13 @@ test('budget PDF review locks bank facts and activates authority only from recon
   assert.doesNotMatch(budget, /OVERRIDE RECONCILIATION/)
 })
 
+test('budget ledger, upload, and Cash Policy roots use the Budget accent scope', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+  const budgetScopes = budget.match(/className="phx-scope-budget"/g) || []
+
+  assert.equal(budgetScopes.length, 3)
+})
+
 test('finance control room reuses existing finance instrument designs', async () => {
   const room = await src('./subs/FinanceControlRoom.jsx')
   const subs = await src('./subs/FinanceSubs.jsx')

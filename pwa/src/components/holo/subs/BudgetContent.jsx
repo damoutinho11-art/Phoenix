@@ -199,7 +199,7 @@ export function BudgetContent() {
   const authorityLoading = authorityState.status === 'loading'
 
   return (
-    <div>
+    <div className="phx-scope-budget">
       {/* month picker */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
@@ -358,7 +358,7 @@ function UploadStage({ onDone, onCancel }) {
   const saveBlocked = input === 'pdf' && (!reconciliation.canActivate || reuploadRequired)
 
   return (
-    <div>
+    <div className="phx-scope-budget">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>{transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}</span>
         <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
@@ -594,7 +594,7 @@ function MemoryStage({ onDone, onCancel }) {
   const saveLabel = migrationRequired ? 'SAVE & UPGRADE POLICY' : 'SAVE CASH POLICY'
 
   return (
-    <div>
+    <div className="phx-scope-budget">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>CASH POLICY</span>
         <span style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
