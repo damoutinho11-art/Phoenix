@@ -33,6 +33,37 @@ function matchingTerms(value) {
     : []
 }
 
+function validCanonicalBill(bill) {
+  return bill
+    && typeof bill === 'object'
+    && typeof bill.name === 'string'
+    && bill.name.trim()
+    && exactCent(bill.amount_eur)
+    && bill.amount_eur >= 0
+    && Array.isArray(bill.contains)
+    && bill.contains.length > 0
+    && bill.contains.every(term => typeof term === 'string' && term.trim())
+    && typeof bill.enabled === 'boolean'
+}
+
+function legacyBillDrafts(bills) {
+  if (Array.isArray(bills)) return bills
+  if (typeof bills !== 'string') return null
+  try {
+    const parsed = JSON.parse(bills)
+    if (!Array.isArray(parsed)) return null
+    return parsed.map(bill => ({
+      ...bill,
+      amount_eur: typeof bill?.amount_eur === 'number'
+        ? canonicalMoneyDraft(bill.amount_eur)
+        : bill?.amount_eur,
+      contains: Array.isArray(bill?.contains) ? bill.contains.join(', ') : bill?.contains,
+    }))
+  } catch {
+    return null
+  }
+}
+
 function displayList(value, limit = 25) {
   if (!Array.isArray(value)) return []
   return value
@@ -45,6 +76,7 @@ function displayList(value, limit = 25) {
 function displayNumber(value, { integer = false, signed = false } = {}) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
   if (integer && (!Number.isInteger(value) || value < 0)) return '—'
+  if (!integer && !exactCent(value)) return '—'
   if (!signed && value < 0) return '—'
   return integer ? String(value) : `EUR ${value.toFixed(2)}`
 }
@@ -86,15 +118,7 @@ export function preparePolicyEditor(profile, migrationRequired) {
 }
 
 export function validRecurringObligations(value) {
-  return Array.isArray(value) && value.every(obligation => (
-    obligation
-    && typeof obligation === 'object'
-    && exactCent(obligation.amount_eur)
-    && obligation.amount_eur >= 0
-    && Array.isArray(obligation.contains)
-    && obligation.contains.length > 0
-    && obligation.contains.every(token => typeof token === 'string' && token.trim())
-  ))
+  return Array.isArray(value) && value.every(validCanonicalBill)
 }
 
 export function validateAuthorityPolicyDraft(profile, rawFields, bills) {
@@ -117,11 +141,12 @@ export function validateAuthorityPolicyDraft(profile, rawFields, bills) {
   }
   next.salary_day_cutoff = Number(cutoff)
 
-  if (!Array.isArray(bills)) {
+  const billDrafts = legacyBillDrafts(bills)
+  if (!billDrafts) {
     return { ok: false, error: 'Bills must be a list.' }
   }
   const obligations = []
-  for (const [index, bill] of bills.entries()) {
+  for (const [index, bill] of billDrafts.entries()) {
     if (!bill || typeof bill !== 'object' || typeof bill.name !== 'string' || !bill.name.trim()) {
       return { ok: false, error: `Bill ${index + 1} name is required` }
     }
@@ -151,7 +176,14 @@ export function reconciliationView(quality, receiptId) {
   const source = quality && typeof quality === 'object' && !Array.isArray(quality) ? quality : {}
   const difference = source.balance_difference_eur
   const reconciled = source.status === 'reconciled'
+  const exactMonetaryEvidence = [
+    source.opening_balance_eur,
+    source.closing_balance_eur,
+    source.net_movement_eur,
+    difference,
+  ].every(exactCent)
   const canActivate = reconciled
+    && exactMonetaryEvidence
     && typeof difference === 'number'
     && Number.isFinite(difference)
     && difference === 0

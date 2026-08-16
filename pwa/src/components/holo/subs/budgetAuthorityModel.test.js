@@ -11,6 +11,7 @@ import {
   receiptSaveOutcome,
   unavailableAuthority,
   validateAuthorityPolicyDraft,
+  validRecurringObligations,
 } from './budgetAuthorityModel.js'
 
 const policy = {
@@ -154,6 +155,17 @@ test('authority policy validates structured bills and upgrades only successful o
   assert.equal(legacy.version, 1)
 })
 
+test('authority policy accepts the current UI JSON bill draft', () => {
+  const result = validateAuthorityPolicyDraft(policy, rawPolicy, JSON.stringify([
+    { name: 'Rent', amount_eur: 120, contains: ['utilities', 'rent'], enabled: true },
+  ]))
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.profile.recurring_obligations, [{
+    name: 'Rent', amount_eur: 120, contains: ['utilities', 'rent'], enabled: true,
+  }])
+})
+
 test('authority policy rejects blank, partial, exponent, boolean text, and fractional-cent values', () => {
   for (const value of ['', '-', '1e3', 'true', '1.001', '300']) {
     const result = validateAuthorityPolicyDraft(policy, { ...rawPolicy, checking_buffer_eur: value }, billDrafts)
@@ -190,6 +202,21 @@ test('authority policy retains disabled bills in the canonical policy', () => {
       }],
     },
   })
+})
+
+test('recurring obligation validation requires canonical names and enabled flags', () => {
+  const valid = { name: 'Rent', amount_eur: 120, contains: ['rent'], enabled: true }
+  assert.equal(validRecurringObligations([valid]), true)
+
+  for (const invalid of [
+    { ...valid, name: '' },
+    { ...valid, enabled: 'true' },
+    { ...valid, enabled: undefined },
+    { ...valid, amount_eur: 120.001 },
+    { ...valid, contains: [] },
+  ]) {
+    assert.equal(validRecurringObligations([invalid]), false)
+  }
 })
 
 test('reconciliation view activates only a reconciled zero-difference PDF receipt', () => {
@@ -249,6 +276,29 @@ test('reconciliation view stabilizes malformed diagnostics for display', () => {
     { label: 'BALANCE DIFFERENCE', value: '—' },
     { label: 'STATEMENT END', value: '—' },
   ])
+})
+
+test('reconciliation view withholds fractional-cent monetary evidence', () => {
+  const quality = {
+    status: 'reconciled',
+    statement_rows: 3,
+    parsed_rows: 3,
+    opening_balance_eur: 100,
+    closing_balance_eur: 85,
+    net_movement_eur: -15,
+    balance_difference_eur: 0,
+  }
+
+  for (const [field, label] of [
+    ['opening_balance_eur', 'OPENING BALANCE'],
+    ['closing_balance_eur', 'CLOSING BALANCE'],
+    ['net_movement_eur', 'NET MOVEMENT'],
+    ['balance_difference_eur', 'BALANCE DIFFERENCE'],
+  ]) {
+    const view = reconciliationView({ ...quality, [field]: 0.004 }, 'receipt-1')
+    assert.equal(view.metrics.find(metric => metric.label === label)?.value, '—')
+    assert.equal(view.canActivate, false)
+  }
 })
 
 test('unavailable authority telemetry remains explicitly unknown while backend zero remains zero', () => {
