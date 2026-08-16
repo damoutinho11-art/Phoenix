@@ -31,6 +31,11 @@ PORTFOLIO_STATE_JSON_PATH = Path(
     os.environ.get("PHOENIX_PORTFOLIO_STATE_PATH", _DEFAULT_PORTFOLIO_STATE_JSON_PATH)
 )
 
+
+class BudgetStatementReceiptError(ValueError):
+    """A receipt is unusable and must be replaced by a fresh server parse."""
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meal_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3307,17 +3312,20 @@ def _validated_budget_statement_receipt_snapshot(
     try:
         stored_snapshot = json.loads(receipt["snapshot_json"])
     except (json.JSONDecodeError, TypeError) as exc:
-        raise ValueError("Statement receipt snapshot is invalid") from exc
+        raise BudgetStatementReceiptError("Statement receipt snapshot is invalid") from exc
     if not isinstance(stored_snapshot, dict):
-        raise ValueError("Statement receipt snapshot is invalid")
-    normalized = _validated_budget_statement_snapshot(stored_snapshot)
+        raise BudgetStatementReceiptError("Statement receipt snapshot is invalid")
+    try:
+        normalized = _validated_budget_statement_snapshot(stored_snapshot)
+    except ValueError as exc:
+        raise BudgetStatementReceiptError("Statement receipt snapshot is invalid") from exc
     if stored_snapshot != normalized:
-        raise ValueError("Statement receipt snapshot is invalid")
+        raise BudgetStatementReceiptError("Statement receipt snapshot is invalid")
     if (
         normalized["parser"] != receipt["parser"]
         or normalized["filename_hash"] != receipt["filename_hash"]
     ):
-        raise ValueError("Statement receipt snapshot is invalid")
+        raise BudgetStatementReceiptError("Statement receipt snapshot is invalid")
     return normalized
 
 
@@ -3326,7 +3334,7 @@ def _save_budget_statement_receipt_import(
 ) -> int:
     """Consume server-issued PDF parse proof while atomically saving its import."""
     if not isinstance(receipt_id, str) or not receipt_id:
-        raise ValueError("Statement receipt is missing or invalid")
+        raise BudgetStatementReceiptError("Statement receipt is missing or invalid")
 
     connection = get_db()
     try:
@@ -3336,17 +3344,21 @@ def _save_budget_statement_receipt_import(
             (receipt_id,),
         ).fetchone()
         if receipt is None:
-            raise ValueError("Statement receipt is missing or invalid")
+            raise BudgetStatementReceiptError("Statement receipt is missing or invalid")
         if receipt["consumed_at"] is not None:
-            raise ValueError("Statement receipt has already been consumed")
+            raise BudgetStatementReceiptError("Statement receipt has already been consumed")
         try:
             expires_at = datetime.fromisoformat(receipt["expires_at"])
         except (TypeError, ValueError) as exc:
-            raise ValueError("Statement receipt expiry is invalid") from exc
+            raise BudgetStatementReceiptError("Statement receipt expiry is invalid") from exc
+        if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+            raise BudgetStatementReceiptError("Statement receipt expiry is invalid")
         if expires_at <= clock.utc_now():
-            raise ValueError("Statement receipt has expired")
+            raise BudgetStatementReceiptError("Statement receipt has expired")
         if budget_transaction_identity_hash(transactions) != receipt["transaction_identity_hash"]:
-            raise ValueError("Submitted transactions do not match statement receipt")
+            raise BudgetStatementReceiptError(
+                "Submitted transactions do not match statement receipt"
+            )
 
         snapshot = _validated_budget_statement_receipt_snapshot(receipt)
         saved = _save_budget_transactions_with_connection(
@@ -3362,7 +3374,7 @@ def _save_budget_statement_receipt_import(
             (consumed_at, receipt_id),
         )
         if consumed.rowcount != 1:
-            raise ValueError("Statement receipt has already been consumed")
+            raise BudgetStatementReceiptError("Statement receipt has already been consumed")
         connection.commit()
         return saved
     except Exception:

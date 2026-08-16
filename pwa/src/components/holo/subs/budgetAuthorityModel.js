@@ -9,7 +9,7 @@ export const AUTHORITY_NUMERIC_FIELDS = [
 
 const CANONICAL_MONEY = /^(?:0|[1-9]\d*)\.\d{2}$/
 const CANONICAL_CUTOFF = /^(?:[1-9]|[12]\d|3[01])$/
-const TERMINAL_RECEIPT_ERROR = /submitted transactions do not match statement receipt|statement receipt has expired|statement receipt has already been consumed|statement receipt is missing or invalid|statement receipt (?:snapshot|expiry) is invalid/i
+const TERMINAL_RECEIPT_ERROR_CODE = 'STATEMENT_RECEIPT_INVALID'
 
 function exactCent(value) {
   return typeof value === 'number'
@@ -211,7 +211,7 @@ export function reconciliationView(quality, receiptId) {
 
 export function receiptSaveOutcome(statementReceiptId, errorMessage) {
   const message = String(errorMessage || 'Save failed. Try again.')
-  if (TERMINAL_RECEIPT_ERROR.test(message)) {
+  if (message === TERMINAL_RECEIPT_ERROR_CODE) {
     return {
       statementReceiptId: null,
       reuploadRequired: true,

@@ -89,26 +89,17 @@ test('authority loader ignores a deferred completion after unmount disposal', as
   assert.deepEqual(states, [{ status: 'loading', month: '2026-08', authority: null }])
 })
 
-test('receipt terminal errors require a new PDF parse while retryable failures retain the receipt', () => {
-  for (const message of [
-    'Submitted transactions do not match statement receipt',
-    'Statement receipt has expired',
-    'Statement receipt has already been consumed',
-    'Statement receipt is missing or invalid',
-    'Statement receipt snapshot is invalid',
-    'Statement receipt expiry is invalid',
-  ]) {
-    assert.deepEqual(receiptSaveOutcome('receipt-1', message), {
-      statementReceiptId: null,
-      reuploadRequired: true,
-      message: 'Receipt cannot be used. Re-upload and parse the PDF again before saving.',
-    })
-  }
+test('stable terminal receipt error requires a new PDF parse without matching validator prose', () => {
+  assert.deepEqual(receiptSaveOutcome('receipt-1', 'STATEMENT_RECEIPT_INVALID'), {
+    statementReceiptId: null,
+    reuploadRequired: true,
+    message: 'Receipt cannot be used. Re-upload and parse the PDF again before saving.',
+  })
 
-  assert.deepEqual(receiptSaveOutcome('receipt-1', 'Network request failed'), {
+  assert.deepEqual(receiptSaveOutcome('receipt-1', 'balance_difference_eur must be exactly zero'), {
     statementReceiptId: 'receipt-1',
     reuploadRequired: false,
-    message: 'Network request failed',
+    message: 'balance_difference_eur must be exactly zero',
   })
 })
 

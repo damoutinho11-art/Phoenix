@@ -605,6 +605,7 @@ def test_save_rejects_forged_statement_receipt_id(monkeypatch, tmp_path) -> None
     )
 
     assert response.status_code == 422
+    assert response.json()["detail"] == "STATEMENT_RECEIPT_INVALID"
     assert database.get_latest_reconciled_budget_statement() is None
 
 
@@ -636,6 +637,7 @@ def test_save_rejects_statement_receipt_transaction_mismatch(
     )
 
     assert response.status_code == 422
+    assert response.json()["detail"] == "STATEMENT_RECEIPT_INVALID"
     assert database.get_budget_transactions("2026-05") == []
     assert database.get_latest_reconciled_budget_statement() is None
 
@@ -654,6 +656,7 @@ def test_save_rejects_replayed_statement_receipt(monkeypatch, tmp_path) -> None:
 
     assert first.status_code == 200
     assert replay.status_code == 422
+    assert replay.json()["detail"] == "STATEMENT_RECEIPT_INVALID"
     connection = database.get_db()
     try:
         assert connection.execute("SELECT COUNT(*) FROM budget_statement_snapshots").fetchone()[0] == 1
@@ -684,8 +687,37 @@ def test_save_rejects_expired_statement_receipt(monkeypatch, tmp_path) -> None:
     )
 
     assert response.status_code == 422
+    assert response.json()["detail"] == "STATEMENT_RECEIPT_INVALID"
     assert database.get_budget_transactions("2026-05") == []
     assert database.get_latest_reconciled_budget_statement() is None
+
+
+def test_save_normalizes_timezone_naive_receipt_expiry_to_terminal_error(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    parsed = _parse_reconciled_statement_receipt()
+    connection = database.get_db()
+    try:
+        connection.execute(
+            "UPDATE budget_statement_parse_receipts SET expires_at=? WHERE receipt_id=?",
+            ("2999-01-01T00:00:00", parsed["receipt_id"]),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    response = client.post(
+        "/budget/save",
+        json={
+            "transactions": parsed["transactions"],
+            "statement_receipt_id": parsed["receipt_id"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "STATEMENT_RECEIPT_INVALID"
 
 
 def test_receipt_save_rolls_back_partial_transaction_failure_and_can_retry(
@@ -715,6 +747,7 @@ def test_receipt_save_rolls_back_partial_transaction_failure_and_can_retry(
     )
 
     assert rejected.status_code == 422
+    assert rejected.json()["detail"] != "STATEMENT_RECEIPT_INVALID"
     assert database.get_budget_transactions("2026-05") == []
     assert database.get_latest_reconciled_budget_statement() is None
     connection = database.get_db()
@@ -744,8 +777,20 @@ def test_receipt_save_rolls_back_partial_transaction_failure_and_can_retry(
     assert len(database.get_budget_transactions("2026-05")) == 2
 
 
-def test_save_rejects_receipt_with_nonzero_subcent_difference(
-    monkeypatch, tmp_path
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("balance_difference_eur", 0.004),
+        ("parser", "text"),
+        ("quality_status", "review_required"),
+        ("statement_end_date", "not-a-date"),
+        ("statement_rows", -1),
+        ("parsed_rows", -1),
+        ("filename_hash", "not-a-hash"),
+    ],
+)
+def test_save_normalizes_every_corrupt_receipt_snapshot_to_terminal_error(
+    monkeypatch, tmp_path, field, replacement
 ) -> None:
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
     database.init_db()
@@ -757,7 +802,7 @@ def test_save_rejects_receipt_with_nonzero_subcent_difference(
             (parsed["receipt_id"],),
         ).fetchone()
         snapshot = json.loads(row["snapshot_json"])
-        snapshot["balance_difference_eur"] = 0.004
+        snapshot[field] = replacement
         connection.execute(
             "UPDATE budget_statement_parse_receipts SET snapshot_json=? WHERE receipt_id=?",
             (json.dumps(snapshot, sort_keys=True), parsed["receipt_id"]),
@@ -775,6 +820,7 @@ def test_save_rejects_receipt_with_nonzero_subcent_difference(
     )
 
     assert response.status_code == 422
+    assert response.json()["detail"] == "STATEMENT_RECEIPT_INVALID"
     assert database.get_budget_transactions("2026-05") == []
     assert database.get_latest_reconciled_budget_statement() is None
 

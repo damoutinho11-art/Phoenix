@@ -26,6 +26,7 @@ router = APIRouter()
 
 MAX_PDF_BYTES = 8 * 1024 * 1024
 MAX_PDF_PAGES = 40
+STATEMENT_RECEIPT_INVALID = "STATEMENT_RECEIPT_INVALID"
 
 CATEGORIES = [
     "Housing", "Food & Groceries", "Eating Out", "Transport",
@@ -1000,6 +1001,8 @@ def save_transactions(request: SaveRequest) -> dict:
         saved = database._save_budget_statement_receipt_import(
             request.transactions, request.statement_receipt_id
         )
+    except database.BudgetStatementReceiptError as exc:
+        raise HTTPException(status_code=422, detail=STATEMENT_RECEIPT_INVALID) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"saved": saved}
