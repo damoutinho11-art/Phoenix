@@ -4,6 +4,7 @@ import { HOLDINGS, HOLDING_ANGLES, HOLDING_RADII } from '../holoDomains'
 import { getFinanceBrief, getFinanceManualBuyChecklist, getFinanceRecommendation } from '../../../api/client'
 import { SubLabel } from './SubShell'
 import { financeBody, financeButton, financeLabel, financeMicro, financeMonoBody } from './financeReadability'
+import { formatCashAuthorityBrief } from './financeBriefAuthority'
 
 const dirColor = h => (h.dir === 'TRIM' ? R : h.dir === 'FEED' ? Y : ACC)
 const briefUnavailable = text => /AI brief unavailable|Unable to generate brief/i.test(text || '')
@@ -30,6 +31,8 @@ function formatRecommendationBrief(data = {}) {
     : '▸ No manual buy recommended this week.'
   return [
     `PHOENIX FINANCE BRIEF · ${week}`,
+    '',
+    formatCashAuthorityBrief(data.cashflow_authority),
     '',
     `WEEK BUDGET — ${briefEur(data.week_budget)}`,
     `PORTFOLIO MODE — ${mode}${phase}`,
@@ -288,10 +291,12 @@ export function BriefContent() {
       .then(async r => {
         if (!alive) return
         let text = typeof r?.brief === 'string' ? r.brief.trim() : ''
+        const recommendation = await getFinanceRecommendation()
+        if (!alive) return
         if (!text || briefUnavailable(text)) {
-          const recommendation = await getFinanceRecommendation()
-          if (!alive) return
           text = formatRecommendationBrief(recommendation)
+        } else {
+          text = `${formatCashAuthorityBrief(recommendation.cashflow_authority)}\n\n${text}`
         }
         if (!text) {
           setError(true)

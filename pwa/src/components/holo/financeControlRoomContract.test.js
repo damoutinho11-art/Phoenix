@@ -84,6 +84,8 @@ test('finance signal brief reads the real finance brief endpoint, not fixture co
   assert.match(subs, /UNABLE TO LOAD FINANCE BRIEF/)
   assert.match(subs, /AI brief unavailable/)
   assert.match(subs, /briefText\.slice\(0, n\)/)
+  assert.match(subs, /formatCashAuthorityBrief/)
+  assert.match(subs, /recommendation\.cashflow_authority/)
 })
 
 test('main finance projection uses real history graph data and an allocation chart model', async () => {
