@@ -88,6 +88,7 @@ _CATEGORY_LIST_FIELDS = (
     "non_spending_categories",
     "flexible_categories",
 )
+_BUDGET_MEMORY_PROFILE_FIELDS = frozenset(DEFAULT_BUDGET_MEMORY)
 
 class ParseRequest(BaseModel):
     raw_text: str
@@ -164,10 +165,34 @@ def _is_valid_authority_money(value: object) -> bool:
     )
 
 
+def _validate_merchant_rules(merchant_rules: object) -> None:
+    if not isinstance(merchant_rules, list):
+        raise ValueError("merchant_rules must be a list of objects")
+    for rule in merchant_rules:
+        if not isinstance(rule, dict):
+            raise ValueError("merchant_rules must be a list of objects")
+        contains = rule.get("contains")
+        if not isinstance(contains, list) or not contains or any(
+            not isinstance(token, str) or not token.strip() for token in contains
+        ):
+            raise ValueError("merchant_rules contains must be a non-empty list of strings")
+        if rule.get("category") not in CATEGORIES:
+            raise ValueError("merchant_rules category must be a known category")
+        if type(rule.get("is_income")) is not int or rule["is_income"] not in (0, 1):
+            raise ValueError("merchant_rules is_income must be 0 or 1")
+        if "fixed" in rule and type(rule["fixed"]) is not bool:
+            raise ValueError("merchant_rules fixed must be a boolean")
+        if "budget_month" in rule and rule["budget_month"] != "salary_next_month":
+            raise ValueError("merchant_rules budget_month must be salary_next_month")
+
+
 def _validated_budget_memory_for_save(profile: object) -> dict:
     """Return canonical version 2 memory or raise ValueError with a stable field message."""
     if not isinstance(profile, dict):
         raise ValueError("profile must be an object")
+    unknown_fields = set(profile) - _BUDGET_MEMORY_PROFILE_FIELDS
+    if unknown_fields:
+        raise ValueError(f"profile contains unknown field {sorted(unknown_fields)[0]}")
 
     canonical = _deepcopy_default_budget_memory()
     canonical.update(profile)
@@ -191,11 +216,7 @@ def _validated_budget_memory_for_save(profile: object) -> dict:
         ):
             raise ValueError(f"{field} must be a list of category names")
 
-    merchant_rules = canonical.get("merchant_rules")
-    if not isinstance(merchant_rules, list) or any(
-        not isinstance(rule, dict) for rule in merchant_rules
-    ):
-        raise ValueError("merchant_rules must be a list of objects")
+    _validate_merchant_rules(canonical.get("merchant_rules"))
 
     canonical["version"] = APPROVED_CASH_POLICY_VERSION
     return canonical

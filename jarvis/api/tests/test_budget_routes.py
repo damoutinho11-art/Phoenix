@@ -121,6 +121,51 @@ def test_budget_memory_rejects_invalid_policy_without_persisting(
     assert json.loads(database._get_budget_memory_profile_raw()) == original
 
 
+def test_budget_memory_rejects_unknown_profile_key_without_persisting(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "policy.db")
+    database.init_db()
+    original = {"version": 1, "checking_buffer_eur": 300}
+    database.save_budget_memory_profile(original)
+
+    response = client.post(
+        "/budget/memory", json={"profile": {"unapproved_policy_key": True}}
+    )
+
+    assert response.status_code == 422
+    assert json.loads(database._get_budget_memory_profile_raw()) == original
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        {"contains": "salary", "category": "Income", "is_income": 1},
+        {"contains": ["salary"], "category": 1, "is_income": 1},
+        {"contains": ["salary"], "category": "Income", "is_income": "1"},
+        {"contains": ["salary"], "category": "Income", "is_income": 1, "fixed": 1},
+        {
+            "contains": ["salary"],
+            "category": "Income",
+            "is_income": 1,
+            "budget_month": "current_month",
+        },
+    ],
+)
+def test_budget_memory_rejects_malformed_merchant_rule_without_persisting(
+    monkeypatch, tmp_path, rule
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "policy.db")
+    database.init_db()
+    original = {"version": 1, "checking_buffer_eur": 300}
+    database.save_budget_memory_profile(original)
+
+    response = client.post("/budget/memory", json={"profile": {"merchant_rules": [rule]}})
+
+    assert response.status_code == 422
+    assert json.loads(database._get_budget_memory_profile_raw()) == original
+
+
 def test_budget_insight_is_deterministic_and_does_not_leak_prompt_text() -> None:
     summary = {
         "income_total": 0,
