@@ -5,11 +5,15 @@ import json
 import os
 import subprocess
 import sys
+from datetime import date
 from unittest.mock import patch
 
 import pytest
 
-from jarvis.domains.finance.acceptance_gate import run_local_acceptance_gate
+from jarvis.domains.finance.acceptance_gate import (
+    ready_cashflow_authority_for_today,
+    run_local_acceptance_gate,
+)
 from jarvis.data import database
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.production_smoke_gate import (
@@ -53,6 +57,7 @@ def valid_state() -> tuple[dict, dict]:
     )
     checklist = {
         "checklist_status": "READY_FOR_MANUAL_REVIEW",
+        "week_budget": 115.38,
         "checklist_items": [
             {
                 "asset": "btc",
@@ -86,16 +91,28 @@ def valid_state() -> tuple[dict, dict]:
     return coverage, checklist
 
 
+@pytest.fixture
+def valid_recommendation() -> dict:
+    authority = ready_cashflow_authority_for_today(date.today())
+    return {
+        "data_ready": True,
+        "week_budget": authority["weekly_budget_eur"],
+        "cashflow_authority": authority,
+    }
+
+
 def test_smoke_gate_passes_valid_transparent_cross_endpoint_state(
     valid_state: tuple[dict, dict],
+    valid_recommendation: dict,
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
 
-    assert evaluate_production_smoke(coverage, checklist) == []
+    assert evaluate_production_smoke(coverage, checklist, valid_recommendation) == []
 
 
 def test_smoke_gate_passes_synthetic_quality_etf_current_leg(
     valid_state: tuple[dict, dict],
+    valid_recommendation: dict,
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     sections = coverage["sections"]
@@ -121,15 +138,17 @@ def test_smoke_gate_passes_synthetic_quality_etf_current_leg(
     item.update(asset="quality_etf", ticker="IS3Q.DE", symbol="IS3Q.DE")
     item["resolved_candidate"]["symbol"] = "IS3Q.DE"
 
-    assert evaluate_production_smoke(coverage, checklist) == []
+    assert evaluate_production_smoke(coverage, checklist, valid_recommendation) == []
 
 
-def test_smoke_gate_rejects_blocked_coverage(valid_state: tuple[dict, dict]) -> None:
+def test_smoke_gate_rejects_blocked_coverage(
+    valid_state: tuple[dict, dict], valid_recommendation: dict,
+) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     coverage["verdict"] = "BLOCKED"
     coverage["blockers"] = ["fixture blocker"]
 
-    errors = evaluate_production_smoke(coverage, checklist)
+    errors = evaluate_production_smoke(coverage, checklist, valid_recommendation)
 
     assert any("DATA_TRANSPARENT" in error for error in errors)
     assert any("blockers" in error for error in errors)
@@ -137,6 +156,7 @@ def test_smoke_gate_rejects_blocked_coverage(valid_state: tuple[dict, dict]) -> 
 
 def test_smoke_gate_rejects_missing_selection_gap_reason(
     valid_state: tuple[dict, dict],
+    valid_recommendation: dict,
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     etf = coverage["sections"]["etf_candidate_universe"]["sleeves"][
@@ -144,13 +164,14 @@ def test_smoke_gate_rejects_missing_selection_gap_reason(
     ]
     etf["selection_gap_reason"] = ""
 
-    errors = evaluate_production_smoke(coverage, checklist)
+    errors = evaluate_production_smoke(coverage, checklist, valid_recommendation)
 
     assert any("selection_gap_reason" in error for error in errors)
 
 
 def test_smoke_gate_rejects_manual_checklist_using_research_winner(
     valid_state: tuple[dict, dict],
+    valid_recommendation: dict,
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     etf_item = next(
@@ -159,24 +180,26 @@ def test_smoke_gate_rejects_manual_checklist_using_research_winner(
     etf_item["ticker"] = "EQQQ.L"
     etf_item["symbol"] = "EQQQ.L"
 
-    errors = evaluate_production_smoke(coverage, checklist)
+    errors = evaluate_production_smoke(coverage, checklist, valid_recommendation)
 
     assert any("research winner" in error for error in errors)
 
 
 def test_smoke_gate_rejects_any_safety_flag_regression(
     valid_state: tuple[dict, dict],
+    valid_recommendation: dict,
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     checklist["safety_flags"]["orders_created"] = True
 
-    errors = evaluate_production_smoke(coverage, checklist)
+    errors = evaluate_production_smoke(coverage, checklist, valid_recommendation)
 
     assert any("orders_created" in error for error in errors)
 
 
 def test_smoke_gate_rejects_checklist_etf_symbol_mismatch(
     valid_state: tuple[dict, dict],
+    valid_recommendation: dict,
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     etf_item = next(
@@ -185,9 +208,32 @@ def test_smoke_gate_rejects_checklist_etf_symbol_mismatch(
     etf_item["ticker"] = "OTHER.DE"
     etf_item["symbol"] = "OTHER.DE"
 
-    errors = evaluate_production_smoke(coverage, checklist)
+    errors = evaluate_production_smoke(coverage, checklist, valid_recommendation)
 
     assert any("checklist candidate" in error for error in errors)
+
+
+def test_smoke_gate_rejects_mismatched_cashflow_budget(
+    valid_state: tuple[dict, dict], valid_recommendation: dict,
+) -> None:
+    coverage, checklist = copy.deepcopy(valid_state)
+    checklist["week_budget"] = 100.00
+
+    errors = evaluate_production_smoke(coverage, checklist, valid_recommendation)
+
+    assert any("cash-flow authority" in error.lower() for error in errors)
+
+
+def test_smoke_gate_rejects_forged_reconciled_authority(
+    valid_state: tuple[dict, dict], valid_recommendation: dict,
+) -> None:
+    coverage, checklist = copy.deepcopy(valid_state)
+    recommendation = copy.deepcopy(valid_recommendation)
+    recommendation["cashflow_authority"].pop("input_hash")
+
+    errors = evaluate_production_smoke(coverage, checklist, recommendation)
+
+    assert any("cash-flow authority must pass provenance validation" in error for error in errors)
 
 
 def test_local_smoke_gate_is_offline_safe_and_read_only() -> None:
@@ -211,6 +257,7 @@ def test_local_smoke_gate_is_offline_safe_and_read_only() -> None:
 
 def test_live_smoke_gate_reads_both_endpoints_and_returns_compact_json(
     valid_state: tuple[dict, dict],
+    valid_recommendation: dict,
 ) -> None:
     coverage, checklist = copy.deepcopy(valid_state)
     requested_urls: list[str] = []
@@ -230,7 +277,11 @@ def test_live_smoke_gate_reads_both_endpoints_and_returns_compact_json(
 
     def fake_urlopen(url: str, timeout: int):
         requested_urls.append(url)
-        payload = coverage if url.endswith("/finance/data-coverage") else checklist
+        payload = {
+            "/finance/data-coverage": coverage,
+            "/finance/manual-buy-checklist": checklist,
+            "/finance/recommendation": valid_recommendation,
+        }[url.removeprefix("https://example.test")]
         return FakeResponse(payload)
 
     with patch(
@@ -242,6 +293,7 @@ def test_live_smoke_gate_reads_both_endpoints_and_returns_compact_json(
     assert requested_urls == [
         "https://example.test/finance/data-coverage",
         "https://example.test/finance/manual-buy-checklist",
+        "https://example.test/finance/recommendation",
     ]
     assert result["accepted"] is True
     assert result["mode"] == "live_read_only"
@@ -284,5 +336,27 @@ def test_local_smoke_cli_uses_only_its_temporary_sqlite(tmp_path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["accepted"] is True
+    assert not db_path.exists()
+
+
+def test_local_smoke_cli_is_deterministic_when_production_fail_closed_is_enabled(tmp_path) -> None:
+    db_path = tmp_path / "configured-db-must-not-be-created.db"
+    env = {
+        **os.environ,
+        "JARVIS_DB_PATH": str(db_path),
+        "PHOENIX_FINANCE_FAIL_CLOSED": "true",
+    }
+
+    result = subprocess.run(
+        [sys.executable, "-m", "jarvis.domains.finance.production_smoke_gate"],
+        cwd=os.getcwd(),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout or result.stderr
     assert json.loads(result.stdout)["accepted"] is True
     assert not db_path.exists()

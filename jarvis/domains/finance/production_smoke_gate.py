@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
+from datetime import date
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from urllib.request import urlopen
@@ -15,6 +17,7 @@ from fastapi.testclient import TestClient
 from jarvis.data import database
 from jarvis.domains.finance import acceptance_gate, engine
 from jarvis.domains.finance.acceptance_gate import evaluate_finance_acceptance
+from jarvis.domains.finance.cashflow_authority import validate_cashflow_authority
 
 
 _FALSE_SAFETY_FLAGS = (
@@ -39,9 +42,11 @@ def _items_by_asset(checklist: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def evaluate_production_smoke(
-    coverage: dict[str, Any], checklist: dict[str, Any]
+    coverage: dict[str, Any],
+    checklist: dict[str, Any],
+    recommendation: dict[str, Any],
 ) -> list[str]:
-    """Return coverage/checklist contract violations; empty means accepted."""
+    """Return cross-endpoint finance contract violations; empty means accepted."""
     errors = list(evaluate_finance_acceptance(coverage))
     sections = coverage.get("sections") or {}
     sleeves = ((sections.get("etf_candidate_universe") or {}).get("sleeves") or {})
@@ -125,7 +130,34 @@ def evaluate_production_smoke(
     for flag in _FALSE_SAFETY_FLAGS:
         if checklist_safety.get(flag) is not False:
             errors.append(f"manual checklist safety flag {flag} must be false")
+
+    raw_authority = recommendation.get("cashflow_authority")
+    authority = validate_cashflow_authority(raw_authority, today=date.today())
+    if authority.get("data_ready") is not True:
+        errors.append("cash-flow authority must pass provenance validation")
+    if recommendation.get("data_ready") is not True:
+        errors.append("recommendation must be ready when cash-flow authority is ready")
+
+    authority_budget = _budget_cents(authority.get("weekly_budget_eur"))
+    recommendation_budget = _budget_cents(recommendation.get("week_budget"))
+    checklist_budget = _budget_cents(checklist.get("week_budget"))
+    if authority_budget is None or recommendation_budget != authority_budget:
+        errors.append("recommendation budget must equal cash-flow authority budget")
+    if authority_budget is None or checklist_budget != authority_budget:
+        errors.append("manual checklist budget must equal cash-flow authority budget")
     return errors
+
+
+def _budget_cents(value: object) -> int | None:
+    if type(value) not in {int, float}:
+        return None
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+    if not amount.is_finite() or amount < 0 or amount != amount.quantize(Decimal("0.01")):
+        return None
+    return int(amount * 100)
 
 
 def _smoke_resolution(sleeve: str) -> dict[str, Any]:
@@ -189,6 +221,7 @@ def _compact_result(
     mode: str,
     coverage: dict[str, Any],
     checklist: dict[str, Any],
+    recommendation: dict[str, Any],
     errors: list[str],
 ) -> dict[str, Any]:
     sections = coverage.get("sections") or {}
@@ -207,6 +240,10 @@ def _compact_result(
         "errors": errors,
         "coverage_verdict": coverage.get("verdict"),
         "checklist_status": checklist.get("checklist_status"),
+        "authority_ready": (recommendation.get("cashflow_authority") or {}).get("data_ready") is True,
+        "authority_weekly_budget": (recommendation.get("cashflow_authority") or {}).get("weekly_budget_eur"),
+        "recommendation_weekly_budget": recommendation.get("week_budget"),
+        "checklist_weekly_budget": checklist.get("week_budget"),
         "etf_asset": etf_asset,
         "etf_research_winner": _symbol(etf.get("research_winner")),
         "etf_checklist_candidate": _symbol(etf.get("checklist_candidate")),
@@ -232,7 +269,9 @@ def run_local_smoke_gate() -> dict[str, Any]:
             acceptance_gate._seed_acceptance_evidence()
             ledger_before = database.get_finance_transactions()
             snapshots_before = database.list_finance_portfolio_snapshots()
-            with patch(
+            with patch.dict(
+                "os.environ", {"PHOENIX_FINANCE_FAIL_CLOSED": "false"}
+            ), patch(
                 "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
                 side_effect=_smoke_resolution,
             ), patch(
@@ -245,18 +284,21 @@ def run_local_smoke_gate() -> dict[str, Any]:
                 client = TestClient(app)
                 coverage_response = client.get("/finance/data-coverage")
                 checklist_response = client.get("/finance/manual-buy-checklist")
+                recommendation_response = client.get("/finance/recommendation")
             coverage_response.raise_for_status()
             checklist_response.raise_for_status()
+            recommendation_response.raise_for_status()
             coverage = coverage_response.json()
             checklist = checklist_response.json()
-            errors = evaluate_production_smoke(coverage, checklist)
+            recommendation = recommendation_response.json()
+            errors = evaluate_production_smoke(coverage, checklist, recommendation)
             if portfolio_path.read_bytes() != portfolio_before:
                 errors.append("production smoke gate mutated portfolio_state.json")
             if database.get_finance_transactions() != ledger_before:
                 errors.append("production smoke gate created or changed ledger transactions")
             if database.list_finance_portfolio_snapshots() != snapshots_before:
                 errors.append("production smoke gate created or changed portfolio snapshots")
-            return _compact_result("local_offline", coverage, checklist, errors)
+            return _compact_result("local_offline", coverage, checklist, recommendation, errors)
         finally:
             database.DB_PATH = original_db_path
 
@@ -267,12 +309,13 @@ def _read_json(url: str) -> dict[str, Any]:
 
 
 def run_live_smoke_gate(base_url: str) -> dict[str, Any]:
-    """Read and cross-check both deployed finance endpoints without writes."""
+    """Read and cross-check deployed finance endpoints without writes."""
     base = base_url.rstrip("/")
     coverage = _read_json(f"{base}/finance/data-coverage")
     checklist = _read_json(f"{base}/finance/manual-buy-checklist")
-    errors = evaluate_production_smoke(coverage, checklist)
-    return _compact_result("live_read_only", coverage, checklist, errors)
+    recommendation = _read_json(f"{base}/finance/recommendation")
+    errors = evaluate_production_smoke(coverage, checklist, recommendation)
+    return _compact_result("live_read_only", coverage, checklist, recommendation, errors)
 
 
 def main(argv: list[str] | None = None) -> int:

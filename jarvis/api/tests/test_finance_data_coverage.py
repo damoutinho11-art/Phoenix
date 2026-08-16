@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from jarvis.api.main import app
 from jarvis.data import database
-from jarvis.domains.finance import engine
+from jarvis.domains.finance import acceptance_gate, engine
 from jarvis.domains.finance.market_data import (
     ETF_CANDIDATE_TICKERS,
     STOCK_RESEARCH_CANDIDATES,
@@ -86,6 +86,9 @@ def isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         side_effect=_resolution,
     ), patch(
         "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+    ), patch(
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        side_effect=acceptance_gate._offline_cashflow_authority,
     ):
         yield
 
