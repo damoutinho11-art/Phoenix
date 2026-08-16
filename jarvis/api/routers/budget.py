@@ -511,7 +511,15 @@ def _lhv_statement_quality(raw_text: str, parsed_rows: int) -> dict:
     transaction_rows = [
         row for row in rows if "Starting balance" not in row and "Final balance" not in row
     ]
-    matched = [match for row in transaction_rows if (match := _LHV_TAIL_RE.search(row))]
+    transaction_row_matches = [
+        (row, _LHV_TAIL_RE.search(row)) for row in transaction_rows
+    ]
+    matched = [match for _, match in transaction_row_matches if match]
+    unmatched_rows = [
+        re.sub(r"\s+", " ", row).strip()[:240]
+        for row, match in transaction_row_matches
+        if match is None
+    ][:25]
     opening_match = next(
         (re.search(rf"Starting balance\s+(?P<value>{_LHV_MONEY_RE})", row) for row in rows if "Starting balance" in row),
         None,
@@ -560,6 +568,7 @@ def _lhv_statement_quality(raw_text: str, parsed_rows: int) -> dict:
         "net_movement_eur": movement,
         "balance_difference_eur": difference,
         "warnings": warnings,
+        "unmatched_rows": unmatched_rows,
     }
 
 
@@ -956,9 +965,11 @@ async def parse_pdf_transactions(file: UploadFile = File(...)) -> dict:
         "parsed_rows": len(transactions),
         "opening_balance_eur": None,
         "closing_balance_eur": None,
+        "statement_end_date": None,
         "net_movement_eur": None,
         "balance_difference_eur": None,
         "warnings": ["AI fallback results require manual review."],
+        "unmatched_rows": [],
     }
     response = {
         "transactions": transactions,

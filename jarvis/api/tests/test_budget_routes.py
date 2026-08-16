@@ -375,10 +375,82 @@ def test_parse_pdf_reports_reconciled_statement_quality() -> None:
     assert response.status_code == 200
     quality = response.json()["quality"]
     assert quality["status"] == "reconciled"
+    assert set(quality) == {
+        "status",
+        "statement_rows",
+        "parsed_rows",
+        "opening_balance_eur",
+        "closing_balance_eur",
+        "statement_end_date",
+        "net_movement_eur",
+        "balance_difference_eur",
+        "warnings",
+        "unmatched_rows",
+    }
     assert quality["statement_rows"] == 2
     assert quality["parsed_rows"] == 2
     assert quality["balance_difference_eur"] == 0.0
     assert quality["statement_end_date"] == "2026-05-05"
+    assert quality["unmatched_rows"] == []
+
+
+def test_pdf_review_required_reports_unmatched_rows_without_receipt(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    raw_text = """
+05.05.2026 Starting balance 100.00
+05.05.2026 Shop
+1500000001 -10.00 90.00
+05.05.2026 row that cannot match
+05.05.2026 Final balance 90.00
+"""
+
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value=raw_text):
+        response = client.post(
+            "/budget/parse-pdf",
+            files={"file": ("account.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["quality"]["status"] == "review_required"
+    assert payload["quality"]["unmatched_rows"] == ["05.05.2026 row that cannot match"]
+    assert payload["quality"]["warnings"]
+    assert "receipt_id" not in payload
+    connection = database.get_db()
+    try:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM budget_statement_parse_receipts"
+        ).fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_pdf_review_required_limits_sanitized_unmatched_row_previews() -> None:
+    unmatched_rows = "\n".join(
+        f"05.05.2026 unmatched {index} " + "x" * 300
+        for index in range(26)
+    )
+    raw_text = f"""
+05.05.2026 Starting balance 100.00
+05.05.2026 Shop
+1500000001 -10.00 90.00
+{unmatched_rows}
+05.05.2026 Final balance 90.00
+"""
+
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value=raw_text):
+        response = client.post(
+            "/budget/parse-pdf",
+            files={"file": ("account.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+
+    previews = response.json()["quality"]["unmatched_rows"]
+    assert len(previews) == 25
+    assert all(len(preview) == 240 for preview in previews)
+    assert all("\n" not in preview for preview in previews)
 
 
 def test_ai_fallback_pdf_parse_does_not_issue_statement_receipt() -> None:
@@ -406,8 +478,22 @@ def test_ai_fallback_pdf_parse_does_not_issue_statement_receipt() -> None:
                 )
 
     assert response.status_code == 200
-    assert response.json()["parser"] == "ai_fallback"
-    assert "receipt_id" not in response.json()
+    payload = response.json()
+    assert payload["parser"] == "ai_fallback"
+    assert set(payload["quality"]) == {
+        "status",
+        "statement_rows",
+        "parsed_rows",
+        "opening_balance_eur",
+        "closing_balance_eur",
+        "statement_end_date",
+        "net_movement_eur",
+        "balance_difference_eur",
+        "warnings",
+        "unmatched_rows",
+    }
+    assert payload["quality"]["unmatched_rows"] == []
+    assert "receipt_id" not in payload
 
 
 def test_text_parse_does_not_issue_statement_receipt() -> None:
