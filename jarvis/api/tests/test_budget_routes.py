@@ -121,6 +121,31 @@ def test_budget_memory_rejects_invalid_policy_without_persisting(
     assert json.loads(database._get_budget_memory_profile_raw()) == original
 
 
+@pytest.mark.parametrize(
+    "obligation",
+    [
+        {"name": "", "amount_eur": 150, "contains": ["utility"], "enabled": True},
+        {"name": "Utilities", "amount_eur": 150, "contains": ["utility"], "enabled": "true"},
+        {"name": "Utilities", "amount_eur": 150.001, "contains": ["utility"], "enabled": True},
+        {"name": "Utilities", "amount_eur": 150, "contains": [], "enabled": True},
+    ],
+)
+def test_budget_memory_rejects_invalid_recurring_obligation_without_persisting(
+    monkeypatch, tmp_path, obligation
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "policy.db")
+    database.init_db()
+    original = {"version": 1, "checking_buffer_eur": 300}
+    database.save_budget_memory_profile(original)
+
+    response = client.post(
+        "/budget/memory", json={"profile": {"recurring_obligations": [obligation]}}
+    )
+
+    assert response.status_code == 422
+    assert json.loads(database._get_budget_memory_profile_raw()) == original
+
+
 def test_budget_memory_rejects_unknown_profile_key_without_persisting(
     monkeypatch, tmp_path
 ) -> None:
@@ -1570,7 +1595,7 @@ def test_investment_capacity_hash_covers_full_decision_inputs(monkeypatch, tmp_p
         {
             **_COMPLETE_AUTHORITY_POLICY,
             "recurring_obligations": [
-                {"name": "utilities", "amount_eur": 120, "contains": ["utilities"]}
+                {"name": "utilities", "amount_eur": 120, "contains": ["utilities"], "enabled": True}
             ],
         }
     )
@@ -1804,21 +1829,43 @@ def test_investment_capacity_defaults_absent_version_for_complete_persisted_poli
 def test_unpaid_recurring_bill_reduces_cash_capacity() -> None:
     profile = {
         "recurring_obligations": [
-            {"name": "utilities", "amount_eur": 120, "contains": ["utilities", "alexela"]}
+            {"name": "Utilities", "amount_eur": 150, "contains": ["electric", "water"], "enabled": True}
         ]
     }
 
-    assert budget_router._unpaid_recurring_bills(profile, []) == 120.0
+    assert budget_router._unpaid_recurring_bills(profile, []) == 150.0
     assert budget_router._unpaid_recurring_bills(
-        profile, [{"merchant": "Alexela", "description": "electricity"}]
+        profile, [{"merchant": "Electric Company", "description": "August bill"}]
     ) == 0.0
+
+
+def test_unpaid_recurring_bill_description_match_releases_reserve_case_insensitively() -> None:
+    profile = {
+        "recurring_obligations": [
+            {"name": "Utilities", "amount_eur": 150, "contains": ["electric", "water"], "enabled": True}
+        ]
+    }
+
+    assert budget_router._unpaid_recurring_bills(
+        profile, [{"merchant": "Other", "description": "WATER monthly bill"}]
+    ) == 0.0
+
+
+def test_disabled_recurring_bill_reserves_zero() -> None:
+    profile = {
+        "recurring_obligations": [
+            {"name": "Utilities", "amount_eur": 150, "contains": ["electric", "water"], "enabled": False}
+        ]
+    }
+
+    assert budget_router._unpaid_recurring_bills(profile, []) == 0.0
 
 
 @pytest.mark.parametrize("amount", [2.675, 100.005])
 def test_unpaid_recurring_bills_rejects_subcent_policy_input(amount: float) -> None:
     profile = {
         "recurring_obligations": [
-            {"amount_eur": amount, "contains": ["utilities"]}
+            {"name": "Utilities", "amount_eur": amount, "contains": ["utilities"], "enabled": True}
         ]
     }
 
@@ -1829,19 +1876,21 @@ def test_unpaid_recurring_bills_rejects_subcent_policy_input(amount: float) -> N
     "obligations",
     [
         "utilities",
-        [{"amount_eur": 120, "contains": "utilities"}],
-        [{"amount_eur": 120, "contains": None}],
-        [{"amount_eur": 120, "contains": 1}],
-        [{"amount_eur": 120, "contains": []}],
-        [{"contains": ["utilities"]}],
-        [{"amount_eur": "NaN", "contains": ["utilities"]}],
-        [{"amount_eur": "120", "contains": ["utilities"]}],
-        [{"amount_eur": True, "contains": ["utilities"]}],
-        [{"amount_eur": -1, "contains": ["utilities"]}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": "utilities", "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": None, "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": 1, "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": [], "enabled": True}],
+        [{"name": "Utilities", "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": "NaN", "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": "120", "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": True, "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": -1, "contains": ["utilities"], "enabled": True}],
+        [{"amount_eur": 120, "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": ["utilities"]}],
         ["utilities"],
         [
-            {"amount_eur": 1e308, "contains": ["utilities"]},
-            {"amount_eur": 1e308, "contains": ["electricity"]},
+            {"name": "Utilities", "amount_eur": 1e308, "contains": ["utilities"], "enabled": True},
+            {"name": "Electricity", "amount_eur": 1e308, "contains": ["electricity"], "enabled": True},
         ],
     ],
 )
@@ -1855,19 +1904,21 @@ def test_unpaid_recurring_bills_rejects_malformed_obligations(obligations) -> No
     "obligations",
     [
         "utilities",
-        [{"amount_eur": 120, "contains": "utilities"}],
-        [{"amount_eur": 120, "contains": None}],
-        [{"amount_eur": 120, "contains": 1}],
-        [{"amount_eur": 120, "contains": []}],
-        [{"contains": ["utilities"]}],
-        [{"amount_eur": "NaN", "contains": ["utilities"]}],
-        [{"amount_eur": "120", "contains": ["utilities"]}],
-        [{"amount_eur": True, "contains": ["utilities"]}],
-        [{"amount_eur": -1, "contains": ["utilities"]}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": "utilities", "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": None, "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": 1, "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": [], "enabled": True}],
+        [{"name": "Utilities", "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": "NaN", "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": "120", "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": True, "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": -1, "contains": ["utilities"], "enabled": True}],
+        [{"amount_eur": 120, "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": ["utilities"]}],
         ["utilities"],
         [
-            {"amount_eur": 1e308, "contains": ["utilities"]},
-            {"amount_eur": 1e308, "contains": ["electricity"]},
+            {"name": "Utilities", "amount_eur": 1e308, "contains": ["utilities"], "enabled": True},
+            {"name": "Electricity", "amount_eur": 1e308, "contains": ["electricity"], "enabled": True},
         ],
     ],
 )
@@ -1957,7 +2008,7 @@ def test_investment_capacity_blocks_invalid_required_policy_value(
 def test_unpaid_recurring_bills_rejects_malformed_transactions(transactions) -> None:
     profile = {
         "recurring_obligations": [
-            {"amount_eur": 120, "contains": ["utilities", "alexela"]}
+            {"name": "Utilities", "amount_eur": 120, "contains": ["utilities", "alexela"], "enabled": True}
         ]
     }
 

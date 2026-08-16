@@ -249,6 +249,10 @@ def valid_recurring_obligations(value: object) -> bool:
     for obligation in value:
         if not isinstance(obligation, dict):
             return False
+        if not isinstance(obligation.get("name"), str) or not obligation["name"].strip():
+            return False
+        if type(obligation.get("enabled")) is not bool:
+            return False
         if not _valid_exact_cent_json_number(
             obligation.get("amount_eur"), nonnegative=True
         ):

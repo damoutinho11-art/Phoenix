@@ -270,6 +270,8 @@ def _unpaid_recurring_bills(
     if not valid_recurring_obligations(obligations):
         return None
     for obligation in obligations:
+        if not obligation["enabled"]:
+            continue
         tokens = [token.lower() for token in obligation["contains"]]
         try:
             amount = Decimal(str(obligation["amount_eur"]))

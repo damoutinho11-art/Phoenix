@@ -2,7 +2,10 @@ from datetime import date, datetime
 
 import pytest
 
-from jarvis.domains.finance.cashflow_authority import calculate_cashflow_authority
+from jarvis.domains.finance.cashflow_authority import (
+    calculate_cashflow_authority,
+    valid_recurring_obligations,
+)
 
 
 POLICY = {
@@ -309,10 +312,12 @@ def test_salary_cutoff_31_uses_last_day_of_short_month() -> None:
     "recurring_obligations",
     [
         "utilities",
-        [{"amount_eur": "120", "contains": ["utilities"]}],
-        [{"amount_eur": True, "contains": ["utilities"]}],
-        [{"amount_eur": 1e28, "contains": ["utilities"]}],
-        [{"amount_eur": 120, "contains": []}],
+        [{"name": "", "amount_eur": 120, "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": ["utilities"], "enabled": "true"}],
+        [{"name": "Utilities", "amount_eur": "120", "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": True, "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 1e28, "contains": ["utilities"], "enabled": True}],
+        [{"name": "Utilities", "amount_eur": 120, "contains": [], "enabled": True}],
         ["utilities"],
     ],
 )
@@ -331,6 +336,19 @@ def test_malformed_recurring_policy_blocks_direct_calculator(
     assert result["data_ready"] is False
     assert result["weekly_budget_eur"] == 0.0
     assert "recurring_obligations" in result["blockers"][0]
+
+
+@pytest.mark.parametrize(
+    "obligation",
+    [
+        {"name": "", "amount_eur": 120, "contains": ["utilities"], "enabled": True},
+        {"name": "Utilities", "amount_eur": 120, "contains": ["utilities"], "enabled": "true"},
+        {"name": "Utilities", "amount_eur": 120.001, "contains": ["utilities"], "enabled": True},
+        {"name": "Utilities", "amount_eur": 120, "contains": [], "enabled": True},
+    ],
+)
+def test_valid_recurring_obligations_rejects_noncanonical_rows(obligation: dict) -> None:
+    assert valid_recurring_obligations([obligation]) is False
 
 
 def test_positive_deployable_cash_that_rounds_below_one_cent_blocks() -> None:
@@ -369,7 +387,7 @@ def test_positive_deployable_cash_that_rounds_below_one_cent_blocks() -> None:
         (POLICY, VALID_SNAPSHOT, VALID_MONTH_SUMMARY, 0.001, "unpaid_bills_eur"),
         (POLICY, VALID_SNAPSHOT, {**VALID_MONTH_SUMMARY, "income_total": 3006.841}, 0, "income_total"),
         (POLICY, VALID_SNAPSHOT, {**VALID_MONTH_SUMMARY, "by_category": {"Food & Groceries": {"total": 1.001}}}, 0, "Food & Groceries total"),
-        ({**POLICY, "recurring_obligations": [{"amount_eur": 1.001, "contains": ["utilities"]}]}, VALID_SNAPSHOT, VALID_MONTH_SUMMARY, 0, "recurring_obligations"),
+        ({**POLICY, "recurring_obligations": [{"name": "Utilities", "amount_eur": 1.001, "contains": ["utilities"], "enabled": True}]}, VALID_SNAPSHOT, VALID_MONTH_SUMMARY, 0, "recurring_obligations"),
     ],
 )
 def test_subcent_authority_inputs_fail_closed_before_calculation(
