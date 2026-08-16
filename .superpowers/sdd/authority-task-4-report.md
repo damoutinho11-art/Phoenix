@@ -100,3 +100,44 @@ same canonical output as the structured path. Fractional-cent values are tested
 across opening, closing, net-movement, and difference metrics, with activation
 remaining closed in each case. `BudgetContent.jsx` and `progress.md` are not
 part of this fix commit.
+
+## Legacy Terms Re-Review Fix
+
+`legacyBillDrafts()` now joins a legacy `contains` array only when every member
+is a non-empty string. Invalid arrays are preserved as non-draft values so the
+shared row validator rejects them; no falsey or object value is string-coerced.
+
+### Files
+
+- `pwa/src/components/holo/subs/budgetAuthorityModel.js`
+- `pwa/src/components/holo/subs/budgetAuthorityModel.test.js`
+- `.superpowers/sdd/authority-task-4-report.md`
+
+### TDD Evidence
+
+RED command:
+
+```text
+node --test src/components/holo/subs/budgetAuthorityModel.test.js
+```
+
+Result: 16 passing and 1 failing test. Legacy JSON containing `[false]`
+validated successfully, demonstrating the unwanted `join` coercion.
+
+GREEN command:
+
+```text
+node --test src/components/holo/subs/budgetAuthorityModel.test.js
+```
+
+Result: 17 passing, 0 failing. The regression covers `[false]`, `[0]`, and
+`[{}]`, each producing the row-level matching-term validation error.
+
+### Verification And Self-Review
+
+- `npm test`: 164 passing, 0 failing.
+- `npm run build`: successful Vite production build.
+- `git diff --check`: clean before commit.
+
+The valid legacy JSON array path remains covered. No `BudgetContent.jsx` or
+`progress.md` change is included.

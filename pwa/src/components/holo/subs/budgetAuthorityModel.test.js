@@ -166,6 +166,17 @@ test('authority policy accepts the current UI JSON bill draft', () => {
   }])
 })
 
+test('authority policy rejects malformed matching-term arrays in legacy JSON', () => {
+  for (const term of [false, 0, {}]) {
+    const result = validateAuthorityPolicyDraft(policy, rawPolicy, JSON.stringify([
+      { name: 'Rent', amount_eur: 120, contains: [term], enabled: true },
+    ]))
+
+    assert.equal(result.ok, false)
+    assert.equal(result.error, 'Rent needs at least one matching term')
+  }
+})
+
 test('authority policy rejects blank, partial, exponent, boolean text, and fractional-cent values', () => {
   for (const value of ['', '-', '1e3', 'true', '1.001', '300']) {
     const result = validateAuthorityPolicyDraft(policy, { ...rawPolicy, checking_buffer_eur: value }, billDrafts)

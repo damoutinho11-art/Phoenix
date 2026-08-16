@@ -57,7 +57,9 @@ function legacyBillDrafts(bills) {
       amount_eur: typeof bill?.amount_eur === 'number'
         ? canonicalMoneyDraft(bill.amount_eur)
         : bill?.amount_eur,
-      contains: Array.isArray(bill?.contains) ? bill.contains.join(', ') : bill?.contains,
+      contains: Array.isArray(bill?.contains) && bill.contains.every(
+        term => typeof term === 'string' && term.trim(),
+      ) ? bill.contains.join(', ') : bill?.contains,
     }))
   } catch {
     return null
