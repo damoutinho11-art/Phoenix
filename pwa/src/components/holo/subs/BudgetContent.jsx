@@ -13,10 +13,13 @@ import {
 import { financeBody, financeButton, financeLabel, financeMicro } from './financeReadability'
 import {
   AUTHORITY_NUMERIC_FIELDS,
+  createDefaultUtilityBill,
   createAuthorityLoader,
   formatAuthorityMoney,
   formatAuthorityWindows,
+  preparePolicyEditor,
   protectedCashLabel,
+  reconciliationView,
   receiptSaveOutcome,
   validateAuthorityPolicyDraft,
 } from './budgetAuthorityModel'
@@ -32,6 +35,16 @@ const ALL_CATEGORIES = [
   'Housing', 'Food & Groceries', 'Eating Out', 'Transport',
   'Subscriptions', 'Health & Sport', 'Shopping', 'Investment',
   'Income', 'Banking & Fees', 'Other',
+]
+
+const RECONCILIATION_METRIC_LABELS = [
+  'STATEMENT ROWS',
+  'PARSED ROWS',
+  'OPENING BALANCE',
+  'CLOSING BALANCE',
+  'NET MOVEMENT',
+  'BALANCE DIFFERENCE',
+  'STATEMENT END',
 ]
 
 // category → token (no raw hex): reuse domain accents + semantic status colors
@@ -191,7 +204,7 @@ export function BudgetContent() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
-          <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ MEMORY</button>
+          <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ CASH POLICY</button>
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <button onClick={prev} disabled={idx >= months.length - 1} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx >= months.length - 1 ? 'not-allowed' : 'pointer' }}>‹</button>
@@ -279,7 +292,7 @@ export function BudgetContent() {
 
 // ── upload sub-mode: paste text or PDF → parse → review → save ──
 function UploadStage({ onDone, onCancel }) {
-  const [input, setInput] = useState('text') // 'text' | 'pdf'
+  const [input, setInput] = useState('pdf') // 'pdf' | 'text'
   const [raw, setRaw] = useState('')
   const [pdfFile, setPdfFile] = useState(null)
   const [parsing, setParsing] = useState(false)
@@ -341,8 +354,8 @@ function UploadStage({ onDone, onCancel }) {
     <button key={id} onClick={() => { setInput(id); setError(''); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
   )
   const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
-  const reconciledReceipt = quality?.status === 'reconciled' && Boolean(statementReceiptId) && !reuploadRequired
-  const saveBlocked = !!quality && !reconciledReceipt
+  const reconciliation = useMemo(() => reconciliationView(quality, statementReceiptId), [quality, statementReceiptId])
+  const saveBlocked = input === 'pdf' && (!reconciliation.canActivate || reuploadRequired)
 
   return (
     <div>
@@ -354,8 +367,8 @@ function UploadStage({ onDone, onCancel }) {
       {!transactions ? (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-            {inputTab('text', 'PASTE TEXT')}
             {inputTab('pdf', 'UPLOAD PDF')}
+            {inputTab('text', 'PASTE TEXT · LEDGER ONLY')}
           </div>
 
           {input === 'pdf' ? (
@@ -384,43 +397,74 @@ function UploadStage({ onDone, onCancel }) {
           {quality && (
             <div style={{ padding: '11px 14px', marginBottom: 12, borderTop: `1px solid ${saveBlocked ? R : ACC}`, borderBottom: `1px solid ${a(saveBlocked ? R : ACC, '44')}`, background: deep(66) }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-                <span style={financeLabel({ color: saveBlocked ? R : ACC })}>{reconciledReceipt ? 'STATEMENT RECONCILED' : quality.status === 'reconciled' ? 'RE-UPLOAD REQUIRED' : 'REVIEW REQUIRED'}</span>
-                <span style={financeMicro({ color: a(ACC, '99') })}>{quality.parsed_rows ?? transactions.length} / {quality.statement_rows ?? '—'} ROWS</span>
+                <span style={financeLabel({ color: saveBlocked ? R : ACC })}>{reconciliation.canActivate ? 'STATEMENT RECONCILED' : reconciliation.reconciled ? 'RE-UPLOAD REQUIRED' : 'REVIEW REQUIRED'}</span>
+                <span style={financeMicro({ color: a(ACC, '99') })}>PDF AUTHORITY CHECK</span>
               </div>
-              {reconciledReceipt && (
-                <div style={{ ...financeMicro({ color: a(ACC, '88') }), marginTop: 6 }}>
-                  OPEN €{Number(quality.opening_balance_eur || 0).toFixed(2)} · CLOSE €{Number(quality.closing_balance_eur || 0).toFixed(2)} · DIFFERENCE €{Number(quality.balance_difference_eur || 0).toFixed(2)}
-                </div>
-              )}
-              {quality.status === 'reconciled' && !reconciledReceipt && <div style={financeBody({ marginTop: 7, color: R })}>Re-upload and parse the PDF again before saving.</div>}
-              {saveBlocked && (quality.warnings || []).map((warning, index) => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))', borderTop: `1px solid ${a(ACC, '16')}`, marginTop: 10 }}>
+                {RECONCILIATION_METRIC_LABELS.map(label => {
+                  const metric = reconciliation.metrics.find(item => item.label === label)
+                  return (
+                    <div key={label} style={{ minWidth: 0, padding: '9px 8px 4px 0' }}>
+                      <div style={financeMicro({ color: a(ACC, '77') })}>{label}</div>
+                      <div style={{ marginTop: 4, fontFamily: FD, fontSize: 14, fontWeight: 600, color: label === 'BALANCE DIFFERENCE' && !reconciliation.canActivate ? R : W, overflowWrap: 'anywhere' }}>{metric?.value || '—'}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              {reconciliation.reconciled && !reconciliation.canActivate && <div style={financeBody({ marginTop: 7, color: R })}>Re-upload and parse the PDF again before saving.</div>}
+              {reconciliation.warnings.map((warning, index) => (
                 <div key={index} style={{ fontFamily: FB, fontSize: 12, lineHeight: 1.5, color: mix(BODY, 85), marginTop: 6 }}>{warning}</div>
               ))}
+              {reconciliation.unmatchedRows.length > 0 && (
+                <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${a(R, '30')}` }}>
+                  <div style={financeLabel({ color: R })}>UNMATCHED STATEMENT ROWS</div>
+                  <div style={{ maxHeight: 148, overflowY: 'auto', marginTop: 6 }}>
+                    {reconciliation.unmatchedRows.map((row, index) => (
+                      <div key={`${row}-${index}`} style={{ padding: '6px 0', borderBottom: index < reconciliation.unmatchedRows.length - 1 ? `1px solid ${a(ACC, '12')}` : 'none', fontFamily: FM, fontSize: 9, lineHeight: 1.5, color: mix(BODY, 82), overflowWrap: 'anywhere' }}>{row}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
+          <div style={{ ...financeLabel({ color: a(ACC, '99') }), marginBottom: 8 }}>BANK FACTS LOCKED · CATEGORY, FLOW, AND MONTH EDITABLE</div>
           <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(76), marginBottom: 14 }}>
             {transactions.map((t, i) => (
-              <div key={i} style={{ padding: '10px 14px', borderBottom: i < transactions.length - 1 ? `1px solid ${a(ACC, '10')}` : 'none', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8, alignItems: 'center' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: FB, fontSize: 13, color: mix(BODY, 90), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.merchant}</div>
-                  <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '77') }}>{t.date}</div>
+              <div key={i} style={{ padding: '11px 12px', borderBottom: i < transactions.length - 1 ? `1px solid ${a(ACC, '14')}` : 'none' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))', gap: 8 }}>
+                  {[
+                    ['DATE · LOCKED', t.date || '—'],
+                    ['MERCHANT · LOCKED', t.merchant || '—'],
+                    ['DESCRIPTION · LOCKED', t.description || '—'],
+                    ['AMOUNT · LOCKED', `€${Math.abs(Number(t.amount_eur) || 0).toFixed(2)}`],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ minWidth: 0 }}>
+                      <div style={financeMicro({ color: a(ACC, '66') })}>{label}</div>
+                      <div style={{ marginTop: 3, fontFamily: label.startsWith('AMOUNT') ? FD : FB, fontSize: label.startsWith('AMOUNT') ? 14 : 12, fontWeight: label.startsWith('AMOUNT') ? 600 : 400, lineHeight: 1.35, color: label.startsWith('AMOUNT') ? (t.is_income ? G : W) : mix(BODY, 90), overflowWrap: 'anywhere' }}>{value}</div>
+                    </div>
+                  ))}
                 </div>
-                <button onClick={() => setPickerIdx(i)} style={{ padding: '4px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 9, letterSpacing: '.06em', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t.category}</button>
-                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(108px, 1fr) auto', gap: 8, alignItems: 'center' }}>
-                  <select aria-label={`Income status for ${t.merchant}`} className="phx-input" value={t.is_income ? '1' : '0'} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, is_income: Number(e.target.value) } : item))} style={{ minWidth: 0, padding: '6px 8px', fontFamily: FM, fontSize: 9 }}>
-                    <option value="0">OUTFLOW</option>
-                    <option value="1">INFLOW</option>
-                  </select>
-                  <input aria-label={`Budget month for ${t.merchant}`} className="phx-input" type="month" value={t.month || t.date?.slice(0, 7) || ''} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, month: e.target.value } : item))} style={{ minWidth: 0, padding: '6px 8px', fontFamily: FM, fontSize: 10 }} />
-                  <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: t.is_income ? G : W, whiteSpace: 'nowrap' }}>{t.is_income ? '+' : ''}€{Math.abs(t.amount_eur).toFixed(2)}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))', gap: 8, alignItems: 'end', marginTop: 10, paddingTop: 9, borderTop: `1px solid ${a(ACC, '10')}` }}>
+                  <MemField label="CATEGORY · EDITABLE">
+                    <button onClick={() => setPickerIdx(i)} style={{ width: '100%', minHeight: 34, padding: '5px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 9, letterSpacing: '.06em', cursor: 'pointer', overflowWrap: 'anywhere' }}>{t.category}</button>
+                  </MemField>
+                  <MemField label="FLOW · EDITABLE">
+                    <select aria-label={`Income status for ${t.merchant}`} className="phx-input" value={t.is_income ? '1' : '0'} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, is_income: Number(e.target.value) } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', fontFamily: FM, fontSize: 9 }}>
+                      <option value="0">OUTFLOW</option>
+                      <option value="1">INFLOW</option>
+                    </select>
+                  </MemField>
+                  <MemField label="MONTH · EDITABLE">
+                    <input aria-label={`Budget month for ${t.merchant}`} className="phx-input" type="month" value={t.month || t.date?.slice(0, 7) || ''} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, month: e.target.value } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', boxSizing: 'border-box', fontFamily: FM, fontSize: 10 }} />
+                  </MemField>
                 </div>
               </div>
             ))}
           </div>
           {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginBottom: 10 }}>{error}</div>}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => { setTransactions(null); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: 1, minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>← RE-PARSE</button>
-            <button onClick={save} disabled={saving || saveBlocked} style={{ flex: 2, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', color: saveBlocked ? a(ACC, '66') : INK, background: saveBlocked ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${saveBlocked ? a(ACC, '30') : ACC}`, cursor: saving ? 'wait' : saveBlocked ? 'not-allowed' : 'pointer', boxShadow: saveBlocked ? 'none' : `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : saveBlocked ? 'SAVE BLOCKED' : `SAVE ALL · ${transactions.length}`}</button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button onClick={() => { setTransactions(null); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: '1 1 120px', minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>{input === 'pdf' ? '← RE-PARSE PDF' : '← EDIT TEXT'}</button>
+            <button onClick={save} disabled={saving || saveBlocked} style={{ flex: '2 1 210px', minHeight: 44, padding: '0 10px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.14em', color: saveBlocked ? a(ACC, '66') : INK, background: saveBlocked ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${saveBlocked ? a(ACC, '30') : ACC}`, cursor: saving ? 'wait' : saveBlocked ? 'not-allowed' : 'pointer', boxShadow: saveBlocked ? 'none' : `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : input === 'pdf' ? reconciliation.canActivate ? 'SAVE & ACTIVATE AUTHORITY' : 'AUTHORITY BLOCKED' : 'SAVE LEDGER TRANSACTIONS'}</button>
           </div>
         </>
       )}
@@ -439,6 +483,14 @@ function UploadStage({ onDone, onCancel }) {
 // ── memory sub-mode: savings target, category lanes, merchant rules ──
 const prettyJson = v => JSON.stringify(v || {}, null, 2)
 const parseList = v => String(v || '').split(',').map(s => s.trim()).filter(Boolean)
+const AUTHORITY_POLICY_KEYS = new Set([
+  ...AUTHORITY_NUMERIC_FIELDS.map(([key]) => key),
+  'recurring_obligations',
+  'version',
+])
+const withoutAuthorityPolicy = profile => Object.fromEntries(
+  Object.entries(profile || {}).filter(([key]) => !AUTHORITY_POLICY_KEYS.has(key)),
+)
 
 function MemField({ label, children }) {
   return (
@@ -462,9 +514,10 @@ function ChipRow({ items }) {
 
 function MemoryStage({ onDone, onCancel }) {
   const [profile, setProfile] = useState(null)
-  const [draft, setDraft] = useState('')
+  const [advancedDraft, setAdvancedDraft] = useState('')
   const [authorityDraft, setAuthorityDraft] = useState({})
-  const [recurringDraft, setRecurringDraft] = useState('')
+  const [billDrafts, setBillDrafts] = useState([])
+  const [migrationRequired, setMigrationRequired] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -475,15 +528,14 @@ function MemoryStage({ onDone, onCancel }) {
       .then(p => {
         if (!alive) return
         const loaded = p.profile || {}
+        const editor = preparePolicyEditor(loaded, p.migration_required)
         setProfile(loaded)
-        setDraft(prettyJson(loaded))
-        setAuthorityDraft(Object.fromEntries(AUTHORITY_NUMERIC_FIELDS.map(([key]) => [
-          key,
-          loaded[key] == null ? '' : key === 'salary_day_cutoff' ? String(loaded[key]) : typeof loaded[key] === 'number' && Number.isFinite(loaded[key]) ? loaded[key].toFixed(2) : String(loaded[key]),
-        ])))
-        setRecurringDraft(prettyJson(loaded.recurring_obligations || []))
+        setAdvancedDraft(prettyJson(withoutAuthorityPolicy(loaded)))
+        setAuthorityDraft(editor.rawFields)
+        setBillDrafts(editor.bills)
+        setMigrationRequired(editor.migrationRequired)
       })
-      .catch(err => { if (alive) setError(err.message || 'Could not load budget memory') })
+      .catch(err => { if (alive) setError(err.message || 'Could not load cash policy') })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [])
@@ -491,8 +543,7 @@ function MemoryStage({ onDone, onCancel }) {
   const update = patch => {
     const next = { ...(profile || {}), ...patch }
     setProfile(next)
-    setDraft(prettyJson(next))
-    if (Object.prototype.hasOwnProperty.call(patch, 'recurring_obligations')) setRecurringDraft(prettyJson(next.recurring_obligations))
+    setAdvancedDraft(prettyJson(withoutAuthorityPolicy(next)))
     setError('')
   }
   const updateList = (key, value) => update({ [key]: parseList(value) })
@@ -500,18 +551,31 @@ function MemoryStage({ onDone, onCancel }) {
     setAuthorityDraft(previous => ({ ...previous, [key]: value }))
     setError('')
   }
+  const updateBill = (index, patch) => {
+    setBillDrafts(previous => previous.map((bill, row) => row === index ? { ...bill, ...patch } : bill))
+    setError('')
+  }
+  const addBill = () => {
+    const utility = createDefaultUtilityBill()
+    setBillDrafts(previous => [...previous, { ...utility, name: '', amount_eur: '0.00', contains: '' }])
+    setError('')
+  }
+  const removeBill = index => {
+    setBillDrafts(previous => previous.filter((_, row) => row !== index))
+    setError('')
+  }
 
   const save = async () => {
     if (saving) return
     let payload
-    try { payload = JSON.parse(draft || '{}') } catch { setError('Memory JSON is not valid.'); return }
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) { setError('Memory JSON is not valid.'); return }
-    const validated = validateAuthorityPolicyDraft(payload, authorityDraft, recurringDraft)
+    try { payload = JSON.parse(advancedDraft || '{}') } catch { setError('Advanced memory JSON is not valid.'); return }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) { setError('Advanced memory JSON is not valid.'); return }
+    payload = withoutAuthorityPolicy(payload)
+    const validated = validateAuthorityPolicyDraft(payload, authorityDraft, billDrafts)
     if (!validated.ok) { setError(validated.error); return }
     payload = validated.profile
     setProfile(payload)
-    setDraft(prettyJson(payload))
-    setRecurringDraft(prettyJson(payload.recurring_obligations))
+    setAdvancedDraft(prettyJson(withoutAuthorityPolicy(payload)))
     setSaving(true); setError('')
     try {
       await saveBudgetMemory(payload)
@@ -527,18 +591,19 @@ function MemoryStage({ onDone, onCancel }) {
   const nonSpending = Array.isArray(profile?.non_spending_categories) ? profile.non_spending_categories : []
   const rules = Array.isArray(profile?.merchant_rules) ? profile.merchant_rules : []
   const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '10px 11px', fontFamily: FB, fontSize: 13 }
+  const saveLabel = migrationRequired ? 'SAVE & UPGRADE POLICY' : 'SAVE CASH POLICY'
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>BUDGET MEMORY</span>
-        <span style={{ display: 'inline-flex', gap: 8 }}>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>CASH POLICY</span>
+        <span style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
           <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
-          <button onClick={save} disabled={saving || loading} style={{ minHeight: 30, padding: '0 16px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'SAVING…' : 'SAVE'}</button>
+          <button onClick={save} disabled={saving || loading} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'SAVING…' : saveLabel}</button>
         </span>
       </div>
 
-      {loading && <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING MEMORY…</div>}
+      {loading && <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING CASH POLICY…</div>}
 
       {!loading && profile && (
         <>
@@ -554,7 +619,13 @@ function MemoryStage({ onDone, onCancel }) {
             </MemField>
           </div>
 
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CASH AUTHORITY POLICY</div>
+          {migrationRequired && (
+            <div style={{ margin: '14px 0', padding: '10px 12px', borderTop: `1px solid ${a(Y, '66')}`, borderBottom: `1px solid ${a(Y, '33')}`, background: deep(64), ...financeBody({ color: Y }) }}>
+              Legacy policy is staged for version 2. Review the authority values and Utilities reserve, then save explicitly.
+            </div>
+          )}
+
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>AUTHORITY LIMITS</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(144px, 1fr))', gap: 10 }}>
             {AUTHORITY_NUMERIC_FIELDS.map(([key, label]) => (
               <MemField key={key} label={label}>
@@ -563,12 +634,35 @@ function MemoryStage({ onDone, onCancel }) {
             ))}
           </div>
 
-          <MemField label="RECURRING OBLIGATIONS JSON">
-            <textarea className="phx-input" value={recurringDraft} spellCheck={false} onChange={e => {
-              setRecurringDraft(e.target.value)
-              setError('')
-            }} style={{ ...inputStyle, minHeight: 94, resize: 'vertical', fontFamily: FM, fontSize: 10, lineHeight: 1.5 }} />
-          </MemField>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', margin: '18px 0 9px' }}>
+            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc') }}>RECURRING BILL RESERVES</div>
+            <button type="button" onClick={addBill} style={{ minHeight: 32, padding: '0 11px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: a(ACC, 'dd'), background: deep(58), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>+ ADD BILL</button>
+          </div>
+          <div style={{ borderTop: `1px solid ${a(ACC, '20')}` }}>
+            {billDrafts.map((bill, index) => (
+              <div key={index} style={{ padding: '11px 0', borderBottom: `1px solid ${a(ACC, '16')}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 9 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 30, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: bill.enabled ? G : a(ACC, '77'), cursor: 'pointer' }}>
+                    <input type="checkbox" checked={bill.enabled} onChange={e => updateBill(index, { enabled: e.target.checked })} style={{ width: 17, height: 17, accentColor: ACC }} />
+                    {bill.enabled ? 'ENABLED' : 'DISABLED'}
+                  </label>
+                  <button type="button" title="Remove bill" aria-label={`REMOVE BILL ${index + 1}`} onClick={() => removeBill(index)} style={{ width: 32, height: 32, padding: 0, fontFamily: FD, fontSize: 18, lineHeight: 1, color: R, background: deep(58), border: `1px solid ${a(R, '44')}`, cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 9 }}>
+                  <MemField label="BILL NAME">
+                    <input className="phx-input" style={inputStyle} value={bill.name} onChange={e => updateBill(index, { name: e.target.value })} />
+                  </MemField>
+                  <MemField label="RESERVE EUR">
+                    <input className="phx-input" inputMode="decimal" style={inputStyle} value={bill.amount_eur} onChange={e => updateBill(index, { amount_eur: e.target.value })} />
+                  </MemField>
+                  <MemField label="MATCHING TERMS">
+                    <input className="phx-input" style={inputStyle} value={bill.contains} onChange={e => updateBill(index, { contains: e.target.value })} />
+                  </MemField>
+                </div>
+              </div>
+            ))}
+            {!billDrafts.length && <div style={{ padding: '12px 0', ...financeBody({ color: a(ACC, '88') }) }}>No recurring bill reserves configured.</div>}
+          </div>
 
           <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CATEGORY LANES</div>
           <div style={{ display: 'grid', gap: 12 }}>
@@ -607,10 +701,10 @@ function MemoryStage({ onDone, onCancel }) {
             </>
           )}
 
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 8px' }}>ADVANCED MEMORY JSON <span style={{ color: a(ACC, '77') }}>· EDIT CAREFULLY</span></div>
-          <textarea className="phx-input" value={draft} spellCheck={false} onChange={e => { setDraft(e.target.value); setError('') }} style={{ width: '100%', boxSizing: 'border-box', minHeight: 200, resize: 'vertical', fontFamily: FM, fontSize: 10, lineHeight: 1.55, padding: 11 }} />
+          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 8px' }}>ADVANCED NON-AUTHORITY MEMORY JSON <span style={{ color: a(ACC, '77') }}>· EDIT CAREFULLY</span></div>
+          <textarea className="phx-input" value={advancedDraft} spellCheck={false} onChange={e => { setAdvancedDraft(e.target.value); setError('') }} style={{ width: '100%', boxSizing: 'border-box', minHeight: 200, resize: 'vertical', fontFamily: FM, fontSize: 10, lineHeight: 1.55, padding: 11 }} />
           {error && <div style={{ marginTop: 10, color: R, fontFamily: FB, fontSize: 12 }}>{error}</div>}
-          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: '100%', minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING MEMORY…' : 'SAVE BUDGET MEMORY'}</button>
+          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: '100%', minHeight: 44, padding: '0 12px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.14em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING CASH POLICY…' : saveLabel}</button>
         </>
       )}
     </div>

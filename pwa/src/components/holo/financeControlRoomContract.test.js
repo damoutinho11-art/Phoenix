@@ -254,7 +254,7 @@ test('budget lane can upload a statement: parse text/pdf, review categories, sav
   assert.match(budget, /saveBudgetTransactions/)
   assert.match(budget, /ADD TRANSACTIONS/)
   assert.match(budget, /CategoryPicker/)
-  assert.match(budget, /quality\?\.status === 'reconciled'/)
+  assert.match(budget, /reconciliationView/)
   assert.match(budget, /STATEMENT RECONCILED/)
   assert.match(budget, /REVIEW REQUIRED/)
   assert.match(budget, /disabled=\{saving \|\| saveBlocked\}/)
@@ -357,7 +357,8 @@ test('budget memory exposes validated authority policy inputs without blank coer
 
   assert.match(budget, /authorityDraft/)
   assert.match(budget, /validateAuthorityPolicyDraft/)
-  assert.match(budget, /recurringDraft/)
+  assert.match(budget, /preparePolicyEditor/)
+  assert.match(budget, /billDrafts/)
   assert.doesNotMatch(budget, /updateAuthorityNumber/)
   for (const field of [
     'emergency_fund_floor_eur',
@@ -369,6 +370,51 @@ test('budget memory exposes validated authority policy inputs without blank coer
   ]) {
     assert.equal(model.AUTHORITY_NUMERIC_FIELDS.some(([key]) => key === field), true)
   }
+})
+
+test('budget cash policy uses structured bills and an explicit legacy upgrade command', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+
+  assert.match(budget, /CASH POLICY/)
+  assert.match(budget, /migration_required/)
+  assert.match(budget, /SAVE & UPGRADE POLICY/)
+  assert.match(budget, /SAVE CASH POLICY/)
+  assert.match(budget, /type="checkbox"/)
+  assert.match(budget, /BILL NAME/)
+  assert.match(budget, /RESERVE EUR/)
+  assert.match(budget, /MATCHING TERMS/)
+  assert.match(budget, /ADD BILL/)
+  assert.match(budget, /REMOVE BILL/)
+  assert.doesNotMatch(budget, /RECURRING OBLIGATIONS JSON/)
+  assert.doesNotMatch(budget, /recurringDraft/)
+})
+
+test('budget PDF review locks bank facts and activates authority only from reconciliation view', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+  const uploadPdf = budget.indexOf("inputTab('pdf'")
+  const pasteText = budget.indexOf("inputTab('text'")
+
+  assert.ok(uploadPdf >= 0 && uploadPdf < pasteText, 'PDF must be the first statement input mode')
+  assert.match(budget, /LEDGER ONLY/)
+  assert.match(budget, /BANK FACTS LOCKED/)
+  for (const label of [
+    'STATEMENT ROWS',
+    'PARSED ROWS',
+    'OPENING BALANCE',
+    'CLOSING BALANCE',
+    'NET MOVEMENT',
+    'BALANCE DIFFERENCE',
+    'STATEMENT END',
+  ]) {
+    assert.match(budget, new RegExp(label))
+  }
+  assert.match(budget, /unmatchedRows/)
+  assert.match(budget, /UNMATCHED STATEMENT ROWS/)
+  assert.match(budget, /RE-PARSE PDF/)
+  assert.match(budget, /SAVE & ACTIVATE AUTHORITY/)
+  assert.match(budget, /SAVE LEDGER TRANSACTIONS/)
+  assert.match(budget, /canActivate/)
+  assert.doesNotMatch(budget, /OVERRIDE RECONCILIATION/)
 })
 
 test('finance control room reuses existing finance instrument designs', async () => {
