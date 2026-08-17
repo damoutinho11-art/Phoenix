@@ -10,7 +10,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from pypdf import PdfReader
 
 from jarvis.api import ai_gateway
@@ -112,6 +112,43 @@ class SaveRequest(BaseModel):
 
 class BudgetMemoryRequest(BaseModel):
     profile: object
+
+
+class CategoryCorrectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    statement_import_id: str
+    expected_revision: str
+    merchant_key: str
+    ordinals: list[int]
+    corrected_category: str
+    remember_merchant: bool = True
+
+    @field_validator("merchant_key")
+    @classmethod
+    def merchant_key_must_be_canonical(cls, value: str) -> str:
+        normalized = database.normalize_budget_merchant(value)
+        if not normalized or value != normalized:
+            raise ValueError("merchant_key must be a nonempty canonical merchant key")
+        return value
+
+    @field_validator("ordinals")
+    @classmethod
+    def ordinals_must_be_unique_nonnegative_integers(cls, value: list[int]) -> list[int]:
+        if (
+            not value
+            or any(type(ordinal) is not int or ordinal < 0 for ordinal in value)
+            or len(set(value)) != len(value)
+        ):
+            raise ValueError("ordinals must be unique non-negative integers")
+        return value
+
+    @field_validator("corrected_category")
+    @classmethod
+    def corrected_category_must_be_known(cls, value: str) -> str:
+        if value not in CATEGORIES:
+            raise ValueError("corrected_category must be a known category")
+        return value
 
 
 def _deepcopy_default_budget_memory() -> dict:
@@ -321,6 +358,7 @@ def _cashflow_input_hash(
     snapshot: dict | None,
     month_summary: dict,
     unpaid_bills_eur: float | None,
+    correction_revision: str,
     today: date,
     week_closed: bool,
 ) -> str:
@@ -330,6 +368,7 @@ def _cashflow_input_hash(
             "snapshot": snapshot,
             "month_summary": month_summary,
             "unpaid_bills_eur": unpaid_bills_eur,
+            "correction_revision": correction_revision,
             "today": today.isoformat(),
             "week_closed": week_closed,
         },
@@ -378,16 +417,29 @@ def _build_cashflow_authority(
             "blockers": ["Cash-flow statement transaction provenance is invalid."],
             "weekly_budget_eur": 0.0,
         }
-    imported_transactions = database.get_budget_statement_import_transactions(
+    immutable_transactions = database.get_budget_statement_import_transactions(
         statement_import_id
     )
-    if not isinstance(imported_transactions, list):
+    if not isinstance(immutable_transactions, list):
         return {
             "data_ready": False,
             "blockers": ["Cash-flow statement transaction provenance is invalid."],
             "weekly_budget_eur": 0.0,
         }
-    if len(imported_transactions) != parsed_rows or any(
+    if len(immutable_transactions) != parsed_rows or any(
+        row.get("statement_import_id") != statement_import_id
+        for row in immutable_transactions
+        if isinstance(row, dict)
+    ) or any(not isinstance(row, dict) for row in immutable_transactions):
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow statement transaction provenance is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
+    imported_transactions = database.get_effective_budget_statement_transactions(
+        statement_import_id
+    )
+    if not isinstance(imported_transactions, list) or len(imported_transactions) != parsed_rows or any(
         row.get("statement_import_id") != statement_import_id
         for row in imported_transactions
         if isinstance(row, dict)
@@ -403,6 +455,7 @@ def _build_cashflow_authority(
     summary = database.get_budget_statement_import_summary(
         statement_import_id, target_month
     )
+    correction_revision = database.get_budget_correction_revision(statement_import_id)
     unpaid_bills_eur = _unpaid_recurring_bills(profile, transactions)
     if unpaid_bills_eur is None:
         return {
@@ -430,6 +483,7 @@ def _build_cashflow_authority(
             snapshot=snapshot,
             month_summary=summary,
             unpaid_bills_eur=unpaid_bills_eur,
+            correction_revision=correction_revision,
             today=decision_today,
             week_closed=week_closed,
         )
@@ -458,6 +512,73 @@ def _build_cashflow_authority(
     }
 
 
+def _budget_category_review_payload(month: str) -> dict:
+    target_month = _validated_budget_month(month)
+    source = database.get_budget_category_review_source(target_month)
+    learned_rules = database.get_active_budget_learned_merchant_rules()
+    if source is None:
+        return {
+            "data_ready": False,
+            "blockers": [
+                "No receipt-verified, reconciled PDF statement is available for this month."
+            ],
+            "statement_import_id": None,
+            "revision": None,
+            "unresolved_count": 0,
+            "unresolved_amount_eur": 0.0,
+            "merchant_groups": [],
+            "learned_merchants": learned_rules,
+        }
+
+    statement_import_id = source["statement_import_id"]
+    unresolved_rows = [
+        row
+        for row in database.get_effective_budget_statement_transactions(
+            statement_import_id
+        )
+        if row.get("month") == target_month and row.get("effective_category") == "Other"
+    ]
+    grouped: dict[str, dict] = {}
+    for row in unresolved_rows:
+        merchant_key = database.normalize_budget_merchant(row.get("merchant", ""))
+        if not merchant_key:
+            continue
+        group = grouped.setdefault(
+            merchant_key,
+            {
+                "merchant_key": merchant_key,
+                "merchant": row["merchant"],
+                "ordinals": [],
+                "transactions": [],
+            },
+        )
+        group["ordinals"].append(row["ordinal"])
+        group["transactions"].append(
+            {
+                "ordinal": row["ordinal"],
+                "date": row["date"],
+                "merchant": row["merchant"],
+                "amount_eur": abs(float(row["amount_eur"])),
+                "description": row["description"],
+                "is_income": int(row["is_income"]),
+                "category": row["category"],
+            }
+        )
+    merchant_groups = [grouped[key] for key in sorted(grouped)]
+    return {
+        "data_ready": True,
+        "blockers": [],
+        "statement_import_id": statement_import_id,
+        "revision": database.get_budget_correction_revision(statement_import_id),
+        "unresolved_count": len(unresolved_rows),
+        "unresolved_amount_eur": round(
+            sum(abs(float(row["amount_eur"])) for row in unresolved_rows), 2
+        ),
+        "merchant_groups": merchant_groups,
+        "learned_merchants": learned_rules,
+    }
+
+
 def _text_matches_rule(text: str, rule: dict) -> bool:
     tokens = [str(token).lower() for token in rule.get("contains", []) if str(token).strip()]
     return bool(tokens) and any(token in text for token in tokens)
@@ -469,6 +590,11 @@ def _budget_memory_rule_for_transaction(merchant: str, description: str, profile
     for rule in budget_profile.get("merchant_rules", []):
         if isinstance(rule, dict) and _text_matches_rule(text, rule):
             return rule
+    merchant_key = database.normalize_budget_merchant(merchant)
+    if merchant_key:
+        for learned_rule in database.get_active_budget_learned_merchant_rules():
+            if learned_rule.get("normalized_merchant") == merchant_key:
+                return {"category": learned_rule["category"]}
     return None
 
 
@@ -1081,6 +1207,50 @@ def budget_summary(month: str = "") -> dict:
         "non_spending_categories": sorted(NON_SPENDING_CATEGORIES),
     }
     return summary
+
+
+@router.get("/category-review")
+def budget_category_review(month: str) -> dict:
+    try:
+        return _budget_category_review_payload(month)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/category-corrections")
+def apply_category_correction(request: CategoryCorrectionRequest) -> dict:
+    try:
+        database.apply_budget_category_correction(
+            statement_import_id=request.statement_import_id,
+            expected_revision=request.expected_revision,
+            merchant_key=request.merchant_key,
+            ordinals=request.ordinals,
+            corrected_category=request.corrected_category,
+            remember_merchant=request.remember_merchant,
+        )
+    except database.BudgetCorrectionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    source_rows = database.get_effective_budget_statement_transactions(
+        request.statement_import_id
+    )
+    month = next((row["month"] for row in source_rows if row.get("month")), None)
+    if not isinstance(month, str):
+        raise HTTPException(status_code=422, detail="Statement import has no budget month")
+    return {
+        "review": _budget_category_review_payload(month),
+        "summary": database.get_budget_summary(month),
+        "authority": _build_cashflow_authority(month),
+    }
+
+
+@router.delete("/learned-merchants/{rule_id}")
+def forget_learned_merchant(rule_id: int) -> dict:
+    if not database.deactivate_budget_learned_merchant_rule(rule_id):
+        raise HTTPException(status_code=404, detail="Learned merchant rule not found")
+    return {"learned_merchants": database.get_active_budget_learned_merchant_rules()}
 
 
 @router.get("/investment-capacity")

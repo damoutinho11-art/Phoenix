@@ -3784,6 +3784,21 @@ def apply_budget_category_correction(
                     now,
                 ),
             )
+            connection.execute(
+                """UPDATE budget_transactions SET category=?
+                   WHERE date=? AND merchant=? AND amount_eur=? AND description=?
+                     AND source=? AND month=? AND is_income=?""",
+                (
+                    corrected_category,
+                    row["date"],
+                    row["merchant"],
+                    row["amount_eur"],
+                    row["description"],
+                    row["source"],
+                    row["month"],
+                    row["is_income"],
+                ),
+            )
         if remember_merchant:
             connection.execute(
                 """INSERT INTO budget_learned_merchant_rules
@@ -3894,19 +3909,20 @@ def _budget_summary_from_grouped_rows(
 def get_budget_statement_import_summary(
     statement_import_id: str, month: str
 ) -> dict[str, Any]:
-    """Summarise only immutable rows from one verified statement import."""
-    connection = get_db()
-    try:
-        rows = connection.execute(
-            """SELECT category, is_income, SUM(amount_eur) as total, COUNT(*) as count
-               FROM budget_statement_import_transactions
-               WHERE statement_import_id=? AND month=?
-               GROUP BY category, is_income""",
-            (statement_import_id, month),
-        ).fetchall()
-    finally:
-        connection.close()
-    return _budget_summary_from_grouped_rows(month, rows)
+    """Summarise one verified statement through its effective category projection."""
+    grouped: dict[tuple[str, int], dict[str, Any]] = {}
+    for transaction in get_effective_budget_statement_transactions(statement_import_id):
+        if transaction.get("month") != month:
+            continue
+        category = str(transaction.get("effective_category") or "Other")
+        is_income = int(transaction.get("is_income") or 0)
+        group = grouped.setdefault(
+            (category, is_income),
+            {"category": category, "is_income": is_income, "total": 0.0, "count": 0},
+        )
+        group["total"] = float(group["total"]) + float(transaction["amount_eur"])
+        group["count"] = int(group["count"]) + 1
+    return _budget_summary_from_grouped_rows(month, list(grouped.values()))
 
 
 def get_budget_summary(month: str) -> dict[str, Any]:
