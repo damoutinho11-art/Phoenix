@@ -1219,6 +1219,25 @@ def budget_category_review(month: str) -> dict:
 
 @router.post("/category-corrections")
 def apply_category_correction(request: CategoryCorrectionRequest) -> dict:
+    selected_rows = [
+        row
+        for row in database.get_effective_budget_statement_transactions(
+            request.statement_import_id
+        )
+        if row.get("ordinal") in request.ordinals
+    ]
+    selected_months = {row.get("month") for row in selected_rows}
+    if len(selected_rows) != len(request.ordinals) or len(selected_months) != 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Correction ordinals must belong to one statement month",
+        )
+    month = selected_months.pop()
+    if not isinstance(month, str):
+        raise HTTPException(
+            status_code=422,
+            detail="Correction ordinals must belong to one statement month",
+        )
     try:
         database.apply_budget_category_correction(
             statement_import_id=request.statement_import_id,
@@ -1233,15 +1252,11 @@ def apply_category_correction(request: CategoryCorrectionRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    source_rows = database.get_effective_budget_statement_transactions(
-        request.statement_import_id
-    )
-    month = next((row["month"] for row in source_rows if row.get("month")), None)
-    if not isinstance(month, str):
-        raise HTTPException(status_code=422, detail="Statement import has no budget month")
     return {
         "review": _budget_category_review_payload(month),
-        "summary": database.get_budget_summary(month),
+        "summary": database.get_budget_statement_import_summary(
+            request.statement_import_id, month
+        ),
         "authority": _build_cashflow_authority(month),
     }
 

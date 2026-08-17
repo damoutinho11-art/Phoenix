@@ -3168,7 +3168,8 @@ def test_category_review_and_correction_project_only_verified_other_rows(
     after_summary = correction.json()["summary"]
     after_authority = correction.json()["authority"]
     assert after_summary["income_total"] == before_summary["income_total"]
-    assert after_summary["expenses_total"] == before_summary["expenses_total"]
+    assert after_summary["expenses_total"] == 44.68
+    assert "Other" not in after_summary["by_category"]
     assert after_authority["protected_cash"]["food_eur"] < before_authority["protected_cash"]["food_eur"]
     assert after_authority["input_hash"] != before_authority["input_hash"]
 
@@ -3290,3 +3291,107 @@ def test_forget_learned_merchant_deactivates_only_requested_rule(monkeypatch, tm
 
     assert response.status_code == 200
     assert response.json()["learned_merchants"] == []
+
+
+def _save_multimonth_review_other_statement() -> str:
+    transactions = [
+        {
+            "date": "2026-08-31",
+            "merchant": "Salary",
+            "amount_eur": 1000.0,
+            "category": "Income",
+            "description": "Monthly salary",
+            "source": "pdf",
+            "month": "2026-08",
+            "is_income": 1,
+        },
+        {
+            "date": "2026-08-31",
+            "merchant": "Unmapped Market",
+            "amount_eur": 12.34,
+            "category": "Other",
+            "description": "August card payment",
+            "source": "pdf",
+            "month": "2026-08",
+            "is_income": 0,
+        },
+        {
+            "date": "2026-09-01",
+            "merchant": "Unmapped Market",
+            "amount_eur": 15.0,
+            "category": "Other",
+            "description": "September card payment",
+            "source": "pdf",
+            "month": "2026-09",
+            "is_income": 0,
+        },
+    ]
+    snapshot = {
+        "statement_end_date": "2026-09-01",
+        "opening_balance_eur": 0.0,
+        "closing_balance_eur": 972.66,
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "statement_rows": len(transactions),
+        "parsed_rows": len(transactions),
+        "balance_difference_eur": 0.0,
+        "filename_hash": "c" * 64,
+    }
+    receipt = database._create_budget_statement_parse_receipt(transactions, snapshot)
+    database._save_budget_statement_receipt_import(transactions, receipt["receipt_id"])
+    source = database.get_latest_reconciled_budget_statement()
+    assert source is not None
+    return source["statement_import_id"]
+
+
+def test_correction_response_uses_the_corrected_ordinal_month(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "correction-month.db")
+    database.init_db()
+    statement_import_id = _save_multimonth_review_other_statement()
+
+    response = client.post(
+        "/budget/category-corrections",
+        json={
+            "statement_import_id": statement_import_id,
+            "expected_revision": database.get_budget_correction_revision(
+                statement_import_id
+            ),
+            "merchant_key": "unmapped market",
+            "ordinals": [2],
+            "corrected_category": "Food & Groceries",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["review"]["unresolved_count"] == 0
+    assert response.json()["summary"]["month"] == "2026-09"
+
+
+def test_correction_endpoint_rejects_mixed_month_selection_without_writing(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "correction-mixed-month.db")
+    database.init_db()
+    statement_import_id = _save_multimonth_review_other_statement()
+
+    response = client.post(
+        "/budget/category-corrections",
+        json={
+            "statement_import_id": statement_import_id,
+            "expected_revision": database.get_budget_correction_revision(
+                statement_import_id
+            ),
+            "merchant_key": "unmapped market",
+            "ordinals": [1, 2],
+            "corrected_category": "Food & Groceries",
+        },
+    )
+
+    assert response.status_code == 422
+    assert [
+        row["effective_category"]
+        for row in database.get_effective_budget_statement_transactions(
+            statement_import_id
+        )
+        if row["ordinal"] in {1, 2}
+    ] == ["Other", "Other"]
