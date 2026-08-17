@@ -2722,3 +2722,265 @@ def test_investment_capacity_rejects_noncanonical_month(month: str) -> None:
     response = client.get(f"/budget/investment-capacity?month={month}")
 
     assert response.status_code == 422
+
+
+def _save_category_correction_statement() -> str:
+    transactions = [
+        {
+            "date": "2026-08-05",
+            "merchant": "Salary",
+            "amount_eur": 1000.0,
+            "category": "Income",
+            "description": "Monthly salary",
+            "source": "pdf",
+            "month": "2026-08",
+            "is_income": 1,
+        },
+        *[
+            {
+                "date": "2026-08-06",
+                "merchant": "Vitaminas Braga Parq",
+                "amount_eur": 12.34,
+                "category": "Other",
+                "description": "Card payment",
+                "source": "pdf",
+                "month": "2026-08",
+                "is_income": 0,
+            }
+            for _ in range(2)
+        ],
+        {
+            "date": "2026-08-07",
+            "merchant": "Grocer",
+            "amount_eur": 20.0,
+            "category": "Food & Groceries",
+            "description": "Groceries",
+            "source": "pdf",
+            "month": "2026-08",
+            "is_income": 0,
+        },
+        {
+            "date": "2026-08-08",
+            "merchant": "Vitaminas Braga Parq",
+            "amount_eur": 8.76,
+            "category": "Other",
+            "description": "Card payment",
+            "source": "pdf",
+            "month": "2026-08",
+            "is_income": 0,
+        },
+    ]
+    snapshot = {
+        "statement_end_date": "2026-08-08",
+        "opening_balance_eur": 0.0,
+        "closing_balance_eur": 946.86,
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "statement_rows": len(transactions),
+        "parsed_rows": len(transactions),
+        "balance_difference_eur": 0.0,
+        "filename_hash": "a" * 64,
+    }
+    receipt = database._create_budget_statement_parse_receipt(transactions, snapshot)
+    database._save_budget_statement_receipt_import(transactions, receipt["receipt_id"])
+    source = database.get_latest_reconciled_budget_statement()
+    assert source is not None
+    return source["statement_import_id"]
+
+
+def test_category_correction_schema_is_idempotent(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+
+    database.init_db()
+    database.init_db()
+
+    connection = database.get_db()
+    try:
+        tables = connection.execute(
+            """SELECT name FROM sqlite_master WHERE type='table'
+               AND name IN ('budget_category_corrections', 'budget_learned_merchant_rules')
+               ORDER BY name"""
+        ).fetchall()
+        indexes = connection.execute(
+            """SELECT name FROM sqlite_master WHERE type='index'
+               AND name IN ('idx_budget_category_corrections_import',
+                            'idx_budget_learned_merchant_rules_active')
+               ORDER BY name"""
+        ).fetchall()
+    finally:
+        connection.close()
+
+    assert [row["name"] for row in tables] == [
+        "budget_category_corrections",
+        "budget_learned_merchant_rules",
+    ]
+    assert [row["name"] for row in indexes] == [
+        "idx_budget_category_corrections_import",
+        "idx_budget_learned_merchant_rules_active",
+    ]
+
+
+def test_category_review_source_is_month_scoped_and_verified(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    import_id = _save_category_correction_statement()
+
+    source = database.get_budget_category_review_source("2026-08")
+
+    assert source is not None
+    assert source["statement_import_id"] == import_id
+    assert database.get_budget_category_review_source("2026-07") is None
+    assert database.get_budget_category_review_source("2026-8") is None
+
+
+def test_category_correction_preserves_import_and_projects_effective_rows(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    import_id = _save_category_correction_statement()
+    before = database.get_budget_statement_import_transactions(import_id)
+
+    result = database.apply_budget_category_correction(
+        statement_import_id=import_id,
+        expected_revision=database.get_budget_correction_revision(import_id),
+        merchant_key="vitaminas braga parq",
+        ordinals=[1, 4],
+        corrected_category="Eating Out",
+        remember_merchant=True,
+    )
+    after = database.get_budget_statement_import_transactions(import_id)
+
+    assert after == before
+    assert [
+        row["category"]
+        for row in result["effective_transactions"]
+        if row["ordinal"] in {1, 4}
+    ] == ["Other", "Other"]
+    assert [
+        row["effective_category"]
+        for row in result["effective_transactions"]
+        if row["ordinal"] in {1, 4}
+    ] == ["Eating Out", "Eating Out"]
+    assert result["revision"] == database.get_budget_correction_revision(import_id)
+    rules = database.get_active_budget_learned_merchant_rules()
+    assert len(rules) == 1
+    assert rules[0]["normalized_merchant"] == "vitaminas braga parq"
+    assert rules[0]["category"] == "Eating Out"
+    assert rules[0]["source_correction_group_id"] == result["correction_group_id"]
+    assert rules[0]["active"] == 1
+    assert rules[0]["created_at"]
+    assert rules[0]["updated_at"]
+
+
+def test_category_correction_rejects_invalid_ordinal_without_partial_write(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    import_id = _save_category_correction_statement()
+
+    with pytest.raises(ValueError, match="ordinal"):
+        database.apply_budget_category_correction(
+            statement_import_id=import_id,
+            expected_revision=database.get_budget_correction_revision(import_id),
+            merchant_key="vitaminas braga parq",
+            ordinals=[1, 99],
+            corrected_category="Eating Out",
+            remember_merchant=True,
+        )
+
+    connection = database.get_db()
+    try:
+        correction_count = connection.execute(
+            "SELECT COUNT(*) FROM budget_category_corrections"
+        ).fetchone()[0]
+        rule_count = connection.execute(
+            "SELECT COUNT(*) FROM budget_learned_merchant_rules"
+        ).fetchone()[0]
+    finally:
+        connection.close()
+    assert correction_count == 0
+    assert rule_count == 0
+
+
+def test_category_correction_revision_is_scoped_to_its_statement_import(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    import_id = _save_category_correction_statement()
+    connection = database.get_db()
+    try:
+        connection.execute(
+            """INSERT INTO budget_category_corrections
+               (statement_import_id, ordinal, transaction_identity_hash,
+                original_category, corrected_category, normalized_merchant,
+                correction_group_id, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "unrelated-import",
+                0,
+                "b" * 64,
+                "Other",
+                "Shopping",
+                "unrelated merchant",
+                "unrelated-group",
+                "2026-08-01T00:00:00+00:00",
+                "2026-08-01T00:00:00+00:00",
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    result = database.apply_budget_category_correction(
+        statement_import_id=import_id,
+        expected_revision=database.get_budget_correction_revision(import_id),
+        merchant_key="vitaminas braga parq",
+        ordinals=[1],
+        corrected_category="Eating Out",
+        remember_merchant=False,
+    )
+
+    assert result["revision"] == database.get_budget_correction_revision(import_id)
+
+
+def test_duplicate_authoritative_rows_are_independently_addressable_and_rules_deactivate(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    import_id = _save_category_correction_statement()
+    revision = database.get_budget_correction_revision(import_id)
+    result = database.apply_budget_category_correction(
+        statement_import_id=import_id,
+        expected_revision=revision,
+        merchant_key="vitaminas braga parq",
+        ordinals=[1],
+        corrected_category="Eating Out",
+        remember_merchant=True,
+    )
+
+    effective = database.get_effective_budget_statement_transactions(import_id)
+    assert effective[1]["effective_category"] == "Eating Out"
+    assert effective[2]["effective_category"] == "Other"
+    assert database.deactivate_budget_learned_merchant_rule(1) is True
+    assert database.get_active_budget_learned_merchant_rules() == []
+    assert database.get_effective_budget_statement_transactions(import_id)[1][
+        "effective_category"
+    ] == "Eating Out"
+    with pytest.raises(database.BudgetCorrectionConflict):
+        database.apply_budget_category_correction(
+            statement_import_id=import_id,
+            expected_revision=revision,
+            merchant_key="vitaminas braga parq",
+            ordinals=[4],
+            corrected_category="Eating Out",
+            remember_merchant=False,
+        )
+    assert result["revision"] != revision
+
+
+def test_normalize_budget_merchant_uses_nfc_collapsed_whitespace_and_casefold() -> None:
+    assert database.normalize_budget_merchant("  CAF\u0045\u0301\t\n  MARKET  ") == "café market"
