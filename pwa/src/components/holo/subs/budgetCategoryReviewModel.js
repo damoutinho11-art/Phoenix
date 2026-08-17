@@ -73,7 +73,7 @@ function validTransaction(transaction, expectedMerchantKey) {
     && typeof transaction.description === 'string'
     && (transaction.is_income === 0 || transaction.is_income === 1)
     && validCategory(transaction.category)
-    && (transaction.is_income === 1 ? transaction.category === 'Income' : transaction.category !== 'Income')
+    && (transaction.is_income === 1 || transaction.category !== 'Income')
 }
 
 function normalizeGroup(group) {
@@ -107,7 +107,7 @@ function normalizeGroup(group) {
     amountEur: amountCents / 100,
     allowedCategories: directions.has(0)
       ? REVIEW_CATEGORIES.filter(category => category !== 'Income')
-      : [...REVIEW_CATEGORIES],
+      : ['Income'],
   }
 }
 

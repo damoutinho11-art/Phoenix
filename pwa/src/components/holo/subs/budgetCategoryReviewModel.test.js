@@ -104,7 +104,7 @@ test('review normalization rejects missing, blank, or non-string display merchan
   }
 })
 
-test('review normalization rejects contradictory immutable direction and category fields', () => {
+test('review normalization rejects debit Income rows and mixed-direction merchant groups', () => {
   const debitWithIncome = normalizeCategoryReview({
     ...reviewPayload,
     merchant_groups: [{
@@ -118,18 +118,18 @@ test('review normalization rejects contradictory immutable direction and categor
   assert.equal(debitWithIncome.status, 'error')
   assert.equal(debitWithIncome.actionable, false)
 
-  const incomeWithOther = normalizeCategoryReview({
+  const mixedDirections = normalizeCategoryReview({
     ...reviewPayload,
     merchant_groups: [{
       ...reviewPayload.merchant_groups[0],
       transactions: reviewPayload.merchant_groups[0].transactions.map(transaction => ({
         ...transaction,
-        is_income: 1,
+        is_income: transaction.ordinal === 1 ? 1 : 0,
       })),
     }],
   })
-  assert.equal(incomeWithOther.status, 'error')
-  assert.equal(incomeWithOther.actionable, false)
+  assert.equal(mixedDirections.status, 'error')
+  assert.equal(mixedDirections.actionable, false)
 })
 
 test('loading state is explicit and malformed payloads are not loading', () => {
@@ -227,7 +227,7 @@ test('empty ready queue is complete and known categories are shared by the UI', 
   ])
 })
 
-test('income is forbidden for debit groups while income rows can select income', () => {
+test('unresolved income rows remain reviewable but can only be corrected to Income', () => {
   const state = normalizeCategoryReview(reviewPayload)
   assert.equal(state.groups[0].allowedCategories.includes('Income'), false)
 
@@ -238,11 +238,13 @@ test('income is forbidden for debit groups while income rows can select income',
       transactions: reviewPayload.merchant_groups[0].transactions.map(transaction => ({
         ...transaction,
         is_income: 1,
-        category: 'Income',
+        category: 'Other',
+        effective_category: 'Other',
       })),
     }],
   })
-  assert.equal(incomeState.groups[0].allowedCategories.includes('Income'), true)
+  assert.equal(incomeState.status, 'ready')
+  assert.deepEqual(incomeState.groups[0].allowedCategories, ['Income'])
 })
 
 test('409 correction outcome requests a stale refresh and drops actionable state', () => {
