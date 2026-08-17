@@ -21,7 +21,7 @@ _SUMMARY_MONETARY_FIELDS = (
     "emergency_fund_total",
 )
 # Keep cent quantization and every downstream JSON float safely representable.
-_MAX_SAFE_EUROS = Decimal("100000000000000000000")
+MAX_SAFE_EUROS = Decimal("100000000000000000000")
 _APPROVED_POLICY_VERSION = 2
 _INVALID_PAYLOAD_BLOCKER = "Cash-flow authority payload is invalid."
 _UNAVAILABLE_BLOCKER = "Cash-flow authority is unavailable."
@@ -41,7 +41,7 @@ def _json_number(value: object, *, nonnegative: bool) -> bool:
         decimal_value = Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError):
         return False
-    if not decimal_value.is_finite() or abs(decimal_value) > _MAX_SAFE_EUROS:
+    if not decimal_value.is_finite() or abs(decimal_value) > MAX_SAFE_EUROS:
         return False
     return not nonnegative or decimal_value >= 0
 

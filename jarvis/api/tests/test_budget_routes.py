@@ -26,6 +26,43 @@ _COMPLETE_AUTHORITY_POLICY = {
 _REQUIRED_STORED_AUTHORITY_FIELDS = tuple(_COMPLETE_AUTHORITY_POLICY)
 
 
+def _mock_verified_authority_evidence(
+    monkeypatch,
+    *,
+    snapshot: dict,
+    summary: dict,
+    transactions: object = None,
+) -> None:
+    rows = [] if transactions is None else transactions
+    statement_import_id = "test-statement-import"
+    authoritative_snapshot = {
+        **snapshot,
+        "receipt_verified": 1,
+        "statement_import_id": statement_import_id,
+        "parsed_rows": len(rows) if isinstance(rows, list) else 1,
+    }
+    if isinstance(rows, list):
+        rows = [
+            {**row, "statement_import_id": statement_import_id}
+            if isinstance(row, dict)
+            else row
+            for row in rows
+        ]
+    monkeypatch.setattr(
+        database,
+        "get_latest_reconciled_budget_statement",
+        lambda: authoritative_snapshot,
+    )
+    monkeypatch.setattr(
+        database, "get_budget_statement_import_transactions", lambda import_id: rows
+    )
+    monkeypatch.setattr(
+        database,
+        "get_budget_statement_import_summary",
+        lambda import_id, month: summary,
+    )
+
+
 def test_statement_receipt_helpers_are_private_implementation_apis() -> None:
     assert not hasattr(database, "create_budget_statement_parse_receipt")
     assert not hasattr(database, "save_budget_statement_receipt_import")
@@ -119,6 +156,58 @@ def test_budget_memory_rejects_invalid_policy_without_persisting(
 
     assert response.status_code == 422
     assert json.loads(database._get_budget_memory_profile_raw()) == original
+
+
+def test_budget_memory_rejects_money_above_authority_engine_limit_without_persisting(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "policy.db")
+    database.init_db()
+    original = {"version": 1, "checking_buffer_eur": 300}
+    database.save_budget_memory_profile(original)
+
+    response = client.post(
+        "/budget/memory", json={"profile": {"checking_buffer_eur": 1e21}}
+    )
+
+    assert response.status_code == 422
+    assert json.loads(database._get_budget_memory_profile_raw()) == original
+
+
+def test_budget_memory_canonicalizes_recurring_bill_whitespace(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "policy.db")
+    database.init_db()
+
+    response = client.post(
+        "/budget/memory",
+        json={
+            "profile": {
+                "recurring_obligations": [
+                    {
+                        "name": "  Utilities  ",
+                        "amount_eur": 150,
+                        "contains": [" electric ", " water  "],
+                        "enabled": True,
+                    }
+                ]
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    obligation = response.json()["profile"]["recurring_obligations"][0]
+    assert obligation == {
+        "name": "Utilities",
+        "amount_eur": 150,
+        "contains": ["electric", "water"],
+        "enabled": True,
+    }
+    assert budget_router._unpaid_recurring_bills(
+        response.json()["profile"],
+        [{"merchant": "Electric Company", "description": "August bill"}],
+    ) == 0.0
 
 
 @pytest.mark.parametrize(
@@ -392,6 +481,35 @@ def test_parse_pdf_reports_reconciled_statement_quality() -> None:
     assert quality["balance_difference_eur"] == 0.0
     assert quality["statement_end_date"] == "2026-05-05"
     assert quality["unmatched_rows"] == []
+
+
+@pytest.mark.parametrize("closing_balance", ["89.99", "90.01"])
+def test_parse_pdf_requires_review_for_exact_one_cent_difference(
+    monkeypatch, tmp_path, closing_balance: str
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    raw_text = f"""
+05.05.2026 Starting balance 100.00
+05.05.2026 Shop
+1500000001 -10.00 90.00
+05.05.2026 Final balance {closing_balance}
+"""
+
+    with patch("jarvis.api.routers.budget._extract_pdf_text", return_value=raw_text):
+        response = client.post(
+            "/budget/parse-pdf",
+            files={"file": ("account.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["quality"]["status"] == "review_required"
+    assert abs(payload["quality"]["balance_difference_eur"]) == 0.01
+    assert payload["quality"]["warnings"] == [
+        "Statement balance differs by EUR 0.01."
+    ]
+    assert "receipt_id" not in payload
 
 
 def test_pdf_review_required_reports_unmatched_rows_without_receipt(
@@ -760,10 +878,14 @@ def test_receipt_save_rolls_back_partial_transaction_failure_and_can_retry(
         snapshot_count = connection.execute(
             "SELECT COUNT(*) FROM budget_statement_snapshots"
         ).fetchone()[0]
+        import_transaction_count = connection.execute(
+            "SELECT COUNT(*) FROM budget_statement_import_transactions"
+        ).fetchone()[0]
     finally:
         connection.close()
     assert consumed_at is None
     assert snapshot_count == 0
+    assert import_transaction_count == 0
 
     corrected = client.post(
         "/budget/save",
@@ -846,6 +968,37 @@ def test_reconciled_parse_receipt_stores_only_hashes_and_whitelisted_snapshot(
     assert "account.pdf" not in receipt["snapshot_json"]
     assert "%PDF" not in receipt["snapshot_json"]
     assert "raw_pdf" not in receipt["snapshot_json"]
+
+
+def test_statement_receipt_rejects_transaction_count_mismatch(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "cashflow.db")
+    database.init_db()
+    transaction = {
+        "date": "2026-08-05",
+        "merchant": "Cafe",
+        "amount_eur": 5.00,
+        "category": "Eating Out",
+        "description": "Card payment",
+        "source": "pdf",
+        "month": "2026-08",
+        "is_income": 0,
+    }
+    snapshot = {
+        "statement_end_date": "2026-08-05",
+        "opening_balance_eur": 100,
+        "closing_balance_eur": 95,
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "statement_rows": 2,
+        "parsed_rows": 2,
+        "balance_difference_eur": 0,
+        "filename_hash": "a" * 64,
+    }
+
+    with pytest.raises(ValueError, match="parsed_rows"):
+        database._create_budget_statement_parse_receipt([transaction], snapshot)
 
 
 def test_transaction_only_budget_save_remains_supported(monkeypatch, tmp_path) -> None:
@@ -1104,10 +1257,20 @@ def test_legacy_snapshot_schema_migrates_rows_as_non_authoritative(
         receipt_verified = connection.execute(
             "SELECT receipt_verified FROM budget_statement_snapshots WHERE id=1"
         ).fetchone()["receipt_verified"]
+        statement_import_id = connection.execute(
+            "SELECT statement_import_id FROM budget_statement_snapshots WHERE id=1"
+        ).fetchone()["statement_import_id"]
+        import_table_exists = connection.execute(
+            """SELECT 1 FROM sqlite_master
+               WHERE type='table' AND name='budget_statement_import_transactions'"""
+        ).fetchone()
     finally:
         connection.close()
     assert "receipt_verified" in columns
+    assert "statement_import_id" in columns
     assert receipt_verified == 0
+    assert statement_import_id is None
+    assert import_table_exists is not None
     assert database.get_latest_reconciled_budget_statement() is None
 
 
@@ -1217,7 +1380,9 @@ def test_statement_save_rolls_back_transactions_when_snapshot_insert_fails(
     database.init_db()
     parsed = _parse_reconciled_statement_receipt()
 
-    def fail_snapshot_insert(snapshot, connection, *, receipt_verified):
+    def fail_snapshot_insert(
+        snapshot, connection, *, receipt_verified, statement_import_id=None
+    ):
         raise RuntimeError("simulated snapshot insertion failure")
 
     monkeypatch.setattr(
@@ -1233,6 +1398,13 @@ def test_statement_save_rolls_back_transactions_when_snapshot_insert_fails(
 
     assert response.status_code == 500
     assert database.get_budget_transactions("2026-05") == []
+    connection = database.get_db()
+    try:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM budget_statement_import_transactions"
+        ).fetchone()[0] == 0
+    finally:
+        connection.close()
 
 
 def test_parse_pdf_marks_impossible_final_balance_date_for_review() -> None:
@@ -1571,9 +1743,13 @@ def _save_authoritative_statement_for_investment_capacity(
 ) -> None:
     parsed = _parse_reconciled_statement_receipt(
         raw_text or """
-01.08.2026 Starting balance 1 000.00
+30.07.2026 Starting balance 1 000.00
+30.07.2026 RAHVUSOOPER ESTONIA
+Tootasu 1500000001 3 006.84 4 006.84
+01.08.2026 Cash deposit (from account)
+1500000002 -2 800.00 1 206.84
 11.08.2026 Shop
-1500000001 -240.00 760.00
+1500000003 -446.84 760.00
 11.08.2026 Final balance 760.00
 """
     )
@@ -1585,20 +1761,6 @@ def _save_authoritative_statement_for_investment_capacity(
         },
     )
     assert saved.status_code == 200
-    database.save_budget_transactions(
-        [
-            {
-                "date": f"{month}-01",
-                "merchant": "Salary",
-                "amount_eur": 3006.84,
-                "category": "Income",
-                "description": "Salary",
-                "source": "test",
-                "month": month,
-                "is_income": 1,
-            }
-        ]
-    )
 
 
 def test_investment_capacity_uses_approved_policy_and_receipt_backed_snapshot(
@@ -1634,6 +1796,161 @@ def test_investment_capacity_uses_approved_policy_and_receipt_backed_snapshot(
     json.dumps(data)
 
 
+def test_ledger_only_import_cannot_change_verified_authority_or_release_bill_reserve(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
+    database.init_db()
+    database.save_budget_memory_profile(
+        {
+            **_COMPLETE_AUTHORITY_POLICY,
+            "version": 2,
+            "recurring_obligations": [
+                {
+                    "name": "Utilities",
+                    "amount_eur": 150,
+                    "contains": ["electric"],
+                    "enabled": True,
+                }
+            ],
+        }
+    )
+    _save_authoritative_statement_for_investment_capacity()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        before = client.get("/budget/investment-capacity?month=2026-08").json()
+
+    ledger_save = client.post(
+        "/budget/save",
+        json={
+            "transactions": [
+                {
+                    "date": "2026-08-10",
+                    "merchant": "Electric Company",
+                    "amount_eur": 5000,
+                    "category": "Income",
+                    "description": "Electric utility and forged salary",
+                    "source": "text",
+                    "month": "2026-08",
+                    "is_income": 1,
+                }
+            ]
+        },
+    )
+    assert ledger_save.status_code == 200
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        after = client.get("/budget/investment-capacity?month=2026-08").json()
+
+    assert after["weekly_budget_eur"] == before["weekly_budget_eur"]
+    assert after["deployable_capacity_eur"] == before["deployable_capacity_eur"]
+    assert after["input_hash"] == before["input_hash"]
+    assert before["protected_cash"]["unpaid_bills_eur"] == 150.0
+    assert after["protected_cash"]["unpaid_bills_eur"] == 150.0
+
+
+def test_authority_fails_closed_when_verified_snapshot_has_no_import_provenance(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "legacy-authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+    connection = database.get_db()
+    try:
+        connection.execute(
+            "UPDATE budget_statement_snapshots SET statement_import_id=NULL"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        data = client.get("/budget/investment-capacity?month=2026-08").json()
+
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert data["blockers"] == [
+        "Cash-flow statement transaction provenance is invalid."
+    ]
+
+
+@pytest.mark.parametrize("tamper", ["delete", "move"])
+def test_authority_fails_closed_when_import_batch_is_incomplete_or_mixed(
+    monkeypatch, tmp_path, tamper: str
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "tampered-authority.db")
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+    snapshot = database.get_latest_reconciled_budget_statement()
+    connection = database.get_db()
+    try:
+        if tamper == "delete":
+            connection.execute(
+                """DELETE FROM budget_statement_import_transactions
+                   WHERE statement_import_id=? AND ordinal=0""",
+                (snapshot["statement_import_id"],),
+            )
+        else:
+            connection.execute(
+                """UPDATE budget_statement_import_transactions
+                   SET statement_import_id='different-import' WHERE ordinal=0"""
+            )
+        connection.commit()
+    finally:
+        connection.close()
+
+    with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
+        data = client.get("/budget/investment-capacity?month=2026-08").json()
+
+    assert data["data_ready"] is False
+    assert data["weekly_budget_eur"] == 0.0
+    assert data["blockers"] == [
+        "Cash-flow statement transaction provenance is invalid."
+    ]
+
+
+def test_receipt_import_preserves_duplicate_authority_rows_by_ordinal(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "duplicate-authority.db")
+    database.init_db()
+    transaction = {
+        "date": "2026-08-05",
+        "merchant": "Cafe",
+        "amount_eur": 5.00,
+        "category": "Eating Out",
+        "description": "Identical card payment",
+        "source": "pdf",
+        "month": "2026-08",
+        "is_income": 0,
+    }
+    snapshot = {
+        "statement_end_date": "2026-08-05",
+        "opening_balance_eur": 100,
+        "closing_balance_eur": 90,
+        "parser": "lhv_pdf",
+        "quality_status": "reconciled",
+        "statement_rows": 2,
+        "parsed_rows": 2,
+        "balance_difference_eur": 0,
+        "filename_hash": "a" * 64,
+    }
+    receipt = database._create_budget_statement_parse_receipt(
+        [transaction, transaction], snapshot
+    )
+
+    database._save_budget_statement_receipt_import(
+        [transaction, transaction], receipt["receipt_id"]
+    )
+
+    saved_snapshot = database.get_latest_reconciled_budget_statement()
+    authority_rows = database.get_budget_statement_import_transactions(
+        saved_snapshot["statement_import_id"]
+    )
+    assert [row["ordinal"] for row in authority_rows] == [0, 1]
+    assert len(authority_rows) == 2
+
+
 def test_investment_capacity_blocks_positive_cash_that_rounds_below_one_cent(
     monkeypatch,
 ) -> None:
@@ -1661,9 +1978,9 @@ def test_investment_capacity_blocks_positive_cash_that_rounds_below_one_cent(
         "essential_spending_ceiling_eur": 0,
     }
     monkeypatch.setattr(budget_router, "_cashflow_authority_policy", lambda: policy)
-    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
-    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+    _mock_verified_authority_evidence(
+        monkeypatch, snapshot=snapshot, summary=summary
+    )
 
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         response = client.get("/budget/investment-capacity?month=2026-08")
@@ -1695,9 +2012,9 @@ def test_investment_capacity_rejects_subcent_policy_evidence(monkeypatch) -> Non
     }
     policy = {**_COMPLETE_AUTHORITY_POLICY, "version": 2, "checking_buffer_eur": 300.001}
     monkeypatch.setattr(budget_router, "_cashflow_authority_policy", lambda: policy)
-    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
-    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+    _mock_verified_authority_evidence(
+        monkeypatch, snapshot=snapshot, summary=summary
+    )
 
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         response = client.get("/budget/investment-capacity?month=2026-08")
@@ -1735,9 +2052,9 @@ def test_investment_capacity_opening_balance_contract(
     }
     policy = {**_COMPLETE_AUTHORITY_POLICY, "version": 2}
     monkeypatch.setattr(budget_router, "_cashflow_authority_policy", lambda: policy)
-    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
-    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+    _mock_verified_authority_evidence(
+        monkeypatch, snapshot=snapshot, summary=summary
+    )
 
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         data = client.get("/budget/investment-capacity?month=2026-08").json()
@@ -2199,7 +2516,11 @@ def test_investment_capacity_blocks_malformed_transactions(
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "authority.db")
     database.init_db()
     _save_authoritative_statement_for_investment_capacity()
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: transactions)
+    monkeypatch.setattr(
+        database,
+        "get_budget_statement_import_transactions",
+        lambda statement_import_id: transactions,
+    )
 
     response = TestClient(app, raise_server_exceptions=False).get(
         "/budget/investment-capacity?month=2026-08"
@@ -2209,7 +2530,7 @@ def test_investment_capacity_blocks_malformed_transactions(
     data = response.json()
     assert data["data_ready"] is False
     assert data["weekly_budget_eur"] == 0.0
-    assert "recurring_obligations" in data["blockers"][0]
+    assert "provenance" in data["blockers"][0]
 
 
 def test_build_cashflow_authority_accepts_omitted_today(monkeypatch, tmp_path) -> None:
@@ -2247,9 +2568,9 @@ def test_investment_capacity_blocks_deep_json_hash_recursion(monkeypatch) -> Non
         cursor.append(child)
         cursor = child
     summary["audit"] = nested
-    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
-    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+    _mock_verified_authority_evidence(
+        monkeypatch, snapshot=snapshot, summary=summary
+    )
 
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         response = TestClient(app, raise_server_exceptions=False).get(
@@ -2281,9 +2602,9 @@ def test_investment_capacity_blocks_hash_serialization_errors(
         "by_category": {},
         "audit": extra,
     }
-    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
-    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+    _mock_verified_authority_evidence(
+        monkeypatch, snapshot=snapshot, summary=summary
+    )
 
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         response = TestClient(app, raise_server_exceptions=False).get(
@@ -2309,9 +2630,9 @@ def test_investment_capacity_blocks_hash_overflow_error(monkeypatch) -> None:
         "emergency_fund_total": 1392,
         "by_category": {},
     }
-    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
-    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+    _mock_verified_authority_evidence(
+        monkeypatch, snapshot=snapshot, summary=summary
+    )
 
     def raise_overflow(**kwargs) -> str:
         raise OverflowError("simulated canonical serialization overflow")
@@ -2350,9 +2671,9 @@ def test_investment_capacity_blocks_non_json_safe_hash_input(
         snapshot["closing_balance_eur"] = float("nan")
     else:
         summary["income_total"] = float("nan")
-    monkeypatch.setattr(database, "get_latest_reconciled_budget_statement", lambda: snapshot)
-    monkeypatch.setattr(database, "get_budget_summary", lambda month: summary)
-    monkeypatch.setattr(database, "get_budget_transactions", lambda month: [])
+    _mock_verified_authority_evidence(
+        monkeypatch, snapshot=snapshot, summary=summary
+    )
 
     with patch("jarvis.api.routers.budget.clock.today", return_value=date(2026, 8, 11)):
         response = TestClient(app, raise_server_exceptions=False).get(
@@ -2374,9 +2695,13 @@ def test_investment_capacity_reads_clock_once_for_default_month_and_authority_da
     database.init_db()
     _save_authoritative_statement_for_investment_capacity(
         """
-25.08.2026 Starting balance 1 000.00
+30.07.2026 Starting balance 1 000.00
+30.07.2026 RAHVUSOOPER ESTONIA
+Tootasu 1500000001 3 006.84 4 006.84
+01.08.2026 Cash deposit (from account)
+1500000002 -2 800.00 1 206.84
 25.08.2026 Shop
-1500000001 -240.00 760.00
+1500000003 -446.84 760.00
 25.08.2026 Final balance 760.00
 """
     )

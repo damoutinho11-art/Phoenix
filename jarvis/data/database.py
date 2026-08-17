@@ -434,11 +434,31 @@ CREATE TABLE IF NOT EXISTS budget_statement_snapshots (
     balance_difference_eur REAL NOT NULL,
     filename_hash TEXT NOT NULL,
     metadata_json TEXT NOT NULL,
-    receipt_verified INTEGER NOT NULL DEFAULT 0 CHECK (receipt_verified IN (0, 1))
+    receipt_verified INTEGER NOT NULL DEFAULT 0 CHECK (receipt_verified IN (0, 1)),
+    statement_import_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_budget_statement_snapshots_end
 ON budget_statement_snapshots(statement_end_date, imported_at);
+
+CREATE TABLE IF NOT EXISTS budget_statement_import_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    statement_import_id TEXT NOT NULL,
+    ordinal INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    merchant TEXT NOT NULL,
+    amount_eur REAL NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    source TEXT NOT NULL,
+    month TEXT NOT NULL,
+    is_income INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(statement_import_id, ordinal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_budget_statement_import_transactions_month
+ON budget_statement_import_transactions(statement_import_id, month, ordinal);
 
 CREATE TABLE IF NOT EXISTS budget_statement_parse_receipts (
     receipt_id TEXT PRIMARY KEY,
@@ -615,7 +635,16 @@ def _migrate_budget_statement_snapshot_provenance(
                ADD COLUMN receipt_verified INTEGER NOT NULL DEFAULT 0
                CHECK (receipt_verified IN (0, 1))"""
         )
-        connection.commit()
+    if "statement_import_id" not in existing:
+        connection.execute(
+            "ALTER TABLE budget_statement_snapshots ADD COLUMN statement_import_id TEXT"
+        )
+    connection.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_statement_snapshots_import
+           ON budget_statement_snapshots(statement_import_id)
+           WHERE statement_import_id IS NOT NULL"""
+    )
+    connection.commit()
 
 
 def init_db() -> None:
@@ -3088,6 +3117,47 @@ def save_budget_transactions(
             connection.close()
 
 
+def _save_budget_statement_import_transactions_with_connection(
+    transactions: list[dict],
+    statement_import_id: str,
+    connection: sqlite3.Connection,
+) -> None:
+    """Persist the immutable reviewed rows used by one verified authority import."""
+    if not statement_import_id:
+        raise ValueError("Statement import provenance is missing")
+    now = clock.utc_now_iso()
+    for ordinal, transaction in enumerate(transactions):
+        try:
+            amount = float(transaction["amount_eur"])
+            if (
+                not math.isfinite(amount)
+                or amount < 0
+                or amount > MAX_SANE_BUDGET_AMOUNT_EUR
+            ):
+                raise ValueError("Transaction amount_eur is outside the accepted range")
+            connection.execute(
+                """INSERT INTO budget_statement_import_transactions
+                   (statement_import_id, ordinal, date, merchant, amount_eur,
+                    category, description, source, month, is_income, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    statement_import_id,
+                    ordinal,
+                    transaction["date"],
+                    transaction["merchant"],
+                    transaction["amount_eur"],
+                    transaction["category"],
+                    transaction.get("description", ""),
+                    transaction.get("source", "text"),
+                    transaction["month"],
+                    int(transaction.get("is_income", 0)),
+                    now,
+                ),
+            )
+        except Exception as exc:
+            raise ValueError("Invalid budget transaction") from exc
+
+
 def _normalize_budget_statement_number(
     snapshot: dict[str, Any], field: str, *, optional: bool = False
 ) -> float | None:
@@ -3197,6 +3267,8 @@ def _create_budget_statement_parse_receipt(
 ) -> dict[str, Any]:
     """Mint authority proof from trusted reconciled server PDF parse output."""
     normalized_snapshot = _validated_budget_statement_snapshot(snapshot)
+    if normalized_snapshot["parsed_rows"] != len(transactions):
+        raise ValueError("Statement parsed_rows must match transaction count")
     created_at = clock.utc_now()
     receipt_id = secrets.token_urlsafe(32)
     payload = (
@@ -3232,14 +3304,16 @@ def _save_budget_statement_snapshot_with_connection(
     connection: sqlite3.Connection,
     *,
     receipt_verified: bool,
+    statement_import_id: str | None = None,
 ) -> dict[str, Any]:
     payload = {**_validated_budget_statement_snapshot(snapshot), "imported_at": _utc_now()}
     cursor = connection.execute(
         """INSERT INTO budget_statement_snapshots
            (imported_at, statement_end_date, opening_balance_eur, closing_balance_eur,
             parser, quality_status, statement_rows, parsed_rows,
-            balance_difference_eur, filename_hash, metadata_json, receipt_verified)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            balance_difference_eur, filename_hash, metadata_json, receipt_verified,
+            statement_import_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             payload["imported_at"],
             payload["statement_end_date"],
@@ -3253,6 +3327,7 @@ def _save_budget_statement_snapshot_with_connection(
             payload["filename_hash"],
             json.dumps(payload, sort_keys=True),
             int(receipt_verified),
+            statement_import_id,
         ),
     )
     row = connection.execute(
@@ -3361,11 +3436,18 @@ def _save_budget_statement_receipt_import(
             )
 
         snapshot = _validated_budget_statement_receipt_snapshot(receipt)
+        statement_import_id = secrets.token_urlsafe(24)
         saved = _save_budget_transactions_with_connection(
             transactions, connection, strict=True
         )
+        _save_budget_statement_import_transactions_with_connection(
+            transactions, statement_import_id, connection
+        )
         _save_budget_statement_snapshot_with_connection(
-            snapshot, connection, receipt_verified=True
+            snapshot,
+            connection,
+            receipt_verified=True,
+            statement_import_id=statement_import_id,
         )
         consumed_at = _utc_now()
         consumed = connection.execute(
@@ -3411,17 +3493,28 @@ def get_budget_transactions(month: str) -> list[dict[str, Any]]:
         connection.close()
 
 
-def get_budget_summary(month: str) -> dict[str, Any]:
+def get_budget_statement_import_transactions(
+    statement_import_id: str,
+) -> list[dict[str, Any]]:
+    """Return immutable rows for exactly one receipt-verified statement import."""
+    if not isinstance(statement_import_id, str) or not statement_import_id:
+        return []
     connection = get_db()
     try:
         rows = connection.execute(
-            """SELECT category, is_income, SUM(amount_eur) as total, COUNT(*) as count
-               FROM budget_transactions WHERE month=? GROUP BY category, is_income""",
-            (month,)
+            """SELECT * FROM budget_statement_import_transactions
+               WHERE statement_import_id=? ORDER BY ordinal""",
+            (statement_import_id,),
         ).fetchall()
+        return [dict(row) for row in rows]
     finally:
         connection.close()
 
+
+def _budget_summary_from_grouped_rows(
+    month: str, rows: list[sqlite3.Row]
+) -> dict[str, Any]:
+    """Build the shared summary shape from grouped category rows."""
     non_spending_categories = {"Income", "Investment", "Emergency Fund", "Transfers"}
     by_category: dict[str, dict[str, Any]] = {}
     income = 0.0
@@ -3464,6 +3557,38 @@ def get_budget_summary(month: str) -> dict[str, Any]:
         "savings_rate": savings_rate,
         "cashflow_rate": cashflow_rate,
     }
+
+
+def get_budget_statement_import_summary(
+    statement_import_id: str, month: str
+) -> dict[str, Any]:
+    """Summarise only immutable rows from one verified statement import."""
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """SELECT category, is_income, SUM(amount_eur) as total, COUNT(*) as count
+               FROM budget_statement_import_transactions
+               WHERE statement_import_id=? AND month=?
+               GROUP BY category, is_income""",
+            (statement_import_id, month),
+        ).fetchall()
+    finally:
+        connection.close()
+    return _budget_summary_from_grouped_rows(month, rows)
+
+
+def get_budget_summary(month: str) -> dict[str, Any]:
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """SELECT category, is_income, SUM(amount_eur) as total, COUNT(*) as count
+               FROM budget_transactions WHERE month=? GROUP BY category, is_income""",
+            (month,)
+        ).fetchall()
+    finally:
+        connection.close()
+
+    return _budget_summary_from_grouped_rows(month, rows)
 
 
 def get_budget_months() -> list[str]:

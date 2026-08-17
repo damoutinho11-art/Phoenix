@@ -178,6 +178,24 @@ test('authority policy rejects blank, partial, exponent, boolean text, and fract
   }
 })
 
+test('authority policy rejects values above the backend safe EUR bound', () => {
+  const policyOverflow = validateAuthorityPolicyDraft(
+    policy,
+    { ...rawPolicy, checking_buffer_eur: '1000000000000000000000.00' },
+    billDrafts,
+  )
+  const billOverflow = validateAuthorityPolicyDraft(
+    policy,
+    rawPolicy,
+    [{ ...billDrafts[0], amount_eur: '1000000000000000000000.00' }],
+  )
+
+  assert.equal(policyOverflow.ok, false)
+  assert.match(policyOverflow.error, /CHECKING BUFFER EUR/)
+  assert.equal(billOverflow.ok, false)
+  assert.match(billOverflow.error, /Rent reserve/)
+})
+
 test('authority policy reports row-specific structured bill errors', () => {
   assert.deepEqual(
     validateAuthorityPolicyDraft(policy, rawPolicy, [{ ...billDrafts[0], name: '  ' }]),

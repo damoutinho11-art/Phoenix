@@ -17,6 +17,7 @@ from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.finance.cashflow_authority import (
+    MAX_SAFE_EUROS,
     calculate_cashflow_authority,
     cashflow_authority_structural_blockers,
     valid_recurring_obligations,
@@ -162,6 +163,7 @@ def _is_valid_authority_money(value: object) -> bool:
     return (
         amount.is_finite()
         and amount >= 0
+        and amount <= MAX_SAFE_EUROS
         and cents == cents.to_integral_value(rounding=ROUND_HALF_UP)
     )
 
@@ -207,6 +209,23 @@ def _validated_budget_memory_for_save(profile: object) -> dict:
     if type(cutoff) is not int or not 1 <= cutoff <= 31:
         raise ValueError("salary_day_cutoff must be an integer from 1 through 31")
 
+    obligations = canonical.get("recurring_obligations")
+    if isinstance(obligations, list):
+        canonical["recurring_obligations"] = [
+            {
+                **obligation,
+                "name": obligation["name"].strip(),
+                "contains": [token.strip() for token in obligation["contains"]],
+            }
+            if (
+                isinstance(obligation, dict)
+                and isinstance(obligation.get("name"), str)
+                and isinstance(obligation.get("contains"), list)
+                and all(isinstance(token, str) for token in obligation["contains"])
+            )
+            else obligation
+            for obligation in obligations
+        ]
     if not valid_recurring_obligations(canonical.get("recurring_obligations")):
         raise ValueError("recurring_obligations must be valid recurring obligations")
 
@@ -334,19 +353,61 @@ def _build_cashflow_authority(
             "weekly_budget_eur": 0.0,
         }
     snapshot = database.get_latest_reconciled_budget_statement()
-    summary = database.get_budget_summary(target_month)
-    transactions = database.get_budget_transactions(target_month)
+    if snapshot is None:
+        return {
+            "data_ready": False,
+            "blockers": ["No reconciled checking-account statement is available."],
+            "weekly_budget_eur": 0.0,
+        }
+    if type(snapshot.get("receipt_verified")) is not int or snapshot["receipt_verified"] != 1:
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow statement receipt is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
+    statement_import_id = snapshot.get("statement_import_id")
+    parsed_rows = snapshot.get("parsed_rows")
+    if (
+        not isinstance(statement_import_id, str)
+        or not statement_import_id
+        or type(parsed_rows) is not int
+        or parsed_rows < 0
+    ):
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow statement transaction provenance is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
+    imported_transactions = database.get_budget_statement_import_transactions(
+        statement_import_id
+    )
+    if not isinstance(imported_transactions, list):
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow statement transaction provenance is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
+    if len(imported_transactions) != parsed_rows or any(
+        row.get("statement_import_id") != statement_import_id
+        for row in imported_transactions
+        if isinstance(row, dict)
+    ) or any(not isinstance(row, dict) for row in imported_transactions):
+        return {
+            "data_ready": False,
+            "blockers": ["Cash-flow statement transaction provenance is invalid."],
+            "weekly_budget_eur": 0.0,
+        }
+    transactions = [
+        row for row in imported_transactions if row.get("month") == target_month
+    ]
+    summary = database.get_budget_statement_import_summary(
+        statement_import_id, target_month
+    )
     unpaid_bills_eur = _unpaid_recurring_bills(profile, transactions)
     if unpaid_bills_eur is None:
         return {
             "data_ready": False,
             "blockers": ["Cash-flow policy has invalid recurring_obligations."],
-            "weekly_budget_eur": 0.0,
-        }
-    if snapshot is None:
-        return {
-            "data_ready": False,
-            "blockers": ["No reconciled checking-account statement is available."],
             "weekly_budget_eur": 0.0,
         }
     structural_blockers = cashflow_authority_structural_blockers(
@@ -386,12 +447,6 @@ def _build_cashflow_authority(
         today=decision_today,
         week_closed=week_closed,
     )
-    if type(snapshot.get("receipt_verified")) is not int or snapshot["receipt_verified"] != 1:
-        return {
-            "data_ready": False,
-            "blockers": ["Cash-flow statement receipt is invalid."],
-            "weekly_budget_eur": 0.0,
-        }
     source = dict(snapshot)
     source["receipt_verified"] = True
     return {
@@ -556,7 +611,7 @@ def _lhv_statement_quality(raw_text: str, parsed_rows: int) -> dict:
         warnings.append(f"Parsed {len(matched)} of {len(transaction_rows)} statement rows.")
     if parsed_rows != len(matched):
         warnings.append(f"Returned {parsed_rows} transactions for {len(matched)} matched rows.")
-    if difference is not None and abs(difference) > 0.01:
+    if difference is not None and difference != 0:
         warnings.append(f"Statement balance differs by EUR {abs(difference):.2f}.")
 
     return {

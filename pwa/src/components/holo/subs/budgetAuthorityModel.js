@@ -10,6 +10,7 @@ export const AUTHORITY_NUMERIC_FIELDS = [
 const CANONICAL_MONEY = /^(?:0|[1-9]\d*)\.\d{2}$/
 const CANONICAL_CUTOFF = /^(?:[1-9]|[12]\d|3[01])$/
 const TERMINAL_RECEIPT_ERROR_CODE = 'STATEMENT_RECEIPT_INVALID'
+const MAX_SAFE_EUROS = 1e20
 
 function exactCent(value) {
   return typeof value === 'number'
@@ -18,7 +19,7 @@ function exactCent(value) {
 }
 
 function canonicalMoneyDraft(value) {
-  return exactCent(value) && value >= 0 ? value.toFixed(2) : ''
+  return exactCent(value) && value >= 0 && value <= MAX_SAFE_EUROS ? value.toFixed(2) : ''
 }
 
 function billTitle(bill, index) {
@@ -40,6 +41,7 @@ function validCanonicalBill(bill) {
     && bill.name.trim()
     && exactCent(bill.amount_eur)
     && bill.amount_eur >= 0
+    && bill.amount_eur <= MAX_SAFE_EUROS
     && Array.isArray(bill.contains)
     && bill.contains.length > 0
     && bill.contains.every(term => typeof term === 'string' && term.trim())
@@ -131,7 +133,7 @@ export function validateAuthorityPolicyDraft(profile, rawFields, bills) {
       return { ok: false, error: `${label} requires a canonical EUR amount.` }
     }
     const value = Number(raw)
-    if (!Number.isFinite(value) || !exactCent(value)) {
+    if (!Number.isFinite(value) || !exactCent(value) || value > MAX_SAFE_EUROS) {
       return { ok: false, error: `${label} requires an exact-cent EUR amount.` }
     }
     next[key] = value
@@ -157,7 +159,7 @@ export function validateAuthorityPolicyDraft(profile, rawFields, bills) {
       return { ok: false, error: `${name} reserve requires an exact-cent EUR amount` }
     }
     const amount = Number(bill.amount_eur)
-    if (!Number.isFinite(amount) || !exactCent(amount)) {
+    if (!Number.isFinite(amount) || !exactCent(amount) || amount > MAX_SAFE_EUROS) {
       return { ok: false, error: `${name} reserve requires an exact-cent EUR amount` }
     }
     const contains = matchingTerms(bill.contains)
