@@ -3719,6 +3719,19 @@ def apply_budget_category_correction(
     connection = get_db()
     try:
         connection.execute("BEGIN IMMEDIATE")
+        active_source = connection.execute(
+            """SELECT statement_import_id FROM budget_statement_snapshots
+               WHERE receipt_verified=1 AND parser='lhv_pdf'
+                 AND quality_status='reconciled' AND balance_difference_eur=0
+               ORDER BY statement_end_date DESC, imported_at DESC, id DESC LIMIT 1"""
+        ).fetchone()
+        if (
+            active_source is None
+            or active_source["statement_import_id"] != statement_import_id
+        ):
+            raise BudgetCorrectionConflict(
+                "Statement import is no longer the active verified source"
+            )
         current_revision = _budget_correction_revision_with_connection(
             connection, statement_import_id
         )
@@ -3736,6 +3749,14 @@ def apply_budget_category_correction(
             raise ValueError("A correction ordinal does not belong to this statement import")
         if any(normalize_budget_merchant(row["merchant"]) != normalized_merchant for row in rows):
             raise ValueError("Correction ordinals do not belong to the merchant group")
+        if any(
+            (int(row["is_income"]) == 1 and corrected_category != "Income")
+            or (int(row["is_income"]) == 0 and corrected_category == "Income")
+            for row in rows
+        ):
+            raise ValueError(
+                "corrected_category is incompatible with immutable income direction"
+            )
 
         now = _utc_now()
         correction_group_id = secrets.token_urlsafe(24)

@@ -2724,7 +2724,9 @@ def test_investment_capacity_rejects_noncanonical_month(month: str) -> None:
     assert response.status_code == 422
 
 
-def _save_category_correction_statement() -> str:
+def _save_category_correction_statement(
+    statement_end_date: str = "2026-08-08",
+) -> str:
     transactions = [
         {
             "date": "2026-08-05",
@@ -2771,7 +2773,7 @@ def _save_category_correction_statement() -> str:
         },
     ]
     snapshot = {
-        "statement_end_date": "2026-08-08",
+        "statement_end_date": statement_end_date,
         "opening_balance_eur": 0.0,
         "closing_balance_eur": 946.86,
         "parser": "lhv_pdf",
@@ -2902,6 +2904,72 @@ def test_category_correction_rejects_invalid_ordinal_without_partial_write(
         connection.close()
     assert correction_count == 0
     assert rule_count == 0
+
+
+def test_category_correction_rejects_replaced_statement_import(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    old_import_id = _save_category_correction_statement("2026-08-08")
+    old_revision = database.get_budget_correction_revision(old_import_id)
+    new_import_id = _save_category_correction_statement("2026-08-09")
+
+    assert new_import_id != old_import_id
+    assert database.get_latest_reconciled_budget_statement()["statement_import_id"] == new_import_id
+    with pytest.raises(database.BudgetCorrectionConflict, match="active"):
+        database.apply_budget_category_correction(
+            statement_import_id=old_import_id,
+            expected_revision=old_revision,
+            merchant_key="vitaminas braga parq",
+            ordinals=[1],
+            corrected_category="Eating Out",
+            remember_merchant=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("ordinal", "corrected_category"),
+    [(0, "Eating Out"), (1, "Income")],
+    ids=["income-to-spending", "expense-to-income"],
+)
+def test_category_correction_rejects_categories_incompatible_with_immutable_direction(
+    monkeypatch, tmp_path, ordinal, corrected_category
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    import_id = _save_category_correction_statement()
+    row = database.get_budget_statement_import_transactions(import_id)[ordinal]
+
+    with pytest.raises(ValueError, match="income direction"):
+        database.apply_budget_category_correction(
+            statement_import_id=import_id,
+            expected_revision=database.get_budget_correction_revision(import_id),
+            merchant_key=database.normalize_budget_merchant(row["merchant"]),
+            ordinals=[ordinal],
+            corrected_category=corrected_category,
+            remember_merchant=False,
+        )
+
+
+@pytest.mark.parametrize("corrected_category", ["Investment", "Emergency Fund", "Transfers"])
+def test_category_correction_allows_non_spending_categories_for_debits(
+    monkeypatch, tmp_path, corrected_category
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "corrections.db")
+    database.init_db()
+    import_id = _save_category_correction_statement()
+
+    result = database.apply_budget_category_correction(
+        statement_import_id=import_id,
+        expected_revision=database.get_budget_correction_revision(import_id),
+        merchant_key="vitaminas braga parq",
+        ordinals=[1],
+        corrected_category=corrected_category,
+        remember_merchant=False,
+    )
+
+    assert result["effective_transactions"][1]["effective_category"] == corrected_category
 
 
 def test_category_correction_revision_is_scoped_to_its_statement_import(

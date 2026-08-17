@@ -94,3 +94,50 @@ Output: `56 passed in 24.52s`; compilation and whitespace checks exited 0.
 
 None for Task 1. Later Review Other tasks must consume the effective projection
 rather than raw statement rows wherever category-based calculations are shown.
+
+## Review Fix Evidence
+
+### Findings Addressed
+
+- Critical: corrections now reject a statement import that is no longer the
+  active latest receipt-verified, reconciled statement source.
+- Important: corrections now preserve immutable income direction. Income rows
+  accept only `Income`; debit rows reject `Income` while retaining valid debit
+  classifications including `Investment`, `Emergency Fund`, and `Transfers`.
+
+### RED
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "replaced_statement_import or immutable_direction or non_spending_categories_for_debits" -q
+```
+
+Output: `3 failed, 3 passed, 247 deselected in 6.80s`.
+
+- The replaced-import regression failed with `DID NOT RAISE
+  BudgetCorrectionConflict`.
+- The income-to-spending and expense-to-income regressions each failed with
+  `DID NOT RAISE ValueError`.
+
+### GREEN
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "replaced_statement_import or immutable_direction or non_spending_categories_for_debits or category_correction or category_review_source or learned_merchant or duplicate_authoritative" -q
+```
+
+Output: `12 passed, 241 deselected in 8.75s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -q
+```
+
+Output: `253 passed in 85.71s (0:01:25)`.
+
+### Fix Self-Review
+
+- The active-source check executes after `BEGIN IMMEDIATE`, before revision or
+  row writes, and raises `BudgetCorrectionConflict` for route-level HTTP 409
+  mapping.
+- The direction check uses immutable authoritative `is_income` values loaded
+  in the same transaction.
+- No raw statement transaction or portfolio-state file is modified by either
+  guard.
