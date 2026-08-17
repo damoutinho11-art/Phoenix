@@ -123,7 +123,7 @@ export function BudgetContent() {
   const [month, setMonth] = useState(thisMonth)
   const [months, setMonths] = useState([thisMonth])
   const [summary, setSummary] = useState(null)
-  const [ledgerTransactions, setLedgerTransactions] = useState([])
+  const [transactionState, setTransactionState] = useState({ status: 'loading', rows: [] })
   const [reviewState, setReviewState] = useState(createCategoryReviewLoading)
   const [authorityState, setAuthorityState] = useState({ status: 'loading', month: thisMonth, authority: null })
   const [authorityNotice, setAuthorityNotice] = useState('')
@@ -152,9 +152,15 @@ export function BudgetContent() {
 
   const loadTransactions = useCallback(m => {
     let alive = true
+    setTransactionState({ status: 'loading', rows: [] })
     getBudgetTransactions(m)
-      .then(r => { if (alive) setLedgerTransactions(Array.isArray(r.transactions) ? r.transactions : []) })
-      .catch(() => { if (alive) setLedgerTransactions([]) })
+      .then(r => {
+        if (!alive) return
+        setTransactionState(Array.isArray(r.transactions)
+          ? { status: 'ready', rows: r.transactions }
+          : { status: 'unavailable', rows: [] })
+      })
+      .catch(() => { if (alive) setTransactionState({ status: 'unavailable', rows: [] }) })
     return () => { alive = false }
   }, [])
 
@@ -243,12 +249,14 @@ export function BudgetContent() {
               REVIEW OTHER · {reviewState.unresolvedCount} · {formatReviewMoney(reviewState.unresolvedAmountEur)}
             </button>
           )}
-          <span style={financeMicro({ color: a(ACC, '77') })}>{ledgerTransactions.length} ROWS</span>
+          {transactionState.status === 'ready' && <span style={financeMicro({ color: a(ACC, '77') })}>{transactionState.rows.length} ROWS</span>}
+          {transactionState.status === 'loading' && <span style={financeMicro({ color: a(ACC, '77') })}>ROWS LOADING</span>}
+          {transactionState.status === 'unavailable' && <span style={financeMicro({ color: a(ACC, '77') })}>ROWS UNAVAILABLE</span>}
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={prev} disabled={idx >= months.length - 1} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx >= months.length - 1 ? 'not-allowed' : 'pointer' }}>‹</button>
+          <button aria-label="Previous budget month" onClick={prev} disabled={idx >= months.length - 1} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx >= months.length - 1 ? 'not-allowed' : 'pointer' }}>‹</button>
           <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, 'cc'), minWidth: 118, textAlign: 'center' }}>{fmtMonth(month)}</span>
-          <button onClick={next} disabled={idx <= 0} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx <= 0 ? 'not-allowed' : 'pointer' }}>›</button>
+          <button aria-label="Next budget month" onClick={next} disabled={idx <= 0} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx <= 0 ? 'not-allowed' : 'pointer' }}>›</button>
         </span>
       </div>
 
@@ -297,18 +305,18 @@ export function BudgetContent() {
       {!loading && hasData && (
         <>
           <div style={{ textAlign: 'center', padding: '6px 0 4px' }}>
-            <div style={{ fontFamily: FD, fontSize: 58, fontWeight: 700, lineHeight: 1, color: savingsGood ? G : ACC, textShadow: `0 0 40px ${mix(savingsGood ? G : ACC, 33)}` }}>{rate}%</div>
+            <div style={{ fontFamily: FD, fontSize: 58, fontWeight: 700, lineHeight: 1, color: ACC, textShadow: `0 0 40px ${mix(ACC, 33)}` }}>{rate}%</div>
             <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 7 }}>SAVINGS RATE · TARGET 25%</div>
             {!savingsGood && <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.15em', color: Y, marginTop: 4 }}>BELOW TARGET</div>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
-            <StatTile label="INCOME" value={euro(summary.income_total, 0)} color={G} />
-            <StatTile label="EXPENSES" value={euro(summary.expenses_total, 0)} color={R} />
+            <StatTile label="INCOME" value={euro(summary.income_total, 0)} color={ACC} />
+            <StatTile label="EXPENSES" value={euro(summary.expenses_total, 0)} color={W} />
             <StatTile label="SAVINGS" value={euro(totalSavings, 0)} color={ACC} />
           </div>
 
-          <BreakdownGroup title="SAVINGS" subtitle="Counts toward savings rate" rows={savingsRows} color={G} />
+          <BreakdownGroup title="SAVINGS" subtitle="Counts toward savings rate" rows={savingsRows} color={ACC} />
           <BreakdownGroup title="FIXED COSTS" subtitle="Tracked, not the cut target" rows={fixedRows} color={W} />
           <BreakdownGroup title="FLEXIBLE SPENDING" subtitle="Where Phoenix looks for improvements" rows={flexRows} color={ACC} />
           <BreakdownGroup title="INTERNAL TRANSFERS" subtitle="Moved money, not income or spending" rows={transferRows} color={a(ACC, '77')} />
@@ -479,7 +487,7 @@ function UploadStage({ onDone, onCancel }) {
                   ].map(([label, value]) => (
                     <div key={label} style={{ minWidth: 0 }}>
                       <div style={financeMicro({ color: a(ACC, '66') })}>{label}</div>
-                      <div style={{ marginTop: 3, fontFamily: label.startsWith('AMOUNT') ? FD : FB, fontSize: label.startsWith('AMOUNT') ? 14 : 12, fontWeight: label.startsWith('AMOUNT') ? 600 : 400, lineHeight: 1.35, color: label.startsWith('AMOUNT') ? (t.is_income ? G : W) : mix(BODY, 90), overflowWrap: 'anywhere' }}>{value}</div>
+                      <div style={{ marginTop: 3, fontFamily: label.startsWith('AMOUNT') ? FD : FB, fontSize: label.startsWith('AMOUNT') ? 14 : 12, fontWeight: label.startsWith('AMOUNT') ? 600 : 400, lineHeight: 1.35, color: label.startsWith('AMOUNT') ? W : mix(BODY, 90), overflowWrap: 'anywhere' }}>{value}</div>
                     </div>
                   ))}
                 </div>
@@ -652,7 +660,7 @@ function MemoryStage({ onDone, onCancel }) {
               <input className="phx-input" type="number" min="0" max="100" style={inputStyle} value={profile.savings_target_pct ?? 25} onChange={e => update({ savings_target_pct: Number(e.target.value || 0) })} />
             </MemField>
             <MemField label="MONTH-END SALARY">
-              <button type="button" onClick={() => update({ salary_next_month: !profile.salary_next_month })} className="phx-input" style={{ ...inputStyle, cursor: 'pointer', fontFamily: FM, fontWeight: 700, letterSpacing: '.12em', color: profile.salary_next_month ? G : R }}>
+              <button type="button" onClick={() => update({ salary_next_month: !profile.salary_next_month })} className="phx-input" style={{ ...inputStyle, cursor: 'pointer', fontFamily: FM, fontWeight: 700, letterSpacing: '.12em', color: profile.salary_next_month ? ACC : a(ACC, '77') }}>
                 {profile.salary_next_month ? 'NEXT MONTH' : 'SAME MONTH'}
               </button>
             </MemField>
@@ -681,11 +689,11 @@ function MemoryStage({ onDone, onCancel }) {
             {billDrafts.map((bill, index) => (
               <div key={index} style={{ padding: '11px 0', borderBottom: `1px solid ${a(ACC, '16')}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 9 }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 30, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: bill.enabled ? G : a(ACC, '77'), cursor: 'pointer' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 30, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: bill.enabled ? ACC : a(ACC, '77'), cursor: 'pointer' }}>
                     <input type="checkbox" checked={bill.enabled} onChange={e => updateBill(index, { enabled: e.target.checked })} style={{ width: 17, height: 17, accentColor: ACC }} />
                     {bill.enabled ? 'ENABLED' : 'DISABLED'}
                   </label>
-                  <button type="button" title="Remove bill" aria-label={`REMOVE BILL ${index + 1}`} onClick={() => removeBill(index)} style={{ width: 32, height: 32, padding: 0, fontFamily: FD, fontSize: 18, lineHeight: 1, color: R, background: deep(58), border: `1px solid ${a(R, '44')}`, cursor: 'pointer' }}>×</button>
+                      <button type="button" title="Remove bill" aria-label={`REMOVE BILL ${index + 1}`} onClick={() => removeBill(index)} style={{ width: 32, height: 32, padding: 0, fontFamily: FD, fontSize: 18, lineHeight: 1, color: ACC, background: deep(58), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>×</button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 9 }}>
                   <MemField label="BILL NAME">

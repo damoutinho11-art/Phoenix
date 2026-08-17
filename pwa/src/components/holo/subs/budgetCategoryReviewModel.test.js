@@ -104,6 +104,61 @@ test('review normalization preserves exact-cent totals and unique merchant ordin
   assert.deepEqual(state.learnedMerchants, reviewPayload.learned_merchants)
 })
 
+test('server casefolded merchant keys remain actionable with Unicode display evidence', () => {
+  const unicodePayload = {
+    ...reviewPayload,
+    merchant_groups: [{
+      ...reviewPayload.merchant_groups[0],
+      merchant_key: 'strasse market',
+      merchant: 'Straße Market',
+      transactions: reviewPayload.merchant_groups[0].transactions.map(transaction => ({
+        ...transaction,
+        merchant: 'Straße Market',
+      })),
+    }],
+  }
+
+  const state = normalizeCategoryReview(unicodePayload)
+  const draft = { ...createCategoryReviewDraft(state.groups[0]), category: 'Shopping' }
+
+  assert.equal(state.status, 'ready')
+  assert.equal(state.actionable, true)
+  assert.equal(draft.merchantKey, 'strasse market')
+  assert.equal(buildCategoryCorrectionRequest(state.statementImportId, state.revision, draft).merchant_key, 'strasse market')
+})
+
+test('server merchant keys and ordinals remain unique across Unicode-safe groups', () => {
+  const secondGroup = {
+    merchant_key: 'second merchant',
+    merchant: 'Second Merchant',
+    ordinals: [7],
+    transactions: [{
+      ordinal: 7,
+      date: '2026-08-07',
+      merchant: 'Second Merchant',
+      amount_eur: 3.21,
+      description: 'Second payment',
+      is_income: 0,
+      category: 'Other',
+    }],
+  }
+  const base = {
+    ...reviewPayload,
+    unresolved_count: 3,
+    unresolved_amount_eur: 27.89,
+    merchant_groups: [reviewPayload.merchant_groups[0], secondGroup],
+  }
+
+  assert.equal(normalizeCategoryReview({
+    ...base,
+    merchant_groups: [base.merchant_groups[0], { ...secondGroup, merchant_key: 'vitaminas braga parq' }],
+  }).status, 'error')
+  assert.equal(normalizeCategoryReview({
+    ...base,
+    merchant_groups: [base.merchant_groups[0], { ...secondGroup, ordinals: [4], transactions: [{ ...secondGroup.transactions[0], ordinal: 4 }] }],
+  }).status, 'error')
+})
+
 test('review normalization fails closed for malformed server data', () => {
   const malformed = normalizeCategoryReview({
     ...reviewPayload,
@@ -280,6 +335,8 @@ test('409 correction outcome requests a stale refresh and drops actionable state
     actionable: false,
     refreshRequired: true,
     draft: null,
+    draftLocked: true,
+    retryable: false,
     review: current,
     message: 'The statement changed. Refresh the review before retrying.',
   })
@@ -294,9 +351,42 @@ test('retryable correction failure retains the staged draft', () => {
     actionable: true,
     refreshRequired: false,
     draft,
+    draftLocked: false,
+    retryable: true,
     review: current,
     message: 'offline',
   })
+})
+
+test('non-retryable client errors clear and lock the staged draft', () => {
+  const current = normalizeCategoryReview(reviewPayload)
+  const draft = { ...createCategoryReviewDraft(reviewPayload.merchant_groups[0]), category: 'Shopping' }
+
+  assert.deepEqual(categoryCorrectionOutcome(current, { status: 422, message: 'invalid correction' }, draft), {
+    status: 'error',
+    actionable: false,
+    refreshRequired: false,
+    draft: null,
+    draftLocked: true,
+    retryable: false,
+    review: current,
+    message: 'invalid correction',
+  })
+})
+
+test('malformed successful responses clear and lock the staged draft', () => {
+  const current = normalizeCategoryReview(reviewPayload)
+  const draft = { ...createCategoryReviewDraft(reviewPayload.merchant_groups[0]), category: 'Shopping' }
+  const outcome = categoryCorrectionOutcome(current, {
+    review: { ...reviewPayload, unresolved_count: -1 },
+    summary: {},
+    authority: {},
+  }, draft)
+
+  assert.equal(outcome.actionable, false)
+  assert.equal(outcome.draft, null)
+  assert.equal(outcome.draftLocked, true)
+  assert.equal(outcome.retryable, false)
 })
 
 test('successful correction replaces the queue with the refreshed server review', () => {
@@ -324,6 +414,8 @@ test('successful correction replaces the queue with the refreshed server review'
     actionable: false,
     refreshRequired: false,
     draft: null,
+    draftLocked: true,
+    retryable: false,
     review: refreshed,
     summary: { expenses_total: 24.68 },
     authority: { input_hash: 'authority-2' },

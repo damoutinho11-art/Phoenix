@@ -35,7 +35,6 @@ const isExactCent = value => (
   && value === Math.round(value * 100) / 100
 )
 const cents = value => Math.round(value * 100)
-const canonicalMerchant = value => value.trim().replace(/\s+/g, ' ').toLowerCase()
 const validCategory = value => typeof value === 'string' && CATEGORY_SET.has(value)
 const validOrdinalList = value => (
   Array.isArray(value)
@@ -62,13 +61,12 @@ export function createCategoryReviewLoading() {
   return emptyState('loading')
 }
 
-function validTransaction(transaction, expectedMerchantKey) {
+function validTransaction(transaction) {
   return isRecord(transaction)
     && Number.isInteger(transaction.ordinal)
     && transaction.ordinal >= 0
     && /^\d{4}-\d{2}-\d{2}$/.test(transaction.date)
     && isText(transaction.merchant)
-    && canonicalMerchant(transaction.merchant) === expectedMerchantKey
     && isExactCent(transaction.amount_eur)
     && typeof transaction.description === 'string'
     && (transaction.is_income === 0 || transaction.is_income === 1)
@@ -81,7 +79,6 @@ function normalizeGroup(group) {
     !isRecord(group)
     || !isText(group.merchant)
     || !isText(group.merchant_key)
-    || group.merchant_key !== canonicalMerchant(group.merchant_key)
   ) {
     return null
   }
@@ -91,7 +88,7 @@ function normalizeGroup(group) {
 
   const ordinals = [...group.ordinals].sort((left, right) => left - right)
   const transactions = [...group.transactions].sort((left, right) => (left?.ordinal ?? -1) - (right?.ordinal ?? -1))
-  if (!transactions.every(transaction => validTransaction(transaction, group.merchant_key))) return null
+  if (!transactions.every(validTransaction)) return null
   if (!transactions.every((transaction, index) => transaction.ordinal === ordinals[index])) return null
 
   const directions = new Set(transactions.map(transaction => transaction.is_income))
@@ -118,7 +115,6 @@ function normalizeLearnedMerchants(value) {
     && Number.isInteger(rule.id)
     && rule.id > 0
     && isText(rule.normalized_merchant)
-    && rule.normalized_merchant === canonicalMerchant(rule.normalized_merchant)
     && validCategory(rule.category)
   ))) return null
   const ids = value.map(rule => rule.id)
@@ -198,7 +194,7 @@ export function normalizeCategoryReview(payload) {
 export function createCategoryReviewDraft(group) {
   if (!isRecord(group)) return null
   const merchantKey = typeof group.merchant_key === 'string' ? group.merchant_key : group.merchantKey
-  if (!isText(merchantKey) || merchantKey !== canonicalMerchant(merchantKey) || !validOrdinalList(group.ordinals)) return null
+  if (!isText(merchantKey) || !validOrdinalList(group.ordinals)) return null
   return {
     merchantKey,
     ordinals: [...group.ordinals].sort((left, right) => left - right),
@@ -213,7 +209,6 @@ export function buildCategoryCorrectionRequest(statementImportId, revision, draf
     || !isText(revision)
     || !isRecord(draft)
     || !isText(draft.merchantKey)
-    || draft.merchantKey !== canonicalMerchant(draft.merchantKey)
     || !validOrdinalList(draft.ordinals)
     || !validCategory(draft.category)
     || draft.category === 'Other'
@@ -251,6 +246,8 @@ export function categoryCorrectionOutcome(current, responseOrError, draft = null
       actionable: false,
       refreshRequired: true,
       draft: null,
+      draftLocked: true,
+      retryable: false,
       review: current,
       message: 'The statement changed. Refresh the review before retrying.',
     }
@@ -264,6 +261,8 @@ export function categoryCorrectionOutcome(current, responseOrError, draft = null
         actionable: false,
         refreshRequired: false,
         draft: null,
+        draftLocked: true,
+        retryable: false,
         review,
         message: 'Correction response was malformed. Refresh and try again.',
       }
@@ -273,6 +272,8 @@ export function categoryCorrectionOutcome(current, responseOrError, draft = null
       actionable: review.actionable,
       refreshRequired: false,
       draft: null,
+      draftLocked: true,
+      retryable: false,
       review,
       summary: responseOrError.summary,
       authority: responseOrError.authority,
@@ -286,6 +287,8 @@ export function categoryCorrectionOutcome(current, responseOrError, draft = null
     actionable: retryable && Boolean(current?.actionable),
     refreshRequired: false,
     draft: retryable ? stagedDraft : null,
+    draftLocked: !retryable,
+    retryable,
     review: current,
     message: errorMessage(responseOrError),
   }

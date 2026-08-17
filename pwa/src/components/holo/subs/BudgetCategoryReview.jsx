@@ -17,6 +17,7 @@ import {
 const REVIEW_CSS = `
 .finance-category-review {
   min-width: 0;
+  container-type: inline-size;
 }
 .finance-category-review__header {
   display: grid;
@@ -31,7 +32,7 @@ const REVIEW_CSS = `
 }
 .finance-category-review__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, .72fr);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, .72fr);
   gap: 18px;
   min-width: 0;
   padding: 16px 0;
@@ -48,7 +49,7 @@ const REVIEW_CSS = `
 }
 .finance-category-review__transaction {
   display: grid;
-  grid-template-columns: 88px minmax(92px, .7fr) minmax(130px, 1fr) minmax(150px, 1.15fr);
+  grid-template-columns: minmax(0, .65fr) minmax(0, .7fr) minmax(0, 1fr) minmax(0, 1.15fr);
   gap: 9px;
   min-width: 0;
   padding: 8px 0;
@@ -80,7 +81,7 @@ const REVIEW_CSS = `
   padding: 9px 0;
   border-top: 1px solid color-mix(in srgb, var(--phx-accent) 14%, transparent);
 }
-@media (max-width: 820px) {
+@container (max-width: 760px) {
   .finance-category-review__header,
   .finance-category-review__row {
     grid-template-columns: minmax(0, 1fr);
@@ -122,8 +123,9 @@ function LockedFact({ label, children }) {
   )
 }
 
-function MerchantCorrectionRow({ group, statementImportId, revision, review, refresh, onApplied }) {
+function MerchantCorrectionRow({ group, statementImportId, revision, review, onApplied, onStale }) {
   const [draft, setDraft] = useState(() => createCategoryReviewDraft(group))
+  const [draftLocked, setDraftLocked] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const currentCategories = new Set(group.transactions.map(transaction => transaction.category))
@@ -135,7 +137,7 @@ function MerchantCorrectionRow({ group, statementImportId, revision, review, ref
   )
 
   const apply = async () => {
-    if (!canApply || busy) return
+    if (!canApply || busy || draftLocked) return
     const payload = buildCategoryCorrectionRequest(statementImportId, revision, draft)
     if (!payload) {
       setError('Correction details are incomplete. Refresh and try again.')
@@ -143,23 +145,23 @@ function MerchantCorrectionRow({ group, statementImportId, revision, review, ref
     }
     setBusy(true)
     setError('')
-    try {
-      const response = await postBudgetCategoryCorrection(payload)
-      const outcome = categoryCorrectionOutcome(review, response, draft)
-      if (outcome.status === 'error') {
-        if (outcome.draft) setDraft(outcome.draft)
+    const handleOutcome = async outcome => {
+      setDraftLocked(outcome.draftLocked)
+      if (outcome.draftLocked) setDraft(null)
+      else if (outcome.draft) setDraft(outcome.draft)
+      if (outcome.refreshRequired) {
+        await onStale(outcome)
+      } else if (outcome.status === 'error') {
         setError(outcome.message)
       } else {
         await onApplied(outcome)
       }
+    }
+    try {
+      const response = await postBudgetCategoryCorrection(payload)
+      await handleOutcome(categoryCorrectionOutcome(review, response, draft))
     } catch (requestError) {
-      const outcome = categoryCorrectionOutcome(review, requestError, draft)
-      if (outcome.refreshRequired) {
-        await refresh()
-        return
-      }
-      if (outcome.draft) setDraft(outcome.draft)
-      setError(outcome.message)
+      await handleOutcome(categoryCorrectionOutcome(review, requestError, draft))
     } finally {
       setBusy(false)
     }
@@ -189,6 +191,7 @@ function MerchantCorrectionRow({ group, statementImportId, revision, review, ref
           CORRECTED CATEGORY
           <select
             aria-label={`Corrected category for ${group.merchant}`}
+            disabled={busy || draftLocked}
             value={draft?.category || ''}
             onChange={event => { setDraft(previous => ({ ...previous, category: event.target.value })); setError('') }}
             style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 7, padding: '0 10px', color: W, background: deep(72), border: `1px solid ${a(ACC, '44')}`, ...financeBody({ fontSize: 13 }) }}
@@ -203,6 +206,7 @@ function MerchantCorrectionRow({ group, statementImportId, revision, review, ref
           <input
             type="checkbox"
             checked={Boolean(draft?.rememberMerchant)}
+            disabled={busy || draftLocked}
             onChange={event => { setDraft(previous => ({ ...previous, rememberMerchant: event.target.checked })); setError('') }}
             style={{ width: 18, height: 18, flexShrink: 0, accentColor: ACC }}
           />
@@ -211,10 +215,10 @@ function MerchantCorrectionRow({ group, statementImportId, revision, review, ref
         <button
           type="button"
           onClick={apply}
-          disabled={!canApply || busy}
+          disabled={!canApply || busy || draftLocked}
           style={{ width: '100%', minHeight: 42, padding: '0 12px', marginTop: 8, ...financeButton({ color: canApply ? INK : a(ACC, '66') }), background: canApply ? ACC : deep(52), border: `1px solid ${canApply ? ACC : a(ACC, '28')}`, cursor: canApply && !busy ? 'pointer' : 'not-allowed', boxShadow: canApply ? `0 0 22px ${a(ACC, '2f')}` : 'none' }}
         >
-          {busy ? 'APPLYING CORRECTION…' : 'APPLY CORRECTION'}
+          {busy ? 'APPLYING CORRECTION…' : draftLocked ? 'CORRECTION LOCKED' : 'APPLY CORRECTION'}
         </button>
         {error && <div role="status" style={{ marginTop: 8, ...financeBody({ fontSize: 12, color: R }) }}>{error}</div>}
       </div>
@@ -252,7 +256,7 @@ function LearnedMerchantRules({ rules, refresh, onDone }) {
         <div className="finance-category-review__memory-row" key={rule.id}>
           <span style={{ minWidth: 0, ...financeBody({ fontSize: 13, color: mix(BODY, 92) }), overflowWrap: 'anywhere' }}>{rule.normalized_merchant}</span>
           <span style={{ padding: '5px 8px', color: ACC, border: `1px solid ${a(ACC, '30')}`, background: a(ACC, '08'), ...financeMicro({ color: ACC }), overflowWrap: 'anywhere' }}>{rule.category}</span>
-          <button type="button" onClick={() => forget(rule.id)} disabled={busyRule !== null} style={{ ...secondaryButtonStyle, minWidth: 82, color: busyRule === rule.id ? a(ACC, '77') : ACC, cursor: busyRule !== null ? 'wait' : 'pointer' }}>FORGET</button>
+          <button type="button" aria-label={`Forget learned merchant ${rule.normalized_merchant}`} onClick={() => forget(rule.id)} disabled={busyRule !== null} style={{ ...secondaryButtonStyle, minWidth: 82, color: busyRule === rule.id ? a(ACC, '77') : ACC, cursor: busyRule !== null ? 'wait' : 'pointer' }}>FORGET</button>
         </div>
       ))}
       {error && <div role="status" style={{ marginTop: 8, ...financeBody({ fontSize: 12, color: R }) }}>{error}</div>}
@@ -264,9 +268,9 @@ export function BudgetCategoryReview({ month, onDone, onCancel }) {
   const [state, setState] = useState(createCategoryReviewLoading)
   const requestId = useRef(0)
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ showLoading = true } = {}) => {
     const currentRequest = ++requestId.current
-    setState(createCategoryReviewLoading())
+    if (showLoading) setState(createCategoryReviewLoading())
     try {
       const payload = await getBudgetCategoryReview(month)
       if (currentRequest === requestId.current) setState(normalizeCategoryReview(payload))
@@ -284,6 +288,16 @@ export function BudgetCategoryReview({ month, onDone, onCancel }) {
     setState(outcome.review)
     await onDone()
   }, [onDone])
+
+  const handleStale = useCallback(async outcome => {
+    setState({
+      ...outcome.review,
+      status: 'stale',
+      actionable: false,
+      message: outcome.message,
+    })
+    await refresh({ showLoading: false })
+  }, [refresh])
 
   const returnButton = <button type="button" onClick={onCancel} style={secondaryButtonStyle}>RETURN TO LEDGER</button>
 
@@ -313,6 +327,13 @@ export function BudgetCategoryReview({ month, onDone, onCancel }) {
         </div>
       )}
 
+      {state.status === 'stale' && (
+        <div className="finance-category-review__state" style={{ padding: '26px 0', borderBottom: `1px solid ${a(Y, '34')}` }}>
+          <div style={financeLabel({ color: Y })}>SOURCE CHANGED</div>
+          <p role="status" style={{ margin: '7px 0 0', ...financeBody({ color: mix(BODY, 84) }) }}>{state.message}</p>
+        </div>
+      )}
+
       {state.status === 'blocked' && (
         <div className="finance-category-review__state" style={{ padding: '26px 0', borderBottom: `1px solid ${a(Y, '34')}` }}>
           <div style={financeLabel({ color: Y })}>VERIFIED STATEMENT REQUIRED</div>
@@ -337,8 +358,8 @@ export function BudgetCategoryReview({ month, onDone, onCancel }) {
               statementImportId={state.statementImportId}
               revision={state.revision}
               review={state}
-              refresh={refresh}
               onApplied={handleApplied}
+              onStale={handleStale}
             />
           ))}
         </div>
