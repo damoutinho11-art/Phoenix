@@ -207,6 +207,29 @@ export function createCategoryReviewDraft(group) {
   }
 }
 
+export function buildCategoryCorrectionRequest(statementImportId, revision, draft) {
+  if (
+    !isText(statementImportId)
+    || !isText(revision)
+    || !isRecord(draft)
+    || !isText(draft.merchantKey)
+    || draft.merchantKey !== canonicalMerchant(draft.merchantKey)
+    || !validOrdinalList(draft.ordinals)
+    || !validCategory(draft.category)
+    || draft.category === 'Other'
+    || typeof draft.rememberMerchant !== 'boolean'
+  ) return null
+
+  return {
+    statement_import_id: statementImportId,
+    expected_revision: revision,
+    merchant_key: draft.merchantKey,
+    ordinals: [...draft.ordinals],
+    corrected_category: draft.category,
+    remember_merchant: draft.rememberMerchant,
+  }
+}
+
 function errorStatus(error) {
   if (!error) return 0
   if (Number.isInteger(error.status)) return error.status

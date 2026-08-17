@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   REVIEW_CATEGORIES,
+  buildCategoryCorrectionRequest,
   categoryCorrectionOutcome,
   createCategoryReviewDraft,
   createCategoryReviewLoading,
@@ -58,6 +59,31 @@ test('category draft remembers merchant by default and preserves exact ordinals'
     category: '',
     rememberMerchant: true,
   })
+})
+
+test('correction request carries only server identity, exact group ordinals, category, and remember choice', () => {
+  const draft = {
+    ...createCategoryReviewDraft(reviewPayload.merchant_groups[0]),
+    category: 'Food & Groceries',
+    rememberMerchant: false,
+  }
+
+  assert.deepEqual(buildCategoryCorrectionRequest(
+    reviewPayload.statement_import_id,
+    reviewPayload.revision,
+    draft,
+  ), {
+    statement_import_id: 'statement-1',
+    expected_revision: 'revision-1',
+    merchant_key: 'vitaminas braga parq',
+    ordinals: [1, 4],
+    corrected_category: 'Food & Groceries',
+    remember_merchant: false,
+  })
+  assert.equal(buildCategoryCorrectionRequest('statement-1', 'revision-1', {
+    ...draft,
+    category: 'Other',
+  }), null)
 })
 
 test('category draft refuses malformed merchant or ordinal data', () => {

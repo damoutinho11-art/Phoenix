@@ -418,11 +418,63 @@ test('budget PDF review locks bank facts and activates authority only from recon
   assert.doesNotMatch(budget, /OVERRIDE RECONCILIATION/)
 })
 
-test('budget ledger, upload, and Cash Policy roots use the Budget accent scope', async () => {
+test('budget ledger, upload, Cash Policy, and Review Other use Finance blue', async () => {
   const budget = await src('./subs/BudgetContent.jsx')
-  const budgetScopes = budget.match(/className="phx-scope-budget"/g) || []
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+  const production = `${budget}\n${review}`
 
-  assert.equal(budgetScopes.length, 3)
+  assert.doesNotMatch(production, /phx-scope-budget|orange|gold/i)
+  assert.match(budget, /ACC/)
+  assert.match(budget, /reviewOtherButtonStyle/)
+  assert.match(budget, /CASH POLICY/)
+  assert.match(review, /ACC/)
+})
+
+test('budget ledger exposes Review Other only for a positive server unresolved count', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+
+  assert.match(budget, /getBudgetCategoryReview/)
+  assert.match(budget, /normalizeCategoryReview/)
+  assert.match(budget, /reviewState\.status === 'ready' && reviewState\.unresolvedCount > 0/)
+  assert.match(budget, /REVIEW OTHER/)
+  assert.match(budget, /setMode\('reviewOther'\)/)
+  assert.match(budget, /<BudgetCategoryReview[\s\S]*month=\{month\}[\s\S]*onDone=/)
+  for (const loader of ['loadSummary', 'loadTransactions', 'loadReview', 'authorityLoader.load']) {
+    assert.match(budget, new RegExp(loader.replace('.', '\\.')))
+  }
+})
+
+test('Review Other is a dense responsive subsection with locked evidence and complete states', async () => {
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+
+  assert.match(review, /<section className="finance-category-review"/)
+  assert.doesNotMatch(review, /role="dialog"|aria-modal|position:\s*'fixed'|backdropFilter/)
+  assert.match(review, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(280px, \.72fr\)/)
+  assert.match(review, /@media \(max-width: 820px\)/)
+  assert.match(review, /\.finance-category-review__row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+  assert.match(review, /min-height:\s*42px/)
+  assert.match(review, /outline:\s*2px solid var\(--phx-accent\)/)
+  for (const label of ['DATE · LOCKED', 'AMOUNT · LOCKED', 'MERCHANT · LOCKED', 'DESCRIPTION · LOCKED']) {
+    assert.match(review, new RegExp(label))
+  }
+  assert.doesNotMatch(review, /type="(?:date|number)"|aria-label=\{`(?:Amount|Date|Merchant|Description)/)
+  assert.match(review, /CLASSIFICATION COMPLETE/)
+  assert.match(review, /VERIFIED STATEMENT REQUIRED/)
+  assert.doesNotMatch(review, /OVERRIDE/)
+})
+
+test('Review Other posts auditable corrections, refreshes conflicts, retains retries, and forgets rules', async () => {
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+
+  assert.match(review, /buildCategoryCorrectionRequest/)
+  assert.match(review, /postBudgetCategoryCorrection\(payload\)/)
+  assert.match(review, /categoryCorrectionOutcome/)
+  assert.match(review, /outcome\.refreshRequired/)
+  assert.match(review, /await refresh\(\)/)
+  assert.match(review, /setDraft\(outcome\.draft\)/)
+  assert.match(review, /deleteBudgetLearnedMerchant/)
+  assert.match(review, />FORGET</)
+  assert.match(review, /disabled=\{!canApply \|\| busy\}/)
 })
 
 test('finance control room reuses existing finance instrument designs', async () => {

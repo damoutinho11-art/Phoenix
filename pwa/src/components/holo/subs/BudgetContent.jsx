@@ -9,8 +9,12 @@ import {
   getBudgetMemory,
   saveBudgetMemory,
   getBudgetInvestmentCapacity,
+  getBudgetCategoryReview,
+  getBudgetTransactions,
 } from '../../../api/client'
 import { financeBody, financeButton, financeLabel, financeMicro } from './financeReadability'
+import { BudgetCategoryReview, formatReviewMoney } from './BudgetCategoryReview'
+import { createCategoryReviewLoading, normalizeCategoryReview } from './budgetCategoryReviewModel'
 import {
   AUTHORITY_NUMERIC_FIELDS,
   createDefaultUtilityBill,
@@ -47,21 +51,7 @@ const RECONCILIATION_METRIC_LABELS = [
   'STATEMENT END',
 ]
 
-// category → token (no raw hex): reuse domain accents + semantic status colors
-const CAT_COLOR = {
-  Income: G,
-  Investment: ACC,
-  'Food & Groceries': 'var(--phx-nutrition)',
-  'Eating Out': 'var(--phx-training)',
-  Subscriptions: R,
-  Transport: ACC,
-  Housing: 'var(--phx-calendar)',
-  'Health & Sport': G,
-  Shopping: Y,
-  'Banking & Fees': a(ACC, '55'),
-  Other: a(ACC, '55'),
-}
-const catColor = c => CAT_COLOR[c] || a(ACC, '55')
+const catColor = () => ACC
 
 const euro = (value, digits = 2) => {
   const n = Number(value || 0)
@@ -115,6 +105,16 @@ function AddButton({ onClick, label }) {
   )
 }
 
+const reviewOtherButtonStyle = {
+  minHeight: 32,
+  padding: '0 11px',
+  ...financeButton({ color: ACC }),
+  background: a(ACC, '0c'),
+  border: `1px solid ${a(ACC, '55')}`,
+  cursor: 'pointer',
+  boxShadow: `0 0 18px ${a(ACC, '1e')}`,
+}
+
 // ── FINANCE // BUDGET — monthly income / expense / savings breakdown ──
 // Self-fetching (like BriefContent): reads /budget/summary + /budget/months.
 // Switches into an upload sub-mode to parse + save a statement, then refetches.
@@ -123,10 +123,12 @@ export function BudgetContent() {
   const [month, setMonth] = useState(thisMonth)
   const [months, setMonths] = useState([thisMonth])
   const [summary, setSummary] = useState(null)
+  const [ledgerTransactions, setLedgerTransactions] = useState([])
+  const [reviewState, setReviewState] = useState(createCategoryReviewLoading)
   const [authorityState, setAuthorityState] = useState({ status: 'loading', month: thisMonth, authority: null })
   const [authorityNotice, setAuthorityNotice] = useState('')
   const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState('view') // 'view' | 'upload'
+  const [mode, setMode] = useState('view') // 'view' | 'upload' | 'memory' | 'reviewOther'
 
   const loadMonths = useCallback(() => {
     getBudgetMonths()
@@ -148,6 +150,23 @@ export function BudgetContent() {
     return () => { alive = false }
   }, [])
 
+  const loadTransactions = useCallback(m => {
+    let alive = true
+    getBudgetTransactions(m)
+      .then(r => { if (alive) setLedgerTransactions(Array.isArray(r.transactions) ? r.transactions : []) })
+      .catch(() => { if (alive) setLedgerTransactions([]) })
+    return () => { alive = false }
+  }, [])
+
+  const loadReview = useCallback(m => {
+    let alive = true
+    setReviewState(createCategoryReviewLoading())
+    getBudgetCategoryReview(m)
+      .then(r => { if (alive) setReviewState(normalizeCategoryReview(r)) })
+      .catch(() => { if (alive) setReviewState(normalizeCategoryReview(null)) })
+    return () => { alive = false }
+  }, [])
+
   const authorityLoader = useMemo(() => createAuthorityLoader({
     request: getBudgetInvestmentCapacity,
     onState: setAuthorityState,
@@ -155,6 +174,8 @@ export function BudgetContent() {
 
   useEffect(() => { loadMonths() }, [loadMonths])
   useEffect(() => loadSummary(month), [month, loadSummary])
+  useEffect(() => loadTransactions(month), [month, loadTransactions])
+  useEffect(() => loadReview(month), [month, loadReview])
   useEffect(() => {
     authorityLoader.load(month)
     return () => authorityLoader.dispose()
@@ -171,6 +192,8 @@ export function BudgetContent() {
   const afterSave = receiptConsumed => {
     loadMonths()
     loadSummary(month)
+    loadTransactions(month)
+    loadReview(month)
     setMode('view')
     if (receiptConsumed) setAuthorityNotice('STATEMENT SAVED · REFRESHING CASH AUTHORITY')
     authorityLoader.load(month).then(applied => {
@@ -178,11 +201,21 @@ export function BudgetContent() {
     })
   }
 
+  const afterReview = useCallback(() => {
+    loadSummary(month)
+    loadTransactions(month)
+    loadReview(month)
+    return authorityLoader.load(month)
+  }, [month, loadSummary, loadTransactions, loadReview, authorityLoader])
+
   if (mode === 'upload') {
     return <UploadStage onDone={afterSave} onCancel={() => setMode('view')} />
   }
   if (mode === 'memory') {
     return <MemoryStage onDone={() => { loadSummary(month); authorityLoader.load(month); setMode('view') }} onCancel={() => setMode('view')} />
+  }
+  if (mode === 'reviewOther') {
+    return <BudgetCategoryReview month={month} onDone={afterReview} onCancel={() => setMode('view')} />
   }
 
   const hasData = summary && (summary.income_total > 0 || summary.expenses_total > 0)
@@ -199,12 +232,18 @@ export function BudgetContent() {
   const authorityLoading = authorityState.status === 'loading'
 
   return (
-    <div className="phx-scope-budget">
+    <div>
       {/* month picker */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
           <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ CASH POLICY</button>
+          {reviewState.status === 'ready' && reviewState.unresolvedCount > 0 && (
+            <button type="button" onClick={() => setMode('reviewOther')} style={reviewOtherButtonStyle}>
+              REVIEW OTHER · {reviewState.unresolvedCount} · {formatReviewMoney(reviewState.unresolvedAmountEur)}
+            </button>
+          )}
+          <span style={financeMicro({ color: a(ACC, '77') })}>{ledgerTransactions.length} ROWS</span>
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <button onClick={prev} disabled={idx >= months.length - 1} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx >= months.length - 1 ? 'not-allowed' : 'pointer' }}>‹</button>
@@ -358,7 +397,7 @@ function UploadStage({ onDone, onCancel }) {
   const saveBlocked = input === 'pdf' && (!reconciliation.canActivate || reuploadRequired)
 
   return (
-    <div className="phx-scope-budget">
+    <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>{transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}</span>
         <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
@@ -594,7 +633,7 @@ function MemoryStage({ onDone, onCancel }) {
   const saveLabel = migrationRequired ? 'SAVE & UPGRADE POLICY' : 'SAVE CASH POLICY'
 
   return (
-    <div className="phx-scope-budget">
+    <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>CASH POLICY</span>
         <span style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
