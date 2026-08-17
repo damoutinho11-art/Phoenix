@@ -5,6 +5,7 @@ import {
   REVIEW_CATEGORIES,
   categoryCorrectionOutcome,
   createCategoryReviewDraft,
+  createCategoryReviewLoading,
   normalizeCategoryReview,
 } from './budgetCategoryReviewModel.js'
 
@@ -92,6 +93,86 @@ test('review normalization fails closed for malformed server data', () => {
   assert.deepEqual(malformed.groups, [])
 })
 
+test('review normalization rejects missing, blank, or non-string display merchants', () => {
+  for (const merchant of [undefined, ' ', 42]) {
+    const group = { ...reviewPayload.merchant_groups[0], merchant }
+    const malformed = normalizeCategoryReview({ ...reviewPayload, merchant_groups: [group] })
+
+    assert.equal(malformed.status, 'error')
+    assert.equal(malformed.actionable, false)
+    assert.deepEqual(malformed.groups, [])
+  }
+})
+
+test('review normalization rejects contradictory immutable direction and category fields', () => {
+  const debitWithIncome = normalizeCategoryReview({
+    ...reviewPayload,
+    merchant_groups: [{
+      ...reviewPayload.merchant_groups[0],
+      transactions: reviewPayload.merchant_groups[0].transactions.map(transaction => ({
+        ...transaction,
+        category: 'Income',
+      })),
+    }],
+  })
+  assert.equal(debitWithIncome.status, 'error')
+  assert.equal(debitWithIncome.actionable, false)
+
+  const incomeWithOther = normalizeCategoryReview({
+    ...reviewPayload,
+    merchant_groups: [{
+      ...reviewPayload.merchant_groups[0],
+      transactions: reviewPayload.merchant_groups[0].transactions.map(transaction => ({
+        ...transaction,
+        is_income: 1,
+      })),
+    }],
+  })
+  assert.equal(incomeWithOther.status, 'error')
+  assert.equal(incomeWithOther.actionable, false)
+})
+
+test('loading state is explicit and malformed payloads are not loading', () => {
+  assert.deepEqual(createCategoryReviewLoading(), {
+    status: 'loading',
+    actionable: false,
+    dataReady: false,
+    blockers: [],
+    statementImportId: null,
+    revision: null,
+    unresolvedCount: 0,
+    unresolvedAmountCents: null,
+    unresolvedAmountEur: null,
+    groups: [],
+    learnedMerchants: [],
+  })
+  assert.equal(normalizeCategoryReview(null).status, 'error')
+  assert.equal(normalizeCategoryReview(null).actionable, false)
+})
+
+test('review normalization rejects numeric values with more than two lexical decimal places', () => {
+  const malformed = normalizeCategoryReview({
+    ...reviewPayload,
+    unresolved_amount_eur: 24.68000000001,
+  })
+  assert.equal(malformed.status, 'error')
+  assert.equal(malformed.actionable, false)
+
+  const ordinary = normalizeCategoryReview({
+    ...reviewPayload,
+    unresolved_amount_eur: 24.68,
+    merchant_groups: [{
+      ...reviewPayload.merchant_groups[0],
+      transactions: reviewPayload.merchant_groups[0].transactions.map(transaction => ({
+        ...transaction,
+        amount_eur: 12.34,
+      })),
+    }],
+  })
+  assert.equal(ordinary.status, 'ready')
+  assert.equal(ordinary.unresolvedAmountCents, 2468)
+})
+
 test('review normalization blocks a non-ready server response without actionable groups', () => {
   const blocked = normalizeCategoryReview({
     data_ready: false,
@@ -157,6 +238,7 @@ test('income is forbidden for debit groups while income rows can select income',
       transactions: reviewPayload.merchant_groups[0].transactions.map(transaction => ({
         ...transaction,
         is_income: 1,
+        category: 'Income',
       })),
     }],
   })

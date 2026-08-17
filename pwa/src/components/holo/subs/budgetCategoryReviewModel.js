@@ -15,16 +15,24 @@ export const REVIEW_CATEGORIES = [
 ]
 
 const CATEGORY_SET = new Set(REVIEW_CATEGORIES)
-const MONEY_EPSILON = 1e-8
 
 const isRecord = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 const isText = value => typeof value === 'string' && value.trim().length > 0
+const lexicalFractionDigits = value => {
+  const [coefficient, exponentText] = String(value).toLowerCase().split('e')
+  const fractionDigits = coefficient.includes('.')
+    ? coefficient.length - coefficient.indexOf('.') - 1
+    : 0
+  const exponent = exponentText ? Number(exponentText) : 0
+  return Math.max(0, fractionDigits - exponent)
+}
 const isExactCent = value => (
   typeof value === 'number'
   && Number.isFinite(value)
   && value >= 0
+  && lexicalFractionDigits(value) <= 2
   && Number.isSafeInteger(Math.round(value * 100))
-  && Math.abs(value * 100 - Math.round(value * 100)) < MONEY_EPSILON
+  && value === Math.round(value * 100) / 100
 )
 const cents = value => Math.round(value * 100)
 const canonicalMerchant = value => value.trim().replace(/\s+/g, ' ').toLowerCase()
@@ -50,6 +58,10 @@ const emptyState = (status, message = '') => ({
   learnedMerchants: [],
 })
 
+export function createCategoryReviewLoading() {
+  return emptyState('loading')
+}
+
 function validTransaction(transaction, expectedMerchantKey) {
   return isRecord(transaction)
     && Number.isInteger(transaction.ordinal)
@@ -61,10 +73,16 @@ function validTransaction(transaction, expectedMerchantKey) {
     && typeof transaction.description === 'string'
     && (transaction.is_income === 0 || transaction.is_income === 1)
     && validCategory(transaction.category)
+    && (transaction.is_income === 1 ? transaction.category === 'Income' : transaction.category !== 'Income')
 }
 
 function normalizeGroup(group) {
-  if (!isRecord(group) || !isText(group.merchant_key) || group.merchant_key !== canonicalMerchant(group.merchant_key)) {
+  if (
+    !isRecord(group)
+    || !isText(group.merchant)
+    || !isText(group.merchant_key)
+    || group.merchant_key !== canonicalMerchant(group.merchant_key)
+  ) {
     return null
   }
   if (!validOrdinalList(group.ordinals) || !Array.isArray(group.transactions) || group.transactions.length !== group.ordinals.length) {
