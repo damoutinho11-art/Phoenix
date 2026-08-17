@@ -11,7 +11,10 @@ async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const detail = payload?.detail || payload?.message || payload || `HTTP ${response.status}`
-    throw new Error(detail)
+    const error = new Error(typeof detail === 'string' ? detail : `HTTP ${response.status}`)
+    error.status = response.status
+    error.payload = payload
+    throw error
   }
   return payload
 }
@@ -420,6 +423,22 @@ export async function saveBudgetTransactions(transactions, statementReceiptId = 
 
 export async function getBudgetInvestmentCapacity(month, options = {}) {
   return apiFetch(`/budget/investment-capacity?month=${encodeURIComponent(month)}`, options)
+}
+
+export async function getBudgetCategoryReview(month, options = {}) {
+  return apiFetch(`/budget/category-review?month=${encodeURIComponent(month)}`, options)
+}
+
+export async function postBudgetCategoryCorrection(payload) {
+  return apiFetch('/budget/category-corrections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteBudgetLearnedMerchant(ruleId) {
+  return apiFetch(`/budget/learned-merchants/${encodeURIComponent(ruleId)}`, { method: 'DELETE' })
 }
 
 export async function getBudgetSummary(month) {
