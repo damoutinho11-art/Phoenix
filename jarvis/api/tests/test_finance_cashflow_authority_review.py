@@ -1,7 +1,7 @@
 """Regression tests for cash-flow authority across Finance and chat."""
 
 import copy
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +13,17 @@ from jarvis.api.routers import chat, finance
 from jarvis.core import clock
 from jarvis.domains.finance import engine
 
+
+# The authority gate only accepts a statement dated within the last 7 days, so
+# these are relative to today. A literal date silently ages out of the window
+# and turns a "ready" fixture into a stale one, which fails these tests for a
+# reason that has nothing to do with what they assert.
+_FRESH_STATEMENT_DATE = (clock.today() - timedelta(days=1)).isoformat()
+_FUTURE_STATEMENT_DATE = (clock.today() + timedelta(days=2)).isoformat()
+_STALE_STATEMENT_DATE = (clock.today() - timedelta(days=8)).isoformat()
+# The decision date the sanitizer is asked about must sit inside the same
+# window, or a fresh statement reads as dated in the future.
+_DECISION_DATE = clock.today()
 
 _READY_AUTHORITY = {
     "data_ready": True,
@@ -29,7 +40,7 @@ _READY_AUTHORITY = {
         "quality_status": "reconciled",
         "receipt_verified": True,
         "balance_difference_eur": 0.0,
-        "statement_end_date": "2026-08-11",
+        "statement_end_date": _FRESH_STATEMENT_DATE,
         "filename_hash": "0" * 64,
     },
 }
@@ -57,8 +68,8 @@ client = TestClient(app)
         {**_READY_AUTHORITY, "source": {"parser": "lhv_pdf"}},
         {**_READY_AUTHORITY, "source": {key: value for key, value in _READY_AUTHORITY["source"].items() if key != "filename_hash"}},
         {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "receipt_verified": 1}},
-        {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "statement_end_date": "2026-08-13"}},
-        {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "statement_end_date": "2026-08-04"}},
+        {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "statement_end_date": _FUTURE_STATEMENT_DATE}},
+        {**_READY_AUTHORITY, "source": {**_READY_AUTHORITY["source"], "statement_end_date": _STALE_STATEMENT_DATE}},
         {key: value for key, value in _READY_AUTHORITY.items() if key != "sustainable_capacity_eur"},
         {**_READY_AUTHORITY, "sustainable_capacity_eur": "260"},
         {**_READY_AUTHORITY, "weekly_budget_eur": 260.01},
@@ -77,7 +88,7 @@ def test_malformed_authority_is_sanitized_to_a_safe_block(authority: dict) -> No
     with patch(
         "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
     ):
-        result = finance._cashflow_authority_for_today(date(2026, 8, 12))
+        result = finance._cashflow_authority_for_today(_DECISION_DATE)
 
     assert result == {
         "data_ready": False,
@@ -91,7 +102,7 @@ def test_ready_authority_uses_calculator_cent_rounding_for_three_windows() -> No
         "jarvis.api.routers.budget._build_cashflow_authority",
         return_value=_READY_AUTHORITY,
     ):
-        result = finance._cashflow_authority_for_today(date(2026, 8, 12))
+        result = finance._cashflow_authority_for_today(_DECISION_DATE)
 
     assert result == _READY_AUTHORITY
     assert result is not _READY_AUTHORITY
@@ -120,7 +131,7 @@ def test_finance_sanitizer_agrees_with_optional_opening_balance_contract(
     with patch(
         "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
     ):
-        result = finance._cashflow_authority_for_today(date(2026, 8, 12))
+        result = finance._cashflow_authority_for_today(_DECISION_DATE)
 
     assert result["data_ready"] is data_ready
     if data_ready:
@@ -145,7 +156,7 @@ def test_blocked_authority_validates_optional_opening_balance_provenance(
     with patch(
         "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
     ):
-        result = finance._cashflow_authority_for_today(date(2026, 8, 12))
+        result = finance._cashflow_authority_for_today(_DECISION_DATE)
 
     if valid:
         assert result == authority
@@ -166,7 +177,7 @@ def test_finance_agrees_with_producer_subcent_policy_block() -> None:
     with patch(
         "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
     ):
-        sanitized = finance._cashflow_authority_for_today(date(2026, 8, 12))
+        sanitized = finance._cashflow_authority_for_today(_DECISION_DATE)
         data = client.get("/finance/recommendation").json()
 
     assert sanitized == authority
@@ -802,7 +813,7 @@ def test_home_security_stock_in_furniture_company_stays_finance(message: str) ->
 def test_finance_context_preserves_lifecycle_when_state_is_unavailable(
     lifecycle: dict, expected_closed: bool
 ) -> None:
-    decision_today = date(2026, 8, 12)
+    decision_today = _DECISION_DATE
     with patch("jarvis.api.routers.chat.current_week_lifecycle", return_value=lifecycle), patch(
         "jarvis.api.routers.budget._build_cashflow_authority", return_value=_READY_AUTHORITY
     ), patch(

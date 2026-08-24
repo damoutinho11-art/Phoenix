@@ -25,6 +25,12 @@ def accepted_receipt_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         side_effect=acceptance_gate._resolution,
     ), patch(
         "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
+    ), patch(
+        # Without a ready authority the recommendation is paused and no brief is
+        # persisted, so there is no receipt to assert on. This reuses the gate's
+        # own fixture, which dates the statement relative to the decision day.
+        "jarvis.api.routers.budget._build_cashflow_authority",
+        side_effect=acceptance_gate._offline_cashflow_authority,
     ):
         yield
 

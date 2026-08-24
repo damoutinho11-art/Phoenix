@@ -1,3 +1,4 @@
+from datetime import timedelta
 """Tests for the PHOENIX Finance Autopilot v1.
 
 Invariants verified:
@@ -46,6 +47,11 @@ _SAFE_RESOLUTION = {
     "reason": "test fixture",
 }
 
+# The authority gate only accepts a statement dated within the last 7 days,
+# so this is relative to today. A literal date silently ages out of the
+# window and fails these tests for a reason unrelated to what they assert.
+_FRESH_STATEMENT_DATE = (clock.today() - timedelta(days=1)).isoformat()
+
 _READY_AUTHORITY = {
     "data_ready": True,
     "blockers": [],
@@ -56,7 +62,7 @@ _READY_AUTHORITY = {
     "remaining_weekly_windows": 4,
     "input_hash": "3" * 64,
     "policy_version": 2,
-    "source": {"parser": "lhv_pdf", "quality_status": "reconciled", "receipt_verified": True, "balance_difference_eur": 0.0, "statement_end_date": "2026-08-11", "filename_hash": "0" * 64},
+    "source": {"parser": "lhv_pdf", "quality_status": "reconciled", "receipt_verified": True, "balance_difference_eur": 0.0, "statement_end_date": _FRESH_STATEMENT_DATE, "filename_hash": "0" * 64},
 }
 
 _MOCK_ALLOC_RESULT = {
