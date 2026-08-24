@@ -355,7 +355,7 @@ export function BudgetCategoryReview({ month, onDone, onCancel }) {
         <div className="finance-category-review__queue">
           {state.groups.map(group => (
             <MerchantCorrectionRow
-              key={group.merchantKey}
+              key={group.groupKey}
               group={group}
               statementImportId={state.statementImportId}
               revision={state.revision}

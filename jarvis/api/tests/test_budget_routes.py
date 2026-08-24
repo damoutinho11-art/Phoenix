@@ -3273,6 +3273,137 @@ def test_explicit_rule_precedes_learned_rule_and_forget_restores_builtin_parsing
     ) == "Other"
 
 
+def test_learned_categories_cannot_override_immutable_bank_direction(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "learned-direction.db")
+    database.init_db()
+    statement_import_id = _save_category_correction_statement()
+    database.apply_budget_category_correction(
+        statement_import_id=statement_import_id,
+        expected_revision=database.get_budget_correction_revision(statement_import_id),
+        merchant_key="salary",
+        ordinals=[0],
+        corrected_category="Income",
+        remember_merchant=True,
+    )
+
+    assert budget_router._categorise_lhv_transaction(
+        "Salary", "card purchase", 0, {"merchant_rules": []}
+    ) == "Other"
+    assert budget_router._categorise_lhv_transaction(
+        "Salary", "salary credit", 1, {"merchant_rules": []}
+    ) == "Income"
+
+
+def test_ai_parser_ignores_direction_incompatible_memory_rule(monkeypatch) -> None:
+    monkeypatch.setattr(
+        budget_router.ai_gateway,
+        "generate_text",
+        lambda **_kwargs: type("Result", (), {
+            "ok": True,
+            "text": '[{"date":"2026-08-08","merchant":"Salary","amount_eur":12.0,'
+                    '"category":"Other","is_income":0,"description":"card purchase"}]',
+        })(),
+    )
+    monkeypatch.setattr(
+        budget_router,
+        "_budget_memory_rule_for_transaction",
+        lambda *_args, **_kwargs: {"category": "Income", "is_income": 1},
+    )
+
+    transaction = budget_router._parse_transactions_with_claude("statement")[0]
+
+    assert transaction["category"] == "Other"
+    assert transaction["is_income"] == 0
+
+
+def test_category_review_splits_same_merchant_by_immutable_direction(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "mixed-direction-review.db")
+    database.init_db()
+    transactions = [
+        {
+            "date": "2026-08-08", "merchant": "Shared Merchant", "amount_eur": 10.0,
+            "category": "Other", "description": "debit", "source": "pdf",
+            "month": "2026-08", "is_income": 0,
+        },
+        {
+            "date": "2026-08-09", "merchant": "Shared Merchant", "amount_eur": 15.0,
+            "category": "Other", "description": "credit", "source": "pdf",
+            "month": "2026-08", "is_income": 1,
+        },
+    ]
+    snapshot = {
+        "statement_end_date": "2026-08-09", "opening_balance_eur": 0.0,
+        "closing_balance_eur": 5.0, "parser": "lhv_pdf",
+        "quality_status": "reconciled", "statement_rows": 2, "parsed_rows": 2,
+        "balance_difference_eur": 0.0, "filename_hash": "e" * 64,
+    }
+    receipt = database._create_budget_statement_parse_receipt(transactions, snapshot)
+    database._save_budget_statement_receipt_import(transactions, receipt["receipt_id"])
+
+    payload = client.get("/budget/category-review?month=2026-08").json()
+
+    assert payload["unresolved_count"] == 2
+    assert [(group["merchant_key"], group["direction"]) for group in payload["merchant_groups"]] == [
+        ("shared merchant", 0),
+        ("shared merchant", 1),
+    ]
+
+
+def test_category_correction_updates_only_one_identical_legacy_row(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "legacy-row-scope.db")
+    database.init_db()
+    statement_import_id = _save_category_correction_statement()
+    connection = database.get_db()
+    try:
+        original = connection.execute(
+            """SELECT * FROM budget_transactions
+               WHERE merchant='Vitaminas Braga Parq' AND amount_eur=12.34"""
+        ).fetchone()
+        connection.execute("DROP INDEX idx_budget_unique")
+        connection.execute(
+            """INSERT INTO budget_transactions
+               (date, merchant, amount_eur, category, description, source,
+                month, is_income, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            tuple(original[field] for field in (
+                "date", "merchant", "amount_eur", "category", "description",
+                "source", "month", "is_income", "created_at",
+            )),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    database.apply_budget_category_correction(
+        statement_import_id=statement_import_id,
+        expected_revision=database.get_budget_correction_revision(statement_import_id),
+        merchant_key="vitaminas braga parq",
+        ordinals=[1],
+        corrected_category="Eating Out",
+        remember_merchant=False,
+    )
+
+    connection = database.get_db()
+    try:
+        rows = connection.execute(
+            """SELECT category, COUNT(*) AS count FROM budget_transactions
+               WHERE merchant='Vitaminas Braga Parq' AND amount_eur=12.34
+               GROUP BY category ORDER BY category"""
+        ).fetchall()
+    finally:
+        connection.close()
+    assert [(row["category"], row["count"]) for row in rows] == [
+        ("Eating Out", 1),
+        ("Other", 1),
+    ]
+
+
 def test_forget_learned_merchant_deactivates_only_requested_rule(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "forget-rule.db")
     database.init_db()

@@ -93,11 +93,15 @@ function normalizeGroup(group) {
 
   const directions = new Set(transactions.map(transaction => transaction.is_income))
   if (directions.size !== 1) return null
+  const direction = transactions[0].is_income
+  if ((group.direction ?? direction) !== direction) return null
 
   const amountCents = transactions.reduce((sum, transaction) => sum + cents(transaction.amount_eur), 0)
   return {
     ...group,
     merchantKey: group.merchant_key,
+    direction,
+    groupKey: `${group.merchant_key}:${direction}`,
     ordinals,
     transactions,
     amountCents,
@@ -166,11 +170,11 @@ export function normalizeCategoryReview(payload) {
   if (groups.some(group => group === null)) return emptyState('error', 'Review data was malformed. Refresh and try again.')
   const normalizedGroups = groups
   const allOrdinals = normalizedGroups.flatMap(group => group.ordinals)
-  const allMerchants = normalizedGroups.map(group => group.merchant_key)
+  const allGroupKeys = normalizedGroups.map(group => group.groupKey)
   const totalCents = normalizedGroups.reduce((sum, group) => sum + group.amountCents, 0)
   if (
     new Set(allOrdinals).size !== allOrdinals.length
-    || new Set(allMerchants).size !== allMerchants.length
+    || new Set(allGroupKeys).size !== allGroupKeys.length
     || payload.unresolved_count !== allOrdinals.length
     || cents(payload.unresolved_amount_eur) !== totalCents
   ) return emptyState('error', 'Review data was malformed. Refresh and try again.')

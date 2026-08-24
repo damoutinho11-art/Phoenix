@@ -538,16 +538,19 @@ def _budget_category_review_payload(month: str) -> dict:
         )
         if row.get("month") == target_month and row.get("effective_category") == "Other"
     ]
-    grouped: dict[str, dict] = {}
+    grouped: dict[tuple[str, int], dict] = {}
     for row in unresolved_rows:
         merchant_key = database.normalize_budget_merchant(row.get("merchant", ""))
         if not merchant_key:
             continue
+        direction = int(row.get("is_income") or 0)
+        group_key = (merchant_key, direction)
         group = grouped.setdefault(
-            merchant_key,
+            group_key,
             {
                 "merchant_key": merchant_key,
                 "merchant": row["merchant"],
+                "direction": direction,
                 "ordinals": [],
                 "transactions": [],
             },
@@ -610,6 +613,24 @@ def _extract_category_from_rule(rule: dict | None, default: str) -> str:
         if category in CATEGORIES:
             return category
     return default
+
+
+def _direction_compatible_memory_rule(
+    rule: dict | None, bank_is_credit: int
+) -> dict | None:
+    if not isinstance(rule, dict):
+        return None
+    category = _extract_category_from_rule(rule, "")
+    if not category:
+        return None
+    if bank_is_credit:
+        if category not in {"Income", "Transfers"}:
+            return None
+        if "is_income" in rule and int(rule.get("is_income") or 0) != int(category == "Income"):
+            return None
+    elif category == "Income" or int(rule.get("is_income") or 0) == 1:
+        return None
+    return rule
 
 
 def _extract_pdf_text(pdf_bytes: bytes) -> str:
@@ -845,9 +866,20 @@ def _clean_merchant(value: str) -> str:
     return _clean_statement_text(merchant) or "Unknown"
 
 
-def _categorise_lhv_transaction(merchant: str, description: str, is_income: int, profile: dict | None = None) -> str:
+_MEMORY_RULE_UNSET = object()
+
+
+def _categorise_lhv_transaction(
+    merchant: str,
+    description: str,
+    is_income: int,
+    profile: dict | None = None,
+    memory_rule: dict | None | object = _MEMORY_RULE_UNSET,
+) -> str:
     text = f"{merchant} {description}".lower()
-    memory_rule = _budget_memory_rule_for_transaction(merchant, description, profile)
+    if memory_rule is _MEMORY_RULE_UNSET:
+        memory_rule = _budget_memory_rule_for_transaction(merchant, description, profile)
+    memory_rule = _direction_compatible_memory_rule(memory_rule, is_income)
     if memory_rule:
         return _extract_category_from_rule(memory_rule, "Income" if is_income else "Other")
 
@@ -964,9 +996,13 @@ def _parse_lhv_statement_transactions(raw_text: str, source: str = "pdf") -> lis
 
         if not description:
             description = body
-        memory_rule = _budget_memory_rule_for_transaction(merchant, description)
-        category = _categorise_lhv_transaction(merchant, description, bank_is_credit)
-        is_income = _extract_income_flag_from_rule(memory_rule, bank_is_credit if category == "Income" else 0)
+        memory_rule = _direction_compatible_memory_rule(
+            _budget_memory_rule_for_transaction(merchant, description), bank_is_credit
+        )
+        category = _categorise_lhv_transaction(
+            merchant, description, bank_is_credit, memory_rule=memory_rule
+        )
+        is_income = int(bank_is_credit and category == "Income")
         budget_month = _budget_month_for_lhv_transaction(date, category, is_income, memory_rule)
         transactions.append(
             {
@@ -1024,10 +1060,19 @@ Raw text:
     for t in transactions:
         merchant = str(t.get("merchant") or "")
         description = str(t.get("description") or "")
-        rule = _budget_memory_rule_for_transaction(merchant, description)
-        category = _extract_category_from_rule(rule, str(t.get("category") or "Other"))
-        is_income = _extract_income_flag_from_rule(rule, int(t.get("is_income") or 0))
-        t["amount_eur"] = round(abs(float(t.get("amount_eur") or 0)), 2)
+        raw_amount = float(t.get("amount_eur") or 0)
+        bank_is_credit = int(bool(t.get("is_income")) or raw_amount < 0)
+        rule = _direction_compatible_memory_rule(
+            _budget_memory_rule_for_transaction(merchant, description), bank_is_credit
+        )
+        default_category = str(t.get("category") or "Other")
+        if bank_is_credit and default_category not in {"Income", "Transfers"}:
+            default_category = "Income"
+        elif not bank_is_credit and default_category == "Income":
+            default_category = "Other"
+        category = _extract_category_from_rule(rule, default_category)
+        is_income = int(bank_is_credit and category == "Income")
+        t["amount_eur"] = round(abs(raw_amount), 2)
         t["category"] = category
         t["is_income"] = is_income
         t["month"] = _budget_month_for_lhv_transaction(t["date"], category, is_income, rule)

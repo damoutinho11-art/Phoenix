@@ -159,6 +159,34 @@ test('server merchant keys and ordinals remain unique across Unicode-safe groups
   }).status, 'error')
 })
 
+test('same merchant remains reviewable when server splits immutable directions', () => {
+  const debit = reviewPayload.merchant_groups[0]
+  const credit = {
+    ...debit,
+    direction: 1,
+    ordinals: [7],
+    transactions: [{
+      ...debit.transactions[0],
+      ordinal: 7,
+      amount_eur: 5,
+      is_income: 1,
+    }],
+  }
+
+  const state = normalizeCategoryReview({
+    ...reviewPayload,
+    unresolved_count: 3,
+    unresolved_amount_eur: 29.68,
+    merchant_groups: [{ ...debit, direction: 0 }, credit],
+  })
+
+  assert.equal(state.status, 'ready')
+  assert.equal(state.groups[0].allowedCategories.includes('Income'), false)
+  assert.deepEqual(state.groups[1].allowedCategories, ['Income'])
+  assert.equal(state.groups[0].groupKey, 'vitaminas braga parq:0')
+  assert.equal(state.groups[1].groupKey, 'vitaminas braga parq:1')
+})
+
 test('review normalization fails closed for malformed server data', () => {
   const malformed = normalizeCategoryReview({
     ...reviewPayload,

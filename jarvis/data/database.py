@@ -3761,6 +3761,16 @@ def apply_budget_category_correction(
         now = _utc_now()
         correction_group_id = secrets.token_urlsafe(24)
         for row in rows:
+            previous_correction = connection.execute(
+                """SELECT corrected_category FROM budget_category_corrections
+                   WHERE statement_import_id=? AND ordinal=?""",
+                (statement_import_id, row["ordinal"]),
+            ).fetchone()
+            previous_effective_category = (
+                previous_correction["corrected_category"]
+                if previous_correction is not None
+                else row["category"]
+            )
             connection.execute(
                 """INSERT INTO budget_category_corrections
                    (statement_import_id, ordinal, transaction_identity_hash,
@@ -3786,8 +3796,12 @@ def apply_budget_category_correction(
             )
             connection.execute(
                 """UPDATE budget_transactions SET category=?
-                   WHERE date=? AND merchant=? AND amount_eur=? AND description=?
-                     AND source=? AND month=? AND is_income=?""",
+                   WHERE rowid=(
+                       SELECT rowid FROM budget_transactions
+                       WHERE date=? AND merchant=? AND amount_eur=? AND description=?
+                         AND source=? AND month=? AND is_income=? AND category=?
+                       ORDER BY rowid LIMIT 1
+                   )""",
                 (
                     corrected_category,
                     row["date"],
@@ -3797,6 +3811,7 @@ def apply_budget_category_correction(
                     row["source"],
                     row["month"],
                     row["is_income"],
+                    previous_effective_category,
                 ),
             )
         if remember_merchant:
