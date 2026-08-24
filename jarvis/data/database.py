@@ -114,6 +114,8 @@ CREATE TABLE IF NOT EXISTS barcode_cache (
     fat_g REAL NOT NULL,
     carbs_g REAL NOT NULL,
     serving_size_g REAL,
+    macro_basis TEXT NOT NULL DEFAULT '100g'
+        CHECK (macro_basis IN ('100g', 'serving')),
     fetched_at TEXT NOT NULL
 );
 
@@ -647,6 +649,27 @@ def _migrate_budget_statement_snapshot_provenance(
     connection.commit()
 
 
+def _migrate_barcode_macro_basis(connection: sqlite3.Connection) -> None:
+    """Record which basis a cached product's macros are quoted against.
+
+    Rows cached before this column existed carry no basis, so gram scaling
+    cannot be trusted for them. They are dropped rather than assumed: the table
+    is only a lookup cache, so the next scan re-fetches with a known basis.
+    """
+    existing = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(barcode_cache)").fetchall()
+    }
+    if "macro_basis" not in existing:
+        connection.execute(
+            """ALTER TABLE barcode_cache
+               ADD COLUMN macro_basis TEXT NOT NULL DEFAULT '100g'
+               CHECK (macro_basis IN ('100g', 'serving'))"""
+        )
+        connection.execute("DELETE FROM barcode_cache")
+    connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
@@ -659,6 +682,7 @@ def init_db() -> None:
         _migrate_training_session_evidence(connection)
         _migrate_portfolio_state_store(connection)
         _migrate_budget_statement_snapshot_provenance(connection)
+        _migrate_barcode_macro_basis(connection)
     finally:
         connection.close()
 
@@ -1100,6 +1124,7 @@ def cache_barcode(
     fat_g: float,
     carbs_g: float,
     serving_size_g: float | None,
+    macro_basis: str = "100g",
 ) -> dict[str, Any]:
     connection = get_db()
     try:
@@ -1107,8 +1132,8 @@ def cache_barcode(
             """
             INSERT INTO barcode_cache (
                 barcode, name, calories, protein_g, fat_g, carbs_g,
-                serving_size_g, fetched_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                serving_size_g, macro_basis, fetched_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(barcode) DO UPDATE SET
                 name = excluded.name,
                 calories = excluded.calories,
@@ -1116,6 +1141,7 @@ def cache_barcode(
                 fat_g = excluded.fat_g,
                 carbs_g = excluded.carbs_g,
                 serving_size_g = excluded.serving_size_g,
+                macro_basis = excluded.macro_basis,
                 fetched_at = excluded.fetched_at
             """,
             (
@@ -1126,6 +1152,7 @@ def cache_barcode(
                 fat_g,
                 carbs_g,
                 serving_size_g,
+                macro_basis,
                 _utc_now(),
             ),
         )

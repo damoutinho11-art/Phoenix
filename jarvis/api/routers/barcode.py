@@ -30,12 +30,28 @@ def _serving_size_g(product: dict[str, Any]) -> float | None:
     return _number(match.group(0).replace(",", ".")) if match else None
 
 
-def _nutrient(nutrients: dict[str, Any], name: str) -> float | None:
-    for suffix in ("_100g", "_serving"):
+_MACRO_FIELDS = (
+    ("calories", "energy-kcal"),
+    ("protein_g", "proteins"),
+    ("fat_g", "fat"),
+    ("carbs_g", "carbohydrates"),
+)
+
+
+def _macros_for_suffix(nutrients: dict[str, Any], suffix: str) -> dict[str, float] | None:
+    """Read all four macros from one basis, or nothing.
+
+    Open Food Facts may carry `_100g` for some nutrients and `_serving` for
+    others. Mixing them yields a macro set that belongs to no real portion, so
+    a partial match fails instead of silently blending bases.
+    """
+    macros: dict[str, float] = {}
+    for key, name in _MACRO_FIELDS:
         value = _number(nutrients.get(f"{name}{suffix}"))
-        if value is not None:
-            return value
-    return None
+        if value is None:
+            return None
+        macros[key] = value
+    return macros
 
 
 def _parse_product(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -55,20 +71,20 @@ def _parse_product(payload: dict[str, Any]) -> dict[str, Any] | None:
     if not name or not isinstance(nutrients, dict):
         return None
 
-    calories = _nutrient(nutrients, "energy-kcal")
-    protein_g = _nutrient(nutrients, "proteins")
-    fat_g = _nutrient(nutrients, "fat")
-    carbs_g = _nutrient(nutrients, "carbohydrates")
-    if any(value is None for value in (calories, protein_g, fat_g, carbs_g)):
+    # Prefer per-100g: it is what gram-based logging scales against.
+    macros = _macros_for_suffix(nutrients, "_100g")
+    macro_basis = "100g"
+    if macros is None:
+        macros = _macros_for_suffix(nutrients, "_serving")
+        macro_basis = "serving"
+    if macros is None:
         return None
 
     return {
         "name": name,
-        "calories": calories,
-        "protein_g": protein_g,
-        "fat_g": fat_g,
-        "carbs_g": carbs_g,
+        **macros,
         "serving_size_g": _serving_size_g(product),
+        "macro_basis": macro_basis,
     }
 
 
@@ -81,6 +97,9 @@ def _response(row: dict[str, Any], source: str) -> dict[str, Any]:
         "fat_g": row["fat_g"],
         "carbs_g": row["carbs_g"],
         "serving_size_g": row["serving_size_g"],
+        # Callers must not scale these macros by grams without checking this:
+        # "100g" is safe to scale, "serving" is one portion of serving_size_g.
+        "macro_basis": row["macro_basis"],
         "source": source,
     }
 

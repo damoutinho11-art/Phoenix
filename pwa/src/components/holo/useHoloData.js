@@ -62,6 +62,20 @@ export default function useHoloData() {
     }
   }, [])
 
+  // Re-pull nutrition after a write so the macro rings and ledger reconcile
+  // with the server instead of only the optimistic hero counter moving.
+  // Returns true when server truth now includes the write, so the caller can
+  // drop its optimistic rows instead of double-counting them against the ring.
+  const refreshNutrition = useCallback(async () => {
+    try {
+      const nutrition = await getNutritionStatus()
+      setLive(s => ({ ...s, nutrition }))
+      return true
+    } catch {
+      return false // keep the last good status; the optimistic row still shows the write
+    }
+  }, [])
+
   useEffect(() => {
     let alive = true
     const grab = (key, fn, { tracked = false } = {}) =>
@@ -100,5 +114,5 @@ export default function useHoloData() {
     return () => { alive = false }
   }, [refreshTraining])
 
-  return { ...live, refreshTraining }
+  return { ...live, refreshTraining, refreshNutrition }
 }

@@ -245,7 +245,7 @@ export default function HoloCommand({ startTab = 'home' }) {
       const baseCount = live.nutrition ? (live.nutrition.logged?.items?.length || 0) : 3
       d.panels[1].meta = baseCount + mealLog.length + ' LOGGED'
       if (d.panels[1].rows.length === 1 && d.panels[1].rows[0].value === '—') d.panels[1].rows = []
-      mealLog.forEach(m => d.panels[1].rows.push({ title: 'Composed meal', sub: m.p + 'P · LOGGED NOW', value: String(m.k), valueColor: G }))
+      mealLog.forEach(m => d.panels[1].rows.push({ title: m.name || 'Logged meal', sub: m.p + 'P · LOGGED NOW', value: String(Math.round(m.k)), valueColor: G }))
       d.heroChips[2] = { text: 'PROTEIN +' + ep + 'G LOGGED', color: Y }
     }
     if (tab === 'nutrition' && dinnerLocked) {
@@ -384,20 +384,17 @@ export default function HoloCommand({ startTab = 'home' }) {
         <LogMealSub
           {...subProps}
           budget={budget}
-          onLog={async m => {
-            // real write first — the sub keeps its error state if this throws
-            await apiLogMeal({
-              item_id: 'holo_composed',
-              item_type: 'holo_composed',
-              name: 'Holo meal: ' + m.parts.join(', '),
-              servings: 1,
-              calories: m.k,
-              protein_g: m.p,
-              fat_g: m.f,
-              carbs_g: m.c,
-              source: 'holo_meal_composer',
-            })
-            setMealLog(s => s.concat([m]))
+          onLog={async payload => {
+            // real write first — the sub keeps its error state if this throws.
+            // `payload` is already a complete /nutrition/log/meal body built by
+            // mealPortionModel, so each food keeps its own id/type/source.
+            await apiLogMeal(payload)
+            // Prefer server truth: once the refetched status includes this meal,
+            // the optimistic rows must go or the hero would count it twice.
+            const reconciled = await live.refreshNutrition()
+            setMealLog(s => reconciled
+              ? []
+              : s.concat([{ k: payload.calories, p: payload.protein_g, name: payload.name }]))
           }}
         />
       )}

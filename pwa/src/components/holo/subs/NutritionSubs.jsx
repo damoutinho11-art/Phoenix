@@ -1,74 +1,330 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep, pad2 } from '../holoTokens'
-import { FOODS, DINNERS, FUEL_NODES, FUEL_CURVE } from '../holoDomains'
+import { DINNERS, FUEL_NODES, FUEL_CURVE } from '../holoDomains'
+import { getLidlStaples, getRecipes, getRecentMeals, lookupBarcode } from '../../../api/client'
+import {
+  gramBasis,
+  basisHint,
+  supportsGrams,
+  scaleToGrams,
+  scaleToServings,
+  searchFoods,
+  barcodeFood,
+  buildRepeatPayload,
+  buildGramPayload,
+  buildServingPayload,
+  buildCustomPayload,
+} from './mealPortionModel'
+import BarcodeScanner from '../../BarcodeScanner'
 import SubShell, { SubLabel } from './SubShell'
 
-// ── NUTRITION // MEAL COMPOSER — tap-to-add grid, live ring, ledger feedback ──
-// `budget` comes from the real nutrition status (holoLive.mealBudget).
+// ── NUTRITION // MEAL COMPOSER — food brain, scan, repeat, custom ──
+// Portions come from the real food brain (60 Lidl staples + 156 recipes), a
+// scanned barcode, or a previously logged meal — never a fixture list.
+// Staples and per-100g scans are logged by typing grams; recipes carry no gram
+// weight so they stay on serving multiples. `budget` is the real nutrition
+// status (holoLive.mealBudget); portion arithmetic lives in mealPortionModel.
+const EMPTY_CUSTOM = { name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' }
+
+const MACRO_FIELDS = [
+  ['calories', 'KCAL'],
+  ['protein_g', 'PROTEIN G'],
+  ['carbs_g', 'CARBS G'],
+  ['fat_g', 'FATS G'],
+]
+
+const MODES = [
+  ['brain', 'FOOD BRAIN'],
+  ['recent', 'RECENT'],
+  ['custom', 'CUSTOM'],
+]
+
 export function LogMealSub({ onClose, onLog, budget }) {
   const kcalOpen = Math.max(1, budget?.kcalOpen ?? 860)
   const proteinGap = Math.max(1, budget?.proteinGap ?? 53)
-  const [adds, setAdds] = useState([])
+  const [mode, setMode] = useState('brain')
+  const [staples, setStaples] = useState([])
+  const [recipes, setRecipes] = useState([])
+  const [recent, setRecent] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [linkDown, setLinkDown] = useState(false)
+  const [query, setQuery] = useState('')
+  const [selected, setSelected] = useState(null)
+  const [repeatMeal, setRepeatMeal] = useState(null)
+  const [amount, setAmount] = useState('')
+  const [custom, setCustom] = useState(EMPTY_CUSTOM)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scanState, setScanState] = useState('')
   const [posting, setPosting] = useState(false)
-  const [error, setError] = useState(false)
-  const cnt = {}
-  adds.forEach(id => { cnt[id] = (cnt[id] || 0) + 1 })
-  const sum = key => adds.reduce((acc, id) => acc + (FOODS.find(f => f.id === id)[key] || 0), 0)
-  const mk = sum('k')
-  const mp = sum('p')
-  const empty = adds.length === 0
-  const confirm = async () => {
-    if (empty || posting) return
-    setPosting(true)
-    setError(false)
-    try {
-      await onLog({
-        k: mk,
-        p: mp,
-        f: sum('f'),
-        c: sum('c'),
-        parts: Object.keys(cnt).map(id => FOODS.find(x => x.id === id).n + (cnt[id] > 1 ? ' ×' + cnt[id] : '')),
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    Promise.all([getLidlStaples(), getRecipes(), getRecentMeals(20)])
+      .then(([s, r, m]) => {
+        if (!alive) return
+        setStaples(s?.staples || [])
+        setRecipes(r?.recipes || [])
+        setRecent(m?.meals || [])
       })
+      .catch(() => { if (alive) setLinkDown(true) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
+
+  const results = useMemo(
+    () => searchFoods(query, { staples, recipes }),
+    [query, staples, recipes]
+  )
+
+  const byGrams = selected ? supportsGrams(selected) : false
+  const hint = selected ? basisHint(selected.unit) : null
+
+  const macros = mode === 'custom'
+    ? buildCustomPayload(custom)
+    : mode === 'recent'
+      ? (repeatMeal ? buildRepeatPayload(repeatMeal) : null)
+      : selected
+        ? (byGrams ? scaleToGrams(selected, amount) : scaleToServings(selected, amount))
+        : null
+
+  const mk = Math.round(macros?.calories ?? 0)
+  const mp = +(macros?.protein_g ?? 0).toFixed(1)
+  const ready = macros !== null
+
+  function changeMode(next) {
+    setMode(next)
+    setError('')
+    if (next !== 'brain') setSelected(null)
+    if (next !== 'recent') setRepeatMeal(null)
+  }
+
+  function selectFood(item) {
+    setSelected(item)
+    setError('')
+    setAmount(supportsGrams(item) ? String(gramBasis(item.unit)) : '1')
+  }
+
+  function nudge(delta) {
+    const next = Number(amount) + delta
+    setAmount(String(byGrams ? Math.max(1, Math.round(next)) : Math.max(0.25, +next.toFixed(2))))
+  }
+
+  async function handleScan(code) {
+    setScannerOpen(false)
+    setScanState('LOOKING UP…')
+    setError('')
+    try {
+      const food = barcodeFood(await lookupBarcode(code))
+      if (!food) {
+        setScanState('NO USABLE MACROS — ENTER THEM MANUALLY')
+        return
+      }
+      setScanState('')
+      setMode('brain')
+      selectFood(food)
+    } catch {
+      setScanState('BARCODE NOT FOUND — ENTER IT MANUALLY')
+    }
+  }
+
+  const confirm = async () => {
+    if (!ready || posting) return
+    const payload = mode === 'custom'
+      ? buildCustomPayload(custom)
+      : mode === 'recent'
+        ? buildRepeatPayload(repeatMeal)
+        : byGrams
+          ? buildGramPayload(selected, amount)
+          : buildServingPayload(selected, amount)
+    if (!payload) {
+      setError('CHECK THE VALUES ABOVE')
+      return
+    }
+    setPosting(true)
+    setError('')
+    try {
+      await onLog(payload)
       onClose()
     } catch {
-      setError(true)
+      setError('LOG FAILED — LINK DOWN · TAP TO RETRY')
       setPosting(false)
     }
   }
+
   const bars = [
     { l: 'KCAL VS OPEN', v: `${mk} / ${kcalOpen}`, w: Math.min(100, (mk / kcalOpen) * 100).toFixed(0) + '%', c: mk > kcalOpen ? R : G },
     { l: 'PROTEIN VS GAP', v: `${mp} / ${proteinGap}G`, w: Math.min(100, (mp / proteinGap) * 100).toFixed(0) + '%', c: W },
   ]
+
+  const tabStyle = on => ({
+    flex: 1, minHeight: 34, fontFamily: FM, fontSize: 8, letterSpacing: '.18em',
+    color: on ? INK : a(ACC, '99'), background: on ? ACC : deep(55),
+    border: `1px solid ${a(ACC, on ? 'aa' : '2a')}`, cursor: 'pointer',
+  })
+
+  const fieldStyle = {
+    width: '100%', minHeight: 38, padding: '0 10px', fontFamily: FD, fontSize: 17,
+    fontWeight: 600, color: 'var(--phx-text)', background: deep(62),
+    border: `1px solid ${a(ACC, '44')}`, outline: 'none',
+  }
+
+  const rowStyle = on => ({
+    padding: '9px 11px', background: deep(on ? 40 : 55),
+    border: `1px solid ${a(ACC, on ? '88' : '2a')}`, cursor: 'pointer', textAlign: 'left',
+  })
+
   return (
     <SubShell subKey="logmeal" onClose={onClose} meta={`${kcalOpen} KCAL OPEN`}>
       <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
         <div style={{ flex: 1.4, minWidth: 300 }}>
-          <SubLabel>COMPONENT LIBRARY — TAP TO ADD</SubLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))', gap: 9 }}>
-            {FOODS.map(f => (
-              <button key={f.id} onClick={() => setAdds(s => s.concat(f.id))} style={{ position: 'relative', padding: '11px 12px', background: deep(55), border: `1px solid ${a(ACC, cnt[f.id] ? '77' : '2a')}`, cursor: 'pointer', textAlign: 'left' }}>
-                <span style={{ display: 'block', fontFamily: FB, fontSize: 16, fontWeight: 400, color: 'var(--phx-text)', lineHeight: 1.15 }}>{f.n}</span>
-                <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>{f.k} KCAL · {f.p}P</span>
-                {!!cnt[f.id] && (
-                  <span style={{ position: 'absolute', top: 5, right: 5, fontFamily: FM, fontSize: 8, color: INK, background: ACC, padding: '1px 6px', boxShadow: `0 0 8px ${a(ACC, '66')}` }}>×{cnt[f.id]}</span>
-                )}
-              </button>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {MODES.map(([key, label]) => (
+              <button key={key} onClick={() => changeMode(key)} style={tabStyle(mode === key)}>{label}</button>
             ))}
           </div>
-          {!empty && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-              {Object.keys(cnt).map(id => {
-                const f = FOODS.find(x => x.id === id)
-                return (
-                  <button key={id} onClick={() => setAdds(s => { const next = s.slice(); next.splice(next.indexOf(id), 1); return next })} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: FM, fontSize: 8, letterSpacing: '.1em', color: ACC, background: a(ACC, '14'), border: `1px solid ${a(ACC, '44')}`, padding: '5px 9px', cursor: 'pointer' }}>
-                    {f.n + (cnt[id] > 1 ? ' ×' + cnt[id] : '')}
-                    <span style={{ color: R }}>✕</span>
-                  </button>
-                )
-              })}
-            </div>
+
+          {mode === 'brain' && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <SubLabel style={{ marginBottom: 10 }}>
+                  SEARCH — {loading ? 'LOADING FOOD BRAIN…' : `${staples.length} STAPLES · ${recipes.length} RECIPES`}
+                </SubLabel>
+                <button
+                  onClick={() => { setScannerOpen(o => !o); setScanState('') }}
+                  style={{ minHeight: 28, padding: '0 11px', fontFamily: FM, fontSize: 8, letterSpacing: '.18em', color: scannerOpen ? INK : ACC, background: scannerOpen ? ACC : deep(55), border: `1px solid ${a(ACC, '55')}`, cursor: 'pointer', marginBottom: 10, whiteSpace: 'nowrap' }}
+                >
+                  ▣ SCAN
+                </button>
+              </div>
+              {scanState && (
+                <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: Y, marginBottom: 8 }}>{scanState}</div>
+              )}
+              {scannerOpen && (
+                <div style={{ marginBottom: 10 }}>
+                  <BarcodeScanner onDetected={handleScan} onClose={() => setScannerOpen(false)} />
+                </div>
+              )}
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="chicken, rice, skyr…"
+                style={{ ...fieldStyle, fontSize: 15, marginBottom: 10 }}
+              />
+              {linkDown && (
+                <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: R, marginBottom: 8 }}>
+                  FOOD BRAIN UNREACHABLE — USE CUSTOM
+                </div>
+              )}
+              <div style={{ maxHeight: 214, overflowY: 'auto', display: 'grid', gap: 6 }}>
+                {selected?.kind === 'barcode' && (
+                  <div style={rowStyle(true)}>
+                    <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                      <span style={{ fontFamily: FB, fontSize: 15, color: 'var(--phx-text)' }}>{selected.name}</span>
+                      <span style={{ fontFamily: FM, fontSize: '7px', letterSpacing: '.1em', color: a(ACC, '77') }}>SCANNED</span>
+                    </span>
+                    <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
+                      {Math.round(selected.calories)} KCAL · {+selected.protein_g.toFixed(1)}P · {selected.unit ? `PER ${selected.unit}` : 'PER SERVING · NO WEIGHT GIVEN'}
+                    </span>
+                  </div>
+                )}
+                {results.map(f => {
+                  const on = selected?.id === f.id
+                  const per = supportsGrams(f) ? `PER ${f.unit}` : (f.serving || 'PER SERVING')
+                  return (
+                    <button key={`${f.kind}-${f.id}`} onClick={() => selectFood(f)} style={rowStyle(on)}>
+                      <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                        <span style={{ fontFamily: FB, fontSize: 15, color: 'var(--phx-text)', lineHeight: 1.15 }}>{f.name}</span>
+                        <span style={{ fontFamily: FM, fontSize: '7px', letterSpacing: '.1em', color: a(ACC, '77'), whiteSpace: 'nowrap' }}>{f.kind === 'recipe' ? 'RECIPE' : 'STAPLE'}</span>
+                      </span>
+                      <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
+                        {Math.round(f.calories || 0)} KCAL · {+(f.protein_g || 0).toFixed(1)}P · {per}
+                      </span>
+                    </button>
+                  )
+                })}
+                {!loading && !results.length && (
+                  <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '77'), padding: '10px 2px' }}>
+                    NO MATCH — SCAN IT OR USE CUSTOM
+                  </div>
+                )}
+              </div>
+
+              {selected && (
+                <div style={{ marginTop: 13, padding: '11px 12px', background: deep(48), border: `1px solid ${a(ACC, '44')}` }}>
+                  <SubLabel style={{ marginBottom: 8 }}>
+                    {byGrams ? 'HOW MANY GRAMS' : 'HOW MANY SERVINGS'}{hint ? ` — ${hint.toUpperCase()}` : ''}
+                  </SubLabel>
+                  <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+                    <button onClick={() => nudge(byGrams ? -10 : -0.5)} style={{ minWidth: 38, minHeight: 38, fontFamily: FM, fontSize: 13, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>−</button>
+                    <input
+                      value={amount}
+                      onChange={e => setAmount(e.target.value.replace(/[^\d.,]/g, ''))}
+                      inputMode="decimal"
+                      style={{ ...fieldStyle, textAlign: 'center' }}
+                    />
+                    <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), minWidth: 26 }}>{byGrams ? 'G' : '×'}</span>
+                    <button onClick={() => nudge(byGrams ? 10 : 0.5)} style={{ minWidth: 38, minHeight: 38, fontFamily: FM, fontSize: 13, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>+</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {mode === 'recent' && (
+            <>
+              <SubLabel>ATE IT AGAIN — TAP TO RE-LOG THE SAME AMOUNT</SubLabel>
+              <div style={{ maxHeight: 300, overflowY: 'auto', display: 'grid', gap: 6 }}>
+                {recent.map(m => {
+                  const on = repeatMeal?.id === m.id
+                  return (
+                    <button key={m.id} onClick={() => { setRepeatMeal(m); setError('') }} style={rowStyle(on)}>
+                      <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                        <span style={{ fontFamily: FB, fontSize: 15, color: 'var(--phx-text)', lineHeight: 1.15 }}>{m.name}</span>
+                        <span style={{ fontFamily: FM, fontSize: '7px', letterSpacing: '.1em', color: a(ACC, '77'), whiteSpace: 'nowrap' }}>{(m.log_date || '').slice(5)}</span>
+                      </span>
+                      <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
+                        {Math.round(m.calories || 0)} KCAL · {+(m.protein_g || 0).toFixed(1)}P
+                      </span>
+                    </button>
+                  )
+                })}
+                {!loading && !recent.length && (
+                  <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '77'), padding: '10px 2px' }}>
+                    NOTHING LOGGED YET — START IN FOOD BRAIN
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {mode === 'custom' && (
+            <>
+              <SubLabel>EXACT MACROS — LOG ANYTHING PHOENIX DOES NOT KNOW</SubLabel>
+              <input
+                value={custom.name}
+                onChange={e => setCustom(c => ({ ...c, name: e.target.value }))}
+                placeholder="What did you eat?"
+                style={{ ...fieldStyle, fontSize: 15, marginBottom: 8 }}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                {MACRO_FIELDS.map(([key, label]) => (
+                  <label key={key} style={{ display: 'block' }}>
+                    <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.2em', color: a(ACC, '99'), marginBottom: 4 }}>{label}</span>
+                    <input
+                      value={custom[key]}
+                      onChange={e => setCustom(c => ({ ...c, [key]: e.target.value.replace(/[^\d.,]/g, '') }))}
+                      inputMode="decimal"
+                      placeholder="0"
+                      style={fieldStyle}
+                    />
+                  </label>
+                ))}
+              </div>
+            </>
           )}
         </div>
+
         <div style={{ flex: 1, minWidth: 258, textAlign: 'center' }}>
           <svg viewBox="0 0 130 130" style={{ width: 140, height: 140, display: 'block', margin: '0 auto' }}>
             <circle cx="65" cy="65" r="56" fill="none" stroke={a(ACC, '1e')} strokeWidth="6" />
@@ -93,12 +349,12 @@ export function LogMealSub({ onClose, onLog, budget }) {
           <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: mk > kcalOpen ? R : G, margin: '10px 0 12px' }}>
             {mk > kcalOpen ? `OVER TARGET BY ${mk - kcalOpen} KCAL` : `AFTER LOG → ${kcalOpen - mk} KCAL OPEN`}
           </div>
-          <button onClick={confirm} disabled={empty || posting} style={{ minHeight: 46, width: '100%', fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: empty ? a(ACC, '77') : INK, background: empty ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${empty ? a(ACC, '30') : ACC}`, cursor: empty || posting ? 'not-allowed' : 'pointer', boxShadow: empty ? 'none' : `0 0 26px ${a(ACC, '55')}` }}>
-            {empty ? 'ADD COMPONENTS TO LOG' : posting ? 'TRANSMITTING…' : `CONFIRM LOG · ${mk} KCAL`}
+          <button onClick={confirm} disabled={!ready || posting} style={{ minHeight: 46, width: '100%', fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: !ready ? a(ACC, '77') : INK, background: !ready ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${!ready ? a(ACC, '30') : ACC}`, cursor: !ready || posting ? 'not-allowed' : 'pointer', boxShadow: !ready ? 'none' : `0 0 26px ${a(ACC, '55')}` }}>
+            {!ready ? 'PICK A FOOD OR ENTER MACROS' : posting ? 'TRANSMITTING…' : `CONFIRM LOG · ${mk} KCAL`}
           </button>
           {error && (
             <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: R, marginTop: 9 }}>
-              LOG FAILED — LINK DOWN · TAP TO RETRY
+              {error}
             </div>
           )}
         </div>
