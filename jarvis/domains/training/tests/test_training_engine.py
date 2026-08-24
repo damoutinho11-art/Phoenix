@@ -2,7 +2,7 @@
 
 import json
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -27,15 +27,27 @@ def _load_constitution() -> dict:
 
 CONSTITUTION = _load_constitution()
 
-# Anchor dates (all verified against Gregorian calendar)
-# June 23, 2026 = Tuesday (month_1 start)
-# July 21, 2026 = Tuesday (month_2 start)
-# August 18, 2026 = Tuesday (peak start)
-# August 25, 2026 = Tuesday (attempt start)
-# June 22, 2026 = Monday (week before month_1 — treated as month_1 wk 1)
-# June 29, 2026 = Monday (month_1 week 2 start)
-# July 14, 2026 = Tuesday (month_1 week 4 = deload)
-# June 27, 2026 = Saturday
+
+def _iso(value: str) -> date:
+    return date.fromisoformat(value)
+
+
+# Phase anchors are derived from the constitution, not written as literal dates.
+# The programme is restarted periodically (every block shifts by the same
+# offset), and hardcoded calendar dates silently detach from the schedule they
+# claim to describe when that happens.
+PROGRAMME_START = _iso(CONSTITUTION["start_date"])
+MONTH_2_START = _iso(CONSTITUTION["mesocycle_progression"]["month_2"]["start_date"])
+PEAK_START = _iso(CONSTITUTION["peak_week_start"])
+ATTEMPT_START = _iso(CONSTITUTION["dunk_attempt_window_start"])
+CUT_END = _iso(CONSTITUTION["cut_end_date"])
+
+# Each block begins on a Monday, so weekdays inside a block are start + offset.
+MONDAY, SATURDAY = 0, 5
+
+# Weekday-anchored dates in the pre-programme week, used to exercise the weekly
+# split independently of which phase the date falls in.
+_SPLIT_WEEK_MONDAY = PROGRAMME_START - timedelta(days=7)
 
 
 # ── Phase detection ──────────────────────────────────────────────────────────
@@ -45,28 +57,27 @@ class PhaseDetectionTests(unittest.TestCase):
         phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 6, 23))
         assert phase == Phase.MONTH_1
 
-    def test_phase_is_month_2_after_aug_3(self):
-        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 8, 3))
+    def test_phase_is_month_2_on_month_2_start(self):
+        phase, _ = engine.get_current_phase(CONSTITUTION, MONTH_2_START)
         assert phase == Phase.MONTH_2
 
-    def test_phase_is_peak_after_aug_31(self):
-        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 8, 31))
+    def test_phase_is_peak_on_peak_week_start(self):
+        phase, _ = engine.get_current_phase(CONSTITUTION, PEAK_START)
         assert phase == Phase.PEAK
 
-    def test_phase_is_attempt_after_sep_7(self):
-        phase, _ = engine.get_current_phase(CONSTITUTION, date(2026, 9, 7))
+    def test_phase_is_attempt_on_attempt_window_start(self):
+        phase, _ = engine.get_current_phase(CONSTITUTION, ATTEMPT_START)
         assert phase == Phase.ATTEMPT
 
     def test_week_of_mesocycle_correct_in_month_1(self):
-        # July 6 = week 1; July 13 = week 2
-        _, week = engine.get_current_phase(CONSTITUTION, date(2026, 7, 6))
+        _, week = engine.get_current_phase(CONSTITUTION, PROGRAMME_START)
         assert week == 1
-        _, week2 = engine.get_current_phase(CONSTITUTION, date(2026, 7, 13))
+        _, week2 = engine.get_current_phase(CONSTITUTION, PROGRAMME_START + timedelta(days=7))
         assert week2 == 2
 
     def test_week_4_is_deload(self):
-        # July 27 = 21 days after July 6 → week 4
-        _, week = engine.get_current_phase(CONSTITUTION, date(2026, 7, 27))
+        # 21 days after the programme start is the fourth week.
+        _, week = engine.get_current_phase(CONSTITUTION, PROGRAMME_START + timedelta(days=21))
         assert week == 4
         prescription = engine.get_week_prescription(CONSTITUTION, Phase.MONTH_1, 4)
         assert prescription["deload"] is True
@@ -135,8 +146,8 @@ class SessionTypeTests(unittest.TestCase):
         assert st == SessionType.REST
 
     def test_tuesday_week_4_is_rest_not_general(self):
-        # July 28 = Tuesday, month_1 week 4 (deload)
-        st = engine.get_session_type_for_date(CONSTITUTION, date(2026, 7, 28))
+        # Tuesday of week 4 (deload): 21 days in, plus one.
+        st = engine.get_session_type_for_date(CONSTITUTION, PROGRAMME_START + timedelta(days=22))
         assert st == SessionType.REST
 
     def test_tuesday_non_deload_is_general(self):
@@ -145,20 +156,14 @@ class SessionTypeTests(unittest.TestCase):
         assert st == SessionType.GENERAL
 
     def test_peak_monday_is_peak_type(self):
-        # Aug 18 = Tuesday (peak start); Aug 17 = Monday
-        # Aug 18 = Tuesday → ISO_ONLY; let's find the Monday of peak week
-        # Peak: Aug 18-24. Aug 17 is Sunday of prev week.
-        # Aug 18 = Tuesday. Aug 24 = Monday.
-        # Actually Aug 18, 2026 = Tuesday. So Monday in peak week = Aug 24? No.
-        # Aug 18 Tue, 19 Wed, 20 Thu, 21 Fri, 22 Sat, 23 Sun, 24 Mon
-        # Hmm, peak is Aug 18-24. Let me check Aug 24 = Monday.
-        # Peak week: Aug 31 - Sep 6. Aug 31 = Monday.
-        st = engine.get_session_type_for_date(CONSTITUTION, date(2026, 8, 31))
+        assert PEAK_START.weekday() == MONDAY, "peak week is expected to open on a Monday"
+        st = engine.get_session_type_for_date(CONSTITUTION, PEAK_START)
         assert st == SessionType.PEAK
 
     def test_attempt_saturday_is_attempt_type(self):
-        # Sep 7 = Monday (attempt start). Sep 12 = Saturday.
-        st = engine.get_session_type_for_date(CONSTITUTION, date(2026, 9, 12))
+        assert ATTEMPT_START.weekday() == MONDAY, "attempt week is expected to open on a Monday"
+        attempt_saturday = ATTEMPT_START + timedelta(days=SATURDAY)
+        st = engine.get_session_type_for_date(CONSTITUTION, attempt_saturday)
         assert st == SessionType.ATTEMPT
 
 
@@ -316,21 +321,22 @@ class CutStatusTests(unittest.TestCase):
         status = engine.get_cut_status(CONSTITUTION, date(2026, 8, 17))
         assert status.active is True
 
-    def test_cut_inactive_after_aug_30(self):
-        status = engine.get_cut_status(CONSTITUTION, date(2026, 8, 31))
+    def test_cut_inactive_after_cut_end(self):
+        status = engine.get_cut_status(CONSTITUTION, CUT_END + timedelta(days=1))
         assert status.active is False
 
     def test_fat_to_lose_calculated_correctly(self):
-        status = engine.get_cut_status(CONSTITUTION, date(2026, 6, 22))
-        # 74.2 * 0.25 = 18.55; 74.2 * 0.19 = 14.098; diff = 4.452 → round(4.452, 2) = 4.45
-        assert abs(status.estimated_fat_to_lose_kg - 4.45) < 0.01
+        status = engine.get_cut_status(CONSTITUTION, PROGRAMME_START)
+        bw = CONSTITUTION["current_bodyweight_kg"]
+        expected = bw * (CONSTITUTION["current_bf_percent"] - CONSTITUTION["target_bf_percent"]) / 100
+        assert abs(status.estimated_fat_to_lose_kg - expected) < 0.01
 
     def test_cut_days_remaining_positive_before_end(self):
         status = engine.get_cut_status(CONSTITUTION, date(2026, 6, 22))
         assert status.days_remaining > 0
 
     def test_cut_days_remaining_zero_after_end(self):
-        status = engine.get_cut_status(CONSTITUTION, date(2026, 9, 1))
+        status = engine.get_cut_status(CONSTITUTION, CUT_END + timedelta(days=2))
         assert status.days_remaining == 0
 
 

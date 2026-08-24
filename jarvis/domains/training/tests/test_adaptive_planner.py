@@ -16,6 +16,13 @@ from jarvis.domains.training.plan_evidence import build_planning_snapshot
 from jarvis.domains.training.plan_contracts import PlanDay, TrainingConstraint
 from jarvis.domains.training.performance_hybrid import HYBRID_SEQUENCE
 
+# Derived so a programme restart shifts this with the schedule.
+PEAK_WEEK_START = date.fromisoformat(
+    json.loads((Path(__file__).parent.parent / "constitution.json").read_text(encoding="utf-8"))[
+        "peak_week_start"
+    ]
+)
+
 
 @pytest.fixture
 def training_constitution():
@@ -172,8 +179,8 @@ def test_v2_phase_rules_are_integrated_exactly_once(
     )
     phase_snapshot = replace(
         _hybrid_snapshot(),
-        week_start=date(2026, 8, 31),
-        created_at="2026-08-31T06:00:00Z",
+        week_start=PEAK_WEEK_START,
+        created_at=f"{PEAK_WEEK_START.isoformat()}T06:00:00Z",
     )
 
     receipt = generate_weekly_plan(training_constitution_v2, phase_snapshot)

@@ -1,6 +1,6 @@
 import json
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from jarvis.domains.nutrition import engine
@@ -22,11 +22,15 @@ class PhaseTests(unittest.TestCase):
     def test_get_current_phase_peak(self):
         assert engine.get_current_phase(CONSTITUTION, PEAK_DATE) == "peak"
 
-    def test_cut_ends_aug_30(self):
-        assert engine.get_current_phase(CONSTITUTION, date(2026, 8, 30)) == "cut"
+    def test_cut_runs_through_its_final_day(self):
+        cut_end = date.fromisoformat(CONSTITUTION["phases"]["cut"]["end_date"])
+        assert engine.get_current_phase(CONSTITUTION, cut_end) == "cut"
 
-    def test_peak_starts_aug_31(self):
-        assert engine.get_current_phase(CONSTITUTION, date(2026, 8, 31)) == "peak"
+    def test_peak_starts_the_day_the_cut_ends(self):
+        peak_start = date.fromisoformat(CONSTITUTION["phases"]["peak"]["start_date"])
+        cut_end = date.fromisoformat(CONSTITUTION["phases"]["cut"]["end_date"])
+        assert peak_start == cut_end + timedelta(days=1), "no gap between cut and peak"
+        assert engine.get_current_phase(CONSTITUTION, peak_start) == "peak"
 
 
 class TrainingDayTests(unittest.TestCase):
@@ -64,8 +68,10 @@ class MacroTargetTests(unittest.TestCase):
         assert target.protein_g == 165
 
     def test_peak_calories_same_both_days(self):
-        monday = engine.get_macro_target(CONSTITUTION, date(2026, 8, 31))
-        friday = engine.get_macro_target(CONSTITUTION, date(2026, 9, 4))
+        # Peak feeds the same on training and rest days, unlike the cut.
+        peak_start = date.fromisoformat(CONSTITUTION["phases"]["peak"]["start_date"])
+        monday = engine.get_macro_target(CONSTITUTION, peak_start)
+        friday = engine.get_macro_target(CONSTITUTION, peak_start + timedelta(days=4))
         assert monday.calories == friday.calories == 2700
 
     def test_returns_macro_target_type(self):

@@ -1,6 +1,6 @@
 import json
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 _TRAINING_CONST_PATH = Path(__file__).parent.parent / "constitution.json"
@@ -16,6 +16,9 @@ with open(_TRAINING_CONST_PATH) as f:
 
 with open(_NUTRITION_CONST_PATH) as f:
     NUTRITION_CONSTITUTION = json.load(f)
+
+# Derived so a programme restart shifts these with the schedule.
+PEAK_WEEK_START = date.fromisoformat(TRAINING_CONSTITUTION["peak_week_start"])
 
 # Performance tomorrow triggers hard conflict
 MOCK_PERFORMANCE_TOMORROW = {
@@ -76,13 +79,12 @@ class CrossDomainAlertTests(unittest.TestCase):
         assert not any("CONFLICT" in alert for alert in result)
 
     def test_peak_warning_near_peak_week(self):
-        # 5 days before peak week starts (Aug 31)
-        near_peak = date(2026, 8, 26)
+        near_peak = PEAK_WEEK_START - timedelta(days=5)
         result = self._run(today=near_peak)
         assert any("Peak week" in alert for alert in result)
 
     def test_no_peak_warning_far_from_peak(self):
-        result = self._run(today=date(2026, 6, 22))
+        result = self._run(today=PEAK_WEEK_START - timedelta(days=70))
         assert not any("Peak week" in alert for alert in result)
 
     def test_never_raises_on_bad_input(self):

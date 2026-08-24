@@ -5,15 +5,15 @@
     "name": "Diogo",
     "age": 26,
     "height_cm": 181,
-    "weight_kg": 74.2,
+    "weight_kg": 77.6,
     "bf_percent": 25.0,
-    "lean_mass_kg": 55.65
+    "lean_mass_kg": 58.2
   },
   "tdee_kcal": 2700,
   "phases": {
     "cut": {
-      "start_date": "2026-07-06",
-      "end_date": "2026-08-30",
+      "start_date": "2026-08-24",
+      "end_date": "2026-10-18",
       "training_day": {
         "calories": 2400,
         "protein_g": 165,
@@ -28,8 +28,8 @@
       }
     },
     "peak": {
-      "start_date": "2026-08-31",
-      "end_date": "2026-09-13",
+      "start_date": "2026-10-19",
+      "end_date": "2026-11-01",
       "training_day": {
         "calories": 2700,
         "protein_g": 165,
