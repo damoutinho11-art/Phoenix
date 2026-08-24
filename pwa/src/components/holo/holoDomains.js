@@ -87,6 +87,7 @@ export function buildDomains(dayPart) {
       heroBrief: 'A high-protein dinner keeps every target in reach. Salmon + potatoes closes most of the remaining 53 g protein gap.',
       heroActions: [
         { label: 'LOG MEAL', sub: 'logmeal', primary: true },
+        { label: 'WEIGH IN', sub: 'weighin' },
         { label: 'BUILD DINNER', sub: 'dinner' },
         { label: 'PLAN DAY', sub: 'planday' },
       ],
@@ -193,6 +194,7 @@ export function buildDomains(dayPart) {
 // (finance lives in the Control Room now — no shell entries needed for it)
 export const SUB_META = {
   logmeal: ['SYS.NUTRITION // MEAL COMPOSER', '860 KCAL OPEN', 'min(1020px, calc(100vw - 26px))'],
+  weighin: ['SYS.NUTRITION // MORNING WEIGH-IN', 'BODY MASS TREND', 'min(880px, calc(100vw - 26px))'],
   dinner: ['SYS.NUTRITION // DINNER CANDIDATES', 'PROTEIN GAP 53G', 'min(1000px, calc(100vw - 26px))'],
   planday: ['SYS.NUTRITION // FUEL TIMELINE', 'TARGET 2,100 KCAL', 'min(1020px, calc(100vw - 26px))'],
   session: ['SYS.TRAINING // LIVE SESSION', 'ACTIVE PLAN DAY', 'min(1020px, calc(100vw - 26px))'],

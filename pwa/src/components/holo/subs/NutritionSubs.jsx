@@ -1,7 +1,17 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep, pad2 } from '../holoTokens'
 import { DINNERS, FUEL_NODES, FUEL_CURVE } from '../holoDomains'
-import { getLidlStaples, getRecipes, getRecentMeals, lookupBarcode } from '../../../api/client'
+import {
+  getLidlStaples, getRecipes, getRecentMeals, lookupBarcode,
+  getWeightHistory, logWeight,
+} from '../../../api/client'
+import {
+  parseWeightInput,
+  weightTrend,
+  sparklinePoints,
+  sparklinePath,
+  formatDelta,
+} from './weightTrendModel'
 import {
   gramBasis,
   basisHint,
@@ -462,6 +472,134 @@ export function PlanDaySub({ onClose }) {
             {lg.label}
           </span>
         ))}
+      </div>
+    </SubShell>
+  )
+}
+
+// ── NUTRITION // MORNING WEIGH-IN — entry + sparse-log trend ──
+// The weigh-in log is irregular by nature, so this screen states how old the
+// newest reading is rather than presenting it as today's weight.
+// Trend arithmetic lives in weightTrendModel.
+export function WeighInSub({ onClose, onLogged }) {
+  const [history, setHistory] = useState([])
+  const [baseline, setBaseline] = useState(null)
+  const [entry, setEntry] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [posting, setPosting] = useState(false)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    try {
+      // 3650 days: the log is sparse, and a 30-day window hides the whole cut.
+      const data = await getWeightHistory(3650)
+      setHistory(data?.weights || [])
+      setBaseline(data?.baseline_weight_kg ?? null)
+    } catch {
+      setError('WEIGHT LOG UNREACHABLE')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const trend = useMemo(() => weightTrend(history, { today: new Date().toISOString().slice(0, 10) }), [history])
+  const parsed = parseWeightInput(entry)
+  const points = useMemo(() => sparklinePoints(history, 260, 64), [history])
+  const path = useMemo(() => sparklinePath(history, 260, 64), [history])
+
+  const submit = async () => {
+    if (parsed === null || posting) return
+    setPosting(true)
+    setError('')
+    try {
+      await logWeight(parsed)
+      setEntry('')
+      await load()
+      await onLogged?.()
+    } catch {
+      setError('LOG FAILED — LINK DOWN · TAP TO RETRY')
+    } finally {
+      setPosting(false)
+    }
+  }
+
+  const stat = (label, value, color) => (
+    <div style={{ flex: 1, minWidth: 96 }}>
+      <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.24em', color: a(ACC, '99'), marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: FD, fontSize: 21, fontWeight: 700, color: color || 'var(--phx-text)' }}>{value}</div>
+    </div>
+  )
+
+  return (
+    <SubShell subKey="weighin" onClose={onClose} meta={trend.latest ? `LAST ${trend.latest.kg} KG` : 'NO ENTRIES'}>
+      <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 268 }}>
+          <SubLabel>THIS MORNING — KG</SubLabel>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              value={entry}
+              onChange={e => setEntry(e.target.value.replace(/[^\d.,]/g, ''))}
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              inputMode="decimal"
+              placeholder="77.6"
+              style={{ flex: 1, minWidth: 0, minHeight: 46, padding: '0 12px', fontFamily: FD, fontSize: 24, fontWeight: 700, color: 'var(--phx-text)', background: deep(62), border: `1px solid ${a(ACC, '44')}`, outline: 'none' }}
+            />
+            <button
+              onClick={submit}
+              disabled={parsed === null || posting}
+              style={{ minHeight: 46, padding: '0 18px', fontFamily: FM, fontSize: 9, letterSpacing: '.2em', color: parsed === null ? a(ACC, '77') : INK, background: parsed === null ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${parsed === null ? a(ACC, '30') : ACC}`, cursor: parsed === null || posting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {posting ? 'SAVING…' : 'LOG'}
+            </button>
+          </div>
+          {error && (
+            <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: R, marginTop: 9 }}>{error}</div>
+          )}
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
+            {stat('LATEST', trend.latest ? `${trend.latest.kg}` : '—')}
+            {stat('VS PREVIOUS', formatDelta(trend.change), trend.change > 0 ? Y : trend.change < 0 ? G : undefined)}
+            {stat('OVER WINDOW', formatDelta(trend.sinceFirst), trend.sinceFirst > 0 ? Y : trend.sinceFirst < 0 ? G : undefined)}
+          </div>
+
+          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.12em', color: a(ACC, '99'), marginTop: 16, lineHeight: 1.7 }}>
+            {loading ? 'LOADING LOG…' : trend.count === 0 ? 'NO WEIGH-INS YET' : (
+              <>
+                {trend.count} ENTRIES{trend.spanDays ? ` · ${trend.spanDays} DAYS` : ''}
+                {baseline != null && <><br />BASELINE {baseline} KG</>}
+                {trend.latestGapDays > 1 && (
+                  <><br /><span style={{ color: Y }}>NEWEST READING IS {trend.latestGapDays} DAYS OLD</span></>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <div style={{ flex: 1.1, minWidth: 280 }}>
+          <SubLabel>TREND — SPACED BY REAL DATE</SubLabel>
+          {points.length > 1 ? (
+            <svg viewBox="0 0 260 64" style={{ width: '100%', height: 84, display: 'block', overflow: 'visible' }}>
+              <polyline points={path} fill="none" stroke={ACC} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${a(ACC, '88')})` }} />
+              {points.map(p => (
+                <circle key={p.date} cx={p.x} cy={p.y} r="2.5" fill={p === points[points.length - 1] ? W : ACC} />
+              ))}
+            </svg>
+          ) : (
+            <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '77'), padding: '18px 2px' }}>
+              {points.length === 1 ? 'ONE ENTRY — LOG AGAIN TOMORROW FOR A TREND' : 'NO DATA TO PLOT'}
+            </div>
+          )}
+          <div style={{ maxHeight: 168, overflowY: 'auto', display: 'grid', gap: 4, marginTop: 12 }}>
+            {[...history].reverse().map(w => (
+              <div key={w.id ?? w.log_date} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 9px', background: deep(56), border: `1px solid ${a(ACC, '20')}` }}>
+                <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.12em', color: a(ACC, '99') }}>{w.log_date}</span>
+                <span style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: 'var(--phx-text)' }}>{w.weight_kg} KG</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </SubShell>
   )

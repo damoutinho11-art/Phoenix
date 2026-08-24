@@ -13,7 +13,7 @@ import HoloFocus from './HoloFocus'
 import HoloDock, { DOCK_ORDER } from './HoloDock'
 import FinanceControlRoom from './subs/FinanceControlRoom'
 import TrainingControlRoom from './subs/TrainingControlRoom'
-import { LogMealSub, DinnerSub, PlanDaySub } from './subs/NutritionSubs'
+import { LogMealSub, DinnerSub, PlanDaySub, WeighInSub } from './subs/NutritionSubs'
 import { SessionSub, ReadinessSub, SleepSub } from './subs/TrainingSubs'
 import { TodaySub, WeekMapSub, FeedsSub } from './subs/CalendarSubs'
 
@@ -402,6 +402,10 @@ export default function HoloCommand({ startTab = 'home' }) {
         <DinnerSub {...subProps} sel={dinnerSel} locked={dinnerLocked} onPick={i => { setDinnerSel(i); setDinnerLocked(false) }} onLock={() => setDinnerLocked(true)} dinners={liveDinners} budget={budget} />
       )}
       {sub === 'planday' && <PlanDaySub {...subProps} />}
+      {sub === 'weighin' && (
+        // A weigh-in moves the training cut tracker, which reads the same log.
+        <WeighInSub {...subProps} onLogged={live.refreshTraining} />
+      )}
       {sub === 'session' && <SessionSub {...subProps} training={trainingLive} refreshTraining={live.refreshTraining} />}
       {sub === 'readiness' && <ReadinessSub {...subProps} training={trainingLive} refreshTraining={live.refreshTraining} />}
       {sub === 'sleep' && (
