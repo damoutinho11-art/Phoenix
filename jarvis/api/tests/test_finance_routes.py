@@ -19,6 +19,7 @@ from jarvis.api import dependencies
 from jarvis.api.main import app
 from jarvis.data import database
 from jarvis.domains.finance import engine
+from jarvis.domains.finance.cashflow_authority import closed_cashflow_authority
 
 client = TestClient(app)
 
@@ -129,9 +130,17 @@ class FinanceSummaryRouteTests(unittest.TestCase):
 
 
 class FinanceRecommendationRouteTests(unittest.TestCase):
+    def _authority_for_lifecycle(self, _today, *, week_closed: bool = False) -> dict:
+        authority = self.authority_builder.return_value
+        return (
+            closed_cashflow_authority(authority)
+            if week_closed
+            else authority
+        )
+
     def setUp(self) -> None:
         self.authority_patch = patch(
-            "jarvis.api.routers.budget._build_cashflow_authority",
+            "jarvis.api.routers.finance.build_cashflow_authority",
             return_value=_READY_CASHFLOW_AUTHORITY.copy(),
         )
         self.regime_patch = patch(
@@ -142,6 +151,7 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
             return_value=_SAFE_ETF_RESOLUTION,
         )
         self.authority_builder = self.authority_patch.start()
+        self.authority_builder.side_effect = self._authority_for_lifecycle
         self.regime_patch.start()
         self.resolver_patch.start()
 
@@ -355,8 +365,12 @@ class FinanceBriefIdentityTests(unittest.TestCase):
             "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
         )
         self.authority_patch = patch(
-            "jarvis.api.routers.budget._build_cashflow_authority",
-            return_value=_READY_CASHFLOW_AUTHORITY.copy(),
+            "jarvis.api.routers.finance.build_cashflow_authority",
+            side_effect=lambda _today, *, week_closed=False: (
+                closed_cashflow_authority(_READY_CASHFLOW_AUTHORITY.copy())
+                if week_closed
+                else _READY_CASHFLOW_AUTHORITY.copy()
+            ),
         )
         self.resolver_patch.start()
         self.regime_patch.start()

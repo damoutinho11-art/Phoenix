@@ -13,6 +13,7 @@ from jarvis.api.dependencies import get_finance_constitution, get_finance_profil
 from jarvis.api import ai_gateway
 from jarvis.api.finance_authority import (
     authoritative_portfolio_state,
+    blocked_cashflow_authority,
     build_cashflow_authority,
     validate_cashflow_authority,
 )
@@ -55,7 +56,10 @@ def _finance_fail_closed_enabled() -> bool:
 
 
 def _cashflow_authority_for_today(today: date, *, week_closed: bool = False) -> dict:
-    return build_cashflow_authority(today, week_closed=week_closed)
+    try:
+        return build_cashflow_authority(today, week_closed=week_closed)
+    except Exception:
+        return blocked_cashflow_authority("Cash-flow authority is unavailable.")
 
 
 def _paused_finance_recommendation(

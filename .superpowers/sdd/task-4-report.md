@@ -1,734 +1,233 @@
-# Task 4 Report: Finance Cash-Flow Authority
+# Task 4 Report: Blue Review Other Experience
 
 Status: DONE
 
+## Scope
+
+- Added the Finance > Control Room > Budget > Review Other subsection.
+- Added the server-derived ledger command only when unresolved review rows are positive.
+- Added auditable merchant-group corrections, learned-rule removal, retry retention, and stale-revision refresh.
+- Converted Finance Budget ledger, upload, Cash Policy, category controls, and Review Other chrome to Finance cyan/blue.
+- Removed every `phx-scope-budget` use from Finance Budget production modules.
+
 ## RED
 
-Command:
+Tests were changed before production JSX or model implementation.
+
+The first attempted RED run exposed a test-file brace error and therefore did not count as valid RED. The test syntax was corrected before production code changed.
+
+Valid RED command:
 
 ```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py -k "cashflow_authority or legacy_fixed_budget" -q
+Set-Location pwa
+node --test src/components/holo/financeControlRoomContract.test.js src/components/holo/subs/budgetCategoryReviewModel.test.js
 ```
 
-Result: 2 failed. A ready `86.67` authority still returned the legacy `115.38`
-budget, and blocked authority still returned `data_ready=True`.
+Result: exit code 1, `26 passed`, `5 failed`.
 
-Command:
+Expected failures proved that:
 
-```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py -k "data_coverage_exposes_the_recommendation_authority" -q
-```
-
-Result: 1 failed with `KeyError: 'cashflow_authority'`; the data-coverage surface
-dropped the recommendation authority.
+- `BudgetCategoryReview.jsx` did not exist;
+- `BudgetContent.jsx` did not load or render Review Other;
+- `buildCategoryCorrectionRequest` was not exported;
+- Finance Budget still used the old Budget accent scope.
 
 ## GREEN
 
-Command:
+Model slice:
 
 ```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js
 ```
 
-Result: `52 passed in 5.91s`.
+Result: `15 passed`, `0 failed`.
+
+Focused Task 4 verification:
+
+```powershell
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js src/components/holo/financeControlRoomContract.test.js
+```
+
+Result: `45 passed`, `0 failed`.
+
+Full PWA suite:
+
+```powershell
+npm test
+```
+
+Result: `186 passed`, `0 failed`.
+
+Production build:
+
+```powershell
+npm run build
+```
+
+Result: Vite transformed 331 modules and completed the PWA build successfully. The existing chunk-size warning remained and is allowed by the task brief.
+
+## Behavior Verified
+
+- Ledger renders `REVIEW OTHER` only for normalized `ready` review state with `unresolvedCount > 0`.
+- Review Other is a subsection, not a modal or nested card surface.
+- Date, amount, merchant, and description are explicit locked text facts.
+- Apply remains disabled until a valid non-current category is selected.
+- Correction payload contains only server statement ID, expected revision, canonical merchant key, exact ordinals, corrected category, and remember choice.
+- Retryable errors retain the correction draft; HTTP 409 refreshes the server review.
+- Active learned rules expose `FORGET`.
+- Loading, malformed/error, blocked, ready, and complete states are explicit.
+- Blocked state requires a verified statement and exposes no override.
+- Successful corrections refresh summary, transactions, review state, and cash authority.
+
+## Visual Structure Review
+
+- At desktop width, each merchant row uses locked evidence on the left and controls on the right with `minmax(0, 1fr) minmax(280px, .72fr)` geometry.
+- At 820 px and below, header and merchant rows stack to one column.
+- At 390 px, transaction facts use a two-column zero-min-width grid; labels and values wrap instead of widening the control room.
+- Category and command controls use minimum 42 px heights and visible Finance-cyan focus outlines.
+- Queue rows and learned rules use separator lines and unframed instrument bands, without nested cards.
+- Finance Budget production modules contain no `phx-scope-budget`, orange/gold literals, or borrowed Training/Nutrition/Calendar category accents.
 
 ## Changed Files
 
-- `jarvis/api/routers/finance.py`
-- `jarvis/api/tests/test_finance_routes.py`
-- `jarvis/api/tests/test_finance_manual_buy_checklist.py`
-- `jarvis/api/tests/test_finance_brief_route.py`
+- `.superpowers/sdd/task-4-report.md`
+- `pwa/src/components/holo/financeControlRoomContract.test.js`
+- `pwa/src/components/holo/subs/BudgetCategoryReview.jsx`
+- `pwa/src/components/holo/subs/BudgetContent.jsx`
+- `pwa/src/components/holo/subs/budgetCategoryReviewModel.js`
+- `pwa/src/components/holo/subs/budgetCategoryReviewModel.test.js`
 
-## Commit
+## Constraints
 
-`13694f8b3d098255eb84b236c924398b9b0c88f1` - `feat(finance): authorize weekly budget from cash flow`
-
-## Self-Review
-
-- Finance obtains one current-month cash-flow authority per recommendation-derived route path.
-- Ready authority is injected only into a deep-copied in-memory portfolio state.
-- Blocked, malformed, and infrastructure-failed authority produces a zero-budget paused response.
-- Recommendation, week-done, week-approved, checklist, brief, and data-coverage responses retain the authority.
-- The brief now derives allocation text from the authorized recommendation path instead of allocating from the raw state.
-- Existing manual-only execution and risk/constitution gates remain in the shared allocation engine path.
-- `portfolio_state.json` was not modified.
+- No production deployment was run.
+- No live Finance data was mutated.
+- `jarvis/domains/finance/portfolio_state.json` was not modified.
+- The pre-existing `.superpowers/sdd/progress.md` modification was left untouched and excluded from the Task 4 commit.
 
 ## Concerns
 
-No implementation concerns. The pre-existing modification to `.superpowers/sdd/task-1-report.md` was left uncommitted and untouched.
+No implementation concerns. Verification retains the accepted existing Vite chunk-size warning.
 
-## Review Follow-Up
+## Complete Review Finding Follow-Up
 
-### RED
+Status: DONE
 
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_brief_route.py -k "authority or legacy_budget" -q
-```
+### RED Evidence
 
-Result: `14 failed`. The failures proved that malformed authority payloads were echoed,
-research and chat allocated from `115.38`, blocked research still allocated, and an AI
-brief containing the legacy `€115.38` was accepted.
+Review-finding tests and source contracts were added before the corresponding production changes.
 
 ```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -k "state_is_unavailable" -q
+Set-Location pwa
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js src/components/holo/financeControlRoomContract.test.js
 ```
 
-Result: `1 failed`. Chat returned a two-item context tuple on unavailable Finance state
-despite the authority-aware caller requiring the three-item form.
+Result: exit code 1, `52 tests`, `40 passed`, `12 failed`.
 
-### GREEN
+The failures covered Finance-blue Budget identity, 920px-container responsive tracks, terminal draft locking, visible stale refresh state, truthful transaction availability, accessible repeated controls, canonical server merchant keys, the `Straße`/`strasse` casefold regression, and correction outcome metadata for 409, retryable, terminal 4xx, malformed-success, and success paths.
+
+The final non-status red treatment found during self-review received its own contract before the production fix:
 
 ```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+node --test src/components/holo/financeControlRoomContract.test.js
 ```
 
-Result: `54 passed in 6.90s`.
+Result: exit code 1, `33 tests`, `32 passed`, `1 failed` (`budget ledger, upload, Cash Policy, and Review Other use Finance blue`).
+
+### GREEN Evidence
+
+Focused model and source-contract verification:
 
 ```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js src/components/holo/financeControlRoomContract.test.js
 ```
 
-Result: `193 passed in 53.43s`. `rg --files` found no standalone chat test file;
-the added `test_finance_cashflow_authority_review.py` covers Finance chat context.
+Result: exit code 0, `52 passed`, `0 failed`.
 
-### Follow-Up Scope
-
-- Added `jarvis/api/finance_authority.py` to validate, sanitize, and overlay authority.
-- Routed Finance recommendations, memo evidence, research autopilot, and chat through it.
-- Added route-level malformed payload, memo/autopilot/chat overlay, closed lifecycle, and stale-AI amount regression coverage.
-- Confirmed `portfolio_state.json` remained unchanged.
-
-## Final Gate Follow-Up
-
-### RED
+Full PWA suite:
 
 ```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_brief_route.py -q
+npm test
 ```
 
-Result: `13 failed`. The new regression cases showed that ready payloads with
-non-hex or missing provenance remained trusted, Finance chat still accepted the
-model path, and an approved brief was paused instead of being closed when the
-current authority was blocked.
+Result: exit code 0, `193 passed`, `0 failed`.
 
-### GREEN
+Production build:
 
 ```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+npm run build
 ```
 
-Result: `55 passed in 6.34s`.
+Result: exit code 0; Vite `5.4.21` transformed `331 modules`, generated the PWA service worker, and completed in `5.74s`. The accepted existing chunk-size warning remains.
 
-```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
+### Review Findings Verified
 
-Result: `205 passed in 50.26s`. This is the exact expanded set previously used
-for the 193-test run; it includes the added Finance/chat authority regression
-file. `rg --files` found no standalone chat test file.
+- Retryable failures retain an actionable draft; non-retryable 4xx, 409, malformed-success, and successful outcomes clear and lock the prior row draft.
+- HTTP 409 renders `SOURCE CHANGED` while the server queue refresh runs without replacing that explanation with generic loading.
+- Nonblank server `merchant_key` values are canonical. Locked display merchants are validated independently, including actionable `Straße Market` evidence with `strasse market`, while merchant-key and ordinal uniqueness remain fail-closed.
+- The Review Other root is an inline-size container. Its desktop row is bounded by `minmax(0, 1fr) minmax(260px, .72fr)`, transaction evidence uses only zero-min-width tracks, and rows stack at a 760px container width before the 920px Finance surface can overlap.
+- Budget summary, category, upload, memory, toggles, and remove controls use Finance cyan/neutral identity. Green, yellow, and red remain only on verified/complete, warning/stale/blocked, and unavailable/error/reconciliation states.
+- Repeated `FORGET` controls include merchant-specific accessible names; symbol-only month controls expose previous/next accessible names.
+- Transaction fetch loading, ready, and unavailable states are explicit, so a failed fetch cannot display `0 ROWS`.
 
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
+### Follow-Up Constraints
 
-Result: `278 passed in 39.25s`.
-
-### Changed Files
-
-- `jarvis/api/finance_authority.py`
-- `jarvis/api/routers/finance.py`
-- `jarvis/api/routers/chat.py`
-- `jarvis/api/tests/test_finance_cashflow_authority_review.py`
-- Finance route, brief, checklist, research, and autopilot test fixtures
-
-### Self-Review
-
-- Ready authority now requires exact Task 3 provenance: empty blockers, a
-  lowercase SHA-256 input hash, policy version 2, reconciled LHV PDF source,
-  verified receipt, exact-zero balance difference, canonical statement date,
-  valid statement filename hash, and consistent finite capacities.
-- Invalid authority is replaced with a deterministic zero-budget blocked object.
-- Executed and approved weeks are projected closed before authority blocking;
-  they retain the current authority but never reopen allocation.
-- Briefs and Finance allocation-intent chat use deterministic authority-derived
-  text and never call the AI gateway.
-- Blocked authority is explicit in checklist and data coverage. All allocation
-  engine calls use the deep-copied authority overlay.
-- `portfolio_state.json` was not modified.
-
-### Commit
-
-`cde9cf6cef63c9e1736992cd2bdd0db1cb08eb61` -
-`feat(finance): authorize weekly budget from cash flow`
-
-### Concerns
-
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
-
-## Final Reproduced Findings: Intent Exclusions and Blocked Evidence
-
-### RED
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `7 failed, 108 passed in 10.53s`. The failures showed that blocked
-authorities could carry sub-cent or non-finite `opening_balance_eur` evidence,
-the Finance intent classifier missed `bought`, `sold`, and `held`, and plural
-stock/furniture and website-design text entered the Finance authority path.
-
-### GREEN
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `116 passed in 5.10s`.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `368 passed in 42.59s`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
-```
-
-Result: `55 passed in 6.65s`.
-
-```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `295 passed in 60.14s`. This retains the established research/autopilot
-set plus Finance/chat authority regression coverage; `rg --files` found no
-standalone chat test file.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `369 passed in 46.42s`.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests -q
-```
-
-Result: `105 passed in 6.22s`.
-
-### Changed Files
-
-- `jarvis/domains/finance/cashflow_authority.py`
-- `jarvis/api/routers/chat.py`
-- `jarvis/api/tests/test_finance_cashflow_authority_review.py`
-
-### Self-Review
-
-- Blocked authority payloads now receive the same recursive, schema-aware
-  exact-cent validation and normalization as ready payloads. Optional
-  `opening_balance_eur=None` remains valid; sub-cent and non-finite evidence
-  is replaced by the deterministic invalid-authority projection.
-- Finance intent recognizes `bought`, `sold`, and `held` for concrete assets
-  and takes the deterministic authority path without an AI call.
-- Explicit nonfinancial contexts are checked before asset classification:
-  plural stock inventory/media and furniture-shop language, plus website
-  design, remain general chat. Named-company stock/shares questions continue
-  to receive Finance protection.
+- No deployment was run and no live Finance data was mutated.
 - `jarvis/domains/finance/portfolio_state.json` was not modified.
+- The pre-existing `.superpowers/sdd/progress.md` modification remains untouched and is excluded from the commit.
 
-### Commit
+## Remaining Important Findings Follow-Up
 
-`b4acf58cf6ddb3ebafc52c6608d6e016512a934d` -
-`feat(finance): authorize weekly budget from cash flow`
+Status: DONE
 
-### Concerns
+### RED Evidence
 
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
-
-## Final Narrow Fixes: Optional Opening Balance and Lifecycle Context
-
-### RED
+The model regressions and source contracts were changed before production code.
 
 ```powershell
-python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+Set-Location pwa
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js src/components/holo/financeControlRoomContract.test.js
 ```
 
-Result: `9 failed, 348 passed`. The failures demonstrated that sub-cent
-`opening_balance_eur` was not validated by the producer, `None` was rejected
-by the generic Finance EUR recursion, intent stems missed moved/allocated/
-invested forms, stock inventory text entered Finance, and missing state erased
-the lifecycle/authority projection.
+Result: exit code 1, `54 tests`, `52 passed`, `2 failed`.
 
-### GREEN
+The expected failures were:
+
+- `Budget controls expose unique accessible names and truthful transaction availability`: Review Other Remember/Apply names and upload category/flow/month row-context names were absent.
+- `empty successful response clears and locks the staged draft`: `{}` was incorrectly treated as retryable and retained the draft.
+
+The direct `new Error('offline')` and status-503 `Error` regressions passed during RED, proving transport and 5xx retry behavior remained the required control case.
+
+### GREEN Evidence
+
+Focused model and source-contract verification:
 
 ```powershell
-python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js src/components/holo/financeControlRoomContract.test.js
 ```
 
-Result: `357 passed in 37.88s`.
+Result: exit code 0, `54 passed`, `0 failed`.
+
+Full PWA suite:
 
 ```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
+npm test
 ```
 
-Result: `55 passed in 6.34s`.
+Result: exit code 0, `195 passed`, `0 failed`.
+
+Production build:
 
 ```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
+npm run build
 ```
 
-Result: `284 passed in 53.03s`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `358 passed in 42.32s`.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests -q
-```
-
-Result: `105 passed in 6.18s`.
-
-### Changed Files
-
-- `jarvis/domains/finance/cashflow_authority.py`
-- `jarvis/api/routers/chat.py`
-- Budget, Finance/chat authority, and domain authority tests
+Result: exit code 0; Vite `5.4.21` transformed `331 modules`, generated the PWA service worker, and completed in `3.90s`. The accepted existing chunk-size warning remains.
 
 ### Self-Review
 
-- `opening_balance_eur` is explicitly optional provenance: `None` is accepted;
-  every present value must be finite, bounded, numeric, and exact-cent at both
-  producer and consumer boundaries.
-- Intent classification recognizes moved, allocated, invested, rebalanced, and
-  other action inflections. Stock media/inventory/shop usage is excluded before
-  asset classification, while shares/stock in a company remains financial.
-- Finance captures lifecycle and cash-flow authority before loading state. A
-  missing constitution/state now yields a structured zero-budget blocked
-  authority, while a closed week remains closed without consulting state.
-- `jarvis/domains/finance/portfolio_state.json` was not modified.
-
-### Commit
-
-`8424978ccfa90c7d0e535d425d2c5eec50ee4d34` -
-`feat(finance): authorize weekly budget from cash flow`
-
-### Concerns
-
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
-
-## Final Review: Producer Inputs and Structured Chat
-
-### RED
-
-```powershell
-python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `20 failed, 320 passed`. The failures showed sub-cent source inputs
-were silently rounded, the Budget endpoint accepted a sub-cent policy value,
-new financial intent language reached the general AI path, stock-media text
-could enter Finance, and Finance chat lacked structured lifecycle fields and
-a single captured decision date.
-
-### GREEN
-
-```powershell
-python -m pytest jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/api/tests/test_budget_routes.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `340 passed in 56.37s`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
-```
-
-Result: `55 passed in 7.03s`.
-
-```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `273 passed in 70.94s`. Chat coverage remains in
-`test_finance_cashflow_authority_review.py`; there is no standalone chat test
-file.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `344 passed in 51.81s`.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests -q
-```
-
-Result: `102 passed in 5.68s`.
-
-### Changed Files
-
-- `jarvis/domains/finance/cashflow_authority.py`
-- `jarvis/api/routers/chat.py`
-- Budget, Finance authority/chat, and domain cash-flow authority tests
-
-### Self-Review
-
-- Every producer monetary input used by cash-flow calculation now must already
-  be an exact cent: policy, recurring obligations, statement balance, unpaid
-  bills, summary totals, and food-category totals. Computed results retain
-  Decimal `ROUND_HALF_UP` cent semantics.
-- Home Finance intent handles planning, scheduling, moving money, purchases,
-  buy/sell/hold/review/rebalance/advice with concrete financial assets. Stock
-  media is explicitly non-financial, while a financial asset plus `table` is
-  still recognized.
-- Deterministic Finance chat responses consistently expose `week_closed`,
-  `week_budget`, `recommendations`, `cashflow_authority`, and captured `as_of`.
-- One chat decision date is captured at route entry and reused by Finance,
-  training, nutrition, budget context, and response summary; the midnight
-  side-effect test confirms one logical Finance date.
-- `jarvis/domains/finance/portfolio_state.json` was not modified.
-
-### Commit
-
-`29e3a74ff7215da4964f720d2421c2381f45b623` -
-`feat(finance): authorize weekly budget from cash flow`
-
-### Concerns
-
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
-
-## Final Gate: Intent, Exact Cents, and Closed Research
-
-### RED
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/domains/finance/tests/test_cashflow_authority.py jarvis/domains/finance/tests/test_weekly_authority.py -q
-```
-
-Result: `12 failed, 121 passed`. The failures demonstrated that the sanitizer
-accepted sub-cent authority evidence, a positive deployable balance could
-produce a zero-cent weekly authority marked ready, closed research responses
-lacked explicit zero-allocation fields, intent morphology missed ordinary asset
-management language, and `engine.self_check()` still loaded legacy raw state.
-
-### GREEN
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
-```
-
-Result: `55 passed in 8.83s`.
-
-```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `265 passed in 81.48s`. There is no standalone chat test file; chat
-authority and intent coverage is in `test_finance_cashflow_authority_review.py`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `335 passed in 67.84s`.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests -q
-```
-
-Result: `96 passed in 10.05s`.
-
-### Changed Files
-
-- `jarvis/domains/finance/cashflow_authority.py`
-- `jarvis/domains/finance/engine.py`
-- `jarvis/api/finance_authority.py`
-- `jarvis/api/routers/chat.py`
-- `jarvis/api/routers/finance.py`
-- Budget, Finance, chat, research/autopilot, and domain authority tests
-
-### Self-Review
-
-- The sanitizer rejects all sub-cent EUR evidence, normalizes accepted EUR
-  values to two-decimal JSON floats, and deep-copies accepted authority data.
-- A positive deployable balance that rounds to zero per weekly window is now
-  explicitly blocked by both the calculator and the Budget endpoint.
-- Closed lifecycle calls still build authority once with `week_closed=True`,
-  but API projections expose a zero, non-ready authority and no new allocation.
-- Finance research, memo autopilot, and evidence generation reuse one captured
-  decision date through nested helpers; the closed recommendation next-window
-  label uses that same date.
-- Home intent recognizes realistic buy/sell/hold/review/rebalance/advice asset
-  requests while excluding stock media, design portfolios, dinner, furniture,
-  and shopping language.
-- `engine.self_check()` now exercises the authority-required public builder
-  with explicit synthetic proof rather than raw-state allocation.
-- `jarvis/domains/finance/portfolio_state.json` was not modified.
-
-### Commit
-
-`bd0bf7040c82f1634781396977ee223378fa8b37` -
-`feat(finance): authorize weekly budget from cash flow`
-
-### Concerns
-
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
-
-## P1 Follow-Up: Arithmetic and Shared Closure
-
-### RED
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `7 failed, 57 passed`. The ready-authority sanitizer accepted an
-impossible weekly amount (`€260` from `€260 / 3`), incorrect deployable
-capacity, boolean/zero window counts, missed sell/hold stock intent, and
-misclassified a dinner-table purchase as Finance.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `6 failed, 65 passed` after lifecycle tests were added. Chat and
-research/autopilot passed `week_closed=False` despite applied, approved, or
-executed current-week state.
-
-### GREEN
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
-```
-
-Result: `55 passed in 6.27s`.
-
-```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `250 passed in 81.57s`. `rg --files` found no standalone chat test;
-chat authority coverage is in `test_finance_cashflow_authority_review.py`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `319 passed in 52.50s`.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests -q
-```
-
-Result: `94 passed in 6.00s`.
-
-### Changed Files
-
-- `jarvis/domains/finance/cashflow_authority.py`
-- `jarvis/api/finance_lifecycle.py`
-- `jarvis/api/routers/finance.py`
-- `jarvis/api/routers/chat.py`
-- Finance authority, brief, checklist, research, autopilot, and domain weekly
-  authority tests
-
-### Self-Review
-
-- Ready authority verifies integer `remaining_weekly_windows >= 1`, cent-level
-  deployable minimum, and Decimal `ROUND_HALF_UP` weekly arithmetic.
-- One lifecycle snapshot determines closure from applied transactions or
-  approved/executed briefs for recommendation, chat, research autopilot, memo
-  autopilot, and evidence generation. Nested paths reuse the captured
-  authority/lifecycle rather than rebuilding either.
-- Closed chat returns deterministic non-actionable text without an open-week
-  euro amount; research allocation paths return no new legs and do not invoke
-  the allocation engine.
-- Home intent recognizes concrete asset-management questions while excluding
-  design/site, dinner, furniture, and shopping language. Bare `portfolio` is
-  not a financial trigger.
-- `portfolio_state.json` was not modified.
-
-### Commit
-
-`b816bf082c5f125be493a8e682bcb59b7219c82e` -
-`fix(finance): validate authority arithmetic and closure`
-
-### Concerns
-
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
-
-## Final Gate: Domain Authority and Intent Isolation
-
-### RED
-
-```powershell
-python -m pytest jarvis/domains/finance/tests/test_weekly_authority.py jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `12 failed, 42 passed`. The failures proved public domain weekly
-reports still allocated from raw portfolio state, the sanitizer accepted stale
-and capacity-inconsistent ready data, and ordinary home investment requests
-were not consistently authority-gated.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests -q
-```
-
-Result: `2 failed, 75 passed, 17 errors`. The deterministic acceptance and
-smoke harnesses were invoking Finance without a validated synthetic authority,
-so their intended transparent fixtures correctly failed closed.
-
-### GREEN
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
-```
-
-Result: `55 passed in 6.51s`.
-
-```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `229 passed in 50.95s`. `rg --files` found no standalone chat test;
-chat authority coverage is in `test_finance_cashflow_authority_review.py`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `302 passed in 40.49s`.
-
-```powershell
-python -m pytest jarvis/domains/finance/tests -q
-```
-
-Result: `94 passed in 6.09s`.
-
-### Changed Files
-
-- `jarvis/domains/finance/cashflow_authority.py`
-- `jarvis/domains/finance/engine.py`
-- `jarvis/domains/finance/acceptance_gate.py`
-- `jarvis/domains/finance/production_smoke_gate.py`
-- `jarvis/domains/finance/tests/test_weekly_authority.py`
-- `jarvis/api/finance_authority.py`
-- `jarvis/api/routers/finance.py`
-- `jarvis/api/routers/chat.py`
-- Finance authority, route, brief, checklist, research, and autopilot tests
-- `docs/CLAUDE_CODE_HANDOFF.md`
-
-### Self-Review
-
-- Public domain weekly result/report functions require validated authority and
-  return zero-budget, ticket-free blocked projections otherwise.
-- Validation is domain-owned, enforces literal receipt provenance, canonical
-  seven-day statement dates, finite capacity fields, and weekly-capacity
-  consistency. API builders pass one captured date to both Budget and
-  validation.
-- All Finance/chat/research allocations deep-copy the authority overlay. The
-  research helpers also revalidate supplied authority before allocating.
-- Home chat recognizes financial action plus financial asset context without
-  treating generic shopping or a design portfolio as Finance; no prompt retains
-  the legacy fixed allocation example.
-- Lifecycle closure is determined before the authority call and propagates
-  `week_closed=True`; closed projections expose no current open-week budget.
-- Deterministic local acceptance/smoke fixtures now use complete mocked Task 3
-  authority rather than any raw-state fallback.
-- `portfolio_state.json` was not modified.
-
-### Commit
-
-`b734dfa3fded3b47599805a79f7d4e48706e451d` (superseded by the report-only
-amendment SHA below).
-
-### Concerns
-
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
-
-## P1 Re-Review Follow-Up
-
-### RED
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `8 failed`. The failures reproduced a nutrition-domain
-`UnboundLocalError`, generic home shopping loading blocked Finance authority,
-integer `1` accepted by the Finance sanitizer, Budget exposing SQLite's integer
-receipt flag, and coverage reporting `BLOCKED` before lifecycle closure.
-
-### GREEN
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `228 passed in 41.35s`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py -q
-```
-
-Result: `55 passed in 6.75s`.
-
-```powershell
-$researchTests = rg --files jarvis/api/tests | Where-Object { $_ -match 'test_finance_(research|autopilot)' }
-python -m pytest $researchTests jarvis/api/tests/test_finance_cashflow_authority_review.py -q
-```
-
-Result: `210 passed in 59.68s`.
-
-```powershell
-python -m pytest jarvis/api/tests/test_finance_cashflow_authority_review.py jarvis/api/tests/test_finance_routes.py jarvis/api/tests/test_finance_manual_buy_checklist.py jarvis/api/tests/test_finance_brief_route.py jarvis/api/tests/test_budget_routes.py -q
-```
-
-Result: `283 passed in 53.94s`.
-
-### Changed Files
-
-- `jarvis/api/routers/chat.py`
-- `jarvis/api/routers/budget.py`
-- `jarvis/api/finance_authority.py`
-- `jarvis/api/routers/finance.py`
-- Budget, Finance, chat, coverage, research, and autopilot tests
-
-### Self-Review
-
-- Home only loads Finance context for unambiguous investment intent; generic
-  shopping and nutrition/training/calendar traffic never enters the Finance
-  safety path.
-- Budget converts only a trusted SQLite integer `receipt_verified == 1` into
-  literal `True` on its returned source copy. The shared sanitizer accepts only
-  `True` by identity.
-- Coverage now returns `WEEK_CLOSED` before authority state, `AUTHORITY_BLOCKED`
-  for open authority failures, and retains `BLOCKED` for other blockers.
-- No `portfolio_state.json` changes were made.
-
-### Commit
-
-Final re-review implementation SHA is recorded in the delivery response.
-
-### Concerns
-
-No implementation concerns. The pre-existing modification to
-`.superpowers/sdd/task-1-report.md` remains untouched and uncommitted.
+- A status-less thrown `Error` and every 5xx outcome remain retryable and preserve the staged draft.
+- A malformed plain success, including `{}`, clears and locks the draft with the malformed-response message; 4xx and 409 terminal behavior remains unchanged.
+- Review Other category, Remember, Apply, and Forget controls carry merchant identity where repeated.
+- Upload category, flow, and month controls include 1-based row number, merchant, and date, so duplicate merchants still receive unique accessible names.
+- Visible control copy and Finance visual styling are unchanged.
+- No deployment was run, no live Finance data was mutated, and `jarvis/domains/finance/portfolio_state.json` was not modified.

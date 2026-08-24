@@ -69,7 +69,7 @@ def isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     ), patch(
         "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
     ), patch(
-        "jarvis.api.routers.budget._build_cashflow_authority",
+        "jarvis.api.routers.finance.build_cashflow_authority",
         return_value={
             "data_ready": True,
             "blockers": [],
@@ -245,7 +245,7 @@ def test_allocation_surfaces_use_authority_without_mutating_dependency_state() -
     app.dependency_overrides[dependencies.get_portfolio_state] = lambda: portfolio_state
     try:
         with patch(
-            "jarvis.api.routers.budget._build_cashflow_authority",
+            "jarvis.api.routers.finance.build_cashflow_authority",
             return_value=authority,
         ), patch(
             "jarvis.api.routers.finance.ai_gateway.generate_text",

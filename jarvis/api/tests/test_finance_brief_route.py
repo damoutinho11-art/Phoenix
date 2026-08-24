@@ -64,7 +64,7 @@ def _make_ai_result(text=_MOCK_BRIEF, ok=True):
 class TestFinanceBriefRoute:
     def setup_method(self):
         self.authority_patch = patch(
-            "jarvis.api.routers.budget._build_cashflow_authority",
+            "jarvis.api.routers.finance.build_cashflow_authority",
             return_value=_READY_CASHFLOW_AUTHORITY.copy(),
         )
         self.regime_patch = patch(
@@ -169,7 +169,7 @@ class TestFinanceBriefRoute:
             "Requires your approval before any action."
         )
         with patch(
-            "jarvis.api.routers.budget._build_cashflow_authority", return_value=authority
+            "jarvis.api.routers.finance.build_cashflow_authority", return_value=authority
         ), patch("jarvis.api.routers.finance.ai_gateway.generate_text") as gateway:
             data = client.get("/finance/brief").json()
 
@@ -262,7 +262,7 @@ class TestFinanceBriefRoute:
             "weekly_budget_eur": 0.0,
         }
         with patch(
-            "jarvis.api.routers.budget._build_cashflow_authority", return_value=blocked
+            "jarvis.api.routers.finance.build_cashflow_authority", return_value=blocked
         ) as builder, patch(
             "jarvis.api.routers.finance.database.get_applied_transactions_for_iso_week",
             return_value=[],

@@ -418,11 +418,107 @@ test('budget PDF review locks bank facts and activates authority only from recon
   assert.doesNotMatch(budget, /OVERRIDE RECONCILIATION/)
 })
 
-test('budget ledger, upload, and Cash Policy roots use the Budget accent scope', async () => {
+test('budget ledger, upload, Cash Policy, and Review Other use Finance blue', async () => {
   const budget = await src('./subs/BudgetContent.jsx')
-  const budgetScopes = budget.match(/className="phx-scope-budget"/g) || []
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+  const production = `${budget}\n${review}`
 
-  assert.equal(budgetScopes.length, 3)
+  assert.doesNotMatch(production, /phx-scope-budget|orange|gold/i)
+  assert.match(budget, /ACC/)
+  assert.match(budget, /reviewOtherButtonStyle/)
+  assert.match(budget, /CASH POLICY/)
+  assert.match(review, /ACC/)
+  assert.doesNotMatch(budget, /<StatTile label="INCOME"[^>]*color=\{G\}/)
+  assert.doesNotMatch(budget, /<StatTile label="EXPENSES"[^>]*color=\{R\}/)
+  assert.doesNotMatch(budget, /rows=\{savingsRows\} color=\{G\}/)
+  assert.doesNotMatch(budget, /t\.is_income \? G : W/)
+  assert.doesNotMatch(budget, /profile\.salary_next_month \? G : R/)
+  assert.doesNotMatch(budget, /bill\.enabled \? G/)
+  assert.doesNotMatch(budget, /aria-label=\{`REMOVE BILL[\s\S]{0,500}color: R/)
+})
+
+test('budget ledger exposes Review Other only for a positive server unresolved count', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+
+  assert.match(budget, /getBudgetCategoryReview/)
+  assert.match(budget, /normalizeCategoryReview/)
+  assert.match(budget, /reviewState\.status === 'ready' && reviewState\.unresolvedCount > 0/)
+  assert.match(budget, /REVIEW OTHER/)
+  assert.match(budget, /setMode\('reviewOther'\)/)
+  assert.match(budget, /<BudgetCategoryReview[\s\S]*month=\{month\}[\s\S]*onDone=/)
+  for (const loader of ['loadSummary', 'loadTransactions', 'loadReview', 'authorityLoader.load']) {
+    assert.match(budget, new RegExp(loader.replace('.', '\\.')))
+  }
+})
+
+test('Review Other is a dense responsive subsection with locked evidence and complete states', async () => {
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+
+  assert.match(review, /<section className="finance-category-review"/)
+  assert.doesNotMatch(review, /role="dialog"|aria-modal|position:\s*'fixed'|backdropFilter/)
+  assert.match(review, /container-type:\s*inline-size/)
+  assert.match(review, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(260px, \.72fr\)/)
+  assert.match(review, /\.finance-category-review__transaction\s*\{[^}]*grid-template-columns:\s*minmax\(0, \.65fr\) minmax\(0, \.7fr\) minmax\(0, 1fr\) minmax\(0, 1\.15fr\)/s)
+  assert.match(review, /@container \(max-width: 760px\)/)
+  assert.match(review, /@container \(max-width: 760px\)[\s\S]*\.finance-category-review__row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+  assert.match(review, /min-height:\s*42px/)
+  assert.match(review, /outline:\s*2px solid var\(--phx-accent\)/)
+  for (const label of ['DATE · LOCKED', 'AMOUNT · LOCKED', 'MERCHANT · LOCKED', 'DESCRIPTION · LOCKED']) {
+    assert.match(review, new RegExp(label))
+  }
+  assert.doesNotMatch(review, /type="(?:date|number)"|aria-label=\{`(?:Amount|Date|Merchant|Description)/)
+  assert.match(review, /CLASSIFICATION COMPLETE/)
+  assert.match(review, /VERIFIED STATEMENT REQUIRED/)
+  assert.doesNotMatch(review, /OVERRIDE/)
+})
+
+test('Review Other posts auditable corrections, refreshes conflicts, retains retries, and forgets rules', async () => {
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+
+  assert.match(review, /buildCategoryCorrectionRequest/)
+  assert.match(review, /postBudgetCategoryCorrection\(payload\)/)
+  assert.match(review, /categoryCorrectionOutcome/)
+  assert.match(review, /outcome\.draftLocked/)
+  assert.match(review, /setDraftLocked\(outcome\.draftLocked\)/)
+  assert.match(review, /setDraft\(null\)/)
+  assert.match(review, /disabled=\{!canApply \|\| busy \|\| draftLocked\}/)
+  assert.match(review, /setDraft\(outcome\.draft\)/)
+  assert.match(review, /deleteBudgetLearnedMerchant/)
+  assert.match(review, />FORGET</)
+})
+
+test('Review Other shows source-changed state while a 409 refresh stays in flight', async () => {
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+
+  assert.match(review, /state\.status === 'stale'/)
+  assert.match(review, /SOURCE CHANGED/)
+  assert.match(review, /setState\(\{[\s\S]*status: 'stale'[\s\S]*message: outcome\.message/s)
+  assert.match(review, /refresh\(\{ showLoading: false \}\)/)
+})
+
+test('Budget controls expose unique accessible names and truthful transaction availability', async () => {
+  const budget = await src('./subs/BudgetContent.jsx')
+  const review = await src('./subs/BudgetCategoryReview.jsx')
+
+  assert.match(budget, /aria-label="Previous budget month"/)
+  assert.match(budget, /aria-label="Next budget month"/)
+  assert.match(review, /aria-label=\{`Forget learned merchant \$\{rule\.normalized_merchant\}`\}/)
+  assert.match(review, /aria-label=\{`Remember merchant \$\{group\.merchant\}`\}/)
+  assert.match(review, /aria-label=\{`Apply correction for \$\{group\.merchant\}`\}/)
+  assert.match(budget, /aria-label=\{`Category for transaction \$\{i \+ 1\}, \$\{t\.merchant \|\| 'unknown merchant'\}, \$\{t\.date \|\| 'unknown date'\}`\}/)
+  assert.match(budget, /aria-label=\{`Flow for transaction \$\{i \+ 1\}, \$\{t\.merchant \|\| 'unknown merchant'\}, \$\{t\.date \|\| 'unknown date'\}`\}/)
+  assert.match(budget, /aria-label=\{`Budget month for transaction \$\{i \+ 1\}, \$\{t\.merchant \|\| 'unknown merchant'\}, \$\{t\.date \|\| 'unknown date'\}`\}/)
+  assert.match(budget, /status: 'unavailable'/)
+  assert.match(budget, /ROWS UNAVAILABLE/)
+  assert.doesNotMatch(budget, /\.catch\(\(\) => \{ if \(alive\) setLedgerTransactions\(\[\]\) \}\)/)
+})
+
+test('category review trusts nonblank server merchant keys without JavaScript casefolding', async () => {
+  const model = await src('./subs/budgetCategoryReviewModel.js')
+
+  assert.doesNotMatch(model, /canonicalMerchant/)
+  assert.match(model, /isText\(group\.merchant_key\)/)
+  assert.match(model, /isText\(transaction\.merchant\)/)
 })
 
 test('finance control room reuses existing finance instrument designs', async () => {

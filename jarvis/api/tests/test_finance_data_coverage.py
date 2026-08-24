@@ -87,7 +87,7 @@ def isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     ), patch(
         "jarvis.api.routers.finance.detect_market_regime", return_value="risk_on"
     ), patch(
-        "jarvis.api.routers.budget._build_cashflow_authority",
+        "jarvis.api.routers.finance.build_cashflow_authority",
         side_effect=acceptance_gate._offline_cashflow_authority,
     ):
         yield

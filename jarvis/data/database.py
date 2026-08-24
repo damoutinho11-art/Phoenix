@@ -13,6 +13,7 @@ import os
 import re
 import secrets
 import sqlite3
+import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -34,6 +35,10 @@ PORTFOLIO_STATE_JSON_PATH = Path(
 
 class BudgetStatementReceiptError(ValueError):
     """A receipt is unusable and must be replaced by a fresh server parse."""
+
+
+class BudgetCorrectionConflict(ValueError):
+    """A category correction was submitted against a stale overlay revision."""
 
 
 _SCHEMA = """
@@ -461,6 +466,36 @@ CREATE TABLE IF NOT EXISTS budget_statement_import_transactions (
 
 CREATE INDEX IF NOT EXISTS idx_budget_statement_import_transactions_month
 ON budget_statement_import_transactions(statement_import_id, month, ordinal);
+
+CREATE TABLE IF NOT EXISTS budget_category_corrections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    statement_import_id TEXT NOT NULL,
+    ordinal INTEGER NOT NULL,
+    transaction_identity_hash TEXT NOT NULL,
+    original_category TEXT NOT NULL,
+    corrected_category TEXT NOT NULL,
+    normalized_merchant TEXT NOT NULL,
+    correction_group_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(statement_import_id, ordinal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_budget_category_corrections_import
+ON budget_category_corrections(statement_import_id, ordinal);
+
+CREATE TABLE IF NOT EXISTS budget_learned_merchant_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    normalized_merchant TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL,
+    source_correction_group_id TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_budget_learned_merchant_rules_active
+ON budget_learned_merchant_rules(active, normalized_merchant);
 
 CREATE TABLE IF NOT EXISTS budget_statement_parse_receipts (
     receipt_id TEXT PRIMARY KEY,
@@ -3538,6 +3573,333 @@ def get_budget_statement_import_transactions(
         connection.close()
 
 
+_BUDGET_CATEGORIES = frozenset(
+    {
+        "Housing",
+        "Food & Groceries",
+        "Eating Out",
+        "Transport",
+        "Subscriptions",
+        "Health & Sport",
+        "Shopping",
+        "Investment",
+        "Emergency Fund",
+        "Transfers",
+        "Income",
+        "Banking & Fees",
+        "Other",
+    }
+)
+
+
+def normalize_budget_merchant(value: str) -> str:
+    """Return the canonical merchant key used by corrections and learned rules."""
+    text = unicodedata.normalize("NFC", str(value or "")).strip()
+    return " ".join(text.split()).casefold()
+
+
+def _budget_correction_revision_with_connection(
+    connection: sqlite3.Connection, statement_import_id: str
+) -> str:
+    corrections = connection.execute(
+        """SELECT ordinal, corrected_category, updated_at
+           FROM budget_category_corrections
+           WHERE statement_import_id=?
+           ORDER BY ordinal""",
+        (statement_import_id,),
+    ).fetchall()
+    revision_payload = [
+        [row["ordinal"], row["corrected_category"], row["updated_at"]]
+        for row in corrections
+    ]
+    return hashlib.sha256(
+        json.dumps(
+            revision_payload, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def get_budget_correction_revision(statement_import_id: str) -> str:
+    """Return the deterministic category-overlay revision for one statement import."""
+    if not isinstance(statement_import_id, str) or not statement_import_id:
+        return hashlib.sha256(b"[]").hexdigest()
+    connection = get_db()
+    try:
+        corrections = connection.execute(
+            """SELECT ordinal, corrected_category, updated_at
+               FROM budget_category_corrections
+               WHERE statement_import_id=? ORDER BY ordinal""",
+            (statement_import_id,),
+        ).fetchall()
+        revision_payload = [
+            [row["ordinal"], row["corrected_category"], row["updated_at"]]
+            for row in corrections
+        ]
+        return hashlib.sha256(
+            json.dumps(
+                revision_payload, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
+        ).hexdigest()
+    finally:
+        connection.close()
+
+
+def get_effective_budget_statement_transactions(
+    statement_import_id: str,
+) -> list[dict[str, Any]]:
+    """Project immutable statement rows with their audited category overlays."""
+    if not isinstance(statement_import_id, str) or not statement_import_id:
+        return []
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """SELECT transactions.*, corrections.corrected_category,
+                      corrections.correction_group_id,
+                      corrections.updated_at AS correction_updated_at,
+                      COALESCE(corrections.corrected_category, transactions.category)
+                        AS effective_category
+               FROM budget_statement_import_transactions AS transactions
+               LEFT JOIN budget_category_corrections AS corrections
+                 ON corrections.statement_import_id = transactions.statement_import_id
+                AND corrections.ordinal = transactions.ordinal
+               WHERE transactions.statement_import_id=?
+               ORDER BY transactions.ordinal""",
+            (statement_import_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def get_budget_category_review_source(month: str) -> dict[str, Any] | None:
+    """Return the verified statement source when it contains rows for ``month``."""
+    if not isinstance(month, str) or not re.fullmatch(r"\d{4}-\d{2}", month):
+        return None
+    source = get_latest_reconciled_budget_statement()
+    if source is None or not source.get("statement_import_id"):
+        return None
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """SELECT 1 FROM budget_statement_import_transactions
+               WHERE statement_import_id=? AND month=? LIMIT 1""",
+            (source["statement_import_id"], month),
+        ).fetchone()
+        return source if row is not None else None
+    finally:
+        connection.close()
+
+
+def _budget_statement_transaction_identity_hash(row: sqlite3.Row) -> str:
+    immutable_fields = {
+        field: row[field]
+        for field in (
+            "statement_import_id",
+            "ordinal",
+            "date",
+            "merchant",
+            "amount_eur",
+            "category",
+            "description",
+            "source",
+            "month",
+            "is_income",
+        )
+    }
+    return hashlib.sha256(
+        json.dumps(
+            immutable_fields, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def apply_budget_category_correction(
+    statement_import_id: str,
+    expected_revision: str,
+    merchant_key: str,
+    ordinals: list[int],
+    corrected_category: str,
+    remember_merchant: bool,
+) -> dict[str, Any]:
+    """Atomically persist audited category overlays for one merchant group."""
+    if not isinstance(statement_import_id, str) or not statement_import_id:
+        raise ValueError("statement_import_id is required")
+    if not isinstance(expected_revision, str):
+        raise ValueError("expected_revision must be text")
+    if not isinstance(merchant_key, str) or not merchant_key:
+        raise ValueError("merchant_key is required")
+    normalized_merchant = normalize_budget_merchant(merchant_key)
+    if not normalized_merchant or merchant_key != normalized_merchant:
+        raise ValueError("merchant_key must be normalized")
+    if corrected_category not in _BUDGET_CATEGORIES:
+        raise ValueError("corrected_category must be a known category")
+    if type(remember_merchant) is not bool:
+        raise ValueError("remember_merchant must be boolean")
+    if (
+        not isinstance(ordinals, list)
+        or not ordinals
+        or any(type(ordinal) is not int or ordinal < 0 for ordinal in ordinals)
+        or len(set(ordinals)) != len(ordinals)
+    ):
+        raise ValueError("ordinals must be unique non-negative integers")
+
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        active_source = connection.execute(
+            """SELECT statement_import_id FROM budget_statement_snapshots
+               WHERE receipt_verified=1 AND parser='lhv_pdf'
+                 AND quality_status='reconciled' AND balance_difference_eur=0
+               ORDER BY statement_end_date DESC, imported_at DESC, id DESC LIMIT 1"""
+        ).fetchone()
+        if (
+            active_source is None
+            or active_source["statement_import_id"] != statement_import_id
+        ):
+            raise BudgetCorrectionConflict(
+                "Statement import is no longer the active verified source"
+            )
+        current_revision = _budget_correction_revision_with_connection(
+            connection, statement_import_id
+        )
+        if expected_revision != current_revision:
+            raise BudgetCorrectionConflict("Category corrections changed; refresh and retry")
+
+        placeholders = ", ".join("?" for _ in ordinals)
+        rows = connection.execute(
+            f"""SELECT * FROM budget_statement_import_transactions
+                 WHERE statement_import_id=? AND ordinal IN ({placeholders})
+                 ORDER BY ordinal""",
+            (statement_import_id, *ordinals),
+        ).fetchall()
+        if len(rows) != len(ordinals):
+            raise ValueError("A correction ordinal does not belong to this statement import")
+        if any(normalize_budget_merchant(row["merchant"]) != normalized_merchant for row in rows):
+            raise ValueError("Correction ordinals do not belong to the merchant group")
+        if any(
+            (int(row["is_income"]) == 1 and corrected_category != "Income")
+            or (int(row["is_income"]) == 0 and corrected_category == "Income")
+            for row in rows
+        ):
+            raise ValueError(
+                "corrected_category is incompatible with immutable income direction"
+            )
+
+        now = _utc_now()
+        correction_group_id = secrets.token_urlsafe(24)
+        for row in rows:
+            previous_correction = connection.execute(
+                """SELECT corrected_category FROM budget_category_corrections
+                   WHERE statement_import_id=? AND ordinal=?""",
+                (statement_import_id, row["ordinal"]),
+            ).fetchone()
+            previous_effective_category = (
+                previous_correction["corrected_category"]
+                if previous_correction is not None
+                else row["category"]
+            )
+            connection.execute(
+                """INSERT INTO budget_category_corrections
+                   (statement_import_id, ordinal, transaction_identity_hash,
+                    original_category, corrected_category, normalized_merchant,
+                    correction_group_id, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(statement_import_id, ordinal) DO UPDATE SET
+                       corrected_category=excluded.corrected_category,
+                       normalized_merchant=excluded.normalized_merchant,
+                       correction_group_id=excluded.correction_group_id,
+                       updated_at=excluded.updated_at""",
+                (
+                    statement_import_id,
+                    row["ordinal"],
+                    _budget_statement_transaction_identity_hash(row),
+                    row["category"],
+                    corrected_category,
+                    normalized_merchant,
+                    correction_group_id,
+                    now,
+                    now,
+                ),
+            )
+            connection.execute(
+                """UPDATE budget_transactions SET category=?
+                   WHERE rowid=(
+                       SELECT rowid FROM budget_transactions
+                       WHERE date=? AND merchant=? AND amount_eur=? AND description=?
+                         AND source=? AND month=? AND is_income=? AND category=?
+                       ORDER BY rowid LIMIT 1
+                   )""",
+                (
+                    corrected_category,
+                    row["date"],
+                    row["merchant"],
+                    row["amount_eur"],
+                    row["description"],
+                    row["source"],
+                    row["month"],
+                    row["is_income"],
+                    previous_effective_category,
+                ),
+            )
+        if remember_merchant:
+            connection.execute(
+                """INSERT INTO budget_learned_merchant_rules
+                   (normalized_merchant, category, source_correction_group_id,
+                    active, created_at, updated_at)
+                   VALUES (?, ?, ?, 1, ?, ?)
+                   ON CONFLICT(normalized_merchant) DO UPDATE SET
+                       category=excluded.category,
+                       source_correction_group_id=excluded.source_correction_group_id,
+                       active=1,
+                       updated_at=excluded.updated_at""",
+                (normalized_merchant, corrected_category, correction_group_id, now, now),
+            )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+    return {
+        "correction_group_id": correction_group_id,
+        "effective_transactions": get_effective_budget_statement_transactions(
+            statement_import_id
+        ),
+        "revision": get_budget_correction_revision(statement_import_id),
+    }
+
+
+def get_active_budget_learned_merchant_rules() -> list[dict[str, Any]]:
+    """Return active learned merchant classifications without exposing inactive history."""
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """SELECT * FROM budget_learned_merchant_rules
+               WHERE active=1 ORDER BY normalized_merchant, id"""
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def deactivate_budget_learned_merchant_rule(rule_id: int) -> bool:
+    """Deactivate a learned rule while retaining its correction provenance."""
+    if type(rule_id) is not int or rule_id <= 0:
+        return False
+    connection = get_db()
+    try:
+        result = connection.execute(
+            """UPDATE budget_learned_merchant_rules
+               SET active=0, updated_at=? WHERE id=? AND active=1""",
+            (_utc_now(), rule_id),
+        )
+        connection.commit()
+        return result.rowcount == 1
+    finally:
+        connection.close()
+
+
 def _budget_summary_from_grouped_rows(
     month: str, rows: list[sqlite3.Row]
 ) -> dict[str, Any]:
@@ -3589,19 +3951,20 @@ def _budget_summary_from_grouped_rows(
 def get_budget_statement_import_summary(
     statement_import_id: str, month: str
 ) -> dict[str, Any]:
-    """Summarise only immutable rows from one verified statement import."""
-    connection = get_db()
-    try:
-        rows = connection.execute(
-            """SELECT category, is_income, SUM(amount_eur) as total, COUNT(*) as count
-               FROM budget_statement_import_transactions
-               WHERE statement_import_id=? AND month=?
-               GROUP BY category, is_income""",
-            (statement_import_id, month),
-        ).fetchall()
-    finally:
-        connection.close()
-    return _budget_summary_from_grouped_rows(month, rows)
+    """Summarise one verified statement through its effective category projection."""
+    grouped: dict[tuple[str, int], dict[str, Any]] = {}
+    for transaction in get_effective_budget_statement_transactions(statement_import_id):
+        if transaction.get("month") != month:
+            continue
+        category = str(transaction.get("effective_category") or "Other")
+        is_income = int(transaction.get("is_income") or 0)
+        group = grouped.setdefault(
+            (category, is_income),
+            {"category": category, "is_income": is_income, "total": 0.0, "count": 0},
+        )
+        group["total"] = float(group["total"]) + float(transaction["amount_eur"])
+        group["count"] = int(group["count"]) + 1
+    return _budget_summary_from_grouped_rows(month, list(grouped.values()))
 
 
 def get_budget_summary(month: str) -> dict[str, Any]:

@@ -23,3 +23,14 @@ Task 4: complete (commits ed8cb8d..e57c603, review clean)
 Task 5: complete (commits e57c603..34137ac, review clean)
 Task 6: complete (commit 872ec87, review clean; integration and visual QA passed)
 Final branch audit: complete (commit 584c5ad, review clean)
+
+# Finance Review Other Progress
+
+Branch base: 55d3b2ee499a04ff1908c4b64b0fc3386a4fcbf1
+Plan: docs/superpowers/plans/2026-08-17-finance-review-other.md
+
+Task 1: complete (commits fcc7e88..a1cfcf6, review clean)
+Task 2: complete (commits a1cfcf6..9d4c8ed, review clean; Minor: duplicate learned-rule lookup for final triage)
+Task 3: complete (commits 9d4c8ed..93f9e92, review clean)
+Task 4: complete (commits 93f9e92..97c2d88, review clean)
+Task 5: complete (full verification and browser QA passed; final branch review clean)

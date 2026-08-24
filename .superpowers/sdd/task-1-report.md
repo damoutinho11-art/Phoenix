@@ -1,122 +1,143 @@
-# Task 1 Report
+# Task 1 Report: Audited Category Overlay Persistence
 
-## Implementation Summary
+## Implementation
 
-- Added standard-library-only immutable planner contracts in `jarvis/domains/training/plan_contracts.py`:
-  `TrainingConstraint`, `PlanDay`, `PlanValidation`, `WeeklyPlanReceipt`, `canonical_hash`, and `iso_cycle_id`.
-- Added canonical hashing with mapping-order independence and type-sensitive list/tuple encoding.
-- Added duplicate-date rejection and deterministic plan/receipt hashes and plan IDs.
-- Added the exact `adaptive_planner` policy and changed constitution version from `"0"` to `"1"`.
+Implemented additive, auditable category overlays in `jarvis/data/database.py`.
 
-## Files Changed
+- Added idempotent `budget_category_corrections` and
+  `budget_learned_merchant_rules` tables with their requested indexes.
+- Added NFC, whitespace-collapsing, casefolded merchant normalization.
+- Added effective immutable-statement projection, month-scoped verified-source
+  lookup, deterministic per-import correction revisions, and stale-revision
+  conflict handling.
+- Added one `BEGIN IMMEDIATE` correction transaction that validates ownership,
+  group membership, category, and ordinal shape before atomically upserting
+  overlays and an optional learned rule.
+- Added active-rule retrieval and non-destructive rule deactivation.
 
-- `jarvis/domains/training/plan_contracts.py`
-- `jarvis/domains/training/tests/test_plan_contracts.py`
-- `jarvis/domains/training/constitution.json`
+The immutable `budget_statement_import_transactions` table is read only for
+this feature. `jarvis/domains/finance/portfolio_state.json` was not modified.
 
-## Test Commands and Results
+## Files
 
-- `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py -q`
-  - Result: `3 passed in 0.06s`
-- `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py jarvis/domains/training/tests/test_training_engine.py -q`
-  - Result: `54 passed in 0.18s`
-- Final post-commit run of `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py jarvis/domains/training/tests/test_training_engine.py -q`
-  - Result: `54 passed in 0.14s`
-- `python -m json.tool jarvis/domains/training/constitution.json`
-  - Result: valid JSON.
-- `git diff --check`
-  - Result: clean.
+- Modified: `jarvis/data/database.py`
+- Modified: `jarvis/api/tests/test_budget_routes.py`
+- Created: `.superpowers/sdd/task-1-report.md`
 
-## RED and GREEN Evidence
+## RED Evidence
 
-- RED: after writing `test_plan_contracts.py`, the exact focused command failed during collection with `ModuleNotFoundError: No module named 'jarvis.domains.training.plan_contracts'`.
-- GREEN: after adding the minimal production contracts, the focused contract suite passed with `3 passed`.
-- GREEN regression: the required contract plus Training engine suite passed with `54 passed`.
+Initial RED command:
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "category_correction_schema or category_correction_preserves_import or duplicate_authoritative or learned_merchant" -q
+```
+
+Output: `3 failed, 242 deselected in 5.43s`.
+
+- Schema test failed because neither correction table existed.
+- Correction test failed with missing
+  `database.apply_budget_category_correction`.
+- Duplicate-row test failed with missing
+  `database.get_budget_correction_revision`.
+
+Additional RED regression for import-scoped revisions:
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "revision_is_scoped" -q
+```
+
+Output: `1 failed, 245 deselected in 4.94s`; an unrelated import incorrectly
+caused `BudgetCorrectionConflict`.
+
+Additional RED for the source lookup interface:
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "category_review_source" -q
+```
+
+Output: `1 failed, 246 deselected in 4.53s`; the public function was absent.
+
+## GREEN And Regressions
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "category_correction or category_review_source or learned_merchant or duplicate_authoritative" -q
+```
+
+Output: `6 passed, 241 deselected in 6.54s`.
+
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -q
+```
+
+Output: `247 passed in 83.40s (0:01:23)`.
+
+```powershell
+python -m pytest jarvis/data/tests/test_database.py -q
+python -m compileall -q jarvis/data/database.py
+git diff --check
+```
+
+Output: `56 passed in 24.52s`; compilation and whitespace checks exited 0.
 
 ## Self-Review
 
-- Changes are limited to the three owned implementation/test/policy files.
-- Dataclasses are frozen, receipt dates are checked for uniqueness, ISO week formatting is deterministic, and canonical JSON encoding is ASCII and stable.
-- The constitution policy values match the task brief verbatim.
-- The commit contains exactly the three scoped files.
+- Verified schema creation is idempotent across two `init_db()` calls.
+- Verified raw statement-import rows compare equal before and after correction.
+- Verified repeated same-day/same-merchant/same-amount authoritative rows remain
+  distinct by ordinal.
+- Verified invalid ordinals roll back both correction and learned-rule writes.
+- Verified correction revision compares only rows for the target import.
+- Verified learned-rule deactivation does not remove existing correction overlays.
+- Verified the changed-file list excludes `portfolio_state.json`.
 
 ## Concerns
 
-No blocking concerns. Runtime validation beyond the behaviors explicitly required by the brief was intentionally not added.
+None for Task 1. Later Review Other tasks must consume the effective projection
+rather than raw statement rows wherever category-based calculations are shown.
 
-## Commit
+## Review Fix Evidence
 
-- SHA: `234e074e9fda8305c5d062ce87fda335915fb93d`
-- Subject: `feat(training): add adaptive plan contracts`
+### Findings Addressed
 
-## Review Fix 2
-
-### RED
-
-- Command: `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py -q`
-- Output: `....... [100%]`; `7 passed in 0.06s`.
-- Test correction: the first snapshot retained the same mutable source lists and passed falsely; it was corrected to snapshot each receipt collection as a tuple before the required RED run.
-- Command: `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py -q`
-- Output: `....F.. [100%]`; `1 failed, 6 passed in 0.19s`.
-- Failure cause: after appending to the caller-owned `days` list, `tuple(receipt.days)` contained the appended day instead of remaining unchanged.
-
-### GREEN
-
-- Command: `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py -q`
-- Output: `....... [100%]`; `7 passed in 0.11s`.
-- Command: `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py jarvis/domains/training/tests/test_training_engine.py -q`
-- Output: `.......................................................... [100%]`; `58 passed in 0.23s`.
-- Command: `git diff --check`
-- Result: clean; Git emitted only normal LF-to-CRLF working-copy warnings.
-
-### Changes
-
-- Added `test_receipt_detaches_source_collections_before_hashing`, which constructs a receipt from `days`, `constraints`, and `validations` lists, mutates every source list, and verifies all receipt collections and both hashes remain unchanged.
-- Updated `WeeklyPlanReceipt.create()` to convert all three caller-owned collections to detached tuples before validation, hashing, and receipt construction.
-
-### Self-Review
-
-- The production change is limited to the receipt factory and uses one detached tuple value consistently for each collection across validation, input hashing, receipt hashing, and storage.
-- The regression test verifies the reported ownership boundary without relying on implementation-specific identity checks.
-- Only the requested implementation, contract test, and report files changed; no unrelated files were reverted or modified.
-
-### Concerns
-
-No blocking concerns. Nested mutability remains covered by the existing contract-level freezing tests.
-
-## Review Fix
+- Critical: corrections now reject a statement import that is no longer the
+  active latest receipt-verified, reconciled statement source.
+- Important: corrections now preserve immutable income direction. Income rows
+  accept only `Income`; debit rows reject `Income` while retaining valid debit
+  classifications including `Investment`, `Emergency Fund`, and `Transfers`.
 
 ### RED
 
-- Command: `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py -q`
-- Output: `...FFF [100%]`; `3 failed, 3 passed in 0.22s`.
-- Failure causes: `TypeError: Unsupported canonical value: TrainingConstraint`; the source list mutation changed `constraint.values`; and source list/dict mutations changed `day.exercises`.
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "replaced_statement_import or immutable_direction or non_spending_categories_for_debits" -q
+```
+
+Output: `3 failed, 3 passed, 247 deselected in 6.80s`.
+
+- The replaced-import regression failed with `DID NOT RAISE
+  BudgetCorrectionConflict`.
+- The income-to-spending and expense-to-income regressions each failed with
+  `DID NOT RAISE ValueError`.
 
 ### GREEN
 
-- Command: `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py -q`
-- Output: `...... [100%]`; `6 passed in 0.06s`.
-- Command: `python -m pytest jarvis/domains/training/tests/test_plan_contracts.py jarvis/domains/training/tests/test_training_engine.py -q`
-- Output: `......................................................... [100%]`; `57 passed in 0.19s`.
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -k "replaced_statement_import or immutable_direction or non_spending_categories_for_debits or category_correction or category_review_source or learned_merchant or duplicate_authoritative" -q
+```
 
-### Changes
+Output: `12 passed, 241 deselected in 8.75s`.
 
-- Added behavior-first tests for deterministic receipt hashing with nonempty `TrainingConstraint` and `PlanValidation` tuples.
-- Added tests proving source mappings/lists cannot mutate effective `TrainingConstraint.values` or `PlanDay.exercises` contents after construction.
-- Added recursive freezing with `MappingProxyType` and tuples in the frozen contracts, preserving key/index access and equality while preventing nested mutation.
-- Added dataclass-aware canonicalization using qualified type names and ordered dataclass fields.
-- Kept receipt hashing on contract objects directly and removed `asdict` receipt preparation so frozen mapping proxies are handled safely.
+```powershell
+python -m pytest jarvis/api/tests/test_budget_routes.py -q
+```
 
-### Files Changed
+Output: `253 passed in 85.71s (0:01:25)`.
 
-- `jarvis/domains/training/plan_contracts.py`
-- `jarvis/domains/training/tests/test_plan_contracts.py`
-- `.superpowers/sdd/task-1-report.md`
+### Fix Self-Review
 
-### Self-Review
-
-- The RED failures exercised the reported defects rather than implementation details.
-- The canonical representation is deterministic for dataclasses, mappings, tuples, lists, dates, and scalar values, and remains standard-library-only.
-- Nested mappings and sequences are recursively detached from caller-owned inputs before being stored by frozen dataclasses.
-- The constitution and unrelated files were not modified.
-- Remaining concern: callers should use the contract's explicit `canonical_hash` representation for stable hashes; nested mapping values are intentionally read-only views and nested sequences are tuples.
+- The active-source check executes after `BEGIN IMMEDIATE`, before revision or
+  row writes, and raises `BudgetCorrectionConflict` for route-level HTTP 409
+  mapping.
+- The direction check uses immutable authoritative `is_income` values loaded
+  in the same transaction.
+- No raw statement transaction or portfolio-state file is modified by either
+  guard.
