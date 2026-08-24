@@ -205,6 +205,7 @@ function MerchantCorrectionRow({ group, statementImportId, revision, review, onA
         <label style={{ display: 'flex', alignItems: 'center', gap: 9, minHeight: 42, marginTop: 8, ...financeLabel({ color: a(ACC, 'aa') }), cursor: 'pointer' }}>
           <input
             type="checkbox"
+            aria-label={`Remember merchant ${group.merchant}`}
             checked={Boolean(draft?.rememberMerchant)}
             disabled={busy || draftLocked}
             onChange={event => { setDraft(previous => ({ ...previous, rememberMerchant: event.target.checked })); setError('') }}
@@ -214,6 +215,7 @@ function MerchantCorrectionRow({ group, statementImportId, revision, review, onA
         </label>
         <button
           type="button"
+          aria-label={`Apply correction for ${group.merchant}`}
           onClick={apply}
           disabled={!canApply || busy || draftLocked}
           style={{ width: '100%', minHeight: 42, padding: '0 12px', marginTop: 8, ...financeButton({ color: canApply ? INK : a(ACC, '66') }), background: canApply ? ACC : deep(52), border: `1px solid ${canApply ? ACC : a(ACC, '28')}`, cursor: canApply && !busy ? 'pointer' : 'not-allowed', boxShadow: canApply ? `0 0 22px ${a(ACC, '2f')}` : 'none' }}

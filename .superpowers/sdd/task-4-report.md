@@ -174,3 +174,60 @@ Result: exit code 0; Vite `5.4.21` transformed `331 modules`, generated the PWA 
 - No deployment was run and no live Finance data was mutated.
 - `jarvis/domains/finance/portfolio_state.json` was not modified.
 - The pre-existing `.superpowers/sdd/progress.md` modification remains untouched and is excluded from the commit.
+
+## Remaining Important Findings Follow-Up
+
+Status: DONE
+
+### RED Evidence
+
+The model regressions and source contracts were changed before production code.
+
+```powershell
+Set-Location pwa
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js src/components/holo/financeControlRoomContract.test.js
+```
+
+Result: exit code 1, `54 tests`, `52 passed`, `2 failed`.
+
+The expected failures were:
+
+- `Budget controls expose unique accessible names and truthful transaction availability`: Review Other Remember/Apply names and upload category/flow/month row-context names were absent.
+- `empty successful response clears and locks the staged draft`: `{}` was incorrectly treated as retryable and retained the draft.
+
+The direct `new Error('offline')` and status-503 `Error` regressions passed during RED, proving transport and 5xx retry behavior remained the required control case.
+
+### GREEN Evidence
+
+Focused model and source-contract verification:
+
+```powershell
+node --test src/components/holo/subs/budgetCategoryReviewModel.test.js src/components/holo/financeControlRoomContract.test.js
+```
+
+Result: exit code 0, `54 passed`, `0 failed`.
+
+Full PWA suite:
+
+```powershell
+npm test
+```
+
+Result: exit code 0, `195 passed`, `0 failed`.
+
+Production build:
+
+```powershell
+npm run build
+```
+
+Result: exit code 0; Vite `5.4.21` transformed `331 modules`, generated the PWA service worker, and completed in `3.90s`. The accepted existing chunk-size warning remains.
+
+### Self-Review
+
+- A status-less thrown `Error` and every 5xx outcome remain retryable and preserve the staged draft.
+- A malformed plain success, including `{}`, clears and locks the draft with the malformed-response message; 4xx and 409 terminal behavior remains unchanged.
+- Review Other category, Remember, Apply, and Forget controls carry merchant identity where repeated.
+- Upload category, flow, and month controls include 1-based row number, merchant, and date, so duplicate merchants still receive unique accessible names.
+- Visible control copy and Finance visual styling are unchanged.
+- No deployment was run, no live Finance data was mutated, and `jarvis/domains/finance/portfolio_state.json` was not modified.

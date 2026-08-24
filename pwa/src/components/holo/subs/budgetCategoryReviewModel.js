@@ -281,7 +281,19 @@ export function categoryCorrectionOutcome(current, responseOrError, draft = null
     }
   }
 
-  const retryable = status === 0 || status >= 500
+  const retryable = status >= 500 || (status === 0 && responseOrError instanceof Error)
+  if (!retryable && status < 400) {
+    return {
+      status: 'error',
+      actionable: false,
+      refreshRequired: false,
+      draft: null,
+      draftLocked: true,
+      retryable: false,
+      review: current,
+      message: 'Correction response was malformed. Refresh and try again.',
+    }
+  }
   return {
     status: 'error',
     actionable: retryable && Boolean(current?.actionable),

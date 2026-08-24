@@ -493,16 +493,16 @@ function UploadStage({ onDone, onCancel }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))', gap: 8, alignItems: 'end', marginTop: 10, paddingTop: 9, borderTop: `1px solid ${a(ACC, '10')}` }}>
                   <MemField label="CATEGORY · EDITABLE">
-                    <button onClick={() => setPickerIdx(i)} style={{ width: '100%', minHeight: 34, padding: '5px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 9, letterSpacing: '.06em', cursor: 'pointer', overflowWrap: 'anywhere' }}>{t.category}</button>
+                    <button aria-label={`Category for transaction ${i + 1}, ${t.merchant || 'unknown merchant'}, ${t.date || 'unknown date'}`} onClick={() => setPickerIdx(i)} style={{ width: '100%', minHeight: 34, padding: '5px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 9, letterSpacing: '.06em', cursor: 'pointer', overflowWrap: 'anywhere' }}>{t.category}</button>
                   </MemField>
                   <MemField label="FLOW · EDITABLE">
-                    <select aria-label={`Income status for ${t.merchant}`} className="phx-input" value={t.is_income ? '1' : '0'} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, is_income: Number(e.target.value) } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', fontFamily: FM, fontSize: 9 }}>
+                    <select aria-label={`Flow for transaction ${i + 1}, ${t.merchant || 'unknown merchant'}, ${t.date || 'unknown date'}`} className="phx-input" value={t.is_income ? '1' : '0'} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, is_income: Number(e.target.value) } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', fontFamily: FM, fontSize: 9 }}>
                       <option value="0">OUTFLOW</option>
                       <option value="1">INFLOW</option>
                     </select>
                   </MemField>
                   <MemField label="MONTH · EDITABLE">
-                    <input aria-label={`Budget month for ${t.merchant}`} className="phx-input" type="month" value={t.month || t.date?.slice(0, 7) || ''} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, month: e.target.value } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', boxSizing: 'border-box', fontFamily: FM, fontSize: 10 }} />
+                    <input aria-label={`Budget month for transaction ${i + 1}, ${t.merchant || 'unknown merchant'}, ${t.date || 'unknown date'}`} className="phx-input" type="month" value={t.month || t.date?.slice(0, 7) || ''} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, month: e.target.value } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', boxSizing: 'border-box', fontFamily: FM, fontSize: 10 }} />
                   </MemField>
                 </div>
               </div>

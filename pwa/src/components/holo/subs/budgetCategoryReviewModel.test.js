@@ -342,11 +342,11 @@ test('409 correction outcome requests a stale refresh and drops actionable state
   })
 })
 
-test('retryable correction failure retains the staged draft', () => {
+test('network correction Error retains the staged draft for retry', () => {
   const current = normalizeCategoryReview(reviewPayload)
   const draft = { ...createCategoryReviewDraft(reviewPayload.merchant_groups[0]), category: 'Shopping' }
 
-  assert.deepEqual(categoryCorrectionOutcome(current, { status: 503, message: 'offline', draft }), {
+  assert.deepEqual(categoryCorrectionOutcome(current, new Error('offline'), draft), {
     status: 'error',
     actionable: true,
     refreshRequired: false,
@@ -355,6 +355,24 @@ test('retryable correction failure retains the staged draft', () => {
     retryable: true,
     review: current,
     message: 'offline',
+  })
+})
+
+test('5xx correction Error retains the staged draft for retry', () => {
+  const current = normalizeCategoryReview(reviewPayload)
+  const draft = { ...createCategoryReviewDraft(reviewPayload.merchant_groups[0]), category: 'Shopping' }
+  const error = new Error('service unavailable')
+  error.status = 503
+
+  assert.deepEqual(categoryCorrectionOutcome(current, error, draft), {
+    status: 'error',
+    actionable: true,
+    refreshRequired: false,
+    draft,
+    draftLocked: false,
+    retryable: true,
+    review: current,
+    message: 'service unavailable',
   })
 })
 
@@ -387,6 +405,22 @@ test('malformed successful responses clear and lock the staged draft', () => {
   assert.equal(outcome.draft, null)
   assert.equal(outcome.draftLocked, true)
   assert.equal(outcome.retryable, false)
+})
+
+test('empty successful response clears and locks the staged draft', () => {
+  const current = normalizeCategoryReview(reviewPayload)
+  const draft = { ...createCategoryReviewDraft(reviewPayload.merchant_groups[0]), category: 'Shopping' }
+
+  assert.deepEqual(categoryCorrectionOutcome(current, {}, draft), {
+    status: 'error',
+    actionable: false,
+    refreshRequired: false,
+    draft: null,
+    draftLocked: true,
+    retryable: false,
+    review: current,
+    message: 'Correction response was malformed. Refresh and try again.',
+  })
 })
 
 test('successful correction replaces the queue with the refreshed server review', () => {
