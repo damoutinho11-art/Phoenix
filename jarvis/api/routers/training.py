@@ -86,7 +86,12 @@ _CALENDAR_ROUTING_SEVERITIES = frozenset({"hard", "warning", "info"})
 
 
 class CalendarEvidenceUnavailable(RuntimeError):
-    """Raised when the read-only calendar boundary cannot provide valid evidence."""
+    """Kept for callers that still import it; planning no longer raises this.
+
+    A missing calendar is now a survivable condition — see
+    `_current_calendar_events`, which reports absence rather than blocking.
+    Untrustworthy calendar data raises `CalendarEvidenceCorrupt` instead.
+    """
 
 
 class TrainingConstraintRequest(BaseModel):
@@ -160,12 +165,25 @@ class TrainingPlanDiffResponse(BaseModel):
     changed_days: list[TrainingPlanChangedDayResponse]
 
 
+class CalendarEvidenceResponse(BaseModel):
+    available: bool
+    source: str | None = None
+    reason: str | None = None
+    conflicts_checked: bool
+
+
 class TrainingPlanProposalResponse(TrainingPlanResponse):
     authoritative: bool
     before: TrainingPlanResponse | None
     after: TrainingPlanResponse
     diff: TrainingPlanDiffResponse
     interpreted_constraints: list[TrainingConstraintResponse]
+    # States whether the week was planned against a real calendar. When false
+    # the plan is still valid, it just has not avoided any commitments.
+    # Only set when a proposal is generated: it is not stored on the receipt, so
+    # re-reading an existing proposal returns null rather than reporting today's
+    # calendar as though it were the one the plan was built against.
+    calendar_evidence: CalendarEvidenceResponse | None = None
 
 
 class TrainingPlanHistoryResponse(BaseModel):
@@ -849,78 +867,136 @@ def _public_adaptive_planner_policy(policy: Mapping[str, Any]) -> dict[str, Any]
     return public
 
 
-def _current_calendar_events() -> list[dict[str, Any]]:
+class CalendarEvidenceCorrupt(RuntimeError):
+    """Calendar data exists but cannot be trusted. Distinct from absence."""
+
+
+def _validated_calendar_events(raw_events: list) -> list[dict[str, Any]]:
+    """Validate event shape, refusing anything malformed.
+
+    Absence of a calendar is survivable; corrupt calendar data is not, because
+    a mis-parsed event could silently drop a real conflict.
+    """
+    validated_events = []
+    for event in raw_events:
+        if not isinstance(event, Mapping):
+            raise CalendarEvidenceCorrupt
+        event_date = event.get("training_date", event.get("date"))
+        if not isinstance(event_date, str):
+            raise CalendarEvidenceCorrupt
+        try:
+            date.fromisoformat(event_date)
+        except ValueError as exc:
+            raise CalendarEvidenceCorrupt from exc
+        validated_event = dict(event)
+        for field, recognized_values in (
+            ("event_type", _CALENDAR_ROUTING_EVENT_TYPES),
+            ("severity", _CALENDAR_ROUTING_SEVERITIES),
+        ):
+            if field not in event:
+                continue
+            if not isinstance(event[field], str) or not event[field].strip():
+                raise CalendarEvidenceCorrupt
+            normalized_value = event[field].strip().lower()
+            if field == "severity" and normalized_value not in recognized_values:
+                raise CalendarEvidenceCorrupt
+            if normalized_value in recognized_values:
+                validated_event[field] = normalized_value
+        if "hard_conflict" in event and not isinstance(event["hard_conflict"], bool):
+            raise CalendarEvidenceCorrupt
+        validated_events.append(validated_event)
+    return validated_events
+
+
+def _current_calendar_events() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return (events, evidence) for the planning horizon.
+
+    Planning does not require a calendar. When no authoritative source is
+    configured or reachable, this returns no events and says so, and the planner
+    schedules the week without conflict avoidance — the user reschedules by
+    telling Phoenix what changed. What it will not do is treat unreadable
+    calendar data as "no conflicts": that is reported through
+    CalendarEvidenceCorrupt and still fails the request closed.
+    """
+    google_events = None
+    google_reason = None
     try:
-        google_events = None
         if google_oauth.connection_status().get("connected") is True:
             week_start, week_end = _planning_horizon()
             time_min = datetime.combine(week_start, time.min, tzinfo=timezone.utc)
             time_max = datetime.combine(
                 week_end + timedelta(days=1), time.min, tzinfo=timezone.utc
             )
-            google_events, google_warnings = google_calendar_client.fetch_events(
+            fetched, google_warnings = google_calendar_client.fetch_events(
                 time_min, time_max
             )
-            if not isinstance(google_events, list) or google_warnings:
-                raise CalendarEvidenceUnavailable
+            if isinstance(fetched, list) and not google_warnings:
+                google_events = fetched
+            else:
+                google_reason = "Google Calendar is connected but its events could not be read."
+        else:
+            google_reason = "Google Calendar is not connected."
+    except Exception:
+        google_reason = "Google Calendar could not be reached."
 
+    # A resolver that violates its contract, or blows up, means the calendar
+    # layer is broken rather than absent — that still fails closed below.
+    try:
         latest_import = database.get_latest_calendar_snapshot_import()
         imported_snapshot = latest_import.get("snapshot") if latest_import else None
         resolved = plaan_live.resolve_snapshot_raw(
             LIVE_SNAPSHOT_RAW,
             imported_snapshot=imported_snapshot,
         )
-        if not isinstance(resolved, tuple) or len(resolved) != 2:
-            raise CalendarEvidenceUnavailable
-        calendar_snapshot_raw, source_status = resolved
-        if not isinstance(calendar_snapshot_raw, Mapping):
-            raise CalendarEvidenceUnavailable
-        calendar_events = calendar_snapshot_raw.get("events")
-        if not isinstance(calendar_events, list):
-            raise CalendarEvidenceUnavailable
-        if not isinstance(source_status, Mapping):
-            raise CalendarEvidenceUnavailable
-        plaan_is_authoritative = (
-            source_status.get("active_source") in _AUTHORITATIVE_CALENDAR_SOURCES
-        )
-        if not plaan_is_authoritative and google_events is None:
-            raise CalendarEvidenceUnavailable
-        if google_events is not None:
-            calendar_events = (
-                [*calendar_events, *google_events]
-                if plaan_is_authoritative
-                else google_events
-            )
-        validated_events = []
-        for event in calendar_events:
-            if not isinstance(event, Mapping):
-                raise CalendarEvidenceUnavailable
-            event_date = event.get("training_date", event.get("date"))
-            if not isinstance(event_date, str):
-                raise CalendarEvidenceUnavailable
-            date.fromisoformat(event_date)
-            validated_event = dict(event)
-            for field, recognized_values in (
-                ("event_type", _CALENDAR_ROUTING_EVENT_TYPES),
-                ("severity", _CALENDAR_ROUTING_SEVERITIES),
-            ):
-                if field not in event:
-                    continue
-                if not isinstance(event[field], str) or not event[field].strip():
-                    raise CalendarEvidenceUnavailable
-                normalized_value = event[field].strip().lower()
-                if field == "severity" and normalized_value not in recognized_values:
-                    raise CalendarEvidenceUnavailable
-                if normalized_value in recognized_values:
-                    validated_event[field] = normalized_value
-            if "hard_conflict" in event and not isinstance(event["hard_conflict"], bool):
-                raise CalendarEvidenceUnavailable
-            validated_events.append(validated_event)
-        return validated_events
-    except CalendarEvidenceUnavailable:
-        raise
     except Exception as exc:
-        raise CalendarEvidenceUnavailable from exc
+        raise CalendarEvidenceCorrupt from exc
+    if (
+        not isinstance(resolved, tuple)
+        or len(resolved) != 2
+        or not isinstance(resolved[0], Mapping)
+        or not isinstance(resolved[1], Mapping)
+        or not isinstance(resolved[0].get("events"), list)
+    ):
+        raise CalendarEvidenceCorrupt
+
+    calendar_snapshot_raw, source_status = resolved
+    if "active_source" not in source_status:
+        # A resolver that will not name its source cannot be judged authoritative
+        # or not, which is a broken contract rather than a missing calendar.
+        raise CalendarEvidenceCorrupt
+    plaan_events = calendar_snapshot_raw["events"]
+    plaan_is_authoritative = (
+        source_status.get("active_source") in _AUTHORITATIVE_CALENDAR_SOURCES
+    )
+    plaan_reason = None if plaan_is_authoritative else (
+        "Opera schedule is not an authoritative source "
+        f"(active_source={source_status.get('active_source')!r})."
+    )
+
+    if plaan_is_authoritative and google_events is not None:
+        raw_events = [*plaan_events, *google_events]
+        source = "plaan+google"
+    elif plaan_is_authoritative:
+        raw_events = plaan_events
+        source = "plaan"
+    elif google_events is not None:
+        raw_events = google_events
+        source = "google"
+    else:
+        reasons = [reason for reason in (plaan_reason, google_reason) if reason]
+        return [], {
+            "available": False,
+            "source": None,
+            "reason": " ".join(reasons) or "No calendar source is configured.",
+            "conflicts_checked": False,
+        }
+
+    return _validated_calendar_events(raw_events), {
+        "available": True,
+        "source": source,
+        "reason": None,
+        "conflicts_checked": True,
+    }
 
 
 def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[str, Any] | None):
@@ -930,8 +1006,8 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         f"{item['values'].get('avoid_or_prefer', 'prefer')}:{item['values'].get('exercise', '')}": True
         for item in preferences
     }
-    calendar_events = _current_calendar_events()
-    return build_planning_snapshot(
+    calendar_events, calendar_evidence = _current_calendar_events()
+    snapshot = build_planning_snapshot(
         week_start=week_start,
         created_at=clock.utc_now_iso(),
         sessions=database.get_sessions(),
@@ -941,6 +1017,7 @@ def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[
         preferences=preference_map,
         active_plan=active,
     )
+    return snapshot, calendar_evidence
 
 
 def _training_plan_record_or_404(plan_id: str) -> dict[str, Any]:
@@ -1024,10 +1101,12 @@ def propose_training_plan(
     constraints = _compile_proposal_constraints(request)
     try:
         active = database.get_active_training_plan(_current_cycle())
-        snapshot = _current_planning_snapshot(constitution, active)
-    except CalendarEvidenceUnavailable as exc:
+        snapshot, calendar_evidence = _current_planning_snapshot(constitution, active)
+    except CalendarEvidenceCorrupt as exc:
+        # Unreadable calendar data is not the same as having no calendar: it
+        # could be hiding a real conflict, so this still fails closed.
         raise HTTPException(
-            status_code=503, detail="Training plan calendar evidence unavailable"
+            status_code=503, detail="Training plan calendar evidence is unreadable"
         ) from exc
     except Exception as exc:
         raise HTTPException(
@@ -1061,7 +1140,10 @@ def propose_training_plan(
         raise HTTPException(
             status_code=503, detail="Training plan storage unavailable"
         ) from exc
-    return _proposal_projection(stored, active)
+    return {
+        **_proposal_projection(stored, active),
+        "calendar_evidence": calendar_evidence,
+    }
 
 
 @router.get(

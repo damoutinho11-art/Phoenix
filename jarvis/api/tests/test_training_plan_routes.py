@@ -570,7 +570,7 @@ def test_proposal_passes_latest_import_to_real_resolver_and_uses_its_performance
 
 
 @pytest.mark.parametrize("active_source", ["fixture_fallback", "fixture", "stale_cache"])
-def test_proposal_fails_closed_for_non_current_calendar_source_status(
+def test_proposal_plans_without_a_non_authoritative_calendar_source(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
     active_source: str,
@@ -598,8 +598,14 @@ def test_proposal_fails_closed_for_non_current_calendar_source_status(
         },
     )
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+    # No usable calendar is survivable: the week is planned without conflict
+    # avoidance, and the response says so rather than implying it checked.
+    assert response.status_code == 200
+    evidence = response.json()["calendar_evidence"]
+    assert evidence["available"] is False
+    assert evidence["conflicts_checked"] is False
+    assert evidence["source"] is None
+    assert "not an authoritative source" in evidence["reason"]
 
 
 def test_proposal_uses_healthy_connected_google_calendar_as_authoritative_evidence(
@@ -697,8 +703,11 @@ def test_proposal_fails_closed_when_connected_google_calendar_fetch_warns(
 
     response = client.post("/training/plan/proposals", json={"constraints": []})
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+    assert response.status_code == 200
+    evidence = response.json()["calendar_evidence"]
+    assert evidence["available"] is False
+    assert evidence["conflicts_checked"] is False
+    assert "could not be read" in evidence["reason"]
 
 
 @pytest.mark.parametrize(
@@ -788,7 +797,7 @@ def test_proposal_rejects_malformed_calendar_resolver_boundary_with_calendar_503
     )
 
     assert response.status_code == 503
-    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+    assert response.json()["detail"] == "Training plan calendar evidence is unreadable"
 
 
 @pytest.mark.parametrize(
@@ -872,7 +881,7 @@ def test_proposal_fails_closed_for_malformed_calendar_event_entries(
     )
 
     assert response.status_code == 503
-    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+    assert response.json()["detail"] == "Training plan calendar evidence is unreadable"
 
 
 @pytest.mark.parametrize(
@@ -1080,7 +1089,7 @@ def test_proposal_returns_explicit_503_when_calendar_resolver_fails(
     )
 
     assert response.status_code == 503
-    assert response.json()["detail"] == "Training plan calendar evidence unavailable"
+    assert response.json()["detail"] == "Training plan calendar evidence is unreadable"
 
 
 def test_unsupported_intent_returns_422_without_creating_a_plan(client: TestClient):
