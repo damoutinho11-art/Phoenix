@@ -589,3 +589,45 @@ class NutritionCalendarLiveBridgeTests(unittest.TestCase):
         assert data["calendar_source"]["mutations_allowed"] is False
         assert data["calendar_source"]["raw_page_sent_to_ai"] is False
         assert data["plaan_live_fetcher"]["stage"] == "v2.3_manual_snapshot_import"
+
+
+class MacrosFollowTheTrainingPlanTests(unittest.TestCase):
+    """Macros are fuelled per training/rest day, and the plan decides which.
+
+    The constitution's `training_days` weekday list (Mon/Wed/Sat) is only a
+    fallback. The v2 planner schedules a rotating sequence, so a session moved
+    onto a Tuesday must be fuelled as training rather than as rest.
+    """
+
+    def _target(self, planned):
+        with patch(
+            "jarvis.api.routers.nutrition._planned_training_day", return_value=planned
+        ):
+            return client.get("/nutrition/status").json()
+
+    def test_a_planned_session_is_fuelled_as_a_training_day(self):
+        status = self._target(True)
+        assert status["is_training_day"] is True
+        assert status["target"]["calories"] == 2400
+        assert status["target"]["carbs_g"] == 260
+
+    def test_a_planned_recovery_day_is_fuelled_as_rest(self):
+        status = self._target(False)
+        assert status["is_training_day"] is False
+        assert status["target"]["calories"] == 2000
+        assert status["target"]["carbs_g"] == 160
+
+    def test_no_plan_falls_back_to_the_weekday_list(self):
+        from datetime import date
+        from jarvis.core import clock
+        from jarvis.api.dependencies import get_nutrition_constitution
+
+        status = self._target(None)
+        weekday_name = clock.today().strftime("%A").lower()
+        expected = weekday_name in get_nutrition_constitution()["training_days"]
+        assert status["is_training_day"] is expected
+
+    def test_protein_holds_across_both_day_types(self):
+        # Only carbs and calories cycle; the protein floor does not move.
+        assert self._target(True)["target"]["protein_g"] == 165
+        assert self._target(False)["target"]["protein_g"] == 165

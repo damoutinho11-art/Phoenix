@@ -359,14 +359,31 @@ def get_current_phase(constitution: dict, today: date) -> str:
     return "peak"
 
 
-def is_training_day(constitution: dict, today: date) -> bool:
+def is_training_day(
+    constitution: dict, today: date, training_day: bool | None = None
+) -> bool:
+    """Whether `today` is fuelled as a training day.
+
+    `training_day` is the answer taken from the actual training plan, which
+    schedules a rotating sequence rather than fixed weekdays. It is passed in
+    rather than looked up here so this module stays pure and free of any
+    dependency on the training domain.
+
+    The constitution's `training_days` weekday list is only a fallback for when
+    no plan covers the date. Left on its own it disagrees with reality the
+    moment a session moves — training on a Tuesday would be fuelled as rest.
+    """
+    if training_day is not None:
+        return training_day
     day_name = _DAY_NAMES[today.weekday()]
     return day_name in constitution["training_days"]
 
 
-def get_macro_target(constitution: dict, today: date) -> MacroTarget:
+def get_macro_target(
+    constitution: dict, today: date, training_day: bool | None = None
+) -> MacroTarget:
     phase = get_current_phase(constitution, today)
-    training = is_training_day(constitution, today)
+    training = is_training_day(constitution, today, training_day)
     day_key = "training_day" if training else "rest_day"
     targets = constitution["phases"][phase][day_key]
     return MacroTarget(
@@ -1845,11 +1862,12 @@ def check_nutrition(
     constitution: dict,
     daily_log_items: list[dict],
     today: date | None = None,
+    training_day: bool | None = None,
 ) -> NutritionStatus:
     if today is None:
         today = date.today()
 
-    target = get_macro_target(constitution, today)
+    target = get_macro_target(constitution, today, training_day)
     log = build_daily_log(daily_log_items, today)
 
     remaining_cal = target.calories - log.total_calories
@@ -1869,7 +1887,7 @@ def check_nutrition(
     return NutritionStatus(
         as_of=today,
         phase=get_current_phase(constitution, today),
-        is_training_day=is_training_day(constitution, today),
+        is_training_day=is_training_day(constitution, today, training_day),
         target=target,
         logged=log,
         remaining_calories=remaining_cal,

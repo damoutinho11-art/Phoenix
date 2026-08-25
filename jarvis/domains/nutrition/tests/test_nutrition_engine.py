@@ -49,6 +49,31 @@ class TrainingDayTests(unittest.TestCase):
     def test_tuesday_is_not_training(self):
         assert engine.is_training_day(CONSTITUTION, date(2026, 6, 23)) is False
 
+    def test_the_actual_plan_overrides_the_weekday_list(self):
+        """The plan schedules a rotating sequence, not fixed weekdays.
+
+        A session moved onto a Tuesday must be fuelled as a training day, and a
+        recovery day landing on a Monday must not be — otherwise macros are
+        backwards for the whole week.
+        """
+        tuesday = date(2026, 6, 23)
+        assert engine.is_training_day(CONSTITUTION, tuesday, True) is True
+        assert engine.is_training_day(CONSTITUTION, CUT_TRAINING_DATE, False) is False
+
+    def test_no_plan_falls_back_to_the_weekday_list(self):
+        # None means "no plan covers this date", not "rest day".
+        assert engine.is_training_day(CONSTITUTION, CUT_TRAINING_DATE, None) is True
+        assert engine.is_training_day(CONSTITUTION, date(2026, 6, 23), None) is False
+
+    def test_macro_target_follows_the_plan_not_the_weekday(self):
+        tuesday = date(2026, 6, 23)
+        planned = engine.get_macro_target(CONSTITUTION, tuesday, True)
+        by_weekday = engine.get_macro_target(CONSTITUTION, tuesday, None)
+
+        assert planned.calories > by_weekday.calories
+        assert planned.carbs_g > by_weekday.carbs_g
+        assert planned.protein_g == by_weekday.protein_g, "protein holds across day types"
+
 
 class MacroTargetTests(unittest.TestCase):
     def test_cut_training_day_calories(self):

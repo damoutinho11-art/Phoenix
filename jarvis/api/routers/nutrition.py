@@ -13,8 +13,34 @@ from jarvis.domains.nutrition import engine
 from jarvis.domains.nutrition.data_contracts import NutritionStatus, Recipe, LidlStaple
 from jarvis.domains.calendar import plaan_live
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
+from jarvis.domains.training.operational_plan import project_plan_day
+from jarvis.domains.training.plan_contracts import iso_cycle_id
 
 router = APIRouter()
+
+
+def _planned_training_day(target_date: date) -> bool | None:
+    """Whether the training plan schedules a real session on `target_date`.
+
+    Macros are fuelled per training or rest day, but the plan schedules a
+    rotating sequence rather than fixed weekdays: a session moved to Tuesday
+    used to be fuelled as rest because the constitution's weekday list still
+    said Monday/Wednesday/Saturday.
+
+    Returns None when no active plan covers the date, so the caller falls back
+    to that weekday list rather than guessing a rest day and under-fuelling a
+    session that is actually happening.
+    """
+    try:
+        active = database.get_active_training_plan(iso_cycle_id(target_date))
+    except Exception:
+        return None
+    # The stored record wraps the plan; project_plan_day reads the plan itself.
+    payload = active.get("payload") if isinstance(active, dict) else None
+    session = project_plan_day(payload, target_date).get("session")
+    if not isinstance(session, dict) or not isinstance(session.get("is_rest"), bool):
+        return None
+    return not session["is_rest"]
 
 
 class LogMealRequest(BaseModel):
@@ -247,6 +273,7 @@ def _status_for_date(constitution: dict, target_date: date) -> tuple[NutritionSt
         constitution,
         daily_log_items=[_meal_to_engine_item(meal) for meal in meals],
         today=target_date,
+        training_day=_planned_training_day(target_date),
     )
     return status, meals
 
@@ -334,7 +361,9 @@ def meal_history(
 
     for row in rows:
         row_date = date.fromisoformat(row["date"])
-        target = engine.get_macro_target(constitution, row_date)
+        target = engine.get_macro_target(
+            constitution, row_date, _planned_training_day(row_date)
+        )
         classification = engine.classify_nutrition_day(
             row["total_calories"] if row["has_data"] else None,
             row["total_protein_g"] if row["has_data"] else None,
@@ -359,7 +388,9 @@ def meal_history(
         round(sum(r["total_protein_g"] for r in days_with_data) / len(days_with_data), 1)
         if days_with_data else None
     )
-    today_target = engine.get_macro_target(constitution, clock.today())
+    today_target = engine.get_macro_target(
+        constitution, clock.today(), _planned_training_day(clock.today())
+    )
 
     return {
         "days": days,
