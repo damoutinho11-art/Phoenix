@@ -98,6 +98,58 @@ test('apply eligibility requires usable interpreted constraints and reconciled n
   assert.equal(adapt.normalizeTrainingAdaptProposal(proposalFixture({ diff: undefined })).canApply, false)
 })
 
+// A generated week has no parent and no constraints. The evidence gates were
+// written for adaptations, so they rejected it outright and APPLY could never
+// enable -- the "generate this week" control produced an unapplyable plan.
+const rootProposalFixture = (overrides = {}) => {
+  const after = proposedSnapshot({ plan_id: 'root-1', parent_plan_id: null, constraints: [] })
+  return {
+    ...after,
+    authoritative: true,
+    before: null,
+    after,
+    interpreted_constraints: [],
+    diff: { changed_days: [{ date: afterDay.date, before: null, after: afterDay, reason: afterDay.change_reason }] },
+    ...overrides,
+  }
+}
+
+test('a freshly generated week is applyable despite having no constraints or parent', () => {
+  const proposal = adapt.normalizeTrainingAdaptProposal(rootProposalFixture())
+
+  assert.equal(proposal.constraintEvidenceComplete, true)
+  assert.equal(proposal.diffEvidenceComplete, true)
+  assert.equal(proposal.validationEvidenceComplete, true)
+  assert.equal(proposal.canApply, true)
+  assert.equal(proposal.changedDays.length, 1)
+})
+
+test('a generated week still needs authority and sound day evidence to apply', () => {
+  assert.equal(
+    adapt.normalizeTrainingAdaptProposal(rootProposalFixture({ authoritative: false })).canApply,
+    false,
+    'planner authority is still required',
+  )
+  assert.equal(
+    adapt.normalizeTrainingAdaptProposal(rootProposalFixture({ diff: { changed_days: [] } })).canApply,
+    false,
+    'a root plan must still account for the days it introduces',
+  )
+  assert.equal(
+    adapt.normalizeTrainingAdaptProposal(rootProposalFixture({ validations: [null] })).canApply,
+    false,
+    'validation evidence is still required',
+  )
+})
+
+test('an adaptation is still refused when it carries no constraint', () => {
+  // Only a root plan may omit constraints; changing an existing week may not.
+  assert.equal(
+    adapt.normalizeTrainingAdaptProposal(proposalFixture({ interpreted_constraints: [] })).canApply,
+    false,
+  )
+})
+
 test('proposal request transition clears stale preview before a new response arrives', () => {
   assert.deepEqual(adapt.getProposalRequestState(), { proposal: null, busy: true, error: '' })
 })

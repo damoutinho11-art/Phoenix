@@ -468,3 +468,25 @@ test('hybrid detail and active session collapse before the 761 to 820 pixel over
     /@media\s*\(max-width:\s*820px\)[\s\S]*\.training-session-layout\s*\{[^}]*grid-template-columns:\s*1fr/,
   )
 })
+
+test('adapt view offers generating a week when there is no plan to adapt', () => {
+  // MOVE, SKIP and REPLACE all modify an existing week. With no active plan the
+  // tab previously offered only those, so the one action actually needed --
+  // creating the week -- had no control at all.
+  const adapt = readSource('./TrainingAdaptView.jsx')
+
+  assert.match(adapt, /\{!activePlan && \(/)
+  assert.match(adapt, /GENERATE THIS WEEK/)
+  assert.match(adapt, /training-adapt-generate/)
+  // It proposes with no constraints: a fresh week, not an adaptation.
+  assert.match(adapt, /onClick=\{\(\) => propose\(\{\}\)\}/)
+  assert.match(adapt, /disabled=\{busy\}/)
+})
+
+test('generate-week control is styled and has a disabled state', () => {
+  const css = readFileSync(new URL('../holo.css', import.meta.url), 'utf8')
+
+  assert.match(css, /\.training-adapt-generate \{/)
+  assert.match(css, /\.training-adapt-generate button \{/)
+  assert.match(css, /\.training-adapt-generate button:disabled \{/)
+})

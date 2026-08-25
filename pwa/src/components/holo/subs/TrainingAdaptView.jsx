@@ -80,7 +80,15 @@ function TrainingPlanPreview({ proposal, onReject, onApply, applyDisabled, busy 
               </li>
             ))}
           </ul>
-        ) : <p className="training-adapt-empty">THE PLANNER DID NOT RETURN A USABLE CONSTRAINT RECORD.</p>}
+        ) : (
+          // A generated week has no constraints by definition. Only an empty
+          // list that failed the evidence check is a planner problem.
+          <p className="training-adapt-empty">
+            {proposal?.constraintEvidenceComplete
+              ? 'FRESH WEEK // BUILT FROM THE SEQUENCE, NO CONSTRAINTS APPLIED.'
+              : 'THE PLANNER DID NOT RETURN A USABLE CONSTRAINT RECORD.'}
+          </p>
+        )}
       </section>
 
       <section className="training-adapt-diff" aria-labelledby="training-adapt-diff-title">
@@ -255,6 +263,17 @@ export default function TrainingAdaptView({ activePlan, onApplied, onRejected })
         </div>
         <span className="training-view-count">ACTIVE // {activePlan?.plan_id || 'NONE'}</span>
       </div>
+
+      {!activePlan && (
+        // MOVE, SKIP and REPLACE all adapt an existing week. With no plan there
+        // is nothing to adapt, and the first thing needed is the week itself.
+        <div className="training-adapt-generate">
+          <p>NO ACTIVE PLAN // NOTHING TO ADAPT YET</p>
+          <button type="button" onClick={() => propose({})} disabled={busy}>
+            {busy ? 'BUILDING…' : 'GENERATE THIS WEEK'}
+          </button>
+        </div>
+      )}
 
       <div className="training-adapt-actions" role="group" aria-label="Adaptation type">
         {MODES.map(kind => (

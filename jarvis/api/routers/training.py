@@ -73,6 +73,16 @@ TIME_LIMIT_PATTERN = re.compile(
     r"[^.]*?\b(today|tomorrow|\d{4}-\d{2}-\d{2})\b",
     re.I,
 )
+# Pain is deliberately NOT compiled into a plan constraint. It routes loaded and
+# explosive work away from a joint, which is a hard safety gate keyed on a scored
+# readiness scan — "my knee hurts" carries neither a severity nor whether the
+# pain is sharp, and guessing either would fabricate safety evidence. Recognising
+# the phrase lets the caller be told where it belongs instead of getting the
+# generic "could not be translated".
+PAIN_PATTERN = re.compile(
+    r"\b(?:pain|hurts?|hurting|sore|soreness|aching|ache|injur|tweak|strain)\w*",
+    re.I,
+)
 
 ConstraintKind = Literal[
     "unavailable",
@@ -605,6 +615,15 @@ def compile_training_intent(intent: str, today: date) -> tuple[TrainingConstrain
                     "source_date": source.isoformat(),
                     "target_date": (source + timedelta(days=1)).isoformat(),
                 },
+            ),
+        )
+    if PAIN_PATTERN.search(intent):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Pain is recorded in a readiness scan, not a plan change. Log it "
+                "under Readiness so Phoenix can route loaded and explosive work "
+                "away from the affected joint."
             ),
         )
     raise HTTPException(

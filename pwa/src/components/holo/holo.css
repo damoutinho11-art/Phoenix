@@ -902,6 +902,43 @@
 
 .training-adapt-view { min-width: 0; }
 
+/* Shown only when there is no plan yet: MOVE/SKIP/REPLACE all adapt an existing
+   week, so the first action needed is generating one. */
+.training-adapt-generate {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--training-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--training-accent) 8%, transparent);
+  text-align: center;
+}
+
+.training-adapt-generate p {
+  margin: 0;
+  font-family: var(--phx-font-mono);
+  font-size: 8px;
+  letter-spacing: .18em;
+  color: color-mix(in srgb, var(--training-accent) 70%, transparent);
+}
+
+.training-adapt-generate button {
+  min-height: 42px;
+  font-family: var(--phx-font-mono);
+  font-size: 9px;
+  letter-spacing: .22em;
+  color: var(--phx-bg);
+  background: var(--training-accent);
+  border: 1px solid var(--training-accent);
+  cursor: pointer;
+}
+
+.training-adapt-generate button:disabled {
+  color: color-mix(in srgb, var(--training-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--phx-bg) 90%, transparent);
+  cursor: wait;
+}
+
 .training-adapt-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

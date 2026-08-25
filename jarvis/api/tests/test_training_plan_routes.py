@@ -1145,6 +1145,26 @@ def test_a_short_session_is_read_as_a_time_limit(
     assert constraints[0]["values"]["minutes"] == minutes
 
 
+@pytest.mark.parametrize(
+    "phrase",
+    ["my knee hurts", "shoulder pain today", "my achilles is sore", "I tweaked my back"],
+)
+def test_pain_is_directed_to_the_readiness_scan_not_guessed_at(
+    client: TestClient, phrase: str
+):
+    """Pain routes loaded work away from a joint — a hard safety gate.
+
+    It is keyed on a scored readiness scan, and free text carries neither a
+    severity nor whether the pain is sharp. Rather than fabricate that evidence,
+    the phrase is recognised and the caller is told where it belongs.
+    """
+    response = client.post("/training/plan/proposals", json={"intent": phrase})
+
+    assert response.status_code == 422
+    assert "readiness scan" in response.json()["detail"]
+    assert database.list_training_plan_receipts() == []
+
+
 def test_unsupported_intent_returns_422_without_creating_a_plan(client: TestClient):
     response = client.post(
         "/training/plan/proposals",

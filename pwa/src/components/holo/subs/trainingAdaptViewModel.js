@@ -204,11 +204,20 @@ const reconcilesChangedDays = (rows, before, after) => {
   ))
 }
 
-const matchesAuthoritativeAfter = (proposal, after) => (
-  isCompletePlanSnapshot(proposal, 'proposed') &&
-  isCompletePlanSnapshot(after, 'proposed') &&
-  hasSameTrainingPlanAuthority(proposal, after)
-)
+// A proposal with no parent is a freshly generated week, not an adaptation of
+// one. It legitimately carries no constraints and has no prior plan to diff
+// against, so requiring either would make a generated week permanently
+// unapplyable. Adaptations are still held to both.
+const isRootProposal = source => source?.parent_plan_id === null
+
+const matchesAuthoritativeAfter = (proposal, after) => {
+  const requireConstraints = !isRootProposal(proposal)
+  return (
+    isCompletePlanSnapshot(proposal, 'proposed', requireConstraints) &&
+    isCompletePlanSnapshot(after, 'proposed', requireConstraints) &&
+    hasSameTrainingPlanAuthority(proposal, after)
+  )
+}
 
 const hasValidBeforeAuthority = source => {
   if (source.parent_plan_id === null) return source.before === null
@@ -236,7 +245,7 @@ export function normalizeTrainingAdaptProposal(raw) {
   const validationEvidenceComplete = snapshotEvidenceComplete && rawValidations.length > 0 && rawValidations.every(isUsableTrainingValidation)
   const constraintEvidenceComplete = (
     snapshotEvidenceComplete &&
-    rawConstraints.length > 0 &&
+    (rawConstraints.length > 0 || isRootProposal(source)) &&
     rawConstraints.every(isUsableTrainingConstraint) &&
     sameValue(rawConstraints, source.after.constraints)
   )
