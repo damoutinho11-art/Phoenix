@@ -690,9 +690,15 @@ def _legacy_plan_days(constitution, snapshot):
     )
 
 
-def _fresh_hybrid_start_days(constitution, snapshot):
-    if snapshot.sequence_source_plan_id is not None:
-        return None
+def _mid_week_hybrid_days(constitution, snapshot):
+    """Lay out a week that begins partway through, marking the days already gone.
+
+    This applies whether or not a plan is already active. A plan generated on
+    Tuesday must not put a session on Monday: that day cannot be trained, so the
+    session would be stranded in the past and silently never done. The rolling
+    snapshot keeps the sequence cursor, so continuing an active plan resumes at
+    the right session rather than restarting the rotation.
+    """
     try:
         start_date = date.fromisoformat(snapshot.created_at[:10])
     except (TypeError, ValueError):
@@ -715,8 +721,8 @@ def _fresh_hybrid_start_days(constitution, snapshot):
             objective="recovery",
             exercises=(),
             estimated_minutes=0,
-            change_reason="fresh_start_elapsed",
-            decision_reasons=("fresh_start_elapsed",),
+            change_reason="elapsed_before_plan",
+            decision_reasons=("elapsed_before_plan",),
         )
         for offset in range((start_date - snapshot.week_start).days)
     )
@@ -731,9 +737,9 @@ def _baseline_days(constitution, snapshot):
         and isinstance(policy, Mapping)
         and policy.get("program") == "performance_hybrid"
     ):
-        fresh_days = _fresh_hybrid_start_days(constitution, snapshot)
-        if fresh_days is not None:
-            return fresh_days
+        mid_week_days = _mid_week_hybrid_days(constitution, snapshot)
+        if mid_week_days is not None:
+            return mid_week_days
         phase, week = get_current_phase(constitution, snapshot.week_start)
         return apply_phase_rules(
             build_hybrid_week(constitution, snapshot),

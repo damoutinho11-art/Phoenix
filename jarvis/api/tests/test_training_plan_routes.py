@@ -190,7 +190,7 @@ def test_first_midweek_proposal_starts_fresh_on_current_date(
         day["session_type"] == "recovery"
         and day["session_intent"] is None
         and day["sequence_position"] is None
-        and day["change_reason"] == "fresh_start_elapsed"
+        and day["change_reason"] == "elapsed_before_plan"
         for day in days[:2]
     )
     assert days[2]["date"] == current.isoformat()

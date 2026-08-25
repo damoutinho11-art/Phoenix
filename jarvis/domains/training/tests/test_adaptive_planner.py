@@ -1,6 +1,6 @@
 import json
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -97,6 +97,52 @@ def _completed_hybrid_session(receipt, position):
     }
 
 
+def test_midweek_replan_with_an_active_plan_strands_no_session_in_the_past(
+    training_constitution_v2,
+):
+    """Re-planning on Tuesday must not put a session on Monday.
+
+    The elapsed-day handling used to be skipped whenever a plan was already
+    active, so a mid-week re-plan laid the week out from its Monday start and
+    left that session on a date that could no longer be trained — silently
+    never done. Continuity still comes from the cursor, not from re-dating.
+    """
+    week_start = _hybrid_snapshot().week_start
+    active = generate_weekly_plan(
+        training_constitution_v2,
+        replace(_hybrid_snapshot(), created_at=f"{week_start.isoformat()}T06:00:00Z"),
+    )
+    replan_date = week_start + timedelta(days=2)
+    snapshot = build_planning_snapshot(
+        week_start=week_start,
+        created_at=f"{replan_date.isoformat()}T09:00:00Z",
+        sessions=[],
+        readiness=None,
+        calendar_events=[],
+        equipment=[],
+        preferences={},
+        active_plan={**active.to_mapping(), "status": "active"},
+    )
+    assert snapshot.sequence_source_plan_id is not None, "an active plan must be in play"
+
+    receipt = generate_weekly_plan(training_constitution_v2, snapshot)
+
+    stranded = [
+        day for day in receipt.days
+        if day.date < replan_date and day.session_intent is not None
+    ]
+    assert stranded == [], f"sessions left on past dates: {[d.date for d in stranded]}"
+    assert all(
+        day.change_reason == "elapsed_before_plan"
+        for day in receipt.days
+        if day.date < replan_date
+    )
+    # The rotation resumes rather than restarting.
+    first_session = next(day for day in receipt.days if day.session_intent is not None)
+    assert first_session.date == replan_date
+    assert first_session.sequence_position == snapshot.sequence_cursor
+
+
 def test_fresh_midweek_plan_starts_sequence_on_creation_date(training_constitution_v2):
     midweek = replace(
         _hybrid_snapshot(),
@@ -110,7 +156,7 @@ def test_fresh_midweek_plan_starts_sequence_on_creation_date(training_constituti
         day.session_type == "recovery"
         and day.session_intent is None
         and day.sequence_position is None
-        and day.change_reason == "fresh_start_elapsed"
+        and day.change_reason == "elapsed_before_plan"
         for day in (monday, tuesday)
     )
     assert [
