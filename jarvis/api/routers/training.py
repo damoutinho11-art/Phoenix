@@ -59,6 +59,20 @@ MOVE_PATTERN = re.compile(
     re.I,
 )
 SKIP_PATTERN = re.compile(r"skip.*?(today|tomorrow|\d{4}-\d{2}-\d{2})", re.I)
+# "I can't train today" shifts the session rather than dropping it: the
+# programme is a sequence, so what matters is that a session happens, not which
+# weekday it lands on. Only the explicit word "skip" drops one.
+UNAVAILABLE_PATTERN = re.compile(
+    r"(?:can'?t|cannot|can not|unable to|won'?t be able to|not able to|no)\s+"
+    r"(?:train|make it|go|gym|lift|session|workout|do it)?[^.]*?"
+    r"\b(today|tomorrow|\d{4}-\d{2}-\d{2})\b",
+    re.I,
+)
+TIME_LIMIT_PATTERN = re.compile(
+    r"(?:only|just|max(?:imum)?|less than|under)?\s*(\d{1,3})\s*(?:min|mins|minutes)"
+    r"[^.]*?\b(today|tomorrow|\d{4}-\d{2}-\d{2})\b",
+    re.I,
+)
 
 ConstraintKind = Literal[
     "unavailable",
@@ -568,6 +582,29 @@ def compile_training_intent(intent: str, today: date) -> tuple[TrainingConstrain
         return (
             TrainingConstraint.from_mapping(
                 "skip_session", "user", {"date": target.isoformat()}
+            ),
+        )
+    if match := TIME_LIMIT_PATTERN.search(intent):
+        target = _resolve_relative_date(match.group(2), today)
+        return (
+            TrainingConstraint.from_mapping(
+                "time_limit",
+                "user",
+                {"date": target.isoformat(), "minutes": int(match.group(1))},
+            ),
+        )
+    if match := UNAVAILABLE_PATTERN.search(intent):
+        # Shift the day's session onto the next day and let the rest of the
+        # sequence slide with it, rather than losing the session.
+        source = _resolve_relative_date(match.group(1), today)
+        return (
+            TrainingConstraint.from_mapping(
+                "move_session",
+                "user",
+                {
+                    "source_date": source.isoformat(),
+                    "target_date": (source + timedelta(days=1)).isoformat(),
+                },
             ),
         )
     raise HTTPException(

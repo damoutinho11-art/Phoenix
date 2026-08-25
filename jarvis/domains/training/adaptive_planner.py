@@ -554,21 +554,27 @@ def _move_hybrid_session(planned, source, target):
     keys = tuple(sorted(planned))
     source_index = keys.index(source)
     target_index = keys.index(target)
+    # Only slots the shift can actually land in count. Days before the source
+    # are already spent — an elapsed day at the start of a mid-week plan is a
+    # recovery slot that no displaced session could ever occupy, and counting
+    # it made every move on such a week look impossible.
     recovery_indices = tuple(
-        index for index, key in enumerate(keys) if planned[key].session_intent is None
+        index
+        for index, key in enumerate(keys)
+        if index > source_index and planned[key].session_intent is None
     )
     if target_index != source_index + 1:
         raise ValueError("Hybrid sessions can only move to the next day")
+    if not recovery_indices:
+        raise ValueError(
+            "Cannot move hybrid session: displaced session would roll beyond "
+            "the active weekly horizon"
+        )
     if len(recovery_indices) != 1:
         raise ValueError("Hybrid move requires exactly one recovery slot")
 
     original = tuple(planned[key] for key in keys)
     recovery_index = recovery_indices[0]
-    if recovery_index <= source_index:
-        raise ValueError(
-            "Cannot move hybrid session: displaced session would roll beyond "
-            "the active weekly horizon"
-        )
     planned[source] = _update_for_change(
         original[recovery_index],
         f"moved_to:{target}",

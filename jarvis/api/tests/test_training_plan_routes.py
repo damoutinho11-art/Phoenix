@@ -1092,6 +1092,59 @@ def test_proposal_returns_explicit_503_when_calendar_resolver_fails(
     assert response.json()["detail"] == "Training plan calendar evidence is unreadable"
 
 
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "I can't train today",
+        "can't make it today",
+        "no gym today",
+        "I cannot go to the gym today",
+        "not able to train today",
+    ],
+)
+def test_being_unavailable_shifts_the_session_instead_of_dropping_it(
+    client: TestClient, phrase: str
+):
+    """Diogo cares that a session happens, not which weekday it lands on.
+
+    Saying he cannot train moves the session to the next day and slides the
+    rest of the sequence with it. Only the explicit word "skip" drops one.
+    """
+    response = client.post("/training/plan/proposals", json={"intent": phrase})
+
+    assert response.status_code == 200
+    constraints = response.json()["interpreted_constraints"]
+    assert [item["kind"] for item in constraints] == ["move_session"]
+    values = constraints[0]["values"]
+    assert (
+        date.fromisoformat(values["target_date"])
+        - date.fromisoformat(values["source_date"])
+    ) == timedelta(days=1)
+
+
+def test_skip_still_drops_the_session_rather_than_moving_it(client: TestClient):
+    response = client.post("/training/plan/proposals", json={"intent": "skip today"})
+
+    assert response.status_code == 200
+    constraints = response.json()["interpreted_constraints"]
+    assert [item["kind"] for item in constraints] == ["skip_session"]
+
+
+@pytest.mark.parametrize(
+    ("phrase", "minutes"),
+    [("only 30 minutes today", 30), ("just 45 mins tomorrow", 45)],
+)
+def test_a_short_session_is_read_as_a_time_limit(
+    client: TestClient, phrase: str, minutes: int
+):
+    response = client.post("/training/plan/proposals", json={"intent": phrase})
+
+    assert response.status_code == 200
+    constraints = response.json()["interpreted_constraints"]
+    assert [item["kind"] for item in constraints] == ["time_limit"]
+    assert constraints[0]["values"]["minutes"] == minutes
+
+
 def test_unsupported_intent_returns_422_without_creating_a_plan(client: TestClient):
     response = client.post(
         "/training/plan/proposals",
