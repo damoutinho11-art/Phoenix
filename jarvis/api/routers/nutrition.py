@@ -19,59 +19,6 @@ from jarvis.domains.training.plan_contracts import iso_cycle_id
 
 router = APIRouter()
 
-_EXACT_FOOD_INVENTORY = (
-    {
-        "id": "cookie", "name": "Cookie Crisp", "reference_g": 100,
-        "calories": 390, "protein_g": 6, "carbs_g": 85, "fat_g": 5,
-        "fibre_g": 3, "label_source": "Cookie Crisp label",
-    },
-    {
-        "id": "yogurt", "name": "0% Greek Yogurt", "reference_g": 100,
-        "calories": 57, "protein_g": 10, "carbs_g": 3.5, "fat_g": 0.2,
-        "fibre_g": 0, "label_source": "Greek Yogurt label",
-    },
-    {
-        "id": "whey", "name": "Whey Protein", "reference_g": 100,
-        "calories": 400, "protein_g": 80, "carbs_g": 10, "fat_g": 5,
-        "fibre_g": 0, "label_source": "Whey label",
-    },
-    {
-        "id": "wrap", "name": "Wholewheat Wrap", "reference_g": 62,
-        "calories": 190, "protein_g": 6, "carbs_g": 31, "fat_g": 4,
-        "fibre_g": 4, "label_source": "Wrap label",
-    },
-    {
-        "id": "banana", "name": "Banana", "reference_g": 120,
-        "calories": 107, "protein_g": 1.3, "carbs_g": 27, "fat_g": 0.4,
-        "fibre_g": 3.1,
-    },
-    {
-        "id": "chicken", "name": "Chicken Breast", "reference_g": 100,
-        "calories": 165, "protein_g": 31, "carbs_g": 0, "fat_g": 3.6,
-        "fibre_g": 0, "label_source": "Chicken label",
-    },
-    {
-        "id": "pasta", "name": "Wholewheat Pasta", "reference_g": 100,
-        "calories": 350, "protein_g": 13, "carbs_g": 68, "fat_g": 2.5,
-        "fibre_g": 8, "label_source": "Pasta label",
-    },
-    {
-        "id": "vegetables", "name": "Frozen Mixed Vegetables", "reference_g": 100,
-        "calories": 35, "protein_g": 2.5, "carbs_g": 7, "fat_g": 0.5,
-        "fibre_g": 3.5, "label_source": "Frozen vegetables label",
-    },
-    {
-        "id": "oil", "name": "Extra Virgin Olive Oil", "reference_g": 100,
-        "calories": 884, "protein_g": 0, "carbs_g": 0, "fat_g": 100,
-        "fibre_g": 0, "label_source": "Olive oil label",
-    },
-)
-
-
-def _exact_food_inventory() -> list[dict]:
-    """Return fresh exact-label rows consumed by the recomposition engine."""
-    return [dict(food) for food in _EXACT_FOOD_INVENTORY]
-
 
 def _planned_training_day(target_date: date) -> bool | None:
     """Whether the training plan schedules a real session on `target_date`.
@@ -339,8 +286,12 @@ def _meal_to_engine_item(meal: dict) -> dict:
     }
 
 
-def _status_for_date(constitution: dict, target_date: date) -> tuple[NutritionStatus, list[dict]]:
-    meals = database.get_meals_for_date(target_date)
+def _status_for_date(
+    constitution: dict,
+    target_date: date,
+    connection=None,
+) -> tuple[NutritionStatus, list[dict]]:
+    meals = database.get_meals_for_date(target_date, connection=connection)
     status = engine.check_nutrition(
         constitution,
         daily_log_items=[_meal_to_engine_item(meal) for meal in meals],
@@ -362,17 +313,19 @@ def nutrition_status(
     return response
 
 
-def _today_protocol_context(constitution: dict) -> dict:
+def _today_protocol_context(constitution: dict, connection=None) -> dict:
     today = clock.today()
-    status, meals = _status_for_date(constitution, today)
-    bridge = nutrition_calendar_bridge(days=1, start_date=today, constitution=constitution)
+    status, meals = _status_for_date(constitution, today, connection=connection)
+    bridge = _calendar_bridge_context(
+        constitution, today, days=1, connection=connection
+    )
     calendar_days = bridge.get("days", [])
     calendar_blocks = calendar_days[0].get("blocks", []) if calendar_days else []
     return recomposition.build_today_protocol(
         target_date=today,
         status=status,
-        foods=_exact_food_inventory(),
-        memory_entries=database.get_nutrition_memory(),
+        foods=engine.load_exact_food_inventory(),
+        memory_entries=database.get_nutrition_memory(connection=connection),
         calendar_blocks=calendar_blocks,
         constitution=constitution,
         logged_meals=meals,
@@ -402,7 +355,7 @@ def replan_today_protocol(
         return recomposition.replan_protocol(
             current,
             request.model_dump(),
-            _exact_food_inventory(),
+            engine.load_exact_food_inventory(),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -413,23 +366,23 @@ def log_today_protocol_meal(
     request: LogProtocolMealRequest,
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
-    current = _today_protocol_context(constitution)
-    if request.protocol_id != current["protocol_id"]:
+    result = database.verify_and_log_protocol_meal_atomically(
+        expected_protocol_id=request.protocol_id,
+        meal_id=request.meal_id,
+        log_date=clock.today(),
+        source=f"today_protocol:{request.protocol_id}:{request.meal_id}",
+        build_current_protocol=lambda connection: _today_protocol_context(
+            constitution, connection=connection
+        ),
+    )
+    if result["status"] == "stale":
         raise HTTPException(
             status_code=409,
             detail="Today protocol is stale; refresh before logging",
         )
-    meal = next(
-        (row for row in current["meals"] if row["meal_id"] == request.meal_id),
-        None,
-    )
-    if meal is None:
+    if result["status"] == "missing":
         raise HTTPException(status_code=404, detail="Protocol meal not found")
-    source = f"today_protocol:{request.protocol_id}:{request.meal_id}"
-    log_ids = database.log_meal_components_atomically(
-        clock.today(), meal["items"], source=source
-    )
-    return {"status": "logged", "meal_id": request.meal_id, "log_ids": log_ids}
+    return {"status": "logged", "meal_id": request.meal_id, "log_ids": result["log_ids"]}
 
 
 @router.get("/recomposition-review")
@@ -437,7 +390,7 @@ def recomposition_review(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
     review = recomposition.evaluate_adjustment_evidence(
-        daily_rows=database.get_recomposition_daily_evidence(28),
+        daily_rows=database.get_recomposition_daily_evidence(28, constitution),
         waist_rows=database.get_body_measurements("waist", 60),
         performance_rows=database.get_training_performance_guardrails(28),
         hunger_rows=database.get_nutrition_hunger_guardrails(28),
@@ -567,11 +520,12 @@ def meal_history(
 
 
 
-@router.get("/calendar-bridge")
-def nutrition_calendar_bridge(
-    days: int = Query(7, ge=1, le=14),
-    start_date: date | None = Query(None),
-    constitution: dict = Depends(get_nutrition_constitution),
+def _calendar_bridge_context(
+    constitution: dict,
+    bridge_date: date,
+    *,
+    days: int,
+    connection=None,
 ) -> dict:
     """Return calendar-aware nutrition timing guidance.
 
@@ -579,10 +533,11 @@ def nutrition_calendar_bridge(
     It does not fetch Plaan live, mutate Plaan, send raw calendar pages to AI, or
     log meals automatically.
     """
-    bridge_date = start_date or clock.today()
-    status, _meals = _status_for_date(constitution, bridge_date)
-    entries = database.get_nutrition_memory()
-    latest_import = database.get_latest_calendar_snapshot_import()
+    status, _meals = _status_for_date(
+        constitution, bridge_date, connection=connection
+    )
+    entries = database.get_nutrition_memory(connection=connection)
+    latest_import = database.get_latest_calendar_snapshot_import(connection=connection)
     imported_snapshot = latest_import.get("snapshot") if latest_import else None
     calendar_snapshot_raw, source_info = plaan_live.resolve_snapshot_raw(LIVE_SNAPSHOT_RAW, imported_snapshot=imported_snapshot)
     result = engine.build_calendar_aware_nutrition_bridge(
@@ -602,6 +557,19 @@ def nutrition_calendar_bridge(
         "mutations_allowed": False,
     }
     return result
+
+
+@router.get("/calendar-bridge")
+def nutrition_calendar_bridge(
+    days: int = Query(7, ge=1, le=14),
+    start_date: date | None = Query(None),
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    return _calendar_bridge_context(
+        constitution,
+        start_date or clock.today(),
+        days=days,
+    )
 
 
 @router.get("/acceptance-gate")

@@ -351,6 +351,27 @@ def load_lidl_staples(path: Path | None = None) -> list[LidlStaple]:
     return [LidlStaple(**s) for s in data]
 
 
+def load_exact_food_inventory() -> list[dict]:
+    """Normalize canonical Lidl staples for exact-gram protocol generation."""
+    inventory = []
+    for staple in load_lidl_staples():
+        match = re.search(r"(\d+(?:\.\d+)?)g\b", staple.unit.lower())
+        reference_g = float(match.group(1)) if match else 100.0
+        inventory.append({
+            "id": staple.id,
+            "name": staple.name,
+            "reference_g": reference_g,
+            "calories": staple.calories,
+            "protein_g": staple.protein_g,
+            "fat_g": staple.fat_g,
+            "carbs_g": staple.carbs_g,
+            "fibre_g": 0.0,
+            "label_source": f"lidl_staples:{staple.id}",
+            "label_state": "canonical_label",
+        })
+    return inventory
+
+
 def get_current_phase(constitution: dict, today: date) -> str:
     phases = constitution["phases"]
     active_phase = constitution.get("active_phase")

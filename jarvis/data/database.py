@@ -17,7 +17,7 @@ import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from jarvis.core import clock
 
@@ -722,8 +722,12 @@ def init_db() -> None:
         connection.close()
 
 
-def get_meals_for_date(log_date: date | str) -> list[dict[str, Any]]:
-    connection = get_db()
+def get_meals_for_date(
+    log_date: date | str,
+    connection: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    owns_connection = connection is None
+    connection = connection or get_db()
     try:
         rows = connection.execute(
             "SELECT * FROM meal_log WHERE log_date = ? ORDER BY logged_at, id",
@@ -731,7 +735,8 @@ def get_meals_for_date(log_date: date | str) -> list[dict[str, Any]]:
         ).fetchall()
         return [dict(row) for row in rows]
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def log_meal(
@@ -775,6 +780,42 @@ def log_meal(
         connection.close()
 
 
+def _log_meal_components_with_connection(
+    connection: sqlite3.Connection,
+    log_date: date | str,
+    components: list[dict[str, Any]],
+    *,
+    source: str,
+) -> list[int]:
+    if not components:
+        raise ValueError("Protocol meal must contain at least one component")
+    logged_ids = []
+    for component in components:
+        cursor = connection.execute(
+            """
+            INSERT INTO meal_log (
+                log_date, logged_at, item_id, item_type, name, servings,
+                calories, protein_g, fat_g, carbs_g, source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                _date_value(log_date),
+                _utc_now(),
+                component["item_id"],
+                component.get("item_type", "exact_gram_protocol_component"),
+                component["name"],
+                float(component["quantity_g"]),
+                float(component["calories"]),
+                float(component["protein_g"]),
+                float(component["fat_g"]),
+                float(component["carbs_g"]),
+                source,
+            ),
+        )
+        logged_ids.append(int(cursor.lastrowid))
+    return logged_ids
+
+
 def log_meal_components_atomically(
     log_date: date | str,
     components: list[dict[str, Any]],
@@ -782,36 +823,12 @@ def log_meal_components_atomically(
     source: str,
 ) -> list[int]:
     """Persist all exact-gram components for one approved protocol meal."""
-    if not components:
-        raise ValueError("Protocol meal must contain at least one component")
-
     connection = get_db()
     try:
         connection.execute("BEGIN IMMEDIATE")
-        logged_ids = []
-        for component in components:
-            cursor = connection.execute(
-                """
-                INSERT INTO meal_log (
-                    log_date, logged_at, item_id, item_type, name, servings,
-                    calories, protein_g, fat_g, carbs_g, source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    _date_value(log_date),
-                    _utc_now(),
-                    component["item_id"],
-                    component.get("item_type", "exact_gram_protocol_component"),
-                    component["name"],
-                    float(component["quantity_g"]),
-                    float(component["calories"]),
-                    float(component["protein_g"]),
-                    float(component["fat_g"]),
-                    float(component["carbs_g"]),
-                    source,
-                ),
-            )
-            logged_ids.append(int(cursor.lastrowid))
+        logged_ids = _log_meal_components_with_connection(
+            connection, log_date, components, source=source
+        )
         connection.commit()
         return logged_ids
     except Exception:
@@ -821,29 +838,92 @@ def log_meal_components_atomically(
         connection.close()
 
 
-def get_recomposition_daily_evidence(days: int = 28) -> list[dict[str, Any]]:
+def verify_and_log_protocol_meal_atomically(
+    *,
+    expected_protocol_id: str,
+    meal_id: str,
+    log_date: date | str,
+    source: str,
+    build_current_protocol: Callable[[sqlite3.Connection], dict],
+) -> dict[str, Any]:
+    """Rebuild, verify, and persist one protocol meal under one write lock."""
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        current = build_current_protocol(connection)
+        if current["protocol_id"] != expected_protocol_id:
+            connection.commit()
+            return {"status": "stale"}
+        meal = next(
+            (row for row in current.get("meals", []) if row.get("meal_id") == meal_id),
+            None,
+        )
+        if meal is None:
+            connection.commit()
+            return {"status": "missing"}
+        log_ids = _log_meal_components_with_connection(
+            connection, log_date, meal["items"], source=source
+        )
+        connection.commit()
+        return {"status": "logged", "log_ids": log_ids}
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def get_recomposition_daily_evidence(
+    days: int = 28,
+    constitution: dict | None = None,
+) -> list[dict[str, Any]]:
     """Return complete daily meal-and-weight evidence without creating records."""
     if days < 1:
         return []
     cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+    today = clock.today().isoformat()
     connection = get_db()
     try:
         rows = connection.execute(
             """
-            SELECT m.log_date AS date, w.weight_kg,
+            SELECT m.log_date AS date, w.weight_kg, COUNT(m.id) AS meal_count,
                    SUM(m.calories) AS calories,
                    SUM(m.protein_g) AS protein_g,
                    SUM(m.fat_g) AS fat_g,
                    SUM(m.carbs_g) AS carbs_g
             FROM meal_log m
             INNER JOIN weight_log w ON w.log_date = m.log_date
-            WHERE m.log_date >= ?
+            WHERE m.log_date >= ? AND m.log_date < ?
             GROUP BY m.log_date, w.weight_kg
             ORDER BY m.log_date
             """,
-            (cutoff,),
+            (cutoff, today),
         ).fetchall()
-        return [{**dict(row), "complete": True} for row in rows]
+        if constitution is None:
+            return []
+        from jarvis.domains.nutrition import engine
+
+        phase = constitution.get("phases", {}).get(constitution.get("active_phase"), {})
+        required_meals = max(2, int(phase.get("meals_per_day", 2)))
+        evidence = []
+        for row in rows:
+            item = dict(row)
+            target = engine.get_macro_target(
+                constitution, date.fromisoformat(item["date"])
+            )
+            adherence = engine.classify_nutrition_day(
+                item["calories"], item["protein_g"], target
+            )
+            if (
+                item["meal_count"] >= required_meals
+                and adherence["adherence_status"] == "good"
+            ):
+                evidence.append({
+                    **item,
+                    "complete": True,
+                    "adherence_status": adherence["adherence_status"],
+                })
+        return evidence
     finally:
         connection.close()
 
@@ -888,6 +968,14 @@ def get_training_performance_guardrails(days: int = 28) -> list[dict[str, Any]]:
     cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
     connection = get_db()
     try:
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM pragma_table_info('training_session_evidence')"
+            ).fetchall()
+        }
+        if not {"plan_date", "rpe", "pain_confirmed"}.issubset(columns):
+            return []
         rows = connection.execute(
             """
             SELECT e.plan_date AS date, e.rpe, e.pain_confirmed
@@ -1046,8 +1134,12 @@ def save_nutrition_memory(
         connection.close()
 
 
-def get_nutrition_memory(kind: str | None = None) -> list[dict[str, Any]]:
-    connection = get_db()
+def get_nutrition_memory(
+    kind: str | None = None,
+    connection: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    owns_connection = connection is None
+    connection = connection or get_db()
     try:
         if kind:
             rows = connection.execute(
@@ -1065,7 +1157,8 @@ def get_nutrition_memory(kind: str | None = None) -> list[dict[str, Any]]:
             results.append(item)
         return results
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def delete_nutrition_memory(memory_id: int) -> bool:
@@ -1139,8 +1232,11 @@ def get_calendar_snapshot_import(import_id: int) -> dict[str, Any] | None:
         connection.close()
 
 
-def get_latest_calendar_snapshot_import() -> dict[str, Any] | None:
-    connection = get_db()
+def get_latest_calendar_snapshot_import(
+    connection: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    owns_connection = connection is None
+    connection = connection or get_db()
     try:
         row = connection.execute(
             """
@@ -1151,7 +1247,8 @@ def get_latest_calendar_snapshot_import() -> dict[str, Any] | None:
         ).fetchone()
         return _calendar_import_row_to_dict(row)
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def list_calendar_snapshot_imports(limit: int = 10) -> list[dict[str, Any]]:

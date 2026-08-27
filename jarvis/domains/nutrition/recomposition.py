@@ -43,12 +43,23 @@ def exact_component(food: dict, quantity_g: float, measurement_state: str) -> di
     }
 
 
-def protocol_identity(target_date: date, target: dict, logged_meals: list[dict]) -> str:
-    """Return the stable identity for one target date and its immutable facts."""
+def protocol_identity(
+    target_date: date,
+    target: dict,
+    logged_meals: list[dict],
+    behavior_inputs: dict | None = None,
+) -> str:
+    """Return the stable identity for all inputs that change a protocol proposal."""
     canonical = json.dumps(
-        {"date": target_date.isoformat(), "target": target, "logged": logged_meals},
+        {
+            "date": target_date.isoformat(),
+            "target": target,
+            "logged": logged_meals,
+            "behavior_inputs": behavior_inputs or {},
+        },
         sort_keys=True,
         separators=(",", ":"),
+        default=str,
     )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
 
@@ -242,7 +253,17 @@ def build_today_protocol(*, target_date, status, foods, memory_entries, calendar
     allowed_foods = _allowed_foods(foods, avoided_terms)
     protocol = {
         "mode": "recomposition_today_protocol",
-        "protocol_id": protocol_identity(target_date, target, immutable_logged_meals),
+        "protocol_id": protocol_identity(
+            target_date,
+            target,
+            immutable_logged_meals,
+            {
+                "calendar_blocks": calendar_blocks or [],
+                "memory_entries": memory_entries or [],
+                "constitution": constitution or {},
+                "foods": foods or [],
+            },
+        ),
         "target": target,
         "remaining_target": remaining_target,
         "logged_meals": immutable_logged_meals,
