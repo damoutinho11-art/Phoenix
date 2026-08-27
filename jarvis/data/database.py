@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from jarvis.core import clock
+from jarvis.domains.training.operational_plan import project_plan_day
+from jarvis.domains.training.plan_contracts import iso_cycle_id
 
 _DEFAULT_DB_PATH = Path(__file__).resolve().parent / "jarvis.db"
 _ENV_DB_PATH = os.environ.get("JARVIS_DB_PATH")
@@ -873,6 +875,36 @@ def verify_and_log_protocol_meal_atomically(
         connection.close()
 
 
+def _historical_evidence_window(days: int) -> tuple[str, str]:
+    """Return the inclusive lower and exclusive upper dates for prior days."""
+    today = clock.today()
+    return (today - timedelta(days=days)).isoformat(), today.isoformat()
+
+
+def get_planned_training_day(target_date: date) -> bool | None:
+    """Return the active plan's training/rest state, or None for weekday fallback."""
+    try:
+        active = get_active_training_plan(iso_cycle_id(target_date))
+    except Exception:
+        return None
+    payload = active.get("payload") if isinstance(active, dict) else None
+    session = project_plan_day(payload, target_date).get("session")
+    if not isinstance(session, dict) or not isinstance(session.get("is_rest"), bool):
+        return None
+    return not session["is_rest"]
+
+
+def get_nutrition_target_for_date(constitution: dict, target_date: date):
+    """Resolve a nutrition target with the same active-plan authority as status."""
+    from jarvis.domains.nutrition import engine
+
+    return engine.get_macro_target(
+        constitution,
+        target_date,
+        training_day=get_planned_training_day(target_date),
+    )
+
+
 def get_recomposition_daily_evidence(
     days: int = 28,
     constitution: dict | None = None,
@@ -880,13 +912,16 @@ def get_recomposition_daily_evidence(
     """Return complete daily meal-and-weight evidence without creating records."""
     if days < 1:
         return []
-    cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
-    today = clock.today().isoformat()
+    cutoff, today = _historical_evidence_window(days)
     connection = get_db()
     try:
         rows = connection.execute(
             """
-            SELECT m.log_date AS date, w.weight_kg, COUNT(m.id) AS meal_count,
+            SELECT m.log_date AS date, w.weight_kg,
+                   COUNT(DISTINCT CASE
+                       WHEN m.source LIKE 'today_protocol:%' THEN m.source
+                       ELSE 'meal_log:' || m.id
+                   END) AS meal_count,
                    SUM(m.calories) AS calories,
                    SUM(m.protein_g) AS protein_g,
                    SUM(m.fat_g) AS fat_g,
@@ -908,7 +943,7 @@ def get_recomposition_daily_evidence(
         evidence = []
         for row in rows:
             item = dict(row)
-            target = engine.get_macro_target(
+            target = get_nutrition_target_for_date(
                 constitution, date.fromisoformat(item["date"])
             )
             adherence = engine.classify_nutrition_day(
@@ -946,15 +981,15 @@ def get_body_measurements(
         required = {"log_date", "measurement_type", "value"}
         if not required.issubset(columns):
             return []
-        cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+        cutoff, today = _historical_evidence_window(days)
         rows = connection.execute(
             """
             SELECT log_date AS date, value AS waist_cm
             FROM body_measurements
-            WHERE measurement_type = ? AND log_date >= ?
+            WHERE measurement_type = ? AND log_date >= ? AND log_date < ?
             ORDER BY log_date
             """,
-            (measurement_type, cutoff),
+            (measurement_type, cutoff, today),
         ).fetchall()
         return [dict(row) for row in rows]
     finally:
@@ -965,7 +1000,7 @@ def get_training_performance_guardrails(days: int = 28) -> list[dict[str, Any]]:
     """Return recent immutable training evidence as read-only guardrails."""
     if days < 1:
         return []
-    cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+    cutoff, today = _historical_evidence_window(days)
     connection = get_db()
     try:
         columns = {
@@ -980,10 +1015,10 @@ def get_training_performance_guardrails(days: int = 28) -> list[dict[str, Any]]:
             """
             SELECT e.plan_date AS date, e.rpe, e.pain_confirmed
             FROM training_session_evidence e
-            WHERE e.plan_date >= ?
+            WHERE e.plan_date >= ? AND e.plan_date < ?
             ORDER BY e.plan_date
             """,
-            (cutoff,),
+            (cutoff, today),
         ).fetchall()
         return [
             {
@@ -1011,15 +1046,15 @@ def get_nutrition_hunger_guardrails(days: int = 28) -> list[dict[str, Any]]:
         required = {"log_date", "level"}
         if not required.issubset(columns):
             return []
-        cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+        cutoff, today = _historical_evidence_window(days)
         rows = connection.execute(
             """
             SELECT log_date AS date, level
             FROM nutrition_hunger_log
-            WHERE log_date >= ?
+            WHERE log_date >= ? AND log_date < ?
             ORDER BY log_date
             """,
-            (cutoff,),
+            (cutoff, today),
         ).fetchall()
         return [dict(row) for row in rows]
     finally:

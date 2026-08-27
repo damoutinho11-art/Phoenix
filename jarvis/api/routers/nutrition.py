@@ -14,8 +14,6 @@ from jarvis.domains.nutrition import engine, recomposition
 from jarvis.domains.nutrition.data_contracts import NutritionStatus, Recipe, LidlStaple
 from jarvis.domains.calendar import plaan_live
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
-from jarvis.domains.training.operational_plan import project_plan_day
-from jarvis.domains.training.plan_contracts import iso_cycle_id
 
 router = APIRouter()
 
@@ -32,16 +30,7 @@ def _planned_training_day(target_date: date) -> bool | None:
     to that weekday list rather than guessing a rest day and under-fuelling a
     session that is actually happening.
     """
-    try:
-        active = database.get_active_training_plan(iso_cycle_id(target_date))
-    except Exception:
-        return None
-    # The stored record wraps the plan; project_plan_day reads the plan itself.
-    payload = active.get("payload") if isinstance(active, dict) else None
-    session = project_plan_day(payload, target_date).get("session")
-    if not isinstance(session, dict) or not isinstance(session.get("is_rest"), bool):
-        return None
-    return not session["is_rest"]
+    return database.get_planned_training_day(target_date)
 
 
 class LogMealRequest(BaseModel):

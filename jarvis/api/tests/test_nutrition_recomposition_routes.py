@@ -345,6 +345,196 @@ def test_recomposition_evidence_requires_complete_historical_adherence():
             connection.execute(f"DELETE FROM weight_log WHERE log_date IN ({placeholders})", values)
 
 
+def test_recomposition_evidence_counts_protocol_components_as_one_meal_event():
+    constitution = get_nutrition_constitution()
+    protocol_date = clock.today() - timedelta(days=1)
+    manual_date = clock.today() - timedelta(days=2)
+    target = engine.get_macro_target(constitution, protocol_date)
+    source = "today_protocol:component-event-test:meal-1"
+    with database.get_db() as connection:
+        placeholders = ", ".join("?" for _ in (protocol_date, manual_date))
+        values = (protocol_date.isoformat(), manual_date.isoformat())
+        connection.execute(f"DELETE FROM meal_log WHERE log_date IN ({placeholders})", values)
+        connection.execute(f"DELETE FROM weight_log WHERE log_date IN ({placeholders})", values)
+    try:
+        database.log_weight(protocol_date, 77.0)
+        for component in range(4):
+            database.log_meal(
+                protocol_date,
+                f"component-{component}",
+                "exact_gram_protocol_component",
+                "One Protocol Meal Component",
+                1,
+                target.calories / 4,
+                target.protein_g / 4,
+                target.fat_g / 4,
+                target.carbs_g / 4,
+                source,
+            )
+
+        manual_target = engine.get_macro_target(constitution, manual_date)
+        database.log_weight(manual_date, 77.0)
+        for meal in range(4):
+            database.log_meal(
+                manual_date,
+                f"manual-event-{meal}",
+                "manual",
+                "Manual Meal Event",
+                1,
+                manual_target.calories / 4,
+                manual_target.protein_g / 4,
+                manual_target.fat_g / 4,
+                manual_target.carbs_g / 4,
+                "manual",
+            )
+
+        evidence = database.get_recomposition_daily_evidence(2, constitution)
+
+        assert [row["date"] for row in evidence] == [manual_date.isoformat()]
+    finally:
+        with database.get_db() as connection:
+            placeholders = ", ".join("?" for _ in (protocol_date, manual_date))
+            values = (protocol_date.isoformat(), manual_date.isoformat())
+            connection.execute(f"DELETE FROM meal_log WHERE log_date IN ({placeholders})", values)
+            connection.execute(f"DELETE FROM weight_log WHERE log_date IN ({placeholders})", values)
+
+
+def test_recomposition_evidence_includes_all_n_historical_calendar_days():
+    constitution = get_nutrition_constitution()
+    dates = [clock.today() - timedelta(days=2), clock.today() - timedelta(days=1)]
+    with database.get_db() as connection:
+        placeholders = ", ".join("?" for _ in dates)
+        values = tuple(day.isoformat() for day in dates)
+        connection.execute(f"DELETE FROM meal_log WHERE log_date IN ({placeholders})", values)
+        connection.execute(f"DELETE FROM weight_log WHERE log_date IN ({placeholders})", values)
+    try:
+        for day in dates:
+            target = engine.get_macro_target(constitution, day)
+            database.log_weight(day, 77.0)
+            for meal in range(4):
+                database.log_meal(
+                    day,
+                    f"boundary-{day.isoformat()}-{meal}",
+                    "manual",
+                    "Boundary Meal",
+                    1,
+                    target.calories / 4,
+                    target.protein_g / 4,
+                    target.fat_g / 4,
+                    target.carbs_g / 4,
+                    "manual",
+                )
+
+        evidence = database.get_recomposition_daily_evidence(2, constitution)
+
+        assert [row["date"] for row in evidence] == [day.isoformat() for day in dates]
+    finally:
+        with database.get_db() as connection:
+            placeholders = ", ".join("?" for _ in dates)
+            values = tuple(day.isoformat() for day in dates)
+            connection.execute(f"DELETE FROM meal_log WHERE log_date IN ({placeholders})", values)
+            connection.execute(f"DELETE FROM weight_log WHERE log_date IN ({placeholders})", values)
+
+
+def test_recomposition_evidence_uses_moved_training_session_target(monkeypatch):
+    constitution = deepcopy(get_nutrition_constitution())
+    phase = constitution["phases"][constitution["active_phase"]]
+    phase["training_day"] = {"calories": 2600, "protein_g": 175, "carbs_g": 315, "fat_g": 70}
+    phase["rest_day"] = {"calories": 2000, "protein_g": 150, "carbs_g": 200, "fat_g": 60}
+    target_date = next(
+        clock.today() - timedelta(days=offset)
+        for offset in range(1, 8)
+        if (clock.today() - timedelta(days=offset)).strftime("%A").lower()
+        not in constitution["training_days"]
+    )
+    active_plan = {
+        "payload": {
+            "plan_id": "moved-session-plan",
+            "receipt_hash": "moved-session-receipt",
+            "days": [
+                {
+                    "date": target_date.isoformat(),
+                    "session_type": "high_intensity",
+                    "objective": "moved_session",
+                    "exercises": [],
+                    "estimated_minutes": 45,
+                }
+            ],
+        }
+    }
+    monkeypatch.setattr(database, "get_active_training_plan", lambda _cycle: active_plan)
+    with database.get_db() as connection:
+        connection.execute("DELETE FROM meal_log WHERE log_date = ?", (target_date.isoformat(),))
+        connection.execute("DELETE FROM weight_log WHERE log_date = ?", (target_date.isoformat(),))
+    try:
+        database.log_weight(target_date, 77.0)
+        for meal in range(4):
+            database.log_meal(
+                target_date,
+                f"moved-session-{meal}",
+                "manual",
+                "Moved Session Meal",
+                1,
+                650,
+                43.75,
+                17.5,
+                78.75,
+                "manual",
+            )
+
+        evidence = database.get_recomposition_daily_evidence(7, constitution)
+
+        assert [row["date"] for row in evidence] == [target_date.isoformat()]
+    finally:
+        with database.get_db() as connection:
+            connection.execute("DELETE FROM meal_log WHERE log_date = ?", (target_date.isoformat(),))
+            connection.execute("DELETE FROM weight_log WHERE log_date = ?", (target_date.isoformat(),))
+
+
+def test_optional_evidence_queries_exclude_today_and_future_rows(tmp_path, monkeypatch):
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "future-evidence.db")
+    database.init_db()
+    today = clock.today()
+    historical = today - timedelta(days=1)
+    future = today + timedelta(days=1)
+    with database.get_db() as connection:
+        connection.executescript(
+            """
+            CREATE TABLE body_measurements (
+                log_date TEXT NOT NULL,
+                measurement_type TEXT NOT NULL,
+                value REAL NOT NULL
+            );
+            CREATE TABLE nutrition_hunger_log (
+                log_date TEXT NOT NULL,
+                level INTEGER NOT NULL
+            );
+            """
+        )
+        for logged_date in (historical, today, future):
+            connection.execute(
+                "INSERT INTO body_measurements (log_date, measurement_type, value) VALUES (?, 'waist', 80)",
+                (logged_date.isoformat(),),
+            )
+            connection.execute(
+                "INSERT INTO nutrition_hunger_log (log_date, level) VALUES (?, 4)",
+                (logged_date.isoformat(),),
+            )
+            connection.execute(
+                """
+                INSERT INTO training_session_evidence (
+                    session_id, plan_id, receipt_hash, plan_date, duration_seconds,
+                    rpe, pain_confirmed, pain_body_areas_json, created_at
+                ) VALUES (?, 'plan', 'receipt', ?, 3600, 7, 0, '[]', ?)
+                """,
+                (logged_date.toordinal(), logged_date.isoformat(), clock.utc_now_iso()),
+            )
+
+    assert [row["date"] for row in database.get_body_measurements("waist", 7)] == [historical.isoformat()]
+    assert [row["date"] for row in database.get_training_performance_guardrails(7)] == [historical.isoformat()]
+    assert [row["date"] for row in database.get_nutrition_hunger_guardrails(7)] == [historical.isoformat()]
+
+
 def test_exact_inventory_is_loaded_from_canonical_staples():
     canonical = {staple.id: staple for staple in engine.load_lidl_staples()}
     inventory = engine.load_exact_food_inventory()
