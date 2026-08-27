@@ -9,10 +9,10 @@ from jarvis.api.ai_gateway import AIResult
 client = TestClient(app)
 
 _MOCK_BRIEF = (
-    "Today is a cut training day targeting 2400 kcal and 165g protein. "
-    "Nothing logged yet — full 2400 kcal and 165g protein remaining. "
+    "Today is a recomposition cut day targeting 2600 kcal and 175g protein. "
+    "Nothing logged yet — full 2600 kcal and 175g protein remaining. "
     "Egg White Bites are a strong first meal at 410 kcal and 72g protein. "
-    "Remaining protein target: 165g."
+    "Remaining protein target: 175g."
 )
 
 def _make_mock_ai_result(text: str = _MOCK_BRIEF, ok: bool = True) -> AIResult:
@@ -25,8 +25,21 @@ class NutritionStatusRouteTests(unittest.TestCase):
 
     def test_status_has_phase(self):
         data = client.get("/nutrition/status").json()
-        assert "phase" in data
-        assert data["phase"] in ("cut", "peak")
+        assert data["phase"] == "recomposition_cut"
+
+    def test_status_exposes_authoritative_recomposition_prescription(self):
+        data = client.get("/nutrition/status").json()
+
+        assert data["target"] == {
+            "calories": 2600,
+            "protein_g": 175,
+            "carbs_g": 315,
+            "fat_g": 70,
+        }
+        assert data["calibration"]["minimum_complete_days"] == 14
+        assert data["calibration"]["desired_loss_kg_per_week"] == [0.2, 0.4]
+        assert data["fibre_target_g"] == [30, 35]
+        assert data["fluid_target_l"] == [2.3, 2.7]
 
     def test_status_has_target(self):
         data = client.get("/nutrition/status").json()
@@ -608,14 +621,12 @@ class MacrosFollowTheTrainingPlanTests(unittest.TestCase):
     def test_a_planned_session_is_fuelled_as_a_training_day(self):
         status = self._target(True)
         assert status["is_training_day"] is True
-        assert status["target"]["calories"] == 2400
-        assert status["target"]["carbs_g"] == 260
+        assert status["target"] == {"calories": 2600, "protein_g": 175, "carbs_g": 315, "fat_g": 70}
 
     def test_a_planned_recovery_day_is_fuelled_as_rest(self):
         status = self._target(False)
         assert status["is_training_day"] is False
-        assert status["target"]["calories"] == 2000
-        assert status["target"]["carbs_g"] == 160
+        assert status["target"] == {"calories": 2600, "protein_g": 175, "carbs_g": 315, "fat_g": 70}
 
     def test_no_plan_falls_back_to_the_weekday_list(self):
         from datetime import date
@@ -628,6 +639,5 @@ class MacrosFollowTheTrainingPlanTests(unittest.TestCase):
         assert status["is_training_day"] is expected
 
     def test_protein_holds_across_both_day_types(self):
-        # Only carbs and calories cycle; the protein floor does not move.
-        assert self._target(True)["target"]["protein_g"] == 165
-        assert self._target(False)["target"]["protein_g"] == 165
+        assert self._target(True)["target"]["protein_g"] == 175
+        assert self._target(False)["target"]["protein_g"] == 175

@@ -353,6 +353,10 @@ def load_lidl_staples(path: Path | None = None) -> list[LidlStaple]:
 
 def get_current_phase(constitution: dict, today: date) -> str:
     phases = constitution["phases"]
+    active_phase = constitution.get("active_phase")
+    if active_phase in phases:
+        return active_phase
+
     cut_end = date.fromisoformat(phases["cut"]["end_date"])
     if today <= cut_end:
         return "cut"

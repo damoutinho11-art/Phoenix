@@ -10,7 +10,61 @@
     "lean_mass_kg": 58.2
   },
   "tdee_kcal": 2700,
+  "active_phase": "recomposition_cut",
   "phases": {
+    "recomposition_cut": {
+      "start_date": "2026-08-27",
+      "end_date": null,
+      "training_day": {
+        "calories": 2600,
+        "protein_g": 175,
+        "carbs_g": 315,
+        "fat_g": 70
+      },
+      "rest_day": {
+        "calories": 2600,
+        "protein_g": 175,
+        "carbs_g": 315,
+        "fat_g": 70
+      },
+      "fibre_target_g": [30, 35],
+      "fluid_target_l": [2.3, 2.7],
+      "steps": {
+        "starting": 5000,
+        "progressing_toward": 7000
+      },
+      "calibration": {
+        "minimum_complete_days": 14,
+        "desired_loss_kg_per_week": [0.2, 0.4],
+        "high_loss_guardrail_kg_per_week": 0.5,
+        "adjustment_kcal_range": [100, 150]
+      },
+      "meals_per_day": 4,
+      "preferences": {
+        "preferred_foods": [
+          "Cookie Crisp",
+          "wraps",
+          "pasta",
+          "meat",
+          "frozen vegetables",
+          "bananas",
+          "yogurt"
+        ],
+        "avoid": ["potatoes"],
+        "prefer": "meat_over_fish"
+      },
+      "measurement_rules": {
+        "pasta": "dry",
+        "meat": "raw_unless_explicitly_cooked",
+        "frozen_vegetables": "frozen",
+        "packaged_food": "as_served_label",
+        "wraps": "unit_and_label_grams",
+        "tolerance": {
+          "calories_kcal": 50,
+          "protein_g": 5
+        }
+      }
+    },
     "cut": {
       "start_date": "2026-08-24",
       "end_date": "2026-10-18",

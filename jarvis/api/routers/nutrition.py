@@ -208,10 +208,10 @@ def _recovery_protocol(status: NutritionStatus) -> dict:
     }
 
 
-def _serialize_status(status: NutritionStatus) -> dict:
+def _serialize_status(status: NutritionStatus, constitution: dict) -> dict:
     t = status.target
     log = status.logged
-    return {
+    response = {
         "as_of": status.as_of.isoformat(),
         "phase": status.phase,
         "is_training_day": status.is_training_day,
@@ -252,6 +252,11 @@ def _serialize_status(status: NutritionStatus) -> dict:
         "recovery_protocol": _recovery_protocol(status),
         "suggested_recipes": [_serialize_recipe(r) for r in status.suggested_recipes],
     }
+    phase = constitution["phases"].get(status.phase, {})
+    for field in ("calibration", "fibre_target_g", "fluid_target_l"):
+        if field in phase:
+            response[field] = phase[field]
+    return response
 
 
 def _meal_to_engine_item(meal: dict) -> dict:
@@ -283,7 +288,7 @@ def nutrition_status(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
     status, meals = _status_for_date(constitution, clock.today())
-    response = _serialize_status(status)
+    response = _serialize_status(status, constitution)
     response["meal_log"] = meals
     entries = database.get_nutrition_memory()
     response["memory"] = _memory_summary(entries)
@@ -957,7 +962,7 @@ def nutrition_brief(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
     status, _ = _status_for_date(constitution, clock.today())
-    s = _serialize_status(status)
+    s = _serialize_status(status, constitution)
     t = s["target"]
 
     user_message = (
