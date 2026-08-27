@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from jarvis.domains.nutrition.recomposition import (
+    _balance_stage,
     build_today_protocol,
     evaluate_adjustment_evidence,
     exact_component,
@@ -224,6 +225,31 @@ def test_replan_corrects_a_large_portion_increase_back_to_target_tolerance():
     assert abs(result["target_gap"]["calories"]) <= 50
     assert abs(result["target_gap"]["protein_g"]) <= 5
     assert result["target_matched"] is True
+
+
+def test_balance_stage_enforces_protein_carbohydrate_fat_then_fibre_order():
+    assert _balance_stage({"calories": 500, "protein_g": 6, "carbs_g": 100, "fat_g": 30}, 10) == 0
+    assert _balance_stage({"calories": 500, "protein_g": 5, "carbs_g": 100, "fat_g": 30}, 10) == 1
+    assert _balance_stage({"calories": 500, "protein_g": 5, "carbs_g": 10, "fat_g": 30}, 10) == 2
+    assert _balance_stage({"calories": 40, "protein_g": 5, "carbs_g": 10, "fat_g": 5}, 10) == 3
+
+
+def test_replan_protects_an_implied_first_item_portion_change():
+    protocol = build_fixture_protocol()
+    meal = next(row for row in protocol["meals"] if row["meal_id"] == "breakfast")
+    first_item_id = meal["items"][0]["item_id"]
+
+    result = replan_protocol(
+        protocol,
+        {"type": "adjust_portion", "meal_id": "breakfast", "quantity_g": 75},
+        FOODS,
+    )
+    changed = next(
+        item for row in result["meals"] for item in row["items"]
+        if row["meal_id"] == "breakfast" and item["item_id"] == first_item_id
+    )
+
+    assert changed["quantity_g"] == 75.0
 
 
 @pytest.mark.parametrize("action, message", [

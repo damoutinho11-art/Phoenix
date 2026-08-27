@@ -328,6 +328,19 @@ def _balance_score(gap: dict, fibre_deficit: float = 0.0) -> float:
     )
 
 
+def _balance_stage(gap: dict, fibre_deficit: float = 0.0) -> int:
+    """Return the active deterministic macro stage."""
+    if abs(gap["protein_g"]) > PROTEIN_TOLERANCE_G:
+        return 0
+    if abs(gap["carbs_g"]) > 10:
+        return 1
+    if abs(gap["fat_g"]) > 5:
+        return 2
+    if fibre_deficit > 0:
+        return 3
+    return 1 if abs(gap["calories"]) > CALORIE_TOLERANCE else 3
+
+
 def _rebalance_unlogged_meals(protocol: dict, foods: list[dict], protected: set[tuple[str, str]] | None = None) -> dict:
     """Reconcile proposal-only components in protein, carbohydrate, fat, then volume order."""
     if not protocol["meals"]:
@@ -353,6 +366,7 @@ def _rebalance_unlogged_meals(protocol: dict, foods: list[dict], protected: set[
         ):
             break
         current_score = _balance_score(gap, fibre_deficit)
+        active_stage = _balance_stage(gap, fibre_deficit)
         candidates = []
         for meal_index, meal in enumerate(protocol["meals"]):
             for item_index, item in enumerate(meal["items"]):
@@ -360,6 +374,8 @@ def _rebalance_unlogged_meals(protocol: dict, foods: list[dict], protected: set[
                 if (meal["meal_id"], item_id) in protected or item_id not in by_id:
                     continue
                 food = by_id[item_id]
+                if _food_role(food) != active_stage:
+                    continue
                 for direction in (-1.0, 1.0):
                     if direction < 0 and item["quantity_g"] <= 0.1:
                         continue
@@ -397,6 +413,7 @@ def replan_protocol(protocol: dict, action: dict, foods: list[dict]) -> dict:
     if meal_id not in meal_ids:
         raise ValueError("Unknown protocol meal")
     operation = action.get("type", action.get("action"))
+    protected: set[tuple[str, str]] = set()
     if operation not in {"skip", "adjust_portion", "replace"}:
         raise ValueError("Unsupported replan action")
     if operation == "skip":
@@ -417,10 +434,10 @@ def replan_protocol(protocol: dict, action: dict, foods: list[dict]) -> dict:
             replacement = exact_component(food, quantity_g, item["measurement_state"])
             meal["items"][meal["items"].index(item)] = replacement
             _refresh_meal_total(meal)
+            protected.add((meal_id, item_id))
         else:
             meal["items"] = [_nearest_replacement(meal, _allowed_protocol_foods(result, foods))]
             _refresh_meal_total(meal)
-    protected = {(meal_id, action["item_id"])} if operation == "adjust_portion" and action.get("item_id") else set()
     return _rebalance_unlogged_meals(result, foods, protected)
 
 
