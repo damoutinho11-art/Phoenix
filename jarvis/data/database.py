@@ -775,6 +775,169 @@ def log_meal(
         connection.close()
 
 
+def log_meal_components_atomically(
+    log_date: date | str,
+    components: list[dict[str, Any]],
+    *,
+    source: str,
+) -> list[int]:
+    """Persist all exact-gram components for one approved protocol meal."""
+    if not components:
+        raise ValueError("Protocol meal must contain at least one component")
+
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        logged_ids = []
+        for component in components:
+            cursor = connection.execute(
+                """
+                INSERT INTO meal_log (
+                    log_date, logged_at, item_id, item_type, name, servings,
+                    calories, protein_g, fat_g, carbs_g, source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    _date_value(log_date),
+                    _utc_now(),
+                    component["item_id"],
+                    component.get("item_type", "exact_gram_protocol_component"),
+                    component["name"],
+                    float(component["quantity_g"]),
+                    float(component["calories"]),
+                    float(component["protein_g"]),
+                    float(component["fat_g"]),
+                    float(component["carbs_g"]),
+                    source,
+                ),
+            )
+            logged_ids.append(int(cursor.lastrowid))
+        connection.commit()
+        return logged_ids
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def get_recomposition_daily_evidence(days: int = 28) -> list[dict[str, Any]]:
+    """Return complete daily meal-and-weight evidence without creating records."""
+    if days < 1:
+        return []
+    cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT m.log_date AS date, w.weight_kg,
+                   SUM(m.calories) AS calories,
+                   SUM(m.protein_g) AS protein_g,
+                   SUM(m.fat_g) AS fat_g,
+                   SUM(m.carbs_g) AS carbs_g
+            FROM meal_log m
+            INNER JOIN weight_log w ON w.log_date = m.log_date
+            WHERE m.log_date >= ?
+            GROUP BY m.log_date, w.weight_kg
+            ORDER BY m.log_date
+            """,
+            (cutoff,),
+        ).fetchall()
+        return [{**dict(row), "complete": True} for row in rows]
+    finally:
+        connection.close()
+
+
+def get_body_measurements(
+    measurement_type: str,
+    days: int = 60,
+) -> list[dict[str, Any]]:
+    """Return optional body-measurement evidence when a compatible table exists."""
+    if days < 1 or measurement_type != "waist":
+        return []
+    connection = get_db()
+    try:
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM pragma_table_info('body_measurements')"
+            ).fetchall()
+        }
+        required = {"log_date", "measurement_type", "value"}
+        if not required.issubset(columns):
+            return []
+        cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+        rows = connection.execute(
+            """
+            SELECT log_date AS date, value AS waist_cm
+            FROM body_measurements
+            WHERE measurement_type = ? AND log_date >= ?
+            ORDER BY log_date
+            """,
+            (measurement_type, cutoff),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def get_training_performance_guardrails(days: int = 28) -> list[dict[str, Any]]:
+    """Return recent immutable training evidence as read-only guardrails."""
+    if days < 1:
+        return []
+    cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT e.plan_date AS date, e.rpe, e.pain_confirmed
+            FROM training_session_evidence e
+            WHERE e.plan_date >= ?
+            ORDER BY e.plan_date
+            """,
+            (cutoff,),
+        ).fetchall()
+        return [
+            {
+                **dict(row),
+                "status": "poor" if row["pain_confirmed"] else "stable",
+            }
+            for row in rows
+        ]
+    finally:
+        connection.close()
+
+
+def get_nutrition_hunger_guardrails(days: int = 28) -> list[dict[str, Any]]:
+    """Return optional hunger evidence when the current schema provides it."""
+    if days < 1:
+        return []
+    connection = get_db()
+    try:
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM pragma_table_info('nutrition_hunger_log')"
+            ).fetchall()
+        }
+        required = {"log_date", "level"}
+        if not required.issubset(columns):
+            return []
+        cutoff = (clock.today() - timedelta(days=days - 1)).isoformat()
+        rows = connection.execute(
+            """
+            SELECT log_date AS date, level
+            FROM nutrition_hunger_log
+            WHERE log_date >= ?
+            ORDER BY log_date
+            """,
+            (cutoff,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
 def get_recent_meals(limit: int = 20) -> list[dict[str, Any]]:
     """Return recent meal log rows for quick repeat/reuse workflows."""
     if limit < 1:

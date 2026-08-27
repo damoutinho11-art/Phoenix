@@ -2,6 +2,7 @@
 
 from collections import Counter
 from datetime import date, timedelta
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -9,7 +10,7 @@ from jarvis.api.dependencies import get_nutrition_constitution
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
-from jarvis.domains.nutrition import engine
+from jarvis.domains.nutrition import engine, recomposition
 from jarvis.domains.nutrition.data_contracts import NutritionStatus, Recipe, LidlStaple
 from jarvis.domains.calendar import plaan_live
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
@@ -17,6 +18,59 @@ from jarvis.domains.training.operational_plan import project_plan_day
 from jarvis.domains.training.plan_contracts import iso_cycle_id
 
 router = APIRouter()
+
+_EXACT_FOOD_INVENTORY = (
+    {
+        "id": "cookie", "name": "Cookie Crisp", "reference_g": 100,
+        "calories": 390, "protein_g": 6, "carbs_g": 85, "fat_g": 5,
+        "fibre_g": 3, "label_source": "Cookie Crisp label",
+    },
+    {
+        "id": "yogurt", "name": "0% Greek Yogurt", "reference_g": 100,
+        "calories": 57, "protein_g": 10, "carbs_g": 3.5, "fat_g": 0.2,
+        "fibre_g": 0, "label_source": "Greek Yogurt label",
+    },
+    {
+        "id": "whey", "name": "Whey Protein", "reference_g": 100,
+        "calories": 400, "protein_g": 80, "carbs_g": 10, "fat_g": 5,
+        "fibre_g": 0, "label_source": "Whey label",
+    },
+    {
+        "id": "wrap", "name": "Wholewheat Wrap", "reference_g": 62,
+        "calories": 190, "protein_g": 6, "carbs_g": 31, "fat_g": 4,
+        "fibre_g": 4, "label_source": "Wrap label",
+    },
+    {
+        "id": "banana", "name": "Banana", "reference_g": 120,
+        "calories": 107, "protein_g": 1.3, "carbs_g": 27, "fat_g": 0.4,
+        "fibre_g": 3.1,
+    },
+    {
+        "id": "chicken", "name": "Chicken Breast", "reference_g": 100,
+        "calories": 165, "protein_g": 31, "carbs_g": 0, "fat_g": 3.6,
+        "fibre_g": 0, "label_source": "Chicken label",
+    },
+    {
+        "id": "pasta", "name": "Wholewheat Pasta", "reference_g": 100,
+        "calories": 350, "protein_g": 13, "carbs_g": 68, "fat_g": 2.5,
+        "fibre_g": 8, "label_source": "Pasta label",
+    },
+    {
+        "id": "vegetables", "name": "Frozen Mixed Vegetables", "reference_g": 100,
+        "calories": 35, "protein_g": 2.5, "carbs_g": 7, "fat_g": 0.5,
+        "fibre_g": 3.5, "label_source": "Frozen vegetables label",
+    },
+    {
+        "id": "oil", "name": "Extra Virgin Olive Oil", "reference_g": 100,
+        "calories": 884, "protein_g": 0, "carbs_g": 0, "fat_g": 100,
+        "fibre_g": 0, "label_source": "Olive oil label",
+    },
+)
+
+
+def _exact_food_inventory() -> list[dict]:
+    """Return fresh exact-label rows consumed by the recomposition engine."""
+    return [dict(food) for food in _EXACT_FOOD_INVENTORY]
 
 
 def _planned_training_day(target_date: date) -> bool | None:
@@ -113,6 +167,19 @@ class NutritionMemoryRequest(BaseModel):
     note: str | None = Field(default=None, max_length=500)
     payload: dict | None = None
     source: str = Field(default="user", min_length=1, max_length=60)
+
+
+class ReplanProtocolRequest(BaseModel):
+    protocol_id: str = Field(min_length=20, max_length=20)
+    action: Literal["skip", "replace", "adjust_portion"]
+    meal_id: str = Field(min_length=1)
+    item_id: str | None = None
+    quantity_g: float | None = Field(default=None, gt=0)
+
+
+class LogProtocolMealRequest(BaseModel):
+    protocol_id: str = Field(min_length=20, max_length=20)
+    meal_id: str = Field(min_length=1)
 
 _NUTRITION_BRIEF_SYSTEM = (
     "You are J.A.R.V.I.S., a personal nutrition assistant tracking macros during a "
@@ -293,6 +360,92 @@ def nutrition_status(
     entries = database.get_nutrition_memory()
     response["memory"] = _memory_summary(entries)
     return response
+
+
+def _today_protocol_context(constitution: dict) -> dict:
+    today = clock.today()
+    status, meals = _status_for_date(constitution, today)
+    bridge = nutrition_calendar_bridge(days=1, start_date=today, constitution=constitution)
+    calendar_days = bridge.get("days", [])
+    calendar_blocks = calendar_days[0].get("blocks", []) if calendar_days else []
+    return recomposition.build_today_protocol(
+        target_date=today,
+        status=status,
+        foods=_exact_food_inventory(),
+        memory_entries=database.get_nutrition_memory(),
+        calendar_blocks=calendar_blocks,
+        constitution=constitution,
+        logged_meals=meals,
+    )
+
+
+@router.get("/today-protocol")
+def today_protocol(
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    """Return the current exact-gram protocol without logging food."""
+    return _today_protocol_context(constitution)
+
+
+@router.post("/today-protocol/replan")
+def replan_today_protocol(
+    request: ReplanProtocolRequest,
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    current = _today_protocol_context(constitution)
+    if request.protocol_id != current["protocol_id"]:
+        raise HTTPException(
+            status_code=409,
+            detail="Today protocol is stale; refresh before replanning",
+        )
+    try:
+        return recomposition.replan_protocol(
+            current,
+            request.model_dump(),
+            _exact_food_inventory(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/today-protocol/log-meal")
+def log_today_protocol_meal(
+    request: LogProtocolMealRequest,
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    current = _today_protocol_context(constitution)
+    if request.protocol_id != current["protocol_id"]:
+        raise HTTPException(
+            status_code=409,
+            detail="Today protocol is stale; refresh before logging",
+        )
+    meal = next(
+        (row for row in current["meals"] if row["meal_id"] == request.meal_id),
+        None,
+    )
+    if meal is None:
+        raise HTTPException(status_code=404, detail="Protocol meal not found")
+    source = f"today_protocol:{request.protocol_id}:{request.meal_id}"
+    log_ids = database.log_meal_components_atomically(
+        clock.today(), meal["items"], source=source
+    )
+    return {"status": "logged", "meal_id": request.meal_id, "log_ids": log_ids}
+
+
+@router.get("/recomposition-review")
+def recomposition_review(
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    review = recomposition.evaluate_adjustment_evidence(
+        daily_rows=database.get_recomposition_daily_evidence(28),
+        waist_rows=database.get_body_measurements("waist", 60),
+        performance_rows=database.get_training_performance_guardrails(28),
+        hunger_rows=database.get_nutrition_hunger_guardrails(28),
+        constitution=constitution,
+    )
+    if review["status"] == "insufficient_evidence":
+        review["requires_approval"] = False
+    return review
 
 
 @router.post("/log/meal")
