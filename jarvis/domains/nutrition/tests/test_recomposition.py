@@ -61,6 +61,14 @@ def build_fixture_protocol(*, calendar_blocks=None, logged_meals=None):
     )
 
 
+def build_protocol_for(*, target, logged_meals=None, memory_entries=None):
+    return build_today_protocol(
+        target_date=date(2026, 8, 27), status=status_for(target), foods=FOODS,
+        memory_entries=memory_entries or [], calendar_blocks=[], constitution=CONSTITUTION,
+        logged_meals=logged_meals or [],
+    )
+
+
 def test_protocol_has_four_exact_gram_slots_and_reconciles_targets():
     protocol = build_fixture_protocol()
 
@@ -69,6 +77,41 @@ def test_protocol_has_four_exact_gram_slots_and_reconciles_targets():
     assert all(item["measurement_state"] for meal in protocol["meals"] for item in meal["items"])
     assert abs(protocol["target_gap"]["calories"]) <= 50
     assert abs(protocol["target_gap"]["protein_g"]) <= 5
+    assert protocol["target_matched"] is True
+
+
+def test_protocol_reconciles_a_lower_calorie_higher_protein_remaining_target():
+    protocol = build_protocol_for(target={"calories": 2400, "protein_g": 200, "carbs_g": 260, "fat_g": 60})
+
+    assert abs(protocol["target_gap"]["calories"]) <= 50
+    assert abs(protocol["target_gap"]["protein_g"]) <= 5
+    assert protocol["target_matched"] is True
+
+
+def test_protocol_reconciles_protein_skewed_logged_meals():
+    protocol = build_protocol_for(
+        target=TARGET,
+        logged_meals=[meal_log(calories=600, protein_g=20, carbs_g=100, fat_g=20)],
+    )
+
+    assert protocol["remaining_target"]["protein_g"] == 155
+    assert abs(protocol["target_gap"]["calories"]) <= 50
+    assert abs(protocol["target_gap"]["protein_g"]) <= 5
+    assert protocol["target_matched"] is True
+
+
+def test_protocol_preserves_the_constitution_fibre_minimum_while_reconciling():
+    constitution = {
+        **CONSTITUTION,
+        "phases": {"recomposition_cut": {"fibre_target_g": [30, 35]}},
+    }
+    protocol = build_today_protocol(
+        target_date=date(2026, 8, 27),
+        status=status_for({"calories": 1800, "protein_g": 180, "carbs_g": 160, "fat_g": 45}),
+        foods=FOODS, memory_entries=[], calendar_blocks=[], constitution=constitution, logged_meals=[],
+    )
+
+    assert protocol["planned_total"]["fibre_g"] >= 30
     assert protocol["target_matched"] is True
 
 
@@ -163,6 +206,26 @@ def test_replan_replace_uses_an_allowed_nearest_macro_match():
     assert all(item["quantity_g"] > 0 for item in meal["items"])
 
 
+def test_replan_preserves_all_avoided_foods_while_rebalancing():
+    protocol = build_protocol_for(target=TARGET, memory_entries=[{"kind": "dislike", "name": "pasta"}])
+    result = replan_protocol(protocol, {"type": "skip", "meal_id": "dinner"}, FOODS)
+
+    assert all("pasta" not in item["name"].lower() for meal in result["meals"] for item in meal["items"])
+    assert abs(result["target_gap"]["calories"]) <= 50
+    assert abs(result["target_gap"]["protein_g"]) <= 5
+
+
+def test_replan_corrects_a_large_portion_increase_back_to_target_tolerance():
+    protocol = build_fixture_protocol()
+    result = replan_protocol(protocol, {"type": "adjust_portion", "meal_id": "breakfast", "item_id": "cookie", "quantity_g": 300}, FOODS)
+    cookie = next(item for meal in result["meals"] for item in meal["items"] if item["item_id"] == "cookie")
+
+    assert cookie["quantity_g"] == 300.0
+    assert abs(result["target_gap"]["calories"]) <= 50
+    assert abs(result["target_gap"]["protein_g"]) <= 5
+    assert result["target_matched"] is True
+
+
 @pytest.mark.parametrize("action, message", [
     ({"type": "skip", "meal_id": "missing"}, "Unknown protocol meal"),
     ({"type": "unknown", "meal_id": "breakfast"}, "Unsupported replan action"),
@@ -180,6 +243,18 @@ def complete_rows(weights):
 def test_adjustment_evidence_is_locked_before_fourteen_complete_days():
     evidence = evaluate_adjustment_evidence(
         daily_rows=complete_rows([77.6] * 13), waist_rows=[], performance_rows=[], hunger_rows=[], constitution=CONSTITUTION,
+    )
+
+    assert evidence == {"status": "insufficient_evidence", "eligible": False, "complete_days": 13, "minimum_complete_days": 14}
+
+
+def test_adjustment_evidence_never_lowers_the_fourteen_day_minimum():
+    constitution = {
+        "active_phase": "recomposition_cut",
+        "phases": {"recomposition_cut": {"calibration": {"minimum_complete_days": 7}}},
+    }
+    evidence = evaluate_adjustment_evidence(
+        daily_rows=complete_rows([77.6] * 13), waist_rows=[], performance_rows=[], hunger_rows=[], constitution=constitution,
     )
 
     assert evidence == {"status": "insufficient_evidence", "eligible": False, "complete_days": 13, "minimum_complete_days": 14}

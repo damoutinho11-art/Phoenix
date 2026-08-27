@@ -105,6 +105,15 @@ def _measurement_rules(constitution: dict) -> dict:
     }
 
 
+def _fibre_minimum(constitution: dict) -> float:
+    source = _active_phase(constitution).get("fibre_target_g", constitution.get("fibre_target_g", 0))
+    if isinstance(source, dict):
+        return float(source.get("minimum", source.get("target", 0)))
+    if isinstance(source, (list, tuple)):
+        return float(source[0]) if source else 0.0
+    return float(source or 0)
+
+
 def _avoid_terms(memory_entries: list[dict], constitution: dict) -> set[str]:
     preferences = _preferences(constitution)
     terms = {str(value).lower() for value in preferences.get("avoid", [])}
@@ -229,12 +238,19 @@ def build_today_protocol(*, target_date, status, foods, memory_entries, calendar
     immutable_logged_meals = deepcopy(logged_meals or [])
     logged_total = _sum_rows(immutable_logged_meals)
     remaining_target = _remaining_target(target, logged_total)
+    avoided_terms = _avoid_terms(memory_entries, constitution)
+    allowed_foods = _allowed_foods(foods, avoided_terms)
     protocol = {
         "mode": "recomposition_today_protocol",
         "protocol_id": protocol_identity(target_date, target, immutable_logged_meals),
         "target": target,
         "remaining_target": remaining_target,
         "logged_meals": immutable_logged_meals,
+        "food_constraints": {
+            "avoided_terms": sorted(avoided_terms),
+            "allowed_food_ids": [food.get("id", food.get("item_id")) for food in allowed_foods],
+            "fibre_minimum_g": _fibre_minimum(constitution),
+        },
         "meals": _build_four_slots(
             target_date=target_date,
             remaining_target=remaining_target,
@@ -245,7 +261,7 @@ def build_today_protocol(*, target_date, status, foods, memory_entries, calendar
         ),
         "requires_approval": True,
     }
-    return _hydrate_protocol(protocol)
+    return _rebalance_unlogged_meals(protocol, foods)
 
 
 def _find_food(foods: list[dict], item_id: str) -> dict:
@@ -264,8 +280,7 @@ def _refresh_meal_total(meal: dict) -> None:
 def _nearest_replacement(meal: dict, foods: list[dict]) -> dict:
     target = _macro_dict(meal["total"])
     original_ids = {item["item_id"] for item in meal["items"]}
-    allowed = _allowed_foods(foods, {"potato"})
-    candidates = [food for food in allowed if food.get("id", food.get("item_id")) not in original_ids] or allowed
+    candidates = [food for food in foods if food.get("id", food.get("item_id")) not in original_ids] or foods
     if not candidates:
         raise ValueError("No allowed foods available for replacement")
 
@@ -283,36 +298,94 @@ def _nearest_replacement(meal: dict, foods: list[dict]) -> dict:
     return exact_component(selected, max(0.1, quantity_g), "as_served")
 
 
-def _rebalance_unlogged_meals(protocol: dict, foods: list[dict]) -> dict:
-    """Close the changed proposal with additions to its final unlogged meal only."""
+def _allowed_protocol_foods(protocol: dict, foods: list[dict]) -> list[dict]:
+    constraints = protocol.get("food_constraints", {})
+    allowed_ids = set(constraints.get("allowed_food_ids", []))
+    allowed = _allowed_foods(foods, set(constraints.get("avoided_terms", ["potato"])))
+    if allowed_ids:
+        allowed = [food for food in allowed if food.get("id", food.get("item_id")) in allowed_ids]
+    return allowed
+
+
+def _food_role(food: dict) -> int:
+    name = food.get("name", "").lower()
+    if any(term in name for term in ("chicken", "turkey", "beef", "meat", "whey", "yogurt", "skyr", "quark")):
+        return 0
+    if any(term in name for term in ("pasta", "wrap", "rice", "banana", "cookie", "oat")):
+        return 1
+    if any(term in name for term in ("oil", "almond", "walnut", "avocado")):
+        return 2
+    return 3
+
+
+def _balance_score(gap: dict, fibre_deficit: float = 0.0) -> float:
+    return (
+        abs(gap["protein_g"]) / PROTEIN_TOLERANCE_G
+        + abs(gap["calories"]) / CALORIE_TOLERANCE
+        + abs(gap["carbs_g"]) / 80.0
+        + abs(gap["fat_g"]) / 25.0
+        + fibre_deficit / 2.0
+    )
+
+
+def _rebalance_unlogged_meals(protocol: dict, foods: list[dict], protected: set[tuple[str, str]] | None = None) -> dict:
+    """Reconcile proposal-only components in protein, carbohydrate, fat, then volume order."""
     if not protocol["meals"]:
         return _hydrate_protocol(protocol)
-    target = protocol["target"]
-    logged_total = _sum_rows(protocol["logged_meals"])
-    planned_total = _sum_rows([meal["total"] for meal in protocol["meals"]])
-    gap = _gap(target, logged_total, planned_total)
-    allowed = _allowed_foods(foods, {"potato"})
-    final_meal = protocol["meals"][-1]
+    protected = protected or set()
+    allowed = _allowed_protocol_foods(protocol, foods)
+    by_id = {food.get("id", food.get("item_id")): food for food in allowed}
+    if not by_id:
+        raise ValueError("No allowed foods available for recomposition protocol")
 
-    def add(food: dict, grams: float) -> None:
-        final_meal["items"].append(exact_component(food, max(0.1, grams), "as_served"))
-        _refresh_meal_total(final_meal)
-
-    # Deterministic priority: protein, carbohydrate, fat, then fibre/volume.
-    if gap["protein_g"] > PROTEIN_TOLERANCE_G:
-        protein = _select_food(allowed, "chicken", "turkey", "beef", "meat", "whey", "yogurt")
-        protein_per_g = float(protein["protein_g"]) / float(protein["reference_g"])
-        add(protein, gap["protein_g"] / max(0.01, protein_per_g))
-    planned_total = _sum_rows([meal["total"] for meal in protocol["meals"]])
-    gap = _gap(target, logged_total, planned_total)
-    if gap["calories"] > CALORIE_TOLERANCE:
-        carbohydrate = _select_food(allowed, "pasta", "wrap", "rice", "banana", "cookie")
-        add(carbohydrate, gap["calories"] / float(carbohydrate["calories"]) * float(carbohydrate["reference_g"]))
-    planned_total = _sum_rows([meal["total"] for meal in protocol["meals"]])
-    gap = _gap(target, logged_total, planned_total)
-    if gap["fat_g"] > 5 and gap["calories"] > 20:
-        fat = _select_food(allowed, "olive oil", "oil", "almond", "walnut")
-        add(fat, min(gap["fat_g"], gap["calories"] / float(fat["calories"]) * float(fat["reference_g"])))
+    # The one-gram search is intentionally small and deterministic. It adjusts
+    # only proposed items, so an explicit portion change remains an immutable
+    # instruction while every other component can close the remaining target.
+    for _ in range(6000):
+        planned_total = _sum_rows([meal["total"] for meal in protocol["meals"]])
+        logged_total = _sum_rows(protocol["logged_meals"])
+        gap = _gap(protocol["target"], logged_total, planned_total)
+        fibre_deficit = max(0.0, float(protocol.get("food_constraints", {}).get("fibre_minimum_g", 0)) - planned_total["fibre_g"] - logged_total["fibre_g"])
+        if (
+            abs(gap["calories"]) <= CALORIE_TOLERANCE
+            and abs(gap["protein_g"]) <= PROTEIN_TOLERANCE_G
+            and fibre_deficit <= 0
+        ):
+            break
+        current_score = _balance_score(gap, fibre_deficit)
+        candidates = []
+        for meal_index, meal in enumerate(protocol["meals"]):
+            for item_index, item in enumerate(meal["items"]):
+                item_id = item["item_id"]
+                if (meal["meal_id"], item_id) in protected or item_id not in by_id:
+                    continue
+                food = by_id[item_id]
+                for direction in (-1.0, 1.0):
+                    if direction < 0 and item["quantity_g"] <= 0.1:
+                        continue
+                    factor = direction / float(food["reference_g"])
+                    next_gap = {
+                        key: gap[key] - float(food.get(key, food.get("fiber_g", 0) if key == "fibre_g" else 0)) * factor
+                        for key in _MACROS
+                    }
+                    fibre_per_g = float(food.get("fibre_g", food.get("fiber_g", 0))) / float(food["reference_g"])
+                    next_fibre_deficit = max(0.0, fibre_deficit - fibre_per_g * direction)
+                    candidates.append((
+                        _balance_score(next_gap, next_fibre_deficit), _food_role(food), 0 if direction > 0 else 1,
+                        meal_index, item_index, direction, food,
+                    ))
+        if not candidates:
+            break
+        best = min(candidates)
+        if best[0] >= current_score - 0.000001:
+            break
+        _, _, _, meal_index, item_index, direction, food = best
+        meal = protocol["meals"][meal_index]
+        item = meal["items"][item_index]
+        meal["items"][item_index] = exact_component(
+            food, max(0.1, item["quantity_g"] + direction), item["measurement_state"],
+        )
+        _refresh_meal_total(meal)
     return _hydrate_protocol(protocol)
 
 
@@ -339,13 +412,16 @@ def replan_protocol(protocol: dict, action: dict, foods: list[dict]) -> dict:
             if quantity_g <= 0:
                 raise ValueError("Portion quantity must be positive")
             food = _find_food(foods, item_id)
+            if food not in _allowed_protocol_foods(result, foods):
+                raise ValueError("Unknown protocol food")
             replacement = exact_component(food, quantity_g, item["measurement_state"])
             meal["items"][meal["items"].index(item)] = replacement
             _refresh_meal_total(meal)
         else:
-            meal["items"] = [_nearest_replacement(meal, foods)]
+            meal["items"] = [_nearest_replacement(meal, _allowed_protocol_foods(result, foods))]
             _refresh_meal_total(meal)
-    return _rebalance_unlogged_meals(result, foods)
+    protected = {(meal_id, action["item_id"])} if operation == "adjust_portion" and action.get("item_id") else set()
+    return _rebalance_unlogged_meals(result, foods, protected)
 
 
 def _calibration(constitution: dict) -> dict:
@@ -402,7 +478,7 @@ def _waist_change(rows: list[dict]) -> float | None:
 def evaluate_adjustment_evidence(*, daily_rows, waist_rows, performance_rows, hunger_rows, constitution) -> dict:
     """Evaluate read-only evidence and return an approval-required proposal only."""
     calibration = _calibration(constitution)
-    minimum_complete_days = int(calibration.get("minimum_complete_days", 14))
+    minimum_complete_days = max(14, int(calibration.get("minimum_complete_days", 14)))
     complete = [row for row in daily_rows or [] if row.get("complete")]
     if len(complete) < minimum_complete_days:
         return {
