@@ -365,7 +365,6 @@ export default function NutritionDashboard({
   onWeight,
   onQuickAsk,
   onMealBuilder,
-  onDayPlanner,
   onMemory,
   onShopping,
   onWeeklyPlanner,
@@ -463,7 +462,6 @@ export default function NutritionDashboard({
                 <CommandButton label="TODAY PROTOCOL" action={onTodayProtocol} primary />
                 <CommandButton label="LOG MEAL" action={onLogMeal} primary />
                 <CommandButton label="BUILD NEXT" action={onMealBuilder} />
-                <CommandButton label="PLAN DAY" action={onDayPlanner} />
               </div>
             </div>
 

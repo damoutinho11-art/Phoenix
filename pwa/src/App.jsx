@@ -8,7 +8,6 @@ import RecipeList from './components/nutrition/RecipeList'
 import LogMeal from './components/nutrition/LogMeal'
 import WeightHistory from './components/nutrition/WeightHistory'
 import MealBuilder from './components/nutrition/MealBuilder'
-import DayPlanner from './components/nutrition/DayPlanner'
 import NutritionMemory from './components/nutrition/NutritionMemory'
 import ShoppingList from './components/nutrition/ShoppingList'
 import WeeklyPlanner from './components/nutrition/WeeklyPlanner'
@@ -97,7 +96,6 @@ export default function App() {
             onWeight={() => setNutritionScreen('weight')}
             onQuickAsk={handleQuickAsk}
             onMealBuilder={() => setNutritionScreen('builder')}
-            onDayPlanner={() => setNutritionScreen('day-plan')}
             onMemory={() => setNutritionScreen('memory')}
             onShopping={() => setNutritionScreen('shopping')}
             onWeeklyPlanner={() => setNutritionScreen('weekly-plan')}
@@ -112,13 +110,6 @@ export default function App() {
       case 'builder':
         return (
           <MealBuilder
-            onBack={() => setNutritionScreen('dashboard')}
-            onSuccess={() => setNutritionScreen('dashboard')}
-          />
-        )
-      case 'day-plan':
-        return (
-          <DayPlanner
             onBack={() => setNutritionScreen('dashboard')}
             onSuccess={() => setNutritionScreen('dashboard')}
           />

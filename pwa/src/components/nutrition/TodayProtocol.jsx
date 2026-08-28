@@ -7,9 +7,15 @@ import {
 } from '../../api/client'
 import { CockpitShell, EmptyState, SourceStamp, StatusChip } from '../cockpit/CockpitPrimitives'
 import { buildTodayProtocolModel } from './todayProtocolModel'
+import {
+  commandErrorMessage,
+  loadProtocolSnapshot,
+  requiresMealConfirmation,
+  shouldStartCommand,
+  STALE_PROTOCOL_MESSAGE,
+} from './todayProtocolFlow'
 
 const ORANGE = '#ff9f43'
-const STALE_MESSAGE = 'Protocol changed. Refresh before continuing.'
 
 function metric(value, suffix = '') {
   return Number.isFinite(value) ? `${value}${suffix}` : 'UNAVAILABLE'
@@ -104,9 +110,10 @@ export default function TodayProtocol({ onBack }) {
     setLoading(true)
     setLoadError(null)
     try {
-      const [nextProtocol, nextReview] = await Promise.all([getTodayProtocol(), getRecompositionReview()])
-      setProtocol(nextProtocol)
-      setReview(nextReview)
+      const snapshot = await loadProtocolSnapshot(getTodayProtocol, getRecompositionReview)
+      setProtocol(snapshot.protocol)
+      setReview(snapshot.review)
+      if (snapshot.reviewUnavailable) setLoadError('Adjustment review unavailable. Today Protocol remains current.')
     } catch (error) {
       setLoadError('Today Protocol unavailable. Check that the backend is running.')
     } finally {
@@ -117,11 +124,11 @@ export default function TodayProtocol({ onBack }) {
   useEffect(() => { load() }, [])
 
   function handleActionError(error) {
-    setActionError(error?.status === 409 ? STALE_MESSAGE : 'Protocol command unavailable. Your entries are still available to retry.')
+    setActionError(commandErrorMessage(error))
   }
 
   async function runAction(work) {
-    if (pendingRef.current) return
+    if (!shouldStartCommand(pendingRef.current)) return
     pendingRef.current = true
     setPending(true)
     setActionError(null)
@@ -140,6 +147,7 @@ export default function TodayProtocol({ onBack }) {
   }
 
   function openLogConfirmation(meal) {
+    if (!requiresMealConfirmation('log')) return
     setConfirmMealId(meal.meal_id)
     setActionError(null)
   }
@@ -185,7 +193,7 @@ export default function TodayProtocol({ onBack }) {
   )
 
   const model = buildTodayProtocolModel(protocol)
-  const stale = actionError === STALE_MESSAGE
+  const stale = actionError === STALE_PROTOCOL_MESSAGE
 
   return (
     <CockpitShell accent={ORANGE} className="phx-nutrition-cockpit phx-today-protocol-cockpit" aria-label="Today Protocol">

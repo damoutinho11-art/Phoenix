@@ -49,8 +49,9 @@ test('nutrition cockpit keeps safety language claim-free', async () => {
 
 test('today protocol is a routed orange operational surface with truthful command boundaries', async () => {
   const base = new URL('.', import.meta.url)
-  const [protocol, model, dashboard, app, holoCommand, holoDomains, client, css] = await Promise.all([
+  const [protocol, flow, model, dashboard, app, holoCommand, holoDomains, client, css] = await Promise.all([
     readFile(new URL('./TodayProtocol.jsx', base), 'utf8'),
+    readFile(new URL('./todayProtocolFlow.js', base), 'utf8'),
     readFile(new URL('./todayProtocolModel.js', base), 'utf8'),
     readFile(new URL('./NutritionDashboard.jsx', base), 'utf8'),
     readFile(new URL('../../App.jsx', base), 'utf8'),
@@ -65,13 +66,11 @@ test('today protocol is a routed orange operational surface with truthful comman
     'getRecompositionReview',
     'postTodayProtocolReplan',
     'postTodayProtocolLogMeal',
-    'Promise.all',
     'EAT &amp; LOG',
     'REPLACE',
     'ADJUST PORTION',
     'SKIP',
     'CONFIRM LOG',
-    'Protocol changed. Refresh before continuing.',
     'quantityLabel',
     'sourceLabel',
     'phx-today-protocol-meal-grid',
@@ -79,6 +78,9 @@ test('today protocol is a routed orange operational surface with truthful comman
     "tone={model.targetMatched ? 'ready' : 'caution'}",
     "tone={meal.portable ? 'caution' : 'verified'}",
   ]) assert.equal(protocol.includes(token), true)
+
+  assert.match(flow, /Promise\.allSettled/)
+  assert.match(flow, /Protocol changed\. Refresh before continuing\./)
 
   for (const token of ['MEASUREMENT UNVERIFIED', 'GENERIC ESTIMATE', 'PRODUCT LABEL']) {
     assert.equal(model.includes(token), true)
@@ -93,6 +95,8 @@ test('today protocol is a routed orange operational surface with truthful comman
   assert.match(holoCommand, /sub === 'today-protocol'/)
   assert.match(holoDomains, /TODAY PROTOCOL/)
   assert.match(holoDomains, /sub: 'today-protocol'/)
+  assert.doesNotMatch(dashboard, /PLAN DAY/)
+  assert.doesNotMatch(app, /DayPlanner/)
 
   for (const token of [
     '/nutrition/today-protocol',
