@@ -99,6 +99,14 @@
     }
   },
   "training_days": ["monday", "wednesday", "saturday"],
+  "supplements": {
+    "clinician_review_required": true,
+    "research_peptides": {
+      "MOTS-C": {"status": "blocked", "human_use_dosing": false},
+      "ipamorelin": {"status": "blocked", "human_use_dosing": false},
+      "BPC-157": {"status": "blocked", "human_use_dosing": false}
+    }
+  },
   "read_only": true,
   "manual_approval_required_for_any_external_action": true
 }

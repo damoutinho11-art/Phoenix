@@ -551,6 +551,15 @@ class NutritionAcceptanceGateRouteTests(unittest.TestCase):
         }
         assert required.issubset(keys)
 
+    def test_acceptance_gate_covers_recomposition_protocol(self):
+        data = client.get("/nutrition/acceptance-gate").json()
+        checks = {row["key"]: row for row in data["checks"]}
+        assert checks["recomposition_authority"]["status"] == "pass"
+        assert checks["exact_measurement_contract"]["status"] == "pass"
+        assert checks["immutable_logged_meals"]["status"] == "pass"
+        assert checks["fourteen_day_adjustment_gate"]["status"] == "pass"
+        assert checks["research_peptide_block"]["status"] == "pass"
+
     def test_acceptance_gate_report_has_no_blockers(self):
         data = client.get("/nutrition/acceptance-gate").json()
         assert data["blockers"] == []

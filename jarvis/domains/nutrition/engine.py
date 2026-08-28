@@ -4,6 +4,11 @@ import json
 import math
 import re
 
+from jarvis.domains.nutrition.recomposition import (
+    build_today_protocol,
+    evaluate_adjustment_evidence,
+)
+
 from jarvis.domains.nutrition.data_contracts import (
     MacroTarget, Recipe, LidlStaple, LoggedItem, DailyLog, NutritionStatus,
 )
@@ -1851,6 +1856,98 @@ def build_nutrition_acceptance_gate(
         no_fake_items,
         "Planner/builder items use real food-brain entries or user-created rows, not prototype filler meals.",
         evidence={"checked_items": len(proposal_items)},
+    )
+
+    phase = constitution.get("phases", {}).get("recomposition_cut", {})
+    target = get_macro_target(constitution, gate_date, training_day=True)
+    target_evidence = {
+        "active_phase": constitution.get("active_phase"),
+        "calories": target.calories,
+        "protein_g": target.protein_g,
+        "carbs_g": target.carbs_g,
+        "fat_g": target.fat_g,
+        "meals_per_day": phase.get("meals_per_day"),
+    }
+    _acceptance_check(
+        checks,
+        "recomposition_authority",
+        target_evidence == {
+            "active_phase": "recomposition_cut", "calories": 2600,
+            "protein_g": 175, "carbs_g": 315, "fat_g": 70,
+            "meals_per_day": 4,
+        },
+        "The active constitution authorizes the approved 14-day recomposition prescription.",
+        evidence=target_evidence,
+    )
+
+    exact_foods = load_exact_food_inventory()
+    logged_fixture = [{
+        "meal_id": "acceptance-logged-meal", "name": "Acceptance logged meal",
+        "calories": 250.0, "protein_g": 25.0, "carbs_g": 20.0,
+        "fat_g": 8.0, "fibre_g": 2.0,
+    }]
+    immutable_before = json.dumps(logged_fixture, sort_keys=True)
+    protocol = build_today_protocol(
+        target_date=gate_date,
+        status=status,
+        foods=exact_foods,
+        memory_entries=[],
+        calendar_blocks=[],
+        constitution=constitution,
+        logged_meals=logged_fixture,
+    )
+    measurement_rules = phase.get("measurement_rules", {})
+    measured_items = [item for meal in protocol.get("meals", []) for item in meal.get("items", [])]
+    _acceptance_check(
+        checks,
+        "exact_measurement_contract",
+        len(protocol.get("meals", [])) == 4
+        and bool(measured_items)
+        and all(float(item.get("quantity_g", 0)) > 0 and item.get("measurement_state") for item in measured_items)
+        and {"pasta", "meat", "frozen_vegetables", "packaged_food", "wraps"}.issubset(measurement_rules),
+        "Every proposed component has exact grams and an explicit measurement state.",
+        evidence={"meal_count": len(protocol.get("meals", [])), "measured_items": len(measured_items)},
+    )
+    _acceptance_check(
+        checks,
+        "immutable_logged_meals",
+        json.dumps(logged_fixture, sort_keys=True) == immutable_before
+        and protocol.get("logged_meals") == logged_fixture
+        and protocol.get("requires_approval") is True,
+        "Generating a protocol preserves logged meals and requires approval for proposals.",
+        evidence={"logged_meals": len(protocol.get("logged_meals", [])), "requires_approval": protocol.get("requires_approval")},
+    )
+
+    incomplete_rows = [{"date": (gate_date - timedelta(days=index)).isoformat(), "complete": True, "weight_kg": 77.6} for index in range(13)]
+    complete_rows = incomplete_rows + [{"date": (gate_date - timedelta(days=13)).isoformat(), "complete": True, "weight_kg": 77.6}]
+    locked_review = evaluate_adjustment_evidence(
+        daily_rows=incomplete_rows, waist_rows=[], performance_rows=[], hunger_rows=[], constitution=constitution,
+    )
+    eligible_review = evaluate_adjustment_evidence(
+        daily_rows=complete_rows, waist_rows=[], performance_rows=[], hunger_rows=[], constitution=constitution,
+    )
+    _acceptance_check(
+        checks,
+        "fourteen_day_adjustment_gate",
+        locked_review.get("status") == "insufficient_evidence"
+        and locked_review.get("eligible") is False
+        and eligible_review.get("status") == "proposal"
+        and eligible_review.get("requires_approval") is True
+        and abs(int(eligible_review.get("kcal_delta", 0))) in {0, 100, 150},
+        "Calorie changes remain locked for 13 days and approval-only after 14 complete days.",
+        evidence={"day_13": locked_review, "day_14": eligible_review},
+    )
+
+    supplements = constitution.get("supplements", {})
+    peptide_states = supplements.get("research_peptides", {})
+    _acceptance_check(
+        checks,
+        "research_peptide_block",
+        bool(peptide_states)
+        and all(row.get("status") == "blocked" and row.get("human_use_dosing") is False for row in peptide_states.values())
+        and supplements.get("clinician_review_required") is True,
+        "Research-only peptides are excluded from planning and require qualified clinician review.",
+        evidence={"peptides": peptide_states, "clinician_review_required": supplements.get("clinician_review_required")},
     )
 
     failed = [c for c in checks if c["status"] != "pass" and c.get("severity") == "blocker"]
