@@ -155,6 +155,30 @@ export async function getNutritionStatus() {
   return apiFetch('/nutrition/status')
 }
 
+export async function getTodayProtocol() {
+  return apiFetch('/nutrition/today-protocol')
+}
+
+export async function getRecompositionReview() {
+  return apiFetch('/nutrition/recomposition-review')
+}
+
+export async function postTodayProtocolReplan(payload) {
+  return apiFetch('/nutrition/today-protocol/replan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function postTodayProtocolLogMeal(payload) {
+  return apiFetch('/nutrition/today-protocol/log-meal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function getRecipes(params = {}) {
   const q = new URLSearchParams(params).toString()
   return apiFetch(`/nutrition/recipes${q ? '?' + q : ''}`)

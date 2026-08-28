@@ -3,6 +3,7 @@ import Chat from './components/Chat'
 import HoloCommand from './components/holo/HoloCommand'
 import BottomNav from './components/BottomNav'
 import NutritionDashboard from './components/nutrition/NutritionDashboard'
+import TodayProtocol from './components/nutrition/TodayProtocol'
 import RecipeList from './components/nutrition/RecipeList'
 import LogMeal from './components/nutrition/LogMeal'
 import WeightHistory from './components/nutrition/WeightHistory'
@@ -90,6 +91,7 @@ export default function App() {
       case 'dashboard':
         return (
           <NutritionDashboard
+            onTodayProtocol={() => setNutritionScreen('todayProtocol')}
             onLogMeal={() => setNutritionScreen('log')}
             onRecipes={() => setNutritionScreen('recipes')}
             onWeight={() => setNutritionScreen('weight')}
@@ -103,6 +105,8 @@ export default function App() {
             onCalendarBridge={() => setNutritionScreen('calendar-bridge')}
           />
         )
+      case 'todayProtocol':
+        return <TodayProtocol onBack={() => setNutritionScreen('dashboard')} />
       case 'recipes':
         return <RecipeList onBack={() => setNutritionScreen('dashboard')} />
       case 'builder':
