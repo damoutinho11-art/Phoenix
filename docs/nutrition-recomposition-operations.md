@@ -51,6 +51,21 @@ npm run build
 
 Confirm `/nutrition/acceptance-gate` returns `PASS`, no blockers, and passing checks for `recomposition_authority`, `exact_measurement_contract`, `immutable_logged_meals`, `fourteen_day_adjustment_gate`, and `research_peptide_block`.
 
+## Production smoke verification
+
+After Railway and Vercel deployment, run read-only checks only:
+
+```powershell
+$base = 'https://phoenix-production-1fb2.up.railway.app'
+$health = Invoke-RestMethod "$base/health"
+$status = Invoke-RestMethod "$base/nutrition/status"
+$protocol = Invoke-RestMethod "$base/nutrition/today-protocol"
+$review = Invoke-RestMethod "$base/nutrition/recomposition-review"
+$gate = Invoke-RestMethod "$base/nutrition/acceptance-gate"
+```
+
+Verify health is `ok`; status and protocol both report 2,600/175/315/70; protocol returns four exact-gram meals and `requires_approval=true`; review remains `insufficient_evidence` until 14 complete days exist; and the gate is `PASS` with no blockers. Open the deployed PWA at desktop and mobile widths, confirm Today Protocol renders without overlap, and inspect the browser console for new errors. Do not invoke any logging or replanning endpoint during this smoke check.
+
 ## Rollback
 
 The pre-recomposition Nutrition baseline is commit `ed0da4ec`. If a production regression cannot be corrected promptly, create a dedicated rollback commit that restores only the Nutrition files changed after that commit. Do not reset the repository or overwrite unrelated user data. Re-run the full verification gate before deployment.

@@ -162,7 +162,7 @@ def _select_food(foods: list[dict], *terms: str) -> dict:
     )[0]
 
 
-def _measurement_state(food: dict, constitution: dict) -> str:
+def measurement_state_for_food(food: dict, constitution: dict) -> str:
     rules = _measurement_rules(constitution)
     name = food.get("name", "").lower()
     if "pasta" in name:
@@ -172,6 +172,24 @@ def _measurement_state(food: dict, constitution: dict) -> str:
     if any(term in name for term in ("chicken", "turkey", "beef", "meat", "fish", "salmon", "cod")):
         return "cooked" if "cooked" in name else "raw"
     return "as_served"
+
+
+def validate_planning_substances(substances: list[str], constitution: dict) -> list[str]:
+    """Reject constitution-blocked substances before they can enter a plan."""
+    peptide_policy = constitution.get("supplements", {}).get("research_peptides", {})
+    blocked = {
+        str(name).casefold()
+        for name, policy in peptide_policy.items()
+        if policy.get("status") == "blocked"
+    }
+    requested = [str(substance) for substance in substances or []]
+    rejected = [substance for substance in requested if substance.casefold() in blocked]
+    if rejected:
+        raise ValueError(f"Blocked planning substance: {', '.join(rejected)}")
+    return requested
+
+
+_measurement_state = measurement_state_for_food
 
 
 def _meal(meal_id: str, slot: str, title: str, timing: str, portable: bool, items: list[dict]) -> dict:

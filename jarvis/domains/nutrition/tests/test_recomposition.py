@@ -10,6 +10,7 @@ from jarvis.domains.nutrition.recomposition import (
     exact_component,
     protocol_identity,
     replan_protocol,
+    validate_planning_substances,
 )
 
 
@@ -299,3 +300,19 @@ def test_adjustment_evidence_proposes_guardrailed_change_without_mutating_consti
     assert evidence["kcal_delta"] in {100, 150}
     assert evidence["requires_approval"] is True
     assert constitution == CONSTITUTION
+
+
+def test_research_peptides_are_rejected_from_planning():
+    constitution = {
+        "supplements": {
+            "research_peptides": {
+                "MOTS-C": {"status": "blocked", "human_use_dosing": False},
+            },
+        },
+    }
+    with pytest.raises(ValueError, match="Blocked planning substance"):
+        validate_planning_substances(["creatine", "MOTS-C"], constitution)
+
+
+def test_non_blocked_supplements_remain_plannable():
+    assert validate_planning_substances(["creatine"], {"supplements": {}}) == ["creatine"]
