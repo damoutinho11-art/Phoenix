@@ -46,8 +46,8 @@ function MealRow({ meal, pending, portionInputs, onPortionChange, onLog, onRepla
       </header>
 
       <div className="phx-today-protocol-items">
-        {meal.items.map(item => (
-          <div className="phx-today-protocol-item" key={item.item_id || item.name}>
+        {meal.items.map((item, index) => (
+          <div className="phx-today-protocol-item" key={`${item.item_id || item.name}:${index}`}>
             <strong>{item.name || 'UNNAMED ITEM'}</strong>
             <span>{item.quantityLabel}</span>
             <small>{item.sourceLabel}</small>
@@ -95,7 +95,14 @@ function MealRow({ meal, pending, portionInputs, onPortionChange, onLog, onRepla
   )
 }
 
-export default function TodayProtocol({ onBack }) {
+const defaultApi = {
+  getTodayProtocol,
+  getRecompositionReview,
+  postTodayProtocolLogMeal,
+  postTodayProtocolReplan,
+}
+
+export default function TodayProtocol({ onBack, api = defaultApi }) {
   const [protocol, setProtocol] = useState(null)
   const [review, setReview] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -110,7 +117,7 @@ export default function TodayProtocol({ onBack }) {
     setLoading(true)
     setLoadError(null)
     try {
-      const snapshot = await loadProtocolSnapshot(getTodayProtocol, getRecompositionReview)
+      const snapshot = await loadProtocolSnapshot(api.getTodayProtocol, api.getRecompositionReview)
       setProtocol(snapshot.protocol)
       setReview(snapshot.review)
       if (snapshot.reviewUnavailable) setLoadError('Adjustment review unavailable. Today Protocol remains current.')
@@ -154,7 +161,7 @@ export default function TodayProtocol({ onBack }) {
 
   async function confirmLog(meal) {
     await runAction(async () => {
-      await postTodayProtocolLogMeal({ protocol_id: protocol.protocol_id, meal_id: meal.meal_id })
+      await api.postTodayProtocolLogMeal({ protocol_id: protocol.protocol_id, meal_id: meal.meal_id })
       setConfirmMealId(null)
       await load()
     })
@@ -173,7 +180,7 @@ export default function TodayProtocol({ onBack }) {
     }
 
     await runAction(async () => {
-      const nextProtocol = await postTodayProtocolReplan(payload)
+      const nextProtocol = await api.postTodayProtocolReplan(payload)
       setProtocol(nextProtocol)
       setConfirmMealId(null)
     })
