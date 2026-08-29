@@ -508,11 +508,17 @@ def jarvis_chat(request: ChatRequest) -> dict:
             nutrition_constitution = json.load(f)
         peptide_names = nutrition_constitution.get("supplements", {}).get("research_peptides", {})
         current_peptides = [name for name in peptide_names if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_current]
-        dosing_followup = any(term in lower_message for term in (
+        operational_followup = any(term in lower_message for term in (
             "dose", "dosing", "protocol", "how much", "how many", "spray",
             "inject", "microgram", " mcg", " mg", "administer", "cycle",
-            "frequency", "daily", "twice", "nasal", "take it", "use it",
+            "frequency", "daily", "twice", "nasal", "take", "use",
+            "schedule", "amount",
         ))
+        nutrition_subject = any(term in lower_message for term in (
+            "calorie", "protein", "carb", "fat", "fibre", "fiber", "macro",
+            "meal", "food", "breakfast", "lunch", "dinner", "snack",
+        ))
+        dosing_followup = operational_followup and not nutrition_subject
         history_peptides = [name for name in peptide_names if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_history]
         requested_peptides = current_peptides or (history_peptides if dosing_followup else [])
         if requested_peptides:

@@ -698,6 +698,24 @@ def test_nutrition_chat_blocks_injection_quantity_followup_from_history() -> Non
     assert "blocked" in response.json()["response"].lower()
 
 
+@pytest.mark.parametrize("message", ["What schedule should I follow?", "What amount should I use?"])
+def test_nutrition_chat_blocks_generic_operational_peptide_followups(message: str) -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post("/jarvis/chat", json={"domain": "nutrition", "message": message, "history": [{"role": "user", "content": "I have BPC-157."}]})
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
+
+
+@pytest.mark.parametrize("message", ["How many calories do I have left today?", "What is my daily protein target?"])
+def test_nutrition_chat_allows_macro_questions_after_prior_peptide_mention(message: str) -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
+        "jarvis.api.routers.chat.ai_gateway.generate_text", return_value=AIResult(text="Macro response", provider="test", model="test", ok=True),
+    ) as generate:
+        response = client.post("/jarvis/chat", json={"domain": "nutrition", "message": message, "history": [{"role": "user", "content": "I mentioned BPC-157 earlier."}]})
+    generate.assert_called_once()
+    assert response.json()["response"] == "Macro response"
+
+
 def test_prior_peptide_mention_does_not_block_unrelated_nutrition_chat() -> None:
     with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
         "jarvis.api.routers.chat.ai_gateway.generate_text",
