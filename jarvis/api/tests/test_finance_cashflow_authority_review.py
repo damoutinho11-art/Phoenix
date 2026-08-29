@@ -688,6 +688,16 @@ def test_nutrition_chat_blocks_peptide_dosing_followup_from_history() -> None:
     assert "blocked" in response.json()["response"].lower()
 
 
+def test_nutrition_chat_blocks_injection_quantity_followup_from_history() -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post(
+            "/jarvis/chat",
+            json={"domain": "nutrition", "message": "How many micrograms should I inject?", "history": [{"role": "user", "content": "I have BPC-157."}]},
+        )
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
+
+
 def test_prior_peptide_mention_does_not_block_unrelated_nutrition_chat() -> None:
     with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
         "jarvis.api.routers.chat.ai_gateway.generate_text",
