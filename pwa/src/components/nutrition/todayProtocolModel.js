@@ -21,12 +21,13 @@ function normalizeMeasurementState(value) {
 
 function normalizeItem(item = {}) {
   const quantity = formatNumber(item.quantity_g)
+  const unitCount = formatNumber(item.unit_count)
   const measurementState = normalizeMeasurementState(item.measurement_state)
   const verified = quantity !== null && measurementState !== null
 
   return {
     ...item,
-    quantityLabel: verified ? `${quantity} g · ${measurementState}` : 'MEASUREMENT UNVERIFIED',
+    quantityLabel: verified ? `${quantity} g${unitCount !== null ? ` · ${unitCount} UNIT` : ''} · ${measurementState}` : 'MEASUREMENT UNVERIFIED',
     sourceLabel: item.is_estimate ? 'GENERIC ESTIMATE' : 'PRODUCT LABEL',
     measurementVerified: verified,
   }

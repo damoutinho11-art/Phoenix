@@ -688,6 +688,19 @@ def test_nutrition_chat_blocks_peptide_dosing_followup_from_history() -> None:
     assert "blocked" in response.json()["response"].lower()
 
 
+def test_prior_peptide_mention_does_not_block_unrelated_nutrition_chat() -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
+        "jarvis.api.routers.chat.ai_gateway.generate_text",
+        return_value=AIResult(text="Meal response", provider="test", model="test", ok=True),
+    ) as generate:
+        response = client.post(
+            "/jarvis/chat",
+            json={"domain": "nutrition", "message": "What should I eat for dinner?", "history": [{"role": "user", "content": "I mentioned BPC-157 earlier."}]},
+        )
+    assert response.json()["response"] == "Meal response"
+    generate.assert_called_once()
+
+
 def test_home_generic_shopping_does_not_load_or_report_finance_authority() -> None:
     with patch("jarvis.api.routers.budget._build_cashflow_authority") as build_authority, patch(
         "jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()

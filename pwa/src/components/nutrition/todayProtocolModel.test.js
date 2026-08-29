@@ -16,7 +16,7 @@ test('today protocol model normalizes exact quantities and source labels without
       total: { calories: 600, protein_g: 45, carbs_g: 80, fat_g: 14, fibre_g: 7 },
       items: [
         { item_id: 'cookie-crisp', name: 'Cookie Crisp', quantity_g: 85, measurement_state: 'as_served', is_estimate: true },
-        { item_id: 'yogurt', name: 'Yogurt', quantity_g: 127.5, measurement_state: 'as_served', is_estimate: false },
+        { item_id: 'yogurt', name: 'Yogurt', quantity_g: 127.5, unit_count: 1.5, measurement_state: 'as_served', is_estimate: false },
       ],
     }],
   })
@@ -27,7 +27,7 @@ test('today protocol model normalizes exact quantities and source labels without
   assert.equal(model.meals.length, 1)
   assert.equal(model.meals[0].items[0].quantityLabel, '85 g · as served')
   assert.equal(model.meals[0].items[0].sourceLabel, 'GENERIC ESTIMATE')
-  assert.equal(model.meals[0].items[1].quantityLabel, '127.5 g · as served')
+  assert.equal(model.meals[0].items[1].quantityLabel, '127.5 g · 1.5 UNIT · as served')
   assert.equal(model.meals[0].items[1].sourceLabel, 'PRODUCT LABEL')
   assert.equal(model.measurementsVerified, true)
   assert.equal(model.targetMatched, true)

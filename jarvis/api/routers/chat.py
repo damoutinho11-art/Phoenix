@@ -499,19 +499,18 @@ def jarvis_chat(request: ChatRequest) -> dict:
     finance_ctx = ""
     finance_projection = {"week_closed": False, "week_budget": 0.0, "recommendations": []}
     lower_message = request.message.lower()
-    peptide_text = " ".join(
-        [str(row.get("content", "")) for row in request.history] + [request.message]
-    )
-    normalized_peptide_text = "".join(ch for ch in peptide_text.lower() if ch.isalnum())
+    history_peptide_text = " ".join(str(row.get("content", "")) for row in request.history)
+    normalized_current = "".join(ch for ch in request.message.lower() if ch.isalnum())
+    normalized_history = "".join(ch for ch in history_peptide_text.lower() if ch.isalnum())
     peptide_block_message = None
     try:
         with open(_NUTRITION_CONSTITUTION_PATH) as f:
             nutrition_constitution = json.load(f)
         peptide_names = nutrition_constitution.get("supplements", {}).get("research_peptides", {})
-        requested_peptides = [
-            name for name in peptide_names
-            if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_peptide_text
-        ]
+        current_peptides = [name for name in peptide_names if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_current]
+        dosing_followup = any(term in lower_message for term in ("dose", "dosing", "protocol", "how much", "spray"))
+        history_peptides = [name for name in peptide_names if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_history]
+        requested_peptides = current_peptides or (history_peptides if dosing_followup else [])
         if requested_peptides:
             nutrition_engine.validate_planning_substances(
                 requested_peptides, nutrition_constitution

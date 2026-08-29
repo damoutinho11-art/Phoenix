@@ -572,7 +572,10 @@ def evaluate_adjustment_evidence(*, daily_rows, waist_rows, performance_rows, hu
     """Evaluate read-only evidence and return an approval-required proposal only."""
     calibration = _calibration(constitution)
     minimum_complete_days = max(14, int(calibration.get("minimum_complete_days", 14)))
-    complete = [row for row in daily_rows or [] if row.get("complete")]
+    complete = sorted(
+        [row for row in daily_rows or [] if row.get("complete")],
+        key=lambda row: str(row.get("date", "")),
+    )
     if len(complete) < minimum_complete_days:
         return {
             "status": "insufficient_evidence",
@@ -581,8 +584,9 @@ def evaluate_adjustment_evidence(*, daily_rows, waist_rows, performance_rows, hu
             "minimum_complete_days": minimum_complete_days,
         }
 
-    window_start = min(str(row.get("date", ""))[:10] for row in complete)
-    window_end = max(str(row.get("date", ""))[:10] for row in complete)
+    review_window = complete[-minimum_complete_days:]
+    window_start = str(review_window[0].get("date", ""))[:10]
+    window_end = str(review_window[-1].get("date", ""))[:10]
     in_window = lambda rows: [row for row in (rows or []) if window_start <= str(row.get("date", ""))[:10] <= window_end]
     waist_rows = in_window(waist_rows)
     performance_rows = in_window(performance_rows)
@@ -603,7 +607,7 @@ def evaluate_adjustment_evidence(*, daily_rows, waist_rows, performance_rows, hu
             "missing_guardrails": missing_guardrails,
         }
 
-    rate = _rolling_weight_rate(complete)
+    rate = _rolling_weight_rate(review_window)
     desired_loss = calibration.get("desired_loss_kg_per_week", calibration.get("target_loss_kg_per_week", [0.2, 0.4]))
     high_loss = float(calibration.get("high_loss_guardrail_kg_per_week", calibration.get("high_loss_kg_per_week", 0.5)))
     adjustment_range = calibration.get("adjustment_kcal_range", calibration.get("adjustment_kcal", [100, 150]))
