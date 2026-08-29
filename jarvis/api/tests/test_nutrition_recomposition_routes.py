@@ -64,6 +64,13 @@ def test_today_protocol_is_read_only_and_exact():
     )
 
 
+def test_today_protocol_does_not_claim_target_match_without_verified_fibre():
+    protocol = _today_protocol()
+
+    assert protocol["food_constraints"]["fibre_minimum_g"] > 0
+    assert protocol["target_matched"] is False
+
+
 def test_logging_one_protocol_meal_never_logs_the_full_day():
     protocol = _today_protocol()
     selected_meal = protocol["meals"][0]
@@ -239,6 +246,85 @@ def test_stale_replan_is_rejected_without_writes():
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Today protocol is stale; refresh before replanning"
+    assert client.get("/nutrition/status").json()["meal_log"] == before
+
+
+def test_replanned_quantity_and_measurement_provenance_are_logged_exactly():
+    protocol = _today_protocol()
+    meal = protocol["meals"][0]
+    item = meal["items"][0]
+    requested_quantity = round(float(item["quantity_g"]) + 10, 2)
+
+    response = client.post(
+        "/nutrition/today-protocol/replan",
+        json={
+            "protocol_id": protocol["protocol_id"],
+            "action": "adjust_portion",
+            "meal_id": meal["meal_id"],
+            "item_id": item["item_id"],
+            "quantity_g": requested_quantity,
+        },
+    )
+    assert response.status_code == 200
+    replanned = response.json()
+    replanned_meal = next(row for row in replanned["meals"] if row["meal_id"] == meal["meal_id"])
+    replanned_item = next(row for row in replanned_meal["items"] if row["item_id"] == item["item_id"])
+
+    logged_response = client.post(
+        "/nutrition/today-protocol/log-meal",
+        json={"protocol_id": replanned["protocol_id"], "meal_id": meal["meal_id"]},
+    )
+    assert logged_response.status_code == 200
+    source = f"today_protocol:{replanned['protocol_id']}:{meal['meal_id']}"
+    rows = [row for row in database.get_meals_for_date(clock.today()) if row["source"] == source]
+    logged_item = next(row for row in rows if row["item_id"] == item["item_id"])
+
+    assert logged_item["quantity_g"] == pytest.approx(replanned_item["quantity_g"])
+    assert logged_item["servings"] == pytest.approx(replanned_item["quantity_g"])
+    assert logged_item["measurement_state"] == replanned_item["measurement_state"]
+    assert logged_item["label_source"] == replanned_item["label_source"]
+    assert logged_item["fibre_g"] == pytest.approx(replanned_item["fibre_g"])
+    assert logged_item["is_estimate"] == int(bool(replanned_item["is_estimate"]))
+
+
+def test_logged_protocol_slot_is_not_proposed_again():
+    protocol = _today_protocol()
+    meal = protocol["meals"][0]
+    response = client.post(
+        "/nutrition/today-protocol/log-meal",
+        json={"protocol_id": protocol["protocol_id"], "meal_id": meal["meal_id"]},
+    )
+    assert response.status_code == 200
+
+    refreshed = _today_protocol()
+    assert meal["meal_id"] not in {row["meal_id"] for row in refreshed["meals"]}
+    assert len(refreshed["meals"]) == len(protocol["meals"]) - 1
+
+
+def test_replanned_snapshot_is_rejected_after_logged_facts_change():
+    protocol = _today_protocol()
+    meal = protocol["meals"][0]
+    response = client.post(
+        "/nutrition/today-protocol/replan",
+        json={
+            "protocol_id": protocol["protocol_id"],
+            "action": "adjust_portion",
+            "meal_id": meal["meal_id"],
+            "item_id": meal["items"][0]["item_id"],
+            "quantity_g": float(meal["items"][0]["quantity_g"]) + 10,
+        },
+    )
+    assert response.status_code == 200
+    replanned = response.json()
+    assert client.post("/nutrition/log/meal", json=_manual_meal_payload()).status_code == 200
+    before = client.get("/nutrition/status").json()["meal_log"]
+
+    logged_response = client.post(
+        "/nutrition/today-protocol/log-meal",
+        json={"protocol_id": replanned["protocol_id"], "meal_id": meal["meal_id"]},
+    )
+
+    assert logged_response.status_code == 409
     assert client.get("/nutrition/status").json()["meal_log"] == before
 
 

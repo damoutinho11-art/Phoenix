@@ -30,9 +30,10 @@ test('nutrition dashboard uses the Finance and Training grade command presentati
     'TRENDS',
     'MEMORY',
     'PANTRY',
-    'PREP',
     'RECIPES',
   ]) assert.match(source, new RegExp(token))
+
+  assert.doesNotMatch(source, /Weekly Prep|onWeeklyPlanner/)
 })
 
 test('nutrition cockpit keeps safety language claim-free', async () => {

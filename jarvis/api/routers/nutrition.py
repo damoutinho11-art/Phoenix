@@ -335,17 +335,23 @@ def replan_today_protocol(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
     current = _today_protocol_context(constitution)
+    source_protocol = current
     if request.protocol_id != current["protocol_id"]:
-        raise HTTPException(
-            status_code=409,
-            detail="Today protocol is stale; refresh before replanning",
-        )
+        snapshot = database.get_protocol_snapshot(request.protocol_id, clock.today())
+        if snapshot is None or snapshot.get("base_protocol_id") != current["protocol_id"]:
+            raise HTTPException(
+                status_code=409,
+                detail="Today protocol is stale; refresh before replanning",
+            )
+        source_protocol = snapshot
     try:
-        return recomposition.replan_protocol(
-            current,
+        replanned = recomposition.replan_protocol(
+            source_protocol,
             request.model_dump(),
             engine.load_exact_food_inventory(),
         )
+        database.save_protocol_snapshot(replanned, clock.today())
+        return replanned
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -861,6 +867,10 @@ def log_weekly_plan(
     request: LogWeeklyPlanRequest,
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
+    raise HTTPException(
+        status_code=410,
+        detail="Bulk nutrition logging is retired; confirm and log one consumed meal at a time",
+    )
     request_day_count = len(request.days) if request.days is not None else 7
     request_start = request.days[0].date if request.days else None
     context = _weekly_plan_context(constitution, start=request_start, days=request_day_count)
@@ -946,6 +956,10 @@ def log_day_plan(
     request: LogDayPlanRequest,
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
+    raise HTTPException(
+        status_code=410,
+        detail="Bulk nutrition logging is retired; confirm and log one consumed meal at a time",
+    )
     context = _day_plan_context(constitution)
     if request.plan_id != context.get("plan_id"):
         raise HTTPException(status_code=404, detail="Day plan not found")

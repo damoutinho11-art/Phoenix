@@ -1951,7 +1951,10 @@ def build_nutrition_acceptance_gate(
         daily_rows=incomplete_rows, waist_rows=[], performance_rows=[], hunger_rows=[], constitution=constitution,
     )
     eligible_review = evaluate_adjustment_evidence(
-        daily_rows=complete_rows, waist_rows=[], performance_rows=[], hunger_rows=[], constitution=constitution,
+        daily_rows=complete_rows,
+        waist_rows=[{"date": complete_rows[-1]["date"], "waist_cm": 86}, {"date": complete_rows[0]["date"], "waist_cm": 86}],
+        performance_rows=[{"status": "stable"}], hunger_rows=[{"level": 2}],
+        constitution=constitution,
     )
     _acceptance_check(
         checks,

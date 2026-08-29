@@ -329,24 +329,13 @@ class FullDayPlannerRouteTests(unittest.TestCase):
             assert meal["items"]
             assert meal["total"]["calories"] > 0
 
-    def test_day_plan_can_be_logged_and_deleted(self):
+    def test_day_plan_bulk_logging_is_retired_without_writes(self):
         data = client.get("/nutrition/day-plan").json()
-        if not data["meals"]:
-            self.skipTest("No plan because day is near closed")
-        created = client.post("/nutrition/log/day-plan", json={"plan_id": data["plan_id"]}).json()
-        assert created["status"] == "logged"
-        assert created["requires_approval"] is True
-        assert created["meal_count"] == len(data["meals"])
-        assert created["total"]["calories"] > 0
-        try:
-            for meal in created["meals"]:
-                status = client.get("/nutrition/status").json()
-                logged = next(m for m in status["meal_log"] if m["id"] == meal["meal_id"])
-                assert logged["source"].startswith("phoenix_full_day_planner:")
-        finally:
-            for meal in created["meals"]:
-                deleted = client.delete(f"/nutrition/log/meal/{meal['meal_id']}").json()
-                assert deleted["status"] == "deleted"
+        before = client.get("/nutrition/status").json()["meal_log"]
+        response = client.post("/nutrition/log/day-plan", json={"plan_id": data["plan_id"]})
+        after = client.get("/nutrition/status").json()["meal_log"]
+        assert response.status_code == 410
+        assert after == before
 
     def test_day_plan_rejects_empty_edited_meals(self):
         data = client.get("/nutrition/day-plan").json()
@@ -484,7 +473,7 @@ class WeeklyMealPrepRouteTests(unittest.TestCase):
         assert client.get("/nutrition/weekly-plan?days=2").status_code == 422
         assert client.get("/nutrition/weekly-plan?days=8").status_code == 422
 
-    def test_weekly_plan_can_log_and_delete(self):
+    def test_weekly_plan_bulk_logging_is_retired_without_writes(self):
         data = client.get("/nutrition/weekly-plan?days=3").json()
         if not data["days"]:
             self.skipTest("No weekly plan returned")
@@ -497,20 +486,14 @@ class WeeklyMealPrepRouteTests(unittest.TestCase):
                 })
         if not payload_days:
             self.skipTest("No weekly meals to log")
-        created = client.post(
+        before = client.get("/nutrition/status").json()["meal_log"]
+        response = client.post(
             "/nutrition/log/weekly-plan",
             json={"plan_id": data["plan_id"], "days": payload_days},
-        ).json()
-        assert created["status"] == "logged"
-        assert created["requires_approval"] is True
-        assert created["day_count"] == 1
-        assert created["meal_count"] == 1
-        meal_id = created["days"][0]["meals"][0]["meal_id"]
-        try:
-            deleted = client.delete(f"/nutrition/log/meal/{meal_id}").json()
-            assert deleted["status"] == "deleted"
-        finally:
-            pass
+        )
+        after = client.get("/nutrition/status").json()["meal_log"]
+        assert response.status_code == 410
+        assert after == before
 
 
 class NutritionAcceptanceGateRouteTests(unittest.TestCase):

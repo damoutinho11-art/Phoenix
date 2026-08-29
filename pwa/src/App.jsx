@@ -10,7 +10,6 @@ import WeightHistory from './components/nutrition/WeightHistory'
 import MealBuilder from './components/nutrition/MealBuilder'
 import NutritionMemory from './components/nutrition/NutritionMemory'
 import ShoppingList from './components/nutrition/ShoppingList'
-import WeeklyPlanner from './components/nutrition/WeeklyPlanner'
 import NutritionAcceptanceGate from './components/nutrition/NutritionAcceptanceGate'
 import CalendarNutritionBridge from './components/nutrition/CalendarNutritionBridge'
 import TrainingMetrics from './components/training/TrainingMetrics'
@@ -98,7 +97,6 @@ export default function App() {
             onMealBuilder={() => setNutritionScreen('builder')}
             onMemory={() => setNutritionScreen('memory')}
             onShopping={() => setNutritionScreen('shopping')}
-            onWeeklyPlanner={() => setNutritionScreen('weekly-plan')}
             onAcceptanceGate={() => setNutritionScreen('acceptance-gate')}
             onCalendarBridge={() => setNutritionScreen('calendar-bridge')}
           />
@@ -127,13 +125,6 @@ export default function App() {
         return <NutritionAcceptanceGate onBack={() => setNutritionScreen('dashboard')} />
       case 'calendar-bridge':
         return <CalendarNutritionBridge onBack={() => setNutritionScreen('dashboard')} />
-      case 'weekly-plan':
-        return (
-          <WeeklyPlanner
-            onBack={() => setNutritionScreen('dashboard')}
-            onSuccess={() => setNutritionScreen('dashboard')}
-          />
-        )
       case 'log':
         return (
           <LogMeal

@@ -287,6 +287,41 @@ def test_adjustment_evidence_never_lowers_the_fourteen_day_minimum():
     assert evidence == {"status": "insufficient_evidence", "eligible": False, "complete_days": 13, "minimum_complete_days": 14}
 
 
+def test_adjustment_evidence_requires_waist_performance_and_hunger_guardrails():
+    evidence = evaluate_adjustment_evidence(
+        daily_rows=complete_rows([77.6] * 14),
+        waist_rows=[],
+        performance_rows=[],
+        hunger_rows=[],
+        constitution=CONSTITUTION,
+    )
+
+    assert evidence["status"] == "insufficient_evidence"
+    assert evidence["eligible"] is False
+    assert set(evidence["missing_guardrails"]) == {"waist", "performance", "hunger"}
+
+
+def test_weight_rate_uses_elapsed_calendar_days_for_sparse_measurements():
+    start = date(2026, 8, 1)
+    rows = [
+        {
+            "date": (start + timedelta(days=index * 2)).isoformat(),
+            "complete": True,
+            "weight_kg": 77.6 - (0.4 / 7) * index * 2,
+        }
+        for index in range(14)
+    ]
+    evidence = evaluate_adjustment_evidence(
+        daily_rows=rows,
+        waist_rows=[{"date": "2026-08-01", "value": 86}, {"date": "2026-08-27", "value": 85}],
+        performance_rows=[{"trend": "stable"}],
+        hunger_rows=[{"level": 2}],
+        constitution=CONSTITUTION,
+    )
+
+    assert evidence["evidence"]["rolling_weight_rate_kg_per_week"] == pytest.approx(-0.4, abs=0.01)
+
+
 def test_adjustment_evidence_proposes_guardrailed_change_without_mutating_constitution():
     constitution = {**CONSTITUTION}
     evidence = evaluate_adjustment_evidence(

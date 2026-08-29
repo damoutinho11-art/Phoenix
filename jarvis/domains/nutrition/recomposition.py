@@ -68,12 +68,17 @@ def _macro_dict(source) -> dict:
     if source is None:
         source = {}
     values = source if isinstance(source, dict) else vars(source)
+    def value(*keys):
+        for key in keys:
+            if values.get(key) is not None:
+                return values[key]
+        return 0
     return {
-        "calories": _round(values.get("calories", values.get("total_calories", 0))),
-        "protein_g": _round(values.get("protein_g", values.get("total_protein_g", 0))),
-        "carbs_g": _round(values.get("carbs_g", values.get("total_carbs_g", 0))),
-        "fat_g": _round(values.get("fat_g", values.get("total_fat_g", 0))),
-        "fibre_g": _round(values.get("fibre_g", values.get("fiber_g", values.get("total_fibre_g", 0)))),
+        "calories": _round(value("calories", "total_calories")),
+        "protein_g": _round(value("protein_g", "total_protein_g")),
+        "carbs_g": _round(value("carbs_g", "total_carbs_g")),
+        "fat_g": _round(value("fat_g", "total_fat_g")),
+        "fibre_g": _round(value("fibre_g", "fiber_g", "total_fibre_g")),
     }
 
 
@@ -256,6 +261,8 @@ def _hydrate_protocol(protocol: dict) -> dict:
     protocol["target_matched"] = (
         abs(protocol["target_gap"]["calories"]) <= CALORIE_TOLERANCE
         and abs(protocol["target_gap"]["protein_g"]) <= PROTEIN_TOLERANCE_G
+        and protocol["planned_total"]["fibre_g"] + logged_total["fibre_g"]
+        >= float(protocol.get("food_constraints", {}).get("fibre_minimum_g", 0))
     )
     protocol["requires_approval"] = True
     return protocol
@@ -269,19 +276,34 @@ def build_today_protocol(*, target_date, status, foods, memory_entries, calendar
     remaining_target = _remaining_target(target, logged_total)
     avoided_terms = _avoid_terms(memory_entries, constitution)
     allowed_foods = _allowed_foods(foods, avoided_terms)
+    base_protocol_id = protocol_identity(
+        target_date,
+        target,
+        immutable_logged_meals,
+        {
+            "calendar_blocks": calendar_blocks or [],
+            "memory_entries": memory_entries or [],
+            "constitution": constitution or {},
+            "foods": foods or [],
+        },
+    )
+    logged_slot_ids = {
+        str(row.get("source", "")).rsplit(":", 1)[-1]
+        for row in immutable_logged_meals
+        if str(row.get("source", "")).startswith("today_protocol:")
+    }
+    meals = _build_four_slots(
+        target_date=target_date,
+        remaining_target=remaining_target,
+        foods=foods,
+        memory_entries=memory_entries,
+        calendar_blocks=calendar_blocks,
+        constitution=constitution,
+    )
     protocol = {
         "mode": "recomposition_today_protocol",
-        "protocol_id": protocol_identity(
-            target_date,
-            target,
-            immutable_logged_meals,
-            {
-                "calendar_blocks": calendar_blocks or [],
-                "memory_entries": memory_entries or [],
-                "constitution": constitution or {},
-                "foods": foods or [],
-            },
-        ),
+        "protocol_id": base_protocol_id,
+        "base_protocol_id": base_protocol_id,
         "target": target,
         "remaining_target": remaining_target,
         "logged_meals": immutable_logged_meals,
@@ -289,15 +311,9 @@ def build_today_protocol(*, target_date, status, foods, memory_entries, calendar
             "avoided_terms": sorted(avoided_terms),
             "allowed_food_ids": [food.get("id", food.get("item_id")) for food in allowed_foods],
             "fibre_minimum_g": _fibre_minimum(constitution),
+            "measurement_rules": _measurement_rules(constitution),
         },
-        "meals": _build_four_slots(
-            target_date=target_date,
-            remaining_target=remaining_target,
-            foods=foods,
-            memory_entries=memory_entries,
-            calendar_blocks=calendar_blocks,
-            constitution=constitution,
-        ),
+        "meals": [meal for meal in meals if meal["meal_id"] not in logged_slot_ids],
         "requires_approval": True,
     }
     return _rebalance_unlogged_meals(protocol, foods)
@@ -316,7 +332,7 @@ def _refresh_meal_total(meal: dict) -> None:
     meal["requires_approval"] = True
 
 
-def _nearest_replacement(meal: dict, foods: list[dict]) -> dict:
+def _nearest_replacement(meal: dict, foods: list[dict], measurement_rules: dict) -> dict:
     target = _macro_dict(meal["total"])
     original_ids = {item["item_id"] for item in meal["items"]}
     candidates = [food for food in foods if food.get("id", food.get("item_id")) not in original_ids] or foods
@@ -334,7 +350,11 @@ def _nearest_replacement(meal: dict, foods: list[dict]) -> dict:
 
     selected = min(candidates, key=score)
     quantity_g = target["calories"] / max(1.0, float(selected["calories"])) * float(selected["reference_g"])
-    return exact_component(selected, max(0.1, quantity_g), "as_served")
+    return exact_component(
+        selected,
+        max(0.1, quantity_g),
+        measurement_state_for_food(selected, {"measurement_rules": measurement_rules}),
+    )
 
 
 def _allowed_protocol_foods(protocol: dict, foods: list[dict]) -> list[dict]:
@@ -475,9 +495,19 @@ def replan_protocol(protocol: dict, action: dict, foods: list[dict]) -> dict:
             _refresh_meal_total(meal)
             protected.add((meal_id, item_id))
         else:
-            meal["items"] = [_nearest_replacement(meal, _allowed_protocol_foods(result, foods))]
+            meal["items"] = [_nearest_replacement(
+                meal,
+                _allowed_protocol_foods(result, foods),
+                result.get("food_constraints", {}).get("measurement_rules", {}),
+            )]
             _refresh_meal_total(meal)
-    return _rebalance_unlogged_meals(result, foods, protected)
+    result = _rebalance_unlogged_meals(result, foods, protected)
+    canonical = json.dumps(
+        {"base_protocol_id": result.get("base_protocol_id"), "meals": result.get("meals", [])},
+        sort_keys=True, separators=(",", ":"), default=str,
+    )
+    result["protocol_id"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
+    return result
 
 
 def _calibration(constitution: dict) -> dict:
@@ -500,7 +530,10 @@ def _rolling_weight_rate(rows: list[dict]) -> float:
     last = _row_value(ordered[-1], "weight_kg", "weight")
     if first is None or last is None:
         return 0.0
-    span_days = max(1, len(ordered) - 1)
+    try:
+        span_days = max(1, (date.fromisoformat(str(ordered[-1]["date"])[:10]) - date.fromisoformat(str(ordered[0]["date"])[:10])).days)
+    except (KeyError, TypeError, ValueError):
+        return 0.0
     return _round((last - first) / span_days * 7)
 
 
@@ -544,6 +577,22 @@ def evaluate_adjustment_evidence(*, daily_rows, waist_rows, performance_rows, hu
             "minimum_complete_days": minimum_complete_days,
         }
 
+    missing_guardrails = []
+    if len(waist_rows or []) < 2:
+        missing_guardrails.append("waist")
+    if not performance_rows:
+        missing_guardrails.append("performance")
+    if not hunger_rows:
+        missing_guardrails.append("hunger")
+    if missing_guardrails:
+        return {
+            "status": "insufficient_evidence",
+            "eligible": False,
+            "complete_days": len(complete),
+            "minimum_complete_days": minimum_complete_days,
+            "missing_guardrails": missing_guardrails,
+        }
+
     rate = _rolling_weight_rate(complete)
     desired_loss = calibration.get("desired_loss_kg_per_week", calibration.get("target_loss_kg_per_week", [0.2, 0.4]))
     high_loss = float(calibration.get("high_loss_guardrail_kg_per_week", calibration.get("high_loss_kg_per_week", 0.5)))
@@ -562,7 +611,7 @@ def evaluate_adjustment_evidence(*, daily_rows, waist_rows, performance_rows, hu
     confidence = "high" if waist_change is not None else "medium"
     if rate <= -high_loss or performance_declining or hunger_elevated:
         direction, kcal_delta = "increase", kcal_step
-    elif rate > -float(desired_loss[0]) and (waist_change is None or waist_change >= -0.25):
+    elif rate > -float(desired_loss[0]) and waist_change is not None and waist_change >= -0.25:
         direction, kcal_delta = "decrease", -kcal_step
     else:
         direction, kcal_delta = "maintain", 0

@@ -367,7 +367,6 @@ export default function NutritionDashboard({
   onMealBuilder,
   onMemory,
   onShopping,
-  onWeeklyPlanner,
   onAcceptanceGate,
   onCalendarBridge,
 }) {
@@ -531,7 +530,6 @@ export default function NutritionDashboard({
               <SubsectionRoute code="TRENDS" title="Trends" copy="Weekly rhythm, weight, and previous-day review." action={onWeight} />
               <SubsectionRoute code="MEMORY" title="Memory" copy="Preferences and saved food choices." action={onMemory} />
               <SubsectionRoute code="PANTRY" title="Pantry / Shopping" copy="Pantry state and shopping requirements." action={onShopping} />
-              <SubsectionRoute code="PREP" title="Weekly Prep" copy="Prepare the weekly Nutrition plan." action={onWeeklyPlanner} />
               <SubsectionRoute code="RECIPES" title="Recipes" copy="Browse available recipe references." action={onRecipes} />
             </div>
           </div>

@@ -56,10 +56,24 @@ CREATE TABLE IF NOT EXISTS meal_log (
     protein_g REAL NOT NULL,
     fat_g REAL NOT NULL,
     carbs_g REAL NOT NULL,
+    quantity_g REAL,
+    measurement_state TEXT,
+    label_source TEXT,
+    fibre_g REAL,
+    is_estimate INTEGER,
+    unit_count REAL,
     source TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_meal_log_date ON meal_log(log_date);
+
+CREATE TABLE IF NOT EXISTS nutrition_protocol_snapshots (
+    protocol_id TEXT PRIMARY KEY,
+    base_protocol_id TEXT NOT NULL,
+    log_date TEXT NOT NULL,
+    protocol_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS nutrition_memory (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -707,6 +721,23 @@ def _migrate_barcode_macro_basis(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+def _migrate_meal_measurement_provenance(connection: sqlite3.Connection) -> None:
+    existing = {
+        row[1] for row in connection.execute("PRAGMA table_info(meal_log)").fetchall()
+    }
+    for name, definition in (
+        ("quantity_g", "REAL"),
+        ("measurement_state", "TEXT"),
+        ("label_source", "TEXT"),
+        ("fibre_g", "REAL"),
+        ("is_estimate", "INTEGER"),
+        ("unit_count", "REAL"),
+    ):
+        if name not in existing:
+            connection.execute(f"ALTER TABLE meal_log ADD COLUMN {name} {definition}")
+    connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
@@ -720,6 +751,7 @@ def init_db() -> None:
         _migrate_portfolio_state_store(connection)
         _migrate_budget_statement_snapshot_provenance(connection)
         _migrate_barcode_macro_basis(connection)
+        _migrate_meal_measurement_provenance(connection)
     finally:
         connection.close()
 
@@ -797,8 +829,10 @@ def _log_meal_components_with_connection(
             """
             INSERT INTO meal_log (
                 log_date, logged_at, item_id, item_type, name, servings,
-                calories, protein_g, fat_g, carbs_g, source
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                calories, protein_g, fat_g, carbs_g, quantity_g,
+                measurement_state, label_source, fibre_g, is_estimate,
+                unit_count, source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 _date_value(log_date),
@@ -811,6 +845,12 @@ def _log_meal_components_with_connection(
                 float(component["protein_g"]),
                 float(component["fat_g"]),
                 float(component["carbs_g"]),
+                float(component["quantity_g"]),
+                component.get("measurement_state"),
+                component.get("label_source"),
+                float(component.get("fibre_g", 0)),
+                int(bool(component.get("is_estimate"))),
+                float(component["unit_count"]) if component.get("unit_count") is not None else None,
                 source,
             ),
         )
@@ -853,11 +893,18 @@ def verify_and_log_protocol_meal_atomically(
     try:
         connection.execute("BEGIN IMMEDIATE")
         current = build_current_protocol(connection)
+        protocol = current
         if current["protocol_id"] != expected_protocol_id:
-            connection.commit()
-            return {"status": "stale"}
+            snapshot_row = connection.execute(
+                "SELECT * FROM nutrition_protocol_snapshots WHERE protocol_id = ? AND log_date = ?",
+                (expected_protocol_id, _date_value(log_date)),
+            ).fetchone()
+            if snapshot_row is None or snapshot_row["base_protocol_id"] != current["protocol_id"]:
+                connection.commit()
+                return {"status": "stale"}
+            protocol = json.loads(snapshot_row["protocol_json"])
         meal = next(
-            (row for row in current.get("meals", []) if row.get("meal_id") == meal_id),
+            (row for row in protocol.get("meals", []) if row.get("meal_id") == meal_id),
             None,
         )
         if meal is None:
@@ -866,11 +913,44 @@ def verify_and_log_protocol_meal_atomically(
         log_ids = _log_meal_components_with_connection(
             connection, log_date, meal["items"], source=source
         )
+        connection.execute(
+            "DELETE FROM nutrition_protocol_snapshots WHERE log_date = ?",
+            (_date_value(log_date),),
+        )
         connection.commit()
         return {"status": "logged", "log_ids": log_ids}
     except Exception:
         connection.rollback()
         raise
+    finally:
+        connection.close()
+
+
+def save_protocol_snapshot(protocol: dict, log_date: date | str) -> None:
+    connection = get_db()
+    try:
+        connection.execute(
+            """INSERT OR REPLACE INTO nutrition_protocol_snapshots
+               (protocol_id, base_protocol_id, log_date, protocol_json, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                protocol["protocol_id"], protocol["base_protocol_id"],
+                _date_value(log_date), json.dumps(protocol, sort_keys=True), _utc_now(),
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def get_protocol_snapshot(protocol_id: str, log_date: date | str) -> dict | None:
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT protocol_json FROM nutrition_protocol_snapshots WHERE protocol_id = ? AND log_date = ?",
+            (protocol_id, _date_value(log_date)),
+        ).fetchone()
+        return json.loads(row["protocol_json"]) if row else None
     finally:
         connection.close()
 

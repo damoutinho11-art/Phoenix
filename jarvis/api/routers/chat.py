@@ -499,6 +499,23 @@ def jarvis_chat(request: ChatRequest) -> dict:
     finance_ctx = ""
     finance_projection = {"week_closed": False, "week_budget": 0.0, "recommendations": []}
     lower_message = request.message.lower()
+    peptide_block_message = None
+    try:
+        with open(_NUTRITION_CONSTITUTION_PATH) as f:
+            nutrition_constitution = json.load(f)
+        peptide_names = nutrition_constitution.get("supplements", {}).get("research_peptides", {})
+        requested_peptides = [name for name in peptide_names if name.lower() in lower_message]
+        if requested_peptides:
+            nutrition_engine.validate_planning_substances(
+                requested_peptides, nutrition_constitution
+            )
+    except ValueError:
+        peptide_block_message = (
+            "Those research-only peptides are blocked from Phoenix planning and human-use dosing. "
+            "Reconsideration requires a qualified clinician and identifiable product information."
+        )
+    except (OSError, json.JSONDecodeError):
+        peptide_block_message = None
     app_status_intent = domain in ("home", "app", "system") or any(
         phrase in lower_message
         for phrase in ["what are you doing", "what is the app doing", "what are you fetching", "fetching", "ai status", "provider status"]
@@ -580,7 +597,9 @@ def jarvis_chat(request: ChatRequest) -> dict:
     finance_context_blocked = finance_allocation_request and (
         cashflow_authority is None or cashflow_authority.get("data_ready") is not True
     )
-    if finance_context_blocked or finance_allocation_request:
+    if peptide_block_message:
+        response_text = peptide_block_message
+    elif finance_context_blocked or finance_allocation_request:
         response_text = _deterministic_finance_chat_response(cashflow_authority, finance_ctx)
     else:
         ai_status = ai_gateway.status()
