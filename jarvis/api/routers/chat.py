@@ -509,7 +509,7 @@ def jarvis_chat(request: ChatRequest) -> dict:
         peptide_names = nutrition_constitution.get("supplements", {}).get("research_peptides", {})
         current_peptides = [name for name in peptide_names if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_current]
         strong_dosing_followup = any(term in lower_message for term in (
-            "dose", "dosing", "spray", "inject", "microgram", " mcg", " mg",
+            "dose", "dosage", "dosing", "spray", "inject", "microgram", " mcg", " mg",
             "administer", "cycle", "frequency", "twice", "nasal", "take it", "use it",
         ))
         ambiguous_followup = any(term in lower_message for term in (
