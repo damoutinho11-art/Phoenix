@@ -706,6 +706,14 @@ def test_nutrition_chat_blocks_generic_operational_peptide_followups(message: st
     assert "blocked" in response.json()["response"].lower()
 
 
+@pytest.mark.parametrize("message", ["How much should I inject with food?", "What dose should I use with meals?"])
+def test_strong_peptide_dosing_terms_override_nutrition_subjects(message: str) -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post("/jarvis/chat", json={"domain": "nutrition", "message": message, "history": [{"role": "user", "content": "I have BPC-157."}]})
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
+
+
 @pytest.mark.parametrize("message", ["How many calories do I have left today?", "What is my daily protein target?"])
 def test_nutrition_chat_allows_macro_questions_after_prior_peptide_mention(message: str) -> None:
     with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
