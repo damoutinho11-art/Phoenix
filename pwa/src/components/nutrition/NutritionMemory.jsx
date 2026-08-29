@@ -6,7 +6,6 @@ import {
   deleteNutritionMemory,
   getRecentMeals,
   getRepeatYesterdayPreview,
-  logRepeatYesterday,
 } from '../../api/client'
 
 const LIME = '#9dff6f'
@@ -138,17 +137,6 @@ export default function NutritionMemory({ onBack, onSuccess }) {
     setManualAvoid('')
   }
 
-  async function repeatYesterday() {
-    setSaving('repeat-yesterday')
-    try {
-      await logRepeatYesterday()
-      onSuccess?.()
-    } catch {
-      setError('No meals from yesterday to repeat, or logging failed.')
-      setSaving('')
-    }
-  }
-
   if (loading) return <div className="phx-scope-nutrition phx-state phx-state-loading" style={{ height: '100%', background: 'var(--phx-bg)' }}><span className="code">SYNC</span><p>Loading nutrition memory…</p></div>
 
   return (
@@ -184,7 +172,7 @@ export default function NutritionMemory({ onBack, onSuccess }) {
               <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 19, color: '#fff', fontWeight: 700, marginTop: 3 }}>{repeat?.count || 0} MEALS AVAILABLE</div>
               {repeat?.loggable && <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, marginTop: 3 }}>{fmt(repeat.total?.calories)} kcal · {fmt(repeat.total?.protein_g, 'g')} protein</div>}
             </div>
-            <ActionButton onClick={repeatYesterday} disabled={!repeat?.loggable || saving === 'repeat-yesterday'}>{saving === 'repeat-yesterday' ? 'LOGGING…' : 'LOG AGAIN'}</ActionButton>
+            <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM }}>PREVIEW ONLY</span>
           </div>
         </div>
 

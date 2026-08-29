@@ -364,6 +364,8 @@ def load_exact_food_inventory() -> list[dict]:
     for staple in load_lidl_staples():
         match = re.search(r"(\d+(?:\.\d+)?)g\b", staple.unit.lower())
         reference_g = float(match.group(1)) if match else 100.0
+        unit_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:wrap|unit|piece|pcs?)\b", staple.unit.lower())
+        labelled_units = float(unit_match.group(1)) if unit_match else None
         inventory.append({
             "id": staple.id,
             "name": staple.name,
@@ -375,6 +377,7 @@ def load_exact_food_inventory() -> list[dict]:
             "fibre_g": 0.0,
             "label_source": f"lidl_staples:{staple.id}",
             "label_state": "canonical_label",
+            "unit_weight_g": reference_g / labelled_units if labelled_units else None,
         })
     return inventory
 
@@ -1953,7 +1956,8 @@ def build_nutrition_acceptance_gate(
     eligible_review = evaluate_adjustment_evidence(
         daily_rows=complete_rows,
         waist_rows=[{"date": complete_rows[-1]["date"], "waist_cm": 86}, {"date": complete_rows[0]["date"], "waist_cm": 86}],
-        performance_rows=[{"status": "stable"}], hunger_rows=[{"level": 2}],
+        performance_rows=[{"date": complete_rows[0]["date"], "status": "stable"}],
+        hunger_rows=[{"date": complete_rows[0]["date"], "level": 2}],
         constitution=constitution,
     )
     _acceptance_check(

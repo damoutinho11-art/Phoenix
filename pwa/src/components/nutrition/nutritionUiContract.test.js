@@ -67,6 +67,7 @@ test('today protocol is a routed orange operational surface with truthful comman
     'getRecompositionReview',
     'postTodayProtocolReplan',
     'postTodayProtocolLogMeal',
+    'FIBRE MIN',
     'EAT &amp; LOG',
     'REPLACE',
     'ADJUST PORTION',

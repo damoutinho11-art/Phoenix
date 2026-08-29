@@ -225,6 +225,7 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
               <TargetMetric label="PROTEIN" value={model.target.protein_g} suffix=" G" />
               <TargetMetric label="CARBS" value={model.target.carbs_g} suffix=" G" />
               <TargetMetric label="FAT" value={model.target.fat_g} suffix=" G" />
+              <TargetMetric label="FIBRE MIN" value={protocol.food_constraints?.fibre_minimum_g} suffix=" G" />
             </div>
           </div>
           <div>
@@ -232,6 +233,7 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
             <div className="phx-today-protocol-metric-grid">
               <TargetMetric label="ENERGY" value={model.targetGap.calories} suffix=" KCAL" />
               <TargetMetric label="PROTEIN" value={model.targetGap.protein_g} suffix=" G" />
+              <TargetMetric label="FIBRE" value={Math.max(0, Number(protocol.food_constraints?.fibre_minimum_g || 0) - Number(protocol.planned_total?.fibre_g || 0) - (protocol.logged_meals || []).reduce((sum, row) => sum + Number(row.fibre_g || 0), 0))} suffix=" G" />
               <TargetMetric label="MEASUREMENTS" value={model.measurementsVerified ? 1 : null} suffix={model.measurementsVerified ? ' VERIFIED' : ''} />
               <TargetMetric label="REVIEW" value={review?.complete_days} suffix=" COMPLETE DAYS" />
             </div>

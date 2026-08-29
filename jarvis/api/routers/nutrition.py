@@ -652,34 +652,10 @@ def repeat_yesterday_preview() -> dict:
 
 @router.post("/log/repeat-yesterday")
 def log_repeat_yesterday() -> dict:
-    yesterday = clock.today() - timedelta(days=1)
-    source_meals = database.get_meals_for_date(yesterday)
-    if not source_meals:
-        raise HTTPException(status_code=404, detail="No meals logged yesterday")
-    logged = []
-    for meal in source_meals:
-        meal_id = database.log_meal(
-            log_date=clock.today(),
-            item_id=f"repeat-yesterday-{meal['item_id']}",
-            item_type=meal["item_type"],
-            name=f"Repeat Yesterday: {meal['name']}",
-            servings=meal["servings"],
-            calories=meal["calories"],
-            protein_g=meal["protein_g"],
-            fat_g=meal["fat_g"],
-            carbs_g=meal["carbs_g"],
-            source="phoenix_memory:repeat_yesterday",
-        )
-        logged.append({**meal, "meal_id": meal_id})
-    return {
-        "status": "logged",
-        "source_date": yesterday.isoformat(),
-        "target_date": clock.today().isoformat(),
-        "meal_count": len(logged),
-        "meals": logged,
-        "total": _total_plan_items(source_meals),
-        "requires_approval": True,
-    }
+    raise HTTPException(
+        status_code=410,
+        detail="Repeat yesterday is preview-only; log each consumed meal independently",
+    )
 
 @router.get("/food-brain")
 def nutrition_food_brain() -> dict:

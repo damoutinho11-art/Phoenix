@@ -658,7 +658,7 @@ def test_nutrition_dinner_buy_query_does_not_enter_finance_safety_path() -> None
     assert "cashflow_authority" not in data
 
 
-@pytest.mark.parametrize("substance", ["MOTS-C", "ipamorelin", "BPC-157"])
+@pytest.mark.parametrize("substance", ["MOTS-C", "ipamorelin", "BPC-157", "BPC 157"])
 def test_nutrition_chat_blocks_research_peptide_dosing_without_calling_ai(substance: str) -> None:
     with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
         response = client.post(
@@ -671,6 +671,21 @@ def test_nutrition_chat_blocks_research_peptide_dosing_without_calling_ai(substa
     text = response.json()["response"].lower()
     assert "blocked" in text
     assert "dosing" in text
+
+
+def test_nutrition_chat_blocks_peptide_dosing_followup_from_history() -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post(
+            "/jarvis/chat",
+            json={
+                "domain": "nutrition",
+                "message": "What human dose should I use?",
+                "history": [{"role": "user", "content": "I have BPC-157 nasal spray."}],
+            },
+        )
+    assert response.status_code == 200
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
 
 
 def test_home_generic_shopping_does_not_load_or_report_finance_authority() -> None:

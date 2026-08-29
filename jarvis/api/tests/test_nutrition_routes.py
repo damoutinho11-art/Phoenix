@@ -350,6 +350,13 @@ class FullDayPlannerRouteTests(unittest.TestCase):
         )
         assert response.status_code in (400, 422)
 
+    def test_repeat_yesterday_is_preview_only(self):
+        before = client.get("/nutrition/status").json()["meal_log"]
+        response = client.post("/nutrition/log/repeat-yesterday")
+        after = client.get("/nutrition/status").json()["meal_log"]
+        assert response.status_code == 410
+        assert after == before
+
 
 class NutritionMemoryRouteTests(unittest.TestCase):
     def test_memory_can_be_saved_listed_and_deleted(self):
@@ -396,7 +403,7 @@ class NutritionMemoryRouteTests(unittest.TestCase):
         assert "requires_approval" in data
         assert "meals" in data
 
-    def test_repeat_yesterday_can_log_when_yesterday_has_meals(self):
+    def test_repeat_yesterday_write_is_retired_even_when_yesterday_has_meals(self):
         from datetime import date, timedelta
         yesterday = (date.today() - timedelta(days=1)).isoformat()
         created_source = client.post(
@@ -414,16 +421,14 @@ class NutritionMemoryRouteTests(unittest.TestCase):
                 "source": "test",
             },
         ).json()
-        logged_ids = []
         try:
-            repeated = client.post("/nutrition/log/repeat-yesterday").json()
-            assert repeated["status"] == "logged"
-            assert repeated["meal_count"] >= 1
-            logged_ids = [meal["meal_id"] for meal in repeated["meals"]]
+            before = client.get("/nutrition/status").json()["meal_log"]
+            repeated = client.post("/nutrition/log/repeat-yesterday")
+            after = client.get("/nutrition/status").json()["meal_log"]
+            assert repeated.status_code == 410
+            assert after == before
         finally:
             client.delete(f"/nutrition/log/meal/{created_source['meal_id']}")
-            for meal_id in logged_ids:
-                client.delete(f"/nutrition/log/meal/{meal_id}")
 
 
 class NutritionShoppingListRouteTests(unittest.TestCase):

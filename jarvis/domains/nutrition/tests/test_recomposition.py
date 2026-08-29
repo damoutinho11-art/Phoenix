@@ -314,12 +314,30 @@ def test_weight_rate_uses_elapsed_calendar_days_for_sparse_measurements():
     evidence = evaluate_adjustment_evidence(
         daily_rows=rows,
         waist_rows=[{"date": "2026-08-01", "value": 86}, {"date": "2026-08-27", "value": 85}],
-        performance_rows=[{"trend": "stable"}],
-        hunger_rows=[{"level": 2}],
+        performance_rows=[{"date": "2026-08-27", "trend": "stable"}],
+        hunger_rows=[{"date": "2026-08-27", "level": 2}],
         constitution=CONSTITUTION,
     )
 
     assert evidence["evidence"]["rolling_weight_rate_kg_per_week"] == pytest.approx(-0.4, abs=0.01)
+
+
+def test_adjustment_evidence_rejects_guardrails_outside_the_complete_day_window():
+    evidence = evaluate_adjustment_evidence(
+        daily_rows=complete_rows([77.6] * 14),
+        waist_rows=[{"date": "2026-07-01", "value": 86}, {"date": "2026-07-14", "value": 86}],
+        performance_rows=[{"date": "2026-07-14", "trend": "stable"}],
+        hunger_rows=[{"date": "2026-07-14", "level": 2}],
+        constitution=CONSTITUTION,
+    )
+    assert evidence["status"] == "insufficient_evidence"
+    assert set(evidence["missing_guardrails"]) == {"waist", "performance", "hunger"}
+
+
+def test_exact_component_preserves_unit_count_for_unit_labelled_food():
+    food = {**FOODS[0], "unit_weight_g": 62}
+    component = exact_component(food, 93, "as_served")
+    assert component["unit_count"] == 1.5
 
 
 def test_adjustment_evidence_proposes_guardrailed_change_without_mutating_constitution():
@@ -327,7 +345,7 @@ def test_adjustment_evidence_proposes_guardrailed_change_without_mutating_consti
     evidence = evaluate_adjustment_evidence(
         daily_rows=complete_rows([77.6 - (0.6 / 7) * day for day in range(14)]),
         waist_rows=[{"date": "2026-08-01", "value": 86}, {"date": "2026-08-14", "value": 85.5}],
-        performance_rows=[{"trend": "stable"}], hunger_rows=[{"level": 2}], constitution=constitution,
+        performance_rows=[{"date": "2026-08-14", "trend": "stable"}], hunger_rows=[{"date": "2026-08-14", "level": 2}], constitution=constitution,
     )
 
     assert evidence["eligible"] is True

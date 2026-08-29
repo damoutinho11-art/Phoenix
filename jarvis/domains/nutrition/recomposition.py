@@ -28,7 +28,7 @@ def exact_component(food: dict, quantity_g: float, measurement_state: str) -> di
     quantity_g = float(quantity_g)
     factor = quantity_g / reference_g
     label_source = food.get("label_source") or "generic_estimate"
-    return {
+    component = {
         "item_id": food.get("id", food.get("item_id")),
         "name": food["name"],
         "quantity_g": _round(quantity_g),
@@ -41,6 +41,10 @@ def exact_component(food: dict, quantity_g: float, measurement_state: str) -> di
         "fat_g": _round(float(food["fat_g"]) * factor),
         "fibre_g": _round(float(food.get("fibre_g", food.get("fiber_g", 0))) * factor),
     }
+    unit_weight_g = food.get("unit_weight_g")
+    if unit_weight_g:
+        component["unit_count"] = _round(quantity_g / float(unit_weight_g))
+    return component
 
 
 def protocol_identity(
@@ -577,8 +581,14 @@ def evaluate_adjustment_evidence(*, daily_rows, waist_rows, performance_rows, hu
             "minimum_complete_days": minimum_complete_days,
         }
 
+    window_start = min(str(row.get("date", ""))[:10] for row in complete)
+    window_end = max(str(row.get("date", ""))[:10] for row in complete)
+    in_window = lambda rows: [row for row in (rows or []) if window_start <= str(row.get("date", ""))[:10] <= window_end]
+    waist_rows = in_window(waist_rows)
+    performance_rows = in_window(performance_rows)
+    hunger_rows = in_window(hunger_rows)
     missing_guardrails = []
-    if len(waist_rows or []) < 2:
+    if len(waist_rows) < 2:
         missing_guardrails.append("waist")
     if not performance_rows:
         missing_guardrails.append("performance")
