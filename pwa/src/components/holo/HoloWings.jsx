@@ -308,17 +308,8 @@ function Feed({ list }) {
   )
 }
 
-// wing columns (desktop) or bottom snap rail (mobile)
-export default function HoloWings({ domain, isMobile, showTele, onFocus }) {
-  if (isMobile) {
-    return (
-      <div data-plx="0.06" className="holo-rail" style={{ position: 'absolute', left: 0, right: 0, bottom: 'calc(62px + env(safe-area-inset-bottom))', zIndex: 40, display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'stretch', gap: 14, pointerEvents: 'auto', overflowX: 'auto', scrollSnapType: 'x mandatory', padding: '0 13vw 4px' }}>
-        {domain.panels.map((p, i) => (
-          <WingPanel key={p.code} panel={p} tilt="0deg" float={i % 2 ? 'holo-floatB' : 'holo-floatA'} delay={(0.18 + i * 0.08).toFixed(2) + 's'} mobile onFocus={() => onFocus(p.code)} />
-        ))}
-      </div>
-    )
-  }
+// wing columns (desktop)
+export default function HoloWings({ domain, showTele, onFocus }) {
   const width = 'min(23vw, 290px)'
   const col = side => ({ position: 'absolute', top: '10%', bottom: '15%', width, zIndex: 40, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'stretch', gap: 14, pointerEvents: 'none', ...(side === 'left' ? { left: '3.2%' } : { right: '3.2%' }) })
   return (

@@ -62,6 +62,148 @@
 /* the composer input focus ring follows the accent */
 .holo-composer:focus { border-color: color-mix(in srgb, var(--phx-accent) 60%, transparent) !important; }
 
+.holo-mobile-domain,
+.holo-mobile-panel,
+.holo-mobile-action {
+  box-sizing: border-box;
+}
+
+@media (max-width: 780px) {
+  .holo-mobile-domain {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: max(186px, calc(186px + env(safe-area-inset-top) * .12));
+    bottom: calc(74px + env(safe-area-inset-bottom));
+    z-index: 44;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding-top: 4px;
+    padding-right: 0;
+    padding-left: 0;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+    scrollbar-width: none;
+  }
+
+  .holo-mobile-domain::-webkit-scrollbar {
+    display: none;
+  }
+
+  .holo-mobile-domain__summary,
+  .holo-mobile-panel,
+  .holo-mobile-action {
+    width: 100%;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+    border: 1px solid color-mix(in srgb, var(--phx-accent) 28%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--phx-accent) 13%, transparent), color-mix(in srgb, var(--phx-panel) 80%, transparent));
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 32px color-mix(in srgb, var(--phx-accent) 14%, transparent), inset 0 0 24px color-mix(in srgb, var(--phx-accent) 5%, transparent);
+  }
+
+  .holo-mobile-domain__summary {
+    padding: 14px 14px 15px;
+  }
+
+  .holo-mobile-domain__label,
+  .holo-mobile-panel__code,
+  .holo-mobile-action {
+    font-family: var(--phx-font-mono);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  .holo-mobile-domain__label {
+    display: inline-block;
+    color: color-mix(in srgb, var(--phx-accent) 82%, white 18%);
+    font-size: 10px;
+    text-shadow: 0 0 8px color-mix(in srgb, var(--phx-accent) 44%, transparent);
+  }
+
+  .holo-mobile-domain__brief {
+    margin: 8px 0 0;
+    color: var(--phx-body);
+    font-family: var(--phx-font-body);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .holo-mobile-domain__actions,
+  .holo-mobile-domain__panels {
+    display: grid;
+    gap: 10px;
+  }
+
+  .holo-mobile-action {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px;
+    border-style: solid;
+    border-width: 1px;
+    cursor: pointer;
+    font-size: 10px;
+  }
+
+  .holo-mobile-action.is-primary {
+    color: var(--phx-ink);
+  }
+
+  .holo-mobile-panel {
+    position: relative;
+    display: block;
+    padding: 14px 14px 12px;
+    border: 1px solid color-mix(in srgb, var(--phx-accent) 28%, transparent);
+    color: var(--phx-text);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .holo-mobile-panel__chrome {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 18px;
+    height: 1px;
+    background: var(--phx-accent);
+    transform: rotate(-45deg);
+    transform-origin: 100% 0;
+  }
+
+  .holo-mobile-panel__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .holo-mobile-panel__code {
+    color: color-mix(in srgb, var(--phx-accent) 88%, white 12%);
+    font-size: 10px;
+  }
+
+  .holo-mobile-panel__meta {
+    color: color-mix(in srgb, var(--phx-accent) 62%, var(--phx-muted) 38%);
+    font-family: var(--phx-font-mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+  }
+
+  .holo-mobile-panel__divider {
+    height: 1px;
+    margin: 9px 0 8px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--phx-accent) 72%, transparent), transparent);
+  }
+
+  .holo-mobile-panel__body {
+    color: var(--phx-text);
+  }
+}
+
 .phx-scope-training :is(button, input, textarea, select):focus-visible {
   outline: 2px solid color-mix(in srgb, var(--phx-accent) 88%, white 12%);
   outline-offset: 2px;
