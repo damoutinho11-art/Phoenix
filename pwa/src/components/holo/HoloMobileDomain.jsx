@@ -24,7 +24,7 @@ function MobileActionButton({ action, onAction }) {
 
 function MobilePanel({ panel, onFocus }) {
   return (
-    <button type="button" className="holo-mobile-panel" onClick={() => onFocus(panel.code)}>
+    <button type="button" className="holo-mobile-panel" data-phx-mobile-panel onClick={() => onFocus(panel.code)}>
       <div className="holo-mobile-panel__chrome" />
       <div className="holo-mobile-panel__heading">
         <span className="holo-mobile-panel__code">{panel.code}</span>
@@ -40,13 +40,13 @@ function MobilePanel({ panel, onFocus }) {
 
 export default function HoloMobileDomain({ domain, onFocus, onAction }) {
   return (
-    <section className="holo-mobile-domain">
+    <section className="holo-mobile-domain" data-phx-mobile-command>
       <div className="holo-mobile-domain__summary">
         <span className="holo-mobile-domain__label">LIVE COMMAND</span>
         <p className="holo-mobile-domain__brief">{domain.heroBrief}</p>
       </div>
 
-      <div className="holo-mobile-domain__actions">
+      <div className="holo-mobile-domain__actions" data-phx-mobile-actions>
         {domain.heroActions.map((action) => (
           <MobileActionButton key={action.label} action={action} onAction={onAction} />
         ))}

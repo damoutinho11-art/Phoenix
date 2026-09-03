@@ -27,6 +27,14 @@ test('mobile command surface reuses existing panel and action contracts in domai
   assert.match(mobile, /onClick=\{\(\) => onAction\(action\.sub\)\}/)
 })
 
+test('mobile command surface exposes stable geometry hooks for browser measurements', async () => {
+  const mobile = await src('./HoloMobileDomain.jsx')
+
+  assert.match(mobile, /data-phx-mobile-command/)
+  assert.match(mobile, /data-phx-mobile-actions/)
+  assert.match(mobile, /data-phx-mobile-panel/)
+})
+
 test('mobile command CSS locks the approved phone readability and scrolling contract', async () => {
   const css = await src('./holo.css')
   const mobileRule = css.match(/\.holo-mobile-domain\s*\{[\s\S]*?\n  \}/)?.[0] || ''
