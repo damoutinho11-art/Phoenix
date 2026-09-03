@@ -421,7 +421,7 @@ export default function HoloCommand({ startTab = 'home' }) {
         />
       )}
       {sub === 'today' && <TodaySub {...subProps} clock={clock} rail={mapTodayRail(live.calendar)} />}
-      {sub === 'weekmap' && <WeekMapSub {...subProps} />}
+      {sub === 'weekmap' && <WeekMapSub {...subProps} calendar={live.calendar} />}
       {sub === 'feeds' && <FeedsSub {...subProps} lanes={mapConnectorLanes(live.connectors)} />}
 
       <HoloDock tab={tab} onGo={go} accent={isHome ? HOME_ACCENT : ACC} />

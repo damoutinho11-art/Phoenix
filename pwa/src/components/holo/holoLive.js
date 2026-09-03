@@ -1,6 +1,7 @@
 // Maps real API payloads onto the holo domain/sub-screen shapes.
 
 import { ACC, G, Y, R, W, spark, pad2 } from './holoTokens'
+import { calendarDate, calendarLocalStamp, eventStart, eventEnd, feedHealth } from './calendarFeedModel.js'
 
 const SLEEVE_NAMES = {
   global_core_etf: 'GLOBAL CORE',
@@ -396,8 +397,8 @@ export function mapDinners(nut) {
 }
 
 // ── CALENDAR ──
-const evStart = e => e.start || e.start_time || e.begin || e.from
-const evEnd = e => e.end || e.end_time || e.finish || e.to
+const evStart = eventStart
+const evEnd = eventEnd
 const evTitle = e => e.title || e.name || e.summary || 'Event'
 const hoursOf = e => {
   const s = new Date(evStart(e)), en = new Date(evEnd(e))
@@ -406,37 +407,45 @@ const hoursOf = e => {
 }
 
 export function applyCalendar(d, cal, connectors) {
-  if (!cal) return d
+  cal = cal || { events: [], source: { active_source: 'personal_feed_unavailable', status: 'unavailable' } }
+  const verified = feedHealth(cal)
   const events = cal.events || []
-  const todayISO = new Date().toISOString().slice(0, 10)
+  const todayISO = calendarDate()
   const todays = events.filter(e => String(evStart(e) || '').slice(0, 10) === todayISO)
   const hrs = todays.reduce((acc, e) => acc + hoursOf(e), 0)
   d.heroValue = hrs ? hrs.toFixed(1) : '0'
   d.heroUnit = 'HRS'
-  d.heroLabel = `SCHEDULED TODAY · ${todays.length} EVENT${todays.length === 1 ? '' : 'S'}`
+  d.heroLabel = verified ? `SCHEDULED TODAY · ${todays.length} EVENT${todays.length === 1 ? '' : 'S'}` : 'CALENDAR UNCONFIRMED'
   d.reactorPct = Math.min(1, Math.max(0.04, hrs / 8))
-  const next = todays.find(e => new Date(evStart(e)) > new Date())
+  const next = todays.find(e => evStart(e) > calendarLocalStamp())
   d.heroChips = [
-    { text: next ? 'NEXT · ' + String(evStart(next)).slice(11, 16) : 'NO EVENTS TODAY', color: next ? ACC : G },
+    { text: !verified ? 'SYNC NEEDS ATTENTION' : next ? 'NEXT · ' + String(evStart(next)).slice(11, 16) : todays.length ? 'NO UPCOMING EVENTS' : 'NO EVENTS TODAY', color: verified ? ACC : Y },
     { text: `${events.length} EVENTS IN WINDOW`, color: events.length ? ACC : Y },
     { text: 'READ ONLY', color: G },
   ]
   d.heroBrief = events.length
     ? `${events.length} events in the snapshot window; ${todays.length} today. Phoenix mirrors Plaan read-only — it never edits your calendars.`
-    : 'The Plaan snapshot window is empty — vacation confirmed, next season not yet published. Phoenix mirrors read-only.'
+    : verified ? 'No events in the verified calendar window.' : 'Opera schedule unavailable. Do not assume this time is free.'
+  if (!verified) d.heroBrief = 'Opera schedule is unconfirmed. Displayed events may be outdated; check Plaan before planning.'
   // week readout from events (zeros when empty)
   const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
   const perDay = dayNames.map(() => 0)
+  const weekStart = new Date(`${todayISO}T12:00:00Z`)
+  weekStart.setUTCDate(weekStart.getUTCDate() - (weekStart.getUTCDay() + 6) % 7)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7)
   events.forEach(e => {
     const dt = new Date(evStart(e))
     if (!Number.isFinite(dt.getTime())) return
+    const eventDate = String(evStart(e)).slice(0, 10)
+    if (eventDate < weekStart.toISOString().slice(0, 10) || eventDate >= weekEnd.toISOString().slice(0, 10)) return
     perDay[(dt.getDay() + 6) % 7] += hoursOf(e)
   })
   const maxDay = Math.max(...perDay, 1)
   d.readout = dayNames.slice(0, 6).map((n, i) => ({ k: n, v: perDay[i].toFixed(1) + 'H', w: ((perDay[i] / maxDay) * 100).toFixed(0) + '%' }))
   d.panels[0] = { code: 'TODAY', meta: 'READ ONLY', type: 'rows', rows: todays.length
     ? todays.slice(0, 3).map(e => ({ title: evTitle(e), sub: (e.location || e.room || 'PLAAN').toUpperCase(), value: String(evStart(e)).slice(11, 16), valueColor: W }))
-    : [{ title: 'No events today', sub: 'VACATION · SEASON NOT PUBLISHED', value: '—', valueColor: G }] }
+    : [{ title: verified ? 'No events today' : 'Schedule unconfirmed', sub: verified ? 'VERIFIED WINDOW' : 'CHECK PLAAN', value: '—', valueColor: verified ? G : Y }] }
   const total = perDay.reduce((x, y) => x + y, 0)
   d.panels[1] = { code: 'WEEK LOAD', meta: total.toFixed(1) + 'H', type: 'bars', bars: [
     { label: 'EVENTS IN WINDOW', w: Math.min(100, events.length * 8) + '%', val: String(events.length), color: W },
@@ -469,14 +478,17 @@ export function applyCalendar(d, cal, connectors) {
 }
 
 export function mapConnectorLanes(connectors) {
-  if (!connectors?.connectors) return null
+  connectors = connectors?.connectors ? connectors : { read_only: true, connectors: { plaan: { status: 'unavailable', detail: 'Awaiting verified status' } } }
   const entries = Object.entries(connectors.connectors).slice(0, 3)
   const stColor = st => (st === 'live' || st === 'healthy' || st === 'connected' ? G : st === 'fixture' ? Y : W)
   return entries.map(([k, v], i) => ({
     name: k.replace(/_/g, ' ').toUpperCase(),
     c: stColor(v.status),
     st: (v.status || '—').replace(/_/g, ' ').toUpperCase(),
-    sync: (v.detail || (v.oauth ? 'OAUTH' : '—')).toUpperCase(),
+      sync: v.last_success_at ? new Date(v.last_success_at).toLocaleString('en-GB', { timeZone: 'Europe/Tallinn', dateStyle: 'short', timeStyle: 'short' }) : (v.detail || (v.oauth ? 'OAUTH' : '—')).toUpperCase(),
+      checked: v.last_checked_at ? new Date(v.last_checked_at).toLocaleString('en-GB', { timeZone: 'Europe/Tallinn', dateStyle: 'short', timeStyle: 'short' }) : null,
+      notice: v.source_cadence,
+      error: v.last_error,
     scope: connectors.read_only ? 'READ ONLY' : 'READ',
     dur: [2.6, 3.6, 4.4][i] + 's',
     delay: i * 0.8 + 's',
@@ -485,12 +497,13 @@ export function mapConnectorLanes(connectors) {
 
 // today rail events (positioned blocks) — null when there is nothing to draw
 export function mapTodayRail(cal) {
-  if (!cal) return null
+  cal = cal || { events: [], source: { active_source: 'personal_feed_unavailable', status: 'unavailable' } }
   const events = cal.events || []
-  const todayISO = new Date().toISOString().slice(0, 10)
+  const todayISO = calendarDate()
   const todays = events.filter(e => String(evStart(e) || '').slice(0, 10) === todayISO)
   return {
     empty: todays.length === 0,
+    verified: feedHealth(cal),
     blocks: todays.map(e => {
       const s = new Date(evStart(e)), en = new Date(evEnd(e))
       return {

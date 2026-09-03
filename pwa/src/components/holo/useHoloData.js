@@ -109,9 +109,18 @@ export default function useHoloData() {
     grab('financePerformance', getFinancePerformanceHistory)
     grab('nutrition', getNutritionStatus)
     refreshTraining()
-    grab('calendar', getCalendarSnapshot)
-    grab('connectors', getConnectorsStatus)
-    return () => { alive = false }
+    const refreshCalendar = () => {
+      grab('calendar', getCalendarSnapshot, { tracked: true })
+      grab('connectors', getConnectorsStatus, { tracked: true })
+    }
+    refreshCalendar()
+    const calendarTimer = setInterval(refreshCalendar, 60_000)
+    window.addEventListener('focus', refreshCalendar)
+    return () => {
+      alive = false
+      clearInterval(calendarTimer)
+      window.removeEventListener('focus', refreshCalendar)
+    }
   }, [refreshTraining])
 
   return { ...live, refreshTraining, refreshNutrition }

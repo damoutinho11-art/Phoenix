@@ -436,6 +436,15 @@ def nutrition_calendar_bridge(
         memory_entries=entries,
     )
     result["calendar_source"] = source_info
+    if str(source_info.get("active_source", "")).startswith("personal_feed"):
+        healthy = source_info.get("status") == "healthy"
+        result["calendar_available"] = healthy
+        result["live_plaan_fetch_enabled"] = True
+        result["next_build"] = "Personal Plaan subscription connected read-only. Source updates once per day."
+        if not healthy:
+            result["summary"] = "Opera calendar is unconfirmed. Calendar-based meal timing is paused; do not assume a free day."
+            for day in result["days"]:
+                day.update(day_type="unconfirmed", meal_timing=[], nutrition_moves=[], planner_adjustments=[])
     result["plaan_live_fetcher"] = {
         "stage": "v2.3_manual_snapshot_import",
         "live_fetch_default": False,

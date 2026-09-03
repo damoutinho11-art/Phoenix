@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from jarvis.api.dependencies import get_training_constitution
 from jarvis.api import ai_gateway
+from jarvis.api.routers.crossdomain import opera_calendar_evidence, resolve_opera_calendar
 from jarvis.core import clock
 from jarvis.data import database
 from jarvis.domains.calendar import google_calendar_client, google_oauth, plaan_live
@@ -103,7 +104,7 @@ _PUBLIC_ADAPTIVE_PLANNER_FIELDS = (
     "movement_families",
 )
 _AUTHORITATIVE_CALENDAR_SOURCES = frozenset(
-    {"env_json", "local_file", "manual_import", "read_only_url"}
+    {"env_json", "local_file", "manual_import", "read_only_url", "personal_feed"}
 )
 _CALENDAR_ROUTING_EVENT_TYPES = frozenset({"performance"})
 _CALENDAR_ROUTING_SEVERITIES = frozenset({"hard", "warning", "info"})
@@ -512,17 +513,18 @@ def _serialize_route(result) -> dict:
     }
 
 
-def _current_status(constitution: dict) -> tuple[TrainingStatus, dict]:
+def _current_status(constitution: dict) -> tuple[TrainingStatus, dict, dict]:
     latest_kg = database.get_latest_weight_kg()
     effective = (
         {**constitution, "current_bodyweight_kg": latest_kg} if latest_kg else constitution
     )
+    opera_raw, evidence = resolve_opera_calendar()
     status = engine.check_training(
         effective,
         today=clock.today(),
-        opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
+        opera_snapshot_raw=opera_raw,
     )
-    return status, effective
+    return status, effective, evidence
 
 
 def _planning_horizon(today: date | None = None) -> tuple[date, date]:
@@ -1021,6 +1023,12 @@ def _current_calendar_events() -> tuple[list[dict[str, Any]], dict[str, Any]]:
         # or not, which is a broken contract rather than a missing calendar.
         raise CalendarEvidenceCorrupt
     plaan_events = calendar_snapshot_raw["events"]
+    if str(source_status.get("active_source", "")).startswith("personal_feed"):
+        opera_evidence = opera_calendar_evidence(source_status)
+        if not opera_evidence["available"]:
+            # Retained commitments still constrain plans; Google cannot certify
+            # that the unavailable personal opera calendar has no other events.
+            return _validated_calendar_events([*plaan_events, *(google_events or [])]), opera_evidence
     plaan_is_authoritative = (
         source_status.get("active_source") in _AUTHORITATIVE_CALENDAR_SOURCES
     )
@@ -1123,6 +1131,8 @@ def _build_brief_user_message(status: dict) -> str:
         lines.append(f"⚠ CONFLICT: {status['conflicts'][0]['detail']}")
     elif status["fatigue_warning"]:
         lines.append(f"Note: {status['fatigue_warning']}")
+    if status.get("calendar_evidence", {}).get("reason"):
+        lines.append(status["calendar_evidence"]["reason"])
 
     lines += ["", "Provide a brief, direct training summary for today."]
     return "\n".join(lines)
@@ -1366,8 +1376,9 @@ def training_rules(
 def training_status(
     constitution: dict = Depends(get_training_constitution),
 ) -> dict:
-    status, constitution = _current_status(constitution)
+    status, constitution, evidence = _current_status(constitution)
     result = _serialize_status(status)
+    result["calendar_evidence"] = evidence
     operational, active_payload = _current_operational_projection()
     result["operational_state"] = operational["operational_state"]
     result["plan_provenance"] = operational["plan_provenance"]
@@ -1619,12 +1630,18 @@ def training_history() -> dict:
 def training_brief(
     constitution: dict = Depends(get_training_constitution),
 ) -> dict:
+    opera_raw, evidence = resolve_opera_calendar()
     status = engine.check_training(
         constitution,
         today=clock.today(),
-        opera_snapshot_raw=LIVE_SNAPSHOT_RAW,
+        opera_snapshot_raw=opera_raw,
     )
     status_dict = _serialize_status(status)
+    status_dict["calendar_evidence"] = evidence
+    if not evidence["available"] and not evidence["source"].startswith("fixture"):
+        known_conflicts = " ".join(c["detail"] for c in status_dict["conflicts"])
+        return {"brief": " ".join(filter(None, [evidence["reason"], known_conflicts])),
+                "requires_approval": True, "calendar_evidence": evidence}
     user_message = _build_brief_user_message(status_dict)
 
     try:
@@ -1642,7 +1659,7 @@ def training_brief(
             "Raw training status available via /training/status."
         )
 
-    return {"brief": brief_text, "requires_approval": True}
+    return {"brief": brief_text, "requires_approval": True, "calendar_evidence": evidence}
 
 
 class SleepLogRequest(BaseModel):

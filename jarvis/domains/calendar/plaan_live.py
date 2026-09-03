@@ -152,6 +152,11 @@ def validate_manual_snapshot_import(raw: dict[str, Any]) -> tuple[dict[str, Any]
 
 def get_plaan_live_status(imported_snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
     """Return safe fetch configuration status without exposing secrets."""
+    from jarvis.data import plaan_feed
+    if plaan_feed.configured():
+        status = plaan_feed.read_status()
+        status["active_source"] = "personal_feed" if status["status"] == "healthy" else "personal_feed_" + status["status"]
+        return status
     snapshot_path = os.getenv("PHOENIX_PLAAN_SNAPSHOT_PATH")
     snapshot_json = os.getenv("PHOENIX_PLAAN_SNAPSHOT_JSON")
     snapshot_url = os.getenv("PHOENIX_PLAAN_SNAPSHOT_URL")
@@ -264,6 +269,9 @@ def resolve_snapshot_raw(default_raw: dict[str, Any], imported_snapshot: dict[st
     Any optional-source failure returns the fixture plus a warning instead of
     breaking Nutrition/Calendar.
     """
+    from jarvis.data import plaan_feed
+    if plaan_feed.configured():
+        return plaan_feed.resolve()
     status = get_plaan_live_status(imported_snapshot=imported_snapshot)
     try:
         raw = load_snapshot_from_env_json()

@@ -13,6 +13,8 @@ from jarvis.domains.calendar import google_oauth, ics_feed, plaan_live
 
 
 def _plaan_connector_status(plaan_status: dict[str, Any]) -> dict[str, Any]:
+    if str(plaan_status.get("active_source", "")).startswith("personal_feed"):
+        return {**plaan_status, "detail": "Personal Plaan feed"}
     if plaan_status.get("active_source") == "fixture":
         status = "fixture"
     elif plaan_status.get("blockers"):

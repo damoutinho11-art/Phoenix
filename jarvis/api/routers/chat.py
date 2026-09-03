@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from jarvis.data import database
 from jarvis.api import ai_gateway
+from jarvis.api.routers.crossdomain import resolve_opera_calendar
 from jarvis.api.finance_authority import (
     authoritative_portfolio_state,
     build_cashflow_authority,
@@ -18,7 +19,6 @@ from jarvis.api.finance_lifecycle import current_week_lifecycle
 from jarvis.domains.finance.cashflow_authority import blocked_cashflow_authority
 from jarvis.domains.news import engine as news_engine
 from jarvis.domains.calendar import engine as calendar_engine
-from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
 from jarvis.domains.finance import engine as finance_engine
 from jarvis.domains.nutrition import engine as nutrition_engine
 from jarvis.domains.training import engine as training_engine
@@ -266,8 +266,9 @@ def _build_training_context(*, today: date | None = None) -> str:
         decision_today = today or clock.today()
         with open(training_engine.DEFAULT_CONSTITUTION_PATH) as f:
             constitution = json.load(f)
+        opera_raw, evidence = resolve_opera_calendar()
         status = training_engine.check_training(
-            constitution, today=decision_today, opera_snapshot_raw=LIVE_SNAPSHOT_RAW
+            constitution, today=decision_today, opera_snapshot_raw=opera_raw
         )
         g = status.dunk_goal
         c = status.cut_status
@@ -291,6 +292,8 @@ def _build_training_context(*, today: date | None = None) -> str:
             f"Days to dunk attempt: {g.days_to_attempt} ({g.weeks_to_attempt:.1f} weeks)",
             f"Today: {session_label}",
         ]
+        if evidence["reason"]:
+            lines.append(evidence["reason"])
         if ww:
             lines += [
                 f"Working weights ({ww.intensity_pct}% intensity, {ww.sets}×{ww.reps}):",
@@ -353,14 +356,16 @@ def _build_nutrition_context(*, today: date | None = None) -> str:
 
 def _build_calendar_context() -> str:
     try:
-        snapshot = calendar_engine.parse_snapshot(LIVE_SNAPSHOT_RAW)
+        raw, evidence = resolve_opera_calendar()
+        snapshot = calendar_engine.parse_snapshot(raw)
         if not snapshot.events:
-            return "CALENDAR: No upcoming events."
+            return "CALENDAR: " + (evidence["reason"] or "No upcoming events in the verified snapshot window.")
         event_lines = "\n".join(
             f"  {e.date.isoformat()} {e.time_start.strftime('%H:%M') if e.time_start else ''} — {e.title}"
             for e in snapshot.events[:10]
         )
-        return f"CALENDAR (as of {snapshot.as_of.isoformat()}):\n{event_lines}"
+        warning = f"\n{evidence['reason']}" if evidence["reason"] else ""
+        return f"CALENDAR (as of {snapshot.as_of.isoformat()}):{warning}\n{event_lines}"
     except Exception:
         return "CALENDAR: Context unavailable."
 
@@ -379,10 +384,13 @@ def _build_app_context() -> str:
     except Exception:
         recipes = staples = 0
     try:
-        calendar_snapshot = calendar_engine.parse_snapshot(LIVE_SNAPSHOT_RAW)
+        raw, evidence = resolve_opera_calendar()
+        calendar_snapshot = calendar_engine.parse_snapshot(raw)
         calendar_events = len(calendar_snapshot.events)
+        calendar_health = evidence["reason"] or "Opera calendar verified."
     except Exception:
         calendar_events = 0
+        calendar_health = "Opera schedule is unconfirmed; do not infer free time."
     news = news_engine.status()
     return (
         "APP OPERATIONS:\n"
@@ -391,6 +399,7 @@ def _build_app_context() -> str:
         "Core modules do not require AI: nutrition, calendar, finance, training, barcode, shopping, weekly prep.\n"
         f"Nutrition food brain: {recipes} recipes, {staples} Lidl staples.\n"
         f"Calendar snapshot events currently loaded: {calendar_events}.\n"
+        f"{calendar_health}\n"
         "Background jobs: Railway keepalive.\n"
         f"News: enabled={news.get('enabled')} source={news.get('source')} optional=true.\n"
         "Safety: no automatic trading, no automatic food logging, no Plaan mutation, no Google writes."

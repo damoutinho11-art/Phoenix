@@ -30,6 +30,7 @@ from jarvis.api.routers import (
 )
 from jarvis.core import clock
 from jarvis.data import database
+from jarvis.data import plaan_feed
 from jarvis.data.database import init_db
 from jarvis.domains.finance import engine as finance_engine
 from jarvis.domains.finance.market_data import update_portfolio_state_prices
@@ -46,11 +47,23 @@ def background_jobs_enabled() -> bool:
 def background_job_descriptions() -> list[dict[str, str]]:
     if not background_jobs_enabled():
         return []
-    return [
+    jobs = [
         {"name": "keepalive", "cadence": "10 minutes", "effect": "pings /health"},
         {"name": "finance_price_refresh", "cadence": "4 hours", "effect": "refreshes stored market values"},
         {"name": "finance_research_autopilot", "cadence": "24 hours", "effect": "refreshes research evidence"},
     ]
+    if plaan_feed.configured():
+        jobs.append({"name": "plaan_personal_feed", "cadence": "1 hour", "effect": "reads personal opera calendar"})
+    return jobs
+
+
+async def _auto_refresh_plaan():
+    while True:
+        try:
+            await asyncio.to_thread(plaan_feed.refresh)
+        except Exception:
+            _log.error("Personal calendar refresh unavailable; retrying in one hour")
+        await asyncio.sleep(3600)
 
 
 async def _keep_alive():
@@ -106,6 +119,8 @@ async def lifespan(_app: FastAPI):
                 asyncio.create_task(_auto_refresh_prices()),
                 asyncio.create_task(_auto_research_autopilot()),
             ]
+            if plaan_feed.configured():
+                tasks.append(asyncio.create_task(_auto_refresh_plaan()))
         yield
     finally:
         for task in tasks:

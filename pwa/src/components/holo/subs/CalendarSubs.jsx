@@ -1,6 +1,7 @@
 import { ACC, G, Y, R, W, BODY, FM, FD, FB, a, mix, deep, pad2 } from '../holoTokens'
 import { DAY_BLOCKS, DAY_STATS, WEEK_EVENTS, WEEK_TOTALS, FEED_LANES } from '../holoDomains'
 import SubShell from './SubShell'
+import { calendarWeek, calendarDate, calendarLocalStamp, feedHealth } from '../calendarFeedModel.js'
 
 // ── CALENDAR // TODAY RAIL — vertical 07–22h schedule with NOW line ──
 // `rail` (from holoLive.mapTodayRail) supplies real events; when live and
@@ -20,12 +21,13 @@ export function TodaySub({ onClose, clock, rail }) {
       c: h % 3 === 1 ? a(ACC, '99') : a(ACC, '44'),
     })
   }
-  const now = new Date()
-  const nh = now.getHours() + now.getMinutes() / 60
+  const now = calendarLocalStamp()
+  const nh = Number(now.slice(11,13)) + Number(now.slice(14,16)) / 60
   const nowTop = Math.min(100, Math.max(0, ((nh - 7) / 15) * 100)).toFixed(1) + '%'
   const nowVisible = nh >= 7 && nh <= 22
   return (
     <SubShell subKey="today" onClose={onClose} meta={meta}>
+      {rail && !rail.verified && <p role="status" style={{ color: Y, fontFamily: FM, fontSize: 13, lineHeight: 1.5 }}>Schedule unconfirmed. Check Plaan; displayed events may be outdated.</p>}
       <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
         <div style={{ flex: 1.5, minWidth: 300, position: 'relative', height: 440 }}>
           {ticks.map((tk, i) => (
@@ -36,7 +38,7 @@ export function TodaySub({ onClose, clock, rail }) {
           ))}
           {isLive && rail.empty && (
             <div style={{ position: 'absolute', left: 56, right: 8, top: '42%', border: `1px dashed ${a(ACC, '30')}`, padding: '14px 0', textAlign: 'center', fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, '99') }}>
-              NO EVENTS TODAY — PLAAN WINDOW EMPTY
+              {rail.verified ? 'NO EVENTS TODAY - VERIFIED WINDOW' : 'SCHEDULE UNCONFIRMED - CHECK PLAAN'}
             </div>
           )}
           {blocks.map((bl, i) => (
@@ -86,28 +88,29 @@ export function TodaySub({ onClose, clock, rail }) {
 }
 
 // ── CALENDAR // WEEK LOAD MAP — 7 × 14 heat grid ──
-export function WeekMapSub({ onClose }) {
+export function WeekMapSub({ onClose, calendar }) {
+  const week = calendarWeek(calendar)
   const hours = Array.from({ length: 14 }, (_, i) => (i % 2 === 0 ? pad2(8 + i) : ''))
-  const days = Object.keys(WEEK_EVENTS).map(day => {
+  const days = week.map(day => {
     const cells = []
     for (let i = 0; i < 14; i++) {
       const h = 8 + i
-      const ev = WEEK_EVENTS[day].find(e => h + 0.5 > e[0] && h + 0.5 < e[1])
+      const ev = day.intervals.find(e => h < e[1] && h + 1 > e[0])
+      const color = ev?.[2] === 'performance' ? Y : W
       cells.push(ev
-        ? { bg: mix(ev[2], 80), bd: mix(ev[2], 40), sh: `0 0 10px ${mix(ev[2], 33)}` }
+        ? { bg: mix(color, 80), bd: mix(color, 40), sh: `0 0 10px ${mix(color, 33)}` }
         : { bg: a(ACC, '0a'), bd: a(ACC, '14'), sh: 'none' })
     }
-    const peak = day === 'THU'
-    const today = day === 'FRI'
-    return { name: day, cells, total: WEEK_TOTALS[day], hColor: today ? G : peak ? Y : a(ACC, '88'), tColor: peak ? Y : W }
+    const today = day.date === calendarDate()
+    return { name: day.name, cells, total: `${day.total.toFixed(1)}H`, hColor: today ? G : a(ACC, '88'), tColor: W }
   })
   const legend = [
     ['REHEARSAL', mix(W, 80)],
     ['PERFORMANCE', mix(Y, 80)],
-    ['TRAINING', mix(G, 80)],
   ]
   return (
-    <SubShell subKey="weekmap" onClose={onClose}>
+    <SubShell subKey="weekmap" onClose={onClose} meta={`${week[0].date} / ${week.reduce((total, day) => total + day.total, 0).toFixed(1)}H / ${feedHealth(calendar) ? 'READ ONLY' : 'UNCONFIRMED'}`}>
+      {!feedHealth(calendar) && <p role="status" style={{ color: Y, fontFamily: FM, fontSize: 13, lineHeight: 1.5 }}>Schedule unconfirmed. Any retained events may be outdated; empty cells do not confirm free time.</p>}
       <div style={{ display: 'flex', gap: 9 }}>
         <div style={{ width: 30, flexShrink: 0, paddingTop: 24 }}>
           {hours.map((label, i) => (
@@ -131,7 +134,7 @@ export function WeekMapSub({ onClose }) {
             {label}
           </span>
         ))}
-        <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.16em', color: Y }}>THU = PEAK LOAD · PROTECT SLEEP WED NIGHT</span>
+        <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.16em', color: Y }}>PLAAN WINDOW - EUROPE/TALLINN</span>
       </div>
     </SubShell>
   )
@@ -147,7 +150,7 @@ export function FeedsSub({ onClose, lanes }) {
         <div style={{ width: 180, flexShrink: 0, alignSelf: 'center', border: `1px solid ${a(ACC, '55')}`, background: `linear-gradient(180deg, ${a(ACC, '16')}, ${deep(70)})`, padding: '16px 15px', textAlign: 'center', boxShadow: `0 0 34px ${a(ACC, '1f')}`, clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)', margin: '0 auto' }}>
           <div style={{ width: 40, height: 40, margin: '0 auto 9px', borderRadius: '50%', border: `1px solid ${a(ACC, '66')}`, background: `radial-gradient(circle, ${a(ACC, '44')} 0%, transparent 70%)`, boxShadow: `0 0 22px ${a(ACC, '66')}`, animation: 'holo-corePulse 3.6s ease-in-out infinite' }} />
           <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.22em', color: ACC, textShadow: `0 0 10px ${a(ACC, '66')}` }}>PHOENIX<br />CAL CORE</div>
-          <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.14em', color: a(ACC, '99'), marginTop: 7 }}>NORMALIZER v2<br />11 BLOCKS HELD</div>
+          <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.14em', color: a(ACC, '99'), marginTop: 7 }}>READ ONLY<br />SOURCE STATUS</div>
         </div>
         <div style={{ flex: 1, minWidth: 300, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 12 }}>
           {LANES.map((ln, i) => {
@@ -165,11 +168,13 @@ export function FeedsSub({ onClose, lanes }) {
                     </span>
                     <span style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: ln.c, border: `1px solid ${bd}`, padding: '2px 7px' }}>{ln.st}</span>
                   </div>
-                  {[['LAST SYNC', ln.sync], ['SCOPE', ln.scope]].map(([k, v]) => (
+                  {[['LAST SYNC', ln.sync], ...(ln.checked ? [['CHECKED', ln.checked]] : []), ['SCOPE', ln.scope]].map(([k, v]) => (
                     <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FM, fontSize: 7, letterSpacing: '.08em', color: a(ACC, '99'), padding: '3px 0', borderTop: `1px solid ${a(ACC, '12')}` }}>
                       <span>{k}</span><span style={{ color: W }}>{v}</span>
                     </div>
                   ))}
+                  {ln.notice && <p style={{ fontFamily: FM, fontSize: 11, lineHeight: 1.5, color: W, margin: '8px 0 0', overflowWrap: 'anywhere' }}>{ln.notice}</p>}
+                  {ln.error && <p style={{ fontFamily: FM, fontSize: 11, lineHeight: 1.5, color: Y, margin: '8px 0 0', overflowWrap: 'anywhere' }}>{ln.error}</p>}
                 </div>
               </div>
             )

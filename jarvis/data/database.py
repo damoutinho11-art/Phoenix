@@ -42,6 +42,14 @@ class BudgetCorrectionConflict(ValueError):
 
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS plaan_feed_cache (
+    source_hash TEXT PRIMARY KEY,
+    snapshot_json TEXT,
+    last_checked_at TEXT NOT NULL,
+    last_success_at TEXT,
+    last_error TEXT
+);
+
 CREATE TABLE IF NOT EXISTS meal_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     log_date TEXT NOT NULL,
