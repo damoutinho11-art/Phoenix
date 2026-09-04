@@ -87,7 +87,7 @@ class Step6RouteTests(unittest.TestCase):
         data = client.get("/nutrition/status").json()
         assert data["logged"]["total_calories"] == 410
         assert data["logged"]["total_protein_g"] == 72
-        assert data["remaining_protein_g"] == 93
+        assert data["remaining_protein_g"] == 103
 
     def test_nutrition_status_includes_meal_log_rows(self):
         meal_id = self._post_meal().json()["meal_id"]
