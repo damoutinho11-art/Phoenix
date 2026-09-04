@@ -308,8 +308,107 @@ def _validated_budget_month(month: str) -> str:
     return month
 
 
+def _previous_budget_months(month: str, count: int) -> list[str]:
+    year, month_number = (int(part) for part in month.split("-"))
+    result: list[str] = []
+    for _ in range(count):
+        month_number -= 1
+        if month_number == 0:
+            year -= 1
+            month_number = 12
+        result.append(f"{year:04d}-{month_number:02d}")
+    return list(reversed(result))
+
+
+def _inferred_recurring_obligations(
+    profile: dict, statement_transactions: object, target_month: str
+) -> list[dict] | None:
+    """Infer only stable fixed bills paid in each of the prior three months."""
+    if not isinstance(profile, dict) or not isinstance(statement_transactions, list):
+        return None
+    fixed_categories = profile.get("fixed_categories", [])
+    if not isinstance(fixed_categories, list) or any(
+        not isinstance(category, str) for category in fixed_categories
+    ):
+        return None
+    configured = profile.get("recurring_obligations", [])
+    if not valid_recurring_obligations(configured):
+        return None
+
+    evidence_months = _previous_budget_months(target_month, 3)
+    monthly: dict[str, dict[str, object]] = {}
+    for row in statement_transactions:
+        if not isinstance(row, dict):
+            return None
+        month = row.get("month")
+        if month not in evidence_months:
+            continue
+        merchant = row.get("merchant")
+        description = row.get("description")
+        category = row.get("effective_category", row.get("category"))
+        if (
+            not isinstance(merchant, str)
+            or not isinstance(description, str)
+            or category not in fixed_categories
+            or row.get("is_income") != 0
+        ):
+            continue
+        merchant_key = database.normalize_budget_merchant(merchant)
+        if not merchant_key:
+            continue
+        try:
+            amount = Decimal(str(row.get("amount_eur")))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+        if not amount.is_finite() or amount <= 0:
+            return None
+        amount = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        group = monthly.setdefault(
+            merchant_key,
+            {"name": merchant.strip(), "searchable": set(), "amounts": {}},
+        )
+        group["searchable"].add(f"{merchant} {description}".lower())
+        amounts = group["amounts"]
+        amounts[month] = amounts.get(month, Decimal("0")) + amount
+
+    inferred: list[dict] = []
+    for merchant_key, group in sorted(monthly.items()):
+        amounts = group["amounts"]
+        if sorted(amounts) != evidence_months:
+            continue
+        configured_match = any(
+            any(
+                token.lower() in searchable
+                for token in obligation["contains"]
+                for searchable in group["searchable"]
+            )
+            for obligation in configured
+        )
+        if configured_match:
+            continue
+        values = sorted(amounts.values())
+        median = values[1]
+        tolerance = max(Decimal("1.00"), median * Decimal("0.05"))
+        if values[-1] - values[0] > tolerance:
+            continue
+        inferred.append(
+            {
+                "name": group["name"],
+                "amount_eur": float(median),
+                "contains": [merchant_key],
+                "enabled": True,
+                "source": "verified_statement_history",
+                "evidence_months": evidence_months,
+            }
+        )
+    return inferred
+
+
 def _unpaid_recurring_bills(
-    profile: dict, transactions: object
+    profile: dict,
+    transactions: object,
+    statement_transactions: object | None = None,
+    target_month: str | None = None,
 ) -> float | None:
     if not isinstance(profile, dict) or not isinstance(transactions, list):
         return None
@@ -326,6 +425,15 @@ def _unpaid_recurring_bills(
     obligations = profile.get("recurring_obligations", [])
     if not valid_recurring_obligations(obligations):
         return None
+    if statement_transactions is not None or target_month is not None:
+        if statement_transactions is None or target_month is None:
+            return None
+        inferred = _inferred_recurring_obligations(
+            profile, statement_transactions, target_month
+        )
+        if inferred is None:
+            return None
+        obligations = [*obligations, *inferred]
     for obligation in obligations:
         if not obligation["enabled"]:
             continue
@@ -456,7 +564,38 @@ def _build_cashflow_authority(
         statement_import_id, target_month
     )
     correction_revision = database.get_budget_correction_revision(statement_import_id)
-    unpaid_bills_eur = _unpaid_recurring_bills(profile, transactions)
+    policy_blockers = cashflow_authority_structural_blockers(
+        policy=profile,
+        snapshot=snapshot,
+        month_summary=summary,
+        unpaid_bills_eur=0.0,
+        today=decision_today,
+        week_closed=week_closed,
+    )
+    if policy_blockers:
+        return {
+            "data_ready": False,
+            "blockers": policy_blockers,
+            "weekly_budget_eur": 0.0,
+        }
+    inferred_obligations = _inferred_recurring_obligations(
+        profile, imported_transactions, target_month
+    )
+    if inferred_obligations is None:
+        return {
+            "data_ready": False,
+            "blockers": [
+                "Verified statement history is invalid for recurring-bill inference."
+            ],
+            "weekly_budget_eur": 0.0,
+        }
+    resolved_profile = {
+        **profile,
+        "recurring_obligations": [
+            *profile.get("recurring_obligations", []), *inferred_obligations
+        ],
+    }
+    unpaid_bills_eur = _unpaid_recurring_bills(resolved_profile, transactions)
     if unpaid_bills_eur is None:
         return {
             "data_ready": False,
@@ -507,6 +646,7 @@ def _build_cashflow_authority(
         **result,
         "policy": profile,
         "policy_version": profile["version"],
+        "inferred_recurring_obligations": inferred_obligations,
         "source": source,
         "input_hash": input_hash,
     }

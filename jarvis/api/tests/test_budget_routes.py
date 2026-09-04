@@ -2335,6 +2335,148 @@ def test_unpaid_recurring_bill_description_match_releases_reserve_case_insensiti
     ) == 0.0
 
 
+def test_stable_monthly_housing_history_infers_unpaid_rent_without_manual_memory() -> None:
+    profile = {"recurring_obligations": [], "fixed_categories": ["Housing"]}
+    history = [
+        {
+            "month": month,
+            "merchant": "Erik OÜ",
+            "description": f"Rent {month}",
+            "amount_eur": 420.0,
+            "effective_category": "Housing",
+            "is_income": 0,
+        }
+        for month in ("2026-06", "2026-07", "2026-08")
+    ]
+
+    inferred = budget_router._inferred_recurring_obligations(
+        profile, history, "2026-09"
+    )
+
+    assert inferred == [
+        {
+            "name": "Erik OÜ",
+            "amount_eur": 420.0,
+            "contains": ["erik oü"],
+            "enabled": True,
+            "source": "verified_statement_history",
+            "evidence_months": ["2026-06", "2026-07", "2026-08"],
+        }
+    ]
+    assert budget_router._unpaid_recurring_bills(
+        profile, [], history, "2026-09"
+    ) == 420.0
+
+
+def test_inferred_rent_reserve_releases_after_current_verified_payment() -> None:
+    profile = {"recurring_obligations": [], "fixed_categories": ["Housing"]}
+    history = [
+        {
+            "month": month,
+            "merchant": "Erik OÜ",
+            "description": "Rent",
+            "amount_eur": 420.0,
+            "effective_category": "Housing",
+            "is_income": 0,
+        }
+        for month in ("2026-06", "2026-07", "2026-08")
+    ]
+    paid = [{"merchant": "ERIK OÜ", "description": "Rent August"}]
+
+    assert budget_router._unpaid_recurring_bills(
+        profile, paid, history, "2026-09"
+    ) == 0.0
+
+
+def test_recurring_inference_rejects_incomplete_or_volatile_history() -> None:
+    profile = {"recurring_obligations": [], "fixed_categories": ["Housing"]}
+    history = [
+        {
+            "month": month,
+            "merchant": merchant,
+            "description": "Bill",
+            "amount_eur": amount,
+            "effective_category": "Housing",
+            "is_income": 0,
+        }
+        for month, merchant, amount in (
+            ("2026-06", "Variable Housing", 50.0),
+            ("2026-07", "Variable Housing", 100.0),
+            ("2026-08", "Variable Housing", 150.0),
+            ("2026-07", "Short History", 90.0),
+            ("2026-08", "Short History", 90.0),
+        )
+    ]
+
+    assert budget_router._inferred_recurring_obligations(
+        profile, history, "2026-09"
+    ) == []
+
+
+def test_cashflow_authority_applies_inferred_unpaid_rent_before_weekly_budget(
+    monkeypatch,
+) -> None:
+    profile = {
+        **_COMPLETE_AUTHORITY_POLICY,
+        "version": 2,
+        "fixed_categories": ["Housing"],
+    }
+    import_id = "verified-history"
+    rows = [
+        {
+            "statement_import_id": import_id,
+            "month": month,
+            "merchant": "Erik OÜ",
+            "description": "Rent",
+            "amount_eur": 420.0,
+            "effective_category": "Housing",
+            "is_income": 0,
+        }
+        for month in ("2026-06", "2026-07", "2026-08")
+    ]
+    snapshot = {
+        "receipt_verified": 1,
+        "statement_import_id": import_id,
+        "parsed_rows": len(rows),
+        "statement_end_date": "2026-09-04",
+        "opening_balance_eur": 1200.0,
+        "closing_balance_eur": 1000.0,
+        "quality_status": "reconciled",
+    }
+    summary = {
+        "month": "2026-09",
+        "by_category": {},
+        "income_total": 1970.2,
+        "expenses_total": 0.0,
+        "invested_total": 0.0,
+        "emergency_fund_total": 0.0,
+    }
+    monkeypatch.setattr(budget_router, "_cashflow_authority_policy", lambda: profile)
+    monkeypatch.setattr(
+        database, "get_latest_reconciled_budget_statement", lambda: snapshot
+    )
+    monkeypatch.setattr(
+        database, "get_budget_statement_import_transactions", lambda _: rows
+    )
+    monkeypatch.setattr(
+        database, "get_effective_budget_statement_transactions", lambda _: rows
+    )
+    monkeypatch.setattr(
+        database, "get_budget_statement_import_summary", lambda *_: summary
+    )
+    monkeypatch.setattr(database, "get_budget_correction_revision", lambda _: "revision")
+
+    data = budget_router._build_cashflow_authority(
+        "2026-09", today=date(2026, 9, 4)
+    )
+
+    assert data["data_ready"] is True
+    assert data["protected_cash"]["unpaid_bills_eur"] == 420.0
+    assert data["cash_capacity_eur"] == 80.0
+    assert data["weekly_budget_eur"] == 20.0
+    assert data["inferred_recurring_obligations"][0]["name"] == "Erik OÜ"
+
+
 def test_disabled_recurring_bill_reserves_zero() -> None:
     profile = {
         "recurring_obligations": [
