@@ -138,11 +138,8 @@
   }
 
   .holo-mobile-domain__actions {
-    position: sticky;
-    bottom: 0;
     padding-top: 6px;
     padding-bottom: 4px;
-    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--phx-bg) 72%, transparent) 30%, var(--phx-bg));
   }
 
   .holo-mobile-action {
@@ -165,6 +162,7 @@
   .holo-mobile-panel {
     position: relative;
     display: block;
+    min-width: 0;
     padding: 14px 14px 12px;
     border: 1px solid color-mix(in srgb, var(--phx-accent) 28%, transparent);
     color: var(--phx-text);
@@ -209,6 +207,8 @@
   }
 
   .holo-mobile-panel__body {
+    min-width: 0;
+    overflow: hidden;
     color: var(--phx-text);
   }
 }
