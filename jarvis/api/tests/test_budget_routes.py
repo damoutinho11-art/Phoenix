@@ -2386,6 +2386,7 @@ def test_stable_monthly_housing_history_infers_unpaid_rent_without_manual_memory
             "evidence_months": ["2026-06", "2026-07", "2026-08"],
         }
     ]
+
     assert budget_router._unpaid_recurring_bills(
         profile, [], history, "2026-09"
     ) == 420.0
@@ -2447,6 +2448,29 @@ def test_fixed_rent_rule_bootstraps_from_latest_verified_month() -> None:
             "evidence_months": ["2026-08"],
         }
     ]
+
+
+def test_manual_rent_override_wins_without_hiding_inferred_evidence() -> None:
+    configured = [
+        {
+            "name": "Rent override",
+            "amount_eur": 500.0,
+            "contains": ["erik oü", "rent"],
+            "enabled": True,
+        }
+    ]
+    inferred = [
+        {
+            "name": "Erik OÜ",
+            "amount_eur": 420.0,
+            "contains": ["erik oü"],
+            "enabled": True,
+            "source": "verified_statement_history",
+            "evidence_months": ["2026-08"],
+        }
+    ]
+
+    assert budget_router._merge_recurring_obligations(configured, inferred) == configured
 
 
 def test_recurring_inference_rejects_incomplete_or_volatile_history() -> None:

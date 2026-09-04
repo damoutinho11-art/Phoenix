@@ -398,16 +398,6 @@ def _inferred_recurring_obligations(
         )
         if not stable_monthly_history and not verified_rent_bootstrap:
             continue
-        configured_match = any(
-            any(
-                token.lower() in searchable
-                for token in obligation["contains"]
-                for searchable in group["searchable"]
-            )
-            for obligation in configured
-        )
-        if configured_match:
-            continue
         values = sorted(amounts.values())
         median = values[len(values) // 2]
         tolerance = max(Decimal("1.00"), median * Decimal("0.05"))
@@ -424,6 +414,24 @@ def _inferred_recurring_obligations(
             }
         )
     return inferred
+
+
+def _merge_recurring_obligations(
+    configured: list[dict], inferred: list[dict]
+) -> list[dict]:
+    """Keep explicit obligations as overrides without hiding inferred evidence."""
+    merged = list(configured)
+    for candidate in inferred:
+        candidate_text = " ".join(
+            [candidate.get("name", ""), *candidate.get("contains", [])]
+        ).lower()
+        overridden = any(
+            any(token.lower() in candidate_text for token in obligation["contains"])
+            for obligation in configured
+        )
+        if not overridden:
+            merged.append(candidate)
+    return merged
 
 
 def _unpaid_recurring_bills(
@@ -455,7 +463,7 @@ def _unpaid_recurring_bills(
         )
         if inferred is None:
             return None
-        obligations = [*obligations, *inferred]
+        obligations = _merge_recurring_obligations(obligations, inferred)
     for obligation in obligations:
         if not obligation["enabled"]:
             continue
@@ -614,9 +622,9 @@ def _build_cashflow_authority(
         }
     resolved_profile = {
         **profile,
-        "recurring_obligations": [
-            *profile.get("recurring_obligations", []), *inferred_obligations
-        ],
+        "recurring_obligations": _merge_recurring_obligations(
+            profile.get("recurring_obligations", []), inferred_obligations
+        ),
     }
     unpaid_bills_eur = _unpaid_recurring_bills(resolved_profile, transactions)
     if unpaid_bills_eur is None:
