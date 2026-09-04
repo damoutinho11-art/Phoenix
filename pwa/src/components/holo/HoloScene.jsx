@@ -172,7 +172,8 @@ export function HoloEdgeChrome({ clock }) {
 }
 
 // typed boot line, top center — remounted (keyed) on domain switch
-export function HoloBootLine({ bootLine }) {
+export function HoloBootLine({ bootLine, isMobile, isHome }) {
+  if (isMobile && !isHome) return null
   return (
     <div style={{ position: 'absolute', top: 13, left: '50%', transform: 'translateX(-50%)', zIndex: 70, display: 'flex', alignItems: 'center', gap: 9, animation: 'holo-inX .4s cubic-bezier(.2,.8,.4,1) both', whiteSpace: 'nowrap' }}>
       <span style={{ width: 5, height: 5, background: ACC, boxShadow: `0 0 8px ${ACC}` }} />

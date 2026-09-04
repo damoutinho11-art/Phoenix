@@ -32,7 +32,7 @@ function MobilePanel({ panel, onFocus }) {
       </div>
       <div className="holo-mobile-panel__divider" />
       <div className="holo-mobile-panel__body">
-        <PanelBody panel={panel} />
+        <PanelBody panel={panel} mobile />
       </div>
     </button>
   )
@@ -41,20 +41,20 @@ function MobilePanel({ panel, onFocus }) {
 export default function HoloMobileDomain({ domain, onFocus, onAction }) {
   return (
     <section className="holo-mobile-domain" data-phx-mobile-command>
-      <div className="holo-mobile-domain__summary">
+      <div className="holo-mobile-domain__summary" data-phx-mobile-summary>
         <span className="holo-mobile-domain__label">LIVE COMMAND</span>
         <p className="holo-mobile-domain__brief">{domain.heroBrief}</p>
+      </div>
+
+      <div className="holo-mobile-domain__panels" data-phx-mobile-panels>
+        {domain.panels.map((panel) => (
+          <MobilePanel key={panel.code} panel={panel} onFocus={onFocus} />
+        ))}
       </div>
 
       <div className="holo-mobile-domain__actions" data-phx-mobile-actions>
         {domain.heroActions.map((action) => (
           <MobileActionButton key={action.label} action={action} onAction={onAction} />
-        ))}
-      </div>
-
-      <div className="holo-mobile-domain__panels">
-        {domain.panels.map((panel) => (
-          <MobilePanel key={panel.code} panel={panel} onFocus={onFocus} />
         ))}
       </div>
     </section>

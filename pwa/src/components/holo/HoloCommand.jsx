@@ -301,8 +301,8 @@ export default function HoloCommand({ startTab = 'home' }) {
         <HoloScene tab={tab} isMobile={isMobile} blips={blips} atmosphere={atmosphere} />
         {fx > 0 && !warped && <HoloDomainFlash />}
         <HoloEdgeChrome clock={clock} />
-        <HoloBootLine bootLine={D.bootLine} />
-        <HoloCore domain={D} hot={hot} dimmed={!!focusPanel} isShort={isShort} sparks={atmosphere.sparks} showChips={showChips} isHome={isHome} />
+        <HoloBootLine bootLine={D.bootLine} isMobile={isMobile} isHome={isHome} />
+        <HoloCore domain={D} hot={hot} dimmed={!!focusPanel} isShort={isShort} isMobile={isMobile} sparks={atmosphere.sparks} showChips={showChips} isHome={isHome} />
         {!isHome && !isMobile && <HoloBeams />}
         {!isHome && isMobile && <HoloMobileDomain domain={D} onFocus={setFocus} onAction={setSub} />}
         {!isHome && !isMobile && <HoloWings domain={D} showTele={showTele} onFocus={setFocus} />}

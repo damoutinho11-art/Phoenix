@@ -7,7 +7,7 @@ const GLOBE_SM = 'min(17vmin,146px)'
 // Central reactor core: ring-frame SVG, gimbal orbits, 3D wireframe globe,
 // plasma heart, emitter beam + ripple pad, pedestal hero readout.
 export default function HoloCore({
-  domain, hot, dimmed, isShort, sparks, showChips, isHome,
+  domain, hot, dimmed, isShort, isMobile, sparks, showChips, isHome,
 }) {
   const accentGlow = a(ACC, '66')
   const accentGlowSoft = a(ACC, '1f')
@@ -24,16 +24,39 @@ export default function HoloCore({
   const heroCurrency = isMoneyReadout ? heroMain.slice(0, 1) : ''
   const heroAmount = isMoneyReadout ? heroMain.slice(1) : heroMain
   const heroReadoutOffset = isShort ? 34 : 42
+  const isMobileCommand = isMobile && !isHome
+  const coreTop = isMobileCommand ? 'max(94px, calc(94px + env(safe-area-inset-top)))' : isShort ? '36%' : '43%'
+  const coreSize = isMobileCommand ? 'min(29vmin, 174px)' : 'min(44vmin, 372px)'
+  const haloSize = isMobileCommand ? 'min(42vmin, 250px)' : '70vmin'
+  const haloMax = isMobileCommand ? 250 : 600
+  const orbitOne = isMobileCommand ? 'min(24vmin, 142px)' : 'min(38vmin, 322px)'
+  const orbitTwo = isMobileCommand ? 'min(27vmin, 158px)' : 'min(42vmin, 354px)'
+  const gyroOne = isMobileCommand ? 'min(20vmin, 118px)' : 'min(31vmin, 262px)'
+  const gyroTwo = isMobileCommand ? 'min(23vmin, 134px)' : 'min(34vmin, 288px)'
+  const beamTop = isMobileCommand ? 'min(9.2vmin, 52px)' : 'min(13vmin, 110px)'
+  const beamWidth = isMobileCommand ? 'min(10vmin, 62px)' : 'min(15vmin, 128px)'
+  const beamHeight = isMobileCommand ? 'min(3.2vmin, 18px)' : 'min(5.2vmin, 46px)'
+  const padTop = isMobileCommand ? 'min(12.8vmin, 76px)' : 'min(18.6vmin, 158px)'
+  const padWidth = isMobileCommand ? 'min(18vmin, 106px)' : 'min(28vmin, 240px)'
+  const padHeight = isMobileCommand ? 'min(3.8vmin, 23px)' : 'min(6.4vmin, 56px)'
+  const readoutTop = isMobileCommand ? 'min(12.6vmin, 74px)' : isShort ? 'min(17vmin, 148px)' : 'min(24vmin, 204px)'
+  const readoutTransform = isMobileCommand ? 'translate(-50%, 0)' : `translate(-50%, ${heroReadoutOffset}px)`
+  const readoutTitleSize = isMobileCommand
+    ? (isMoneyReadout ? 'clamp(28px, 8.6vw, 38px)' : 'clamp(30px, 8.8vw, 42px)')
+    : isMoneyReadout ? 'clamp(44px, 8.2vmin, 72px)' : isShort ? 'clamp(34px, 6.6vmin, 54px)' : 'clamp(50px, 9.4vmin, 82px)'
+  const readoutUnitSize = isMobileCommand ? 10 : isMoneyReadout ? 11 : 12
+  const readoutGap = isMobileCommand ? 6 : isHome ? 0 : 10
+  const heroLabelSize = isMobileCommand ? 10 : 9
 
   const globeRing = (rot, alpha) => (
     <i key={rot + alpha} style={{ position: 'absolute', left: 0, top: 0, transform: `translate(-50%,-50%) ${rot}`, width: GLOBE, height: GLOBE, borderRadius: '50%', border: `1px solid ${a(ACC, alpha)}` }} />
   )
 
   return (
-    <div style={{ position: 'absolute', left: '50%', top: isShort ? '36%' : '43%', transform: 'translate(-50%,-50%)', width: 0, height: 0, zIndex: 30 }}>
-      <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: '70vmin', height: '70vmin', maxWidth: 600, maxHeight: 600, background: `radial-gradient(circle, ${accentGlowSoft} 0%, transparent 62%)`, pointerEvents: 'none', animation: 'holo-corePulseC 4.2s ease-in-out infinite' }} />
+    <div data-phx-core-mobile-command={isMobileCommand ? '' : undefined} style={{ position: 'absolute', left: '50%', top: coreTop, transform: 'translate(-50%,-50%)', width: 0, height: 0, zIndex: 30 }}>
+      <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: haloSize, height: haloSize, maxWidth: haloMax, maxHeight: haloMax, background: `radial-gradient(circle, ${accentGlowSoft} 0%, transparent 62%)`, pointerEvents: 'none', animation: 'holo-corePulseC 4.2s ease-in-out infinite' }} />
       <div data-plx="0.04" style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0 }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%,-50%)', width: 'min(44vmin, 372px)', height: 'min(44vmin, 372px)', animation: 'holo-coreAssemble .9s cubic-bezier(.2,.8,.4,1) .05s both', filter: coreFilter, transition: 'filter .5s ease' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%,-50%)', width: coreSize, height: coreSize, animation: 'holo-coreAssemble .9s cubic-bezier(.2,.8,.4,1) .05s both', filter: coreFilter, transition: 'filter .5s ease' }}>
           <div style={{ position: 'absolute', inset: 0, animation: 'holo-orbitDrift 10s ease-in-out infinite' }}>
             <svg viewBox="0 0 200 200" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
               <g style={{ transformOrigin: '50% 50%', animation: 'holo-ringSpin 34s linear infinite' }}>
@@ -70,13 +93,13 @@ export default function HoloCore({
 
             {/* gimbal orbits + satellites */}
             <div style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0 }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, width: 'min(38vmin, 322px)', height: 'min(38vmin, 322px)', transform: 'translate(-50%,-50%) rotate(-16deg) scaleY(.34)' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, width: orbitOne, height: orbitOne, transform: 'translate(-50%,-50%) rotate(-16deg) scaleY(.34)' }}>
                 <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `1px solid ${a(ACC, '2e')}` }} />
                 <div style={{ position: 'absolute', inset: 0, animation: 'holo-ringSpin 12s linear infinite' }}>
                   <i style={{ position: 'absolute', left: '50%', top: 0, width: 5, height: 5, margin: -2.5, borderRadius: '50%', background: W, transform: 'scaleY(2.94)', boxShadow: `0 0 8px ${ACC}, 0 0 16px ${ACC}` }} />
                 </div>
               </div>
-              <div style={{ position: 'absolute', left: 0, top: 0, width: 'min(42vmin, 354px)', height: 'min(42vmin, 354px)', transform: 'translate(-50%,-50%) rotate(14deg) scaleY(.3)' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, width: orbitTwo, height: orbitTwo, transform: 'translate(-50%,-50%) rotate(14deg) scaleY(.3)' }}>
                 <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `1px dashed ${a(ACC, '24')}` }} />
                 <div style={{ position: 'absolute', inset: 0, animation: 'holo-ringSpinRev 19s linear infinite' }}>
                   <i style={{ position: 'absolute', left: '50%', top: 0, width: 4, height: 4, margin: -2, borderRadius: '50%', background: G, transform: 'scaleY(3.33)', boxShadow: `0 0 8px ${G}` }} />
@@ -87,10 +110,10 @@ export default function HoloCore({
             {/* 3D gyroscope rings */}
             <div style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, perspective: 760, pointerEvents: 'none' }}>
               <div style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, transform: 'rotateX(64deg) rotateZ(-22deg)', transformStyle: 'preserve-3d' }}>
-                <i style={{ position: 'absolute', left: 0, top: 0, width: 'min(31vmin, 262px)', height: 'min(31vmin, 262px)', marginLeft: 'calc(min(31vmin, 262px) / -2)', marginTop: 'calc(min(31vmin, 262px) / -2)', borderRadius: '50%', border: `1.3px solid ${mix(W, 35)}`, boxShadow: `0 0 14px ${accentGlowSoft}`, animation: 'holo-globeSpin 9s linear infinite' }} />
+                <i style={{ position: 'absolute', left: 0, top: 0, width: gyroOne, height: gyroOne, marginLeft: `calc(${gyroOne} / -2)`, marginTop: `calc(${gyroOne} / -2)`, borderRadius: '50%', border: `1.3px solid ${mix(W, 35)}`, boxShadow: `0 0 14px ${accentGlowSoft}`, animation: 'holo-globeSpin 9s linear infinite' }} />
               </div>
               <div style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, transform: 'rotateX(72deg) rotateZ(28deg)', transformStyle: 'preserve-3d' }}>
-                <i style={{ position: 'absolute', left: 0, top: 0, width: 'min(34vmin, 288px)', height: 'min(34vmin, 288px)', marginLeft: 'calc(min(34vmin, 288px) / -2)', marginTop: 'calc(min(34vmin, 288px) / -2)', borderRadius: '50%', border: `1px dashed ${mix(G, 25)}`, animation: 'holo-globeSpinRev 14s linear infinite' }} />
+                <i style={{ position: 'absolute', left: 0, top: 0, width: gyroTwo, height: gyroTwo, marginLeft: `calc(${gyroTwo} / -2)`, marginTop: `calc(${gyroTwo} / -2)`, borderRadius: '50%', border: `1px dashed ${mix(G, 25)}`, animation: 'holo-globeSpinRev 14s linear infinite' }} />
               </div>
             </div>
 
@@ -128,8 +151,8 @@ export default function HoloCore({
         </div>
 
         {/* emitter beam + pad */}
-        <div style={{ position: 'absolute', left: 0, top: 'min(13vmin, 110px)', transform: 'translateX(-50%)', width: 'min(15vmin, 128px)', height: 'min(5.2vmin, 46px)', pointerEvents: 'none', clipPath: 'polygon(33% 0%, 67% 0%, 92% 100%, 8% 100%)', background: `linear-gradient(180deg, transparent 0%, ${a(ACC, '30')} 100%)`, filter: 'blur(1px)', animation: 'holo-beamPulse 4.6s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', left: 0, top: 'min(18.6vmin, 158px)', transform: 'translate(-50%,-50%)', width: 'min(28vmin, 240px)', height: 'min(6.4vmin, 56px)', pointerEvents: 'none', animation: 'holo-corePulseC 4.6s ease-in-out infinite' }}>
+        <div style={{ position: 'absolute', left: 0, top: beamTop, transform: 'translateX(-50%)', width: beamWidth, height: beamHeight, pointerEvents: 'none', clipPath: 'polygon(33% 0%, 67% 0%, 92% 100%, 8% 100%)', background: `linear-gradient(180deg, transparent 0%, ${a(ACC, '30')} 100%)`, filter: 'blur(1px)', animation: 'holo-beamPulse 4.6s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', left: 0, top: padTop, transform: 'translate(-50%,-50%)', width: padWidth, height: padHeight, pointerEvents: 'none', animation: 'holo-corePulseC 4.6s ease-in-out infinite' }}>
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `1px solid ${a(ACC, '44')}`, boxShadow: `0 0 18px ${accentGlowSoft}` }} />
           <div style={{ position: 'absolute', inset: '16% 18%', borderRadius: '50%', border: `1px dashed ${a(ACC, '30')}` }} />
           <div style={{ position: 'absolute', inset: '34% 38%', borderRadius: '50%', background: `radial-gradient(ellipse, ${a(ACC, '3c')} 0%, transparent 72%)` }} />
@@ -139,20 +162,20 @@ export default function HoloCore({
         </div>
 
         {/* pedestal hero readout */}
-        <div style={{ position: 'absolute', left: 0, top: isShort ? 'min(17vmin, 148px)' : 'min(24vmin, 204px)', transform: `translate(-50%, ${heroReadoutOffset}px)`, textAlign: 'center', whiteSpace: 'nowrap', zIndex: 46 }}>
+        <div data-phx-core-readout={isMobileCommand ? '' : undefined} style={{ position: 'absolute', left: 0, top: readoutTop, transform: readoutTransform, textAlign: 'center', whiteSpace: 'nowrap', zIndex: 46 }}>
           <div style={{ animation: 'holo-readoutIn .6s cubic-bezier(.2,.8,.4,1) .3s both' }}>
             {/* On home the unit is taken out of flow so the wordmark itself is
                 dead-center; marginRight cancels the trailing letter-space. */}
-            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: isHome ? 0 : 10, justifyContent: 'center', position: 'relative' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'baseline', fontFamily: FD, fontSize: isMoneyReadout ? 'clamp(44px, 8.2vmin, 72px)' : isShort ? 'clamp(34px, 6.6vmin, 54px)' : 'clamp(50px, 9.4vmin, 82px)', letterSpacing: isMoneyReadout ? '.015em' : isHome ? '.2em' : 'normal', marginRight: isHome ? '-.2em' : 0, fontWeight: isMoneyReadout ? 650 : 700, lineHeight: 1, color: W, fontVariantNumeric: 'tabular-nums', textShadow: isMoneyReadout ? `0 0 18px ${a(ACC, '44')}, 0 0 46px ${a(ACC, '18')}, 0 1px 0 ${mix(W, 18)}` : `0 0 28px ${accentGlow}, 0 0 84px ${accentGlowSoft}, -1px 0 1px ${mix('rgb(255,80,120)', 18)}, 1px 0 1px ${mix('rgb(80,180,255)', 20)}` }}>
+            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: readoutGap, justifyContent: 'center', position: 'relative' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', fontFamily: FD, fontSize: readoutTitleSize, letterSpacing: isMoneyReadout ? '.015em' : isHome ? '.2em' : 'normal', marginRight: isHome ? '-.2em' : 0, fontWeight: isMoneyReadout ? 650 : 700, lineHeight: 1, color: W, fontVariantNumeric: 'tabular-nums', textShadow: isMoneyReadout ? `0 0 18px ${a(ACC, '44')}, 0 0 46px ${a(ACC, '18')}, 0 1px 0 ${mix(W, 18)}` : `0 0 28px ${accentGlow}, 0 0 84px ${accentGlowSoft}, -1px 0 1px ${mix('rgb(255,80,120)', 18)}, 1px 0 1px ${mix('rgb(80,180,255)', 20)}` }}>
                 {isMoneyReadout && <span style={{ fontSize: '.72em', fontWeight: 600, marginRight: 4, color: mix(W, 86), transform: 'translateY(-2px)' }}>{heroCurrency}</span>}
                 <span>{heroAmount}</span>
               </span>
-              <span style={{ fontFamily: FM, fontSize: isMoneyReadout ? 11 : 12, letterSpacing: isMoneyReadout ? '.18em' : '.2em', color: isMoneyReadout ? a(ACC, 'aa') : a(ACC, '99'), transform: 'translateY(-2px)', ...(isHome || isMoneyReadout ? { position: 'absolute', left: isMoneyReadout ? 'calc(100% + 4px)' : 'calc(100% + 10px)', bottom: isMoneyReadout ? 6 : 4 } : {}) }}>{heroUnit}</span>
+              <span style={{ fontFamily: FM, fontSize: readoutUnitSize, letterSpacing: isMoneyReadout ? '.18em' : '.2em', color: isMoneyReadout ? a(ACC, 'aa') : a(ACC, '99'), transform: 'translateY(-2px)', ...(isHome || isMoneyReadout ? { position: 'absolute', left: isMoneyReadout ? 'calc(100% + 4px)' : 'calc(100% + 10px)', bottom: isMoneyReadout ? 6 : 4 } : {}) }}>{heroUnit}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, justifyContent: 'center', marginTop: 7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobileCommand ? 7 : 9, justifyContent: 'center', marginTop: isMobileCommand ? 5 : 7 }}>
               <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${a(ACC, '88')})` }} />
-              <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.34em', color: a(ACC, 'cc'), textShadow: `0 0 10px ${accentGlow}` }}>{domain.heroLabel}</span>
+              <span style={{ fontFamily: FM, fontSize: heroLabelSize, letterSpacing: isMobileCommand ? '.2em' : '.34em', color: a(ACC, 'cc'), textShadow: `0 0 10px ${accentGlow}` }}>{domain.heroLabel}</span>
               <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${a(ACC, '88')}, transparent)` }} />
             </div>
             {showChips && (

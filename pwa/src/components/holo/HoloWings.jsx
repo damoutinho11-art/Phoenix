@@ -4,12 +4,13 @@ import { financeMicro, financeBody } from './subs/financeReadability'
 
 // panel content renderers, shared by wing panels and the focus overlay.
 // `big` switches to the enlarged focus-modal type scale.
-function AllocationOrbitPanel({ panel, big }) {
+function AllocationOrbitPanel({ panel, big, mobile }) {
+  const readable = big || mobile
   const slices = (panel.slices || panel.allocationSlices || [])
   const activeSlices = slices.filter(s => Number(s.weight || 0) >= 0.5)
-  const shown = (activeSlices.length ? activeSlices : slices.slice(0, 1)).slice(0, big ? 6 : 4)
+  const shown = (activeSlices.length ? activeSlices : slices.slice(0, 1)).slice(0, readable ? 6 : 4)
   const dormantCount = panel.dormantCount ?? Math.max(0, slices.length - activeSlices.length)
-  const gid = `holo-allocation-${big ? 'focus' : 'wing'}`
+  const gid = `holo-allocation-${big ? 'focus' : mobile ? 'mobile' : 'wing'}`
   // Real donut: arc length = share of the whole. The uncovered arc is the
   // honest remainder (dormant/uncharted sleeves) — nothing is faked by radius.
   const orbitSize = big ? 150 : 128
@@ -35,7 +36,7 @@ function AllocationOrbitPanel({ panel, big }) {
   })
   return (
     <div style={{ display: big ? 'grid' : 'block', gridTemplateColumns: big ? `${orbitSize}px 1fr` : '1fr', gap: big ? 16 : 8, alignItems: 'center', paddingTop: big ? 4 : 5 }}>
-      <svg viewBox="0 0 132 132" style={{ width: big ? orbitSize : '100%', maxWidth: big ? orbitSize : 150, height: orbitSize, display: 'block', margin: big ? 0 : '0 auto' }}>
+      <svg viewBox="0 0 132 132" style={{ width: readable ? orbitSize : '100%', maxWidth: readable ? orbitSize : 150, height: orbitSize, display: 'block', margin: readable ? 0 : '0 auto' }}>
         <defs>
           <radialGradient id={`${gid}-hub`} cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor={a(ACC, '20')} />
@@ -87,17 +88,17 @@ function AllocationOrbitPanel({ panel, big }) {
           <div key={s.label} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: big ? 10 : 7, alignItems: 'center', minWidth: 0 }}>
             <span style={{ width: big ? 9 : 6, height: big ? 9 : 6, borderRadius: '50%', background: `radial-gradient(circle at 32% 22%, ${mix(W, 72)}, ${s.rimColor || W} 18%, ${s.color || ACC} 64%, ${mix(s.color || ACC, 32)} 100%)`, boxShadow: `0 0 0 1px ${a(s.rimColor || W, '42')}, 0 0 6px ${a(s.glowColor || s.color || ACC, '38')}` }} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ ...financeMicro({ fontSize: big ? 11 : 8, letterSpacing: '.09em', color: mix(BODY, 92) }), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.short || s.label}</div>
-              {big && <div style={financeMicro({ fontSize: 9, letterSpacing: '.06em', color: a(ACC, '9f'), marginTop: 2 })}><span style={{ color: a(s.statusColor || ACC, 'cc') }}>{s.status}</span> · GAP {s.gap}%</div>}
+              <div style={{ ...financeMicro({ fontSize: readable ? 11 : 8, letterSpacing: '.09em', color: mix(BODY, 92) }), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.short || s.label}</div>
+              {readable && <div style={financeMicro({ fontSize: mobile ? 10 : 9, letterSpacing: '.06em', color: a(ACC, '9f'), marginTop: 2 })}><span style={{ color: a(s.statusColor || ACC, 'cc') }}>{s.status}</span> · GAP {s.gap}%</div>}
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: FD, fontSize: big ? 20 : 15, fontWeight: 700, color: s.color || ACC, lineHeight: 1 }}>{Number(s.weight || 0).toFixed(1)}%</div>
-              {big && <div style={financeMicro({ fontSize: 9, letterSpacing: '.05em', color: a(W, '99'), marginTop: 2 })}>{s.value}</div>}
+              <div style={{ fontFamily: FD, fontSize: readable ? 20 : 15, fontWeight: 700, color: s.color || ACC, lineHeight: 1 }}>{Number(s.weight || 0).toFixed(1)}%</div>
+              {readable && <div style={financeMicro({ fontSize: mobile ? 10 : 9, letterSpacing: '.05em', color: a(W, '99'), marginTop: 2 })}>{s.value}</div>}
             </div>
           </div>
         ))}
-        {big && dormantCount > 0 && (
-          <div style={{ marginTop: 3, paddingTop: 9, borderTop: `1px solid ${a(ACC, '18')}`, ...financeMicro({ fontSize: 9, letterSpacing: '.08em', color: a(ACC, '88') }) }}>
+        {readable && dormantCount > 0 && (
+          <div style={{ marginTop: 3, paddingTop: 9, borderTop: `1px solid ${a(ACC, '18')}`, ...financeMicro({ fontSize: mobile ? 10 : 9, letterSpacing: '.08em', color: a(ACC, '88') }) }}>
             {dormantCount} SLEEVES BELOW 0.5% · NOT CHARTED
           </div>
         )}
@@ -106,8 +107,9 @@ function AllocationOrbitPanel({ panel, big }) {
   )
 }
 
-function ValueSeedPanel({ panel, big }) {
-  const gid = `holo-seed-${big ? 'focus' : 'wing'}`
+function ValueSeedPanel({ panel, big, mobile }) {
+  const readable = big || mobile
+  const gid = `holo-seed-${big ? 'focus' : mobile ? 'mobile' : 'wing'}`
   const seedSize = big ? 84 : 58
   // One honest mark on a baseline: the recorded point at left, then a neutral
   // dashed line to the right where the next snapshot will land. No implied
@@ -115,8 +117,8 @@ function ValueSeedPanel({ panel, big }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: big ? 12 : 8, padding: big ? '6px 0 5px' : '5px 0 2px' }}>
-        <span style={{ fontFamily: FD, fontSize: big ? 42 : 33, fontWeight: 700, color: W, lineHeight: 1, textShadow: `0 0 ${big ? 18 : 14}px ${a(ACC, '66')}` }}>{panel.big}</span>
-        <span style={financeMicro({ fontSize: big ? 10 : 9, letterSpacing: '.14em', color: a(ACC, 'cc'), textAlign: 'right' })}>FIRST MARK</span>
+        <span style={{ fontFamily: FD, fontSize: readable ? 42 : 33, fontWeight: 700, color: W, lineHeight: 1, textShadow: `0 0 ${readable ? 18 : 14}px ${a(ACC, '66')}` }}>{panel.big}</span>
+        <span style={financeMicro({ fontSize: readable ? 10 : 9, letterSpacing: '.14em', color: a(ACC, 'cc'), textAlign: 'right' })}>FIRST MARK</span>
       </div>
       <svg viewBox="0 0 154 48" style={{ width: '100%', height: seedSize, display: 'block', overflow: 'visible' }}>
         <defs>
@@ -136,16 +138,16 @@ function ValueSeedPanel({ panel, big }) {
         <line x1="20" x2="30" y1="26" y2="26" stroke={ACC} strokeWidth="2" strokeLinecap="round" />
         <line x1="30" x2="140" y1="26" y2="26" stroke={`url(#${gid}-proj)`} strokeWidth="1.4" strokeDasharray="2 6" />
         {/* the one recorded point */}
-        <circle cx="24" cy="26" r={big ? 4.4 : 3.4} fill={`url(#${gid}-core)`} style={{ filter: `drop-shadow(0 0 9px ${ACC})`, animation: 'holo-corePulse 2.1s ease-in-out infinite' }} />
+        <circle cx="24" cy="26" r={readable ? 4.4 : 3.4} fill={`url(#${gid}-core)`} style={{ filter: `drop-shadow(0 0 9px ${ACC})`, animation: 'holo-corePulse 2.1s ease-in-out infinite' }} />
         {/* where snapshot 2 will land */}
-        <circle cx="140" cy="26" r={big ? 3 : 2.4} fill="none" stroke={a(ACC, '55')} strokeWidth="1.2" strokeDasharray="2 2" />
-        <text x="140" y={big ? 16 : 15} textAnchor="end" fontFamily={FM} fontSize={big ? 7.5 : 6.5} letterSpacing=".1em" fill={a(ACC, '77')}>NEXT</text>
+        <circle cx="140" cy="26" r={readable ? 3 : 2.4} fill="none" stroke={a(ACC, '55')} strokeWidth="1.2" strokeDasharray="2 2" />
+        <text x="140" y={readable ? 16 : 15} textAnchor="end" fontFamily={FM} fontSize={readable ? 7.5 : 6.5} letterSpacing=".1em" fill={a(ACC, '77')}>NEXT</text>
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...financeMicro({ fontSize: big ? 9 : 7.5, color: a(ACC, '99') }) }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...financeMicro({ fontSize: readable ? 10 : 7.5, color: a(ACC, '99') }) }}>
         <span>{panel.sparkLabel || 'VALUE CURVE'}</span>
         <span>AWAITING 2ND SNAPSHOT</span>
       </div>
-      {big && (
+      {readable && (
         <div style={{ marginTop: 11, padding: '10px 12px', border: `1px solid ${a(ACC, '20')}`, background: deep(62), ...financeBody({ fontSize: 13.5, lineHeight: 1.55, color: mix(BODY, 84) }) }}>
           The curve plots recorded portfolio snapshots. Record a buy you placed and apply it in{' '}
           <span style={{ color: ACC, fontFamily: FM, fontSize: 11, letterSpacing: '.08em' }}>BRIEF → LEDGER</span>{' '}
@@ -156,8 +158,9 @@ function ValueSeedPanel({ panel, big }) {
   )
 }
 
-function ValueGraphPanel({ panel, big }) {
-  const gid = `holo-value-${big ? 'focus' : 'wing'}`
+function ValueGraphPanel({ panel, big, mobile }) {
+  const readable = big || mobile
+  const gid = `holo-value-${big ? 'focus' : mobile ? 'mobile' : 'wing'}`
   const points = panel.points || '8,28 146,28'
   const area = panel.pointsArea || `${points} 146,48 8,48`
   const nodes = panel.nodes || []
@@ -165,8 +168,8 @@ function ValueGraphPanel({ panel, big }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: big ? 12 : 8, padding: big ? '6px 0 5px' : '5px 0 2px' }}>
-        <span style={{ fontFamily: FD, fontSize: big ? 42 : 33, fontWeight: 700, color: W, lineHeight: 1, textShadow: `0 0 ${big ? 18 : 14}px ${a(ACC, '66')}` }}>{panel.big}</span>
-        <span style={{ fontFamily: FM, fontSize: big ? 10 : 8, letterSpacing: '.1em', color: panel.deltaColor || ACC, textAlign: 'right' }}>{panel.delta}</span>
+        <span style={{ fontFamily: FD, fontSize: readable ? 42 : 33, fontWeight: 700, color: W, lineHeight: 1, textShadow: `0 0 ${readable ? 18 : 14}px ${a(ACC, '66')}` }}>{panel.big}</span>
+        <span style={{ fontFamily: FM, fontSize: readable ? 10 : 8, letterSpacing: '.1em', color: panel.deltaColor || ACC, textAlign: 'right' }}>{panel.delta}</span>
       </div>
       <svg viewBox="0 0 154 56" style={{ width: '100%', height: big ? 104 : 62, display: 'block', overflow: 'visible' }}>
         <defs>
@@ -187,17 +190,17 @@ function ValueGraphPanel({ panel, big }) {
           points={points}
           fill="none"
           stroke={panel.deltaColor || ACC}
-          strokeWidth={big ? 2.2 : 1.8}
+          strokeWidth={readable ? 2.2 : 1.8}
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ filter: `drop-shadow(0 0 ${big ? 8 : 5}px ${a(panel.deltaColor || ACC, '77')})` }}
+          style={{ filter: `drop-shadow(0 0 ${readable ? 8 : 5}px ${a(panel.deltaColor || ACC, '77')})` }}
         />
-        {nodes.slice(Math.max(0, nodes.length - (big ? 7 : 4))).map((n, i) => (
-          <circle key={i} cx={n.x} cy={n.y} r={big ? 2.2 : 1.8} fill={a(W, 'dd')} stroke={ACC} strokeWidth=".8" />
+        {nodes.slice(Math.max(0, nodes.length - (readable ? 7 : 4))).map((n, i) => (
+          <circle key={i} cx={n.x} cy={n.y} r={readable ? 2.2 : 1.8} fill={a(W, 'dd')} stroke={ACC} strokeWidth=".8" />
         ))}
-        <circle cx={last.x} cy={last.y} r={big ? 4.2 : 3.1} fill={`url(#${gid}-last)`} style={{ filter: `drop-shadow(0 0 8px ${ACC})`, animation: panel.isSeed ? 'holo-corePulse 1.8s ease-in-out infinite' : 'none' }} />
+        <circle cx={last.x} cy={last.y} r={readable ? 4.2 : 3.1} fill={`url(#${gid}-last)`} style={{ filter: `drop-shadow(0 0 8px ${ACC})`, animation: panel.isSeed ? 'holo-corePulse 1.8s ease-in-out infinite' : 'none' }} />
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontFamily: FM, fontSize: big ? '8.5px' : '7.5px', letterSpacing: '.14em', color: a(ACC, '99') }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontFamily: FM, fontSize: readable ? '10px' : '7.5px', letterSpacing: '.14em', color: a(ACC, '99') }}>
         <span>{panel.graphLabel || panel.sparkLabel}</span>
         <span>{panel.isSeed ? 'NO TREND YET' : panel.meta}</span>
       </div>
@@ -205,30 +208,31 @@ function ValueGraphPanel({ panel, big }) {
   )
 }
 
-export function PanelBody({ panel, big }) {
-  if (panel.type === 'allocationOrbit') return <AllocationOrbitPanel panel={panel} big={big} />
-  if (panel.type === 'valueGraph' && panel.isSeed) return <ValueSeedPanel panel={panel} big={big} />
-  if (panel.type === 'valueGraph') return <ValueGraphPanel panel={panel} big={big} />
+export function PanelBody({ panel, big, mobile }) {
+  const readable = big || mobile
+  if (panel.type === 'allocationOrbit') return <AllocationOrbitPanel panel={panel} big={big} mobile={mobile} />
+  if (panel.type === 'valueGraph' && panel.isSeed) return <ValueSeedPanel panel={panel} big={big} mobile={mobile} />
+  if (panel.type === 'valueGraph') return <ValueGraphPanel panel={panel} big={big} mobile={mobile} />
   if (panel.type === 'rows') {
     return panel.rows.map((row, i) => (
-      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: big ? 12 : 10, padding: big ? '9px 0' : '6px 0', borderBottom: `1px solid ${a(ACC, big ? '14' : '10')}` }}>
+      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: readable ? 12 : 10, padding: readable ? '9px 0' : '6px 0', borderBottom: `1px solid ${a(ACC, readable ? '14' : '10')}` }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: FB, fontSize: big ? 19 : 16, fontWeight: 400, color: TEXT, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
-          <div style={{ fontFamily: FM, fontSize: big ? '8.5px' : '7.5px', letterSpacing: big ? '.1em' : '.08em', color: a(ACC, '99'), marginTop: big ? 2 : 1 }}>{row.sub}</div>
+          <div style={{ fontFamily: FB, fontSize: readable ? 19 : 16, fontWeight: 400, color: TEXT, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
+          <div style={{ fontFamily: FM, fontSize: mobile ? '10px' : big ? '8.5px' : '7.5px', letterSpacing: readable ? '.1em' : '.08em', color: a(ACC, '99'), marginTop: readable ? 2 : 1 }}>{row.sub}</div>
         </div>
-        <div style={{ fontFamily: FD, fontSize: big ? 26 : 21, fontWeight: 600, color: row.valueColor, whiteSpace: 'nowrap', textShadow: `0 0 ${big ? 12 : 10}px ${a(ACC, '1f')}` }}>{row.value}</div>
+        <div style={{ fontFamily: FD, fontSize: readable ? 26 : 21, fontWeight: 600, color: row.valueColor, whiteSpace: 'nowrap', textShadow: `0 0 ${readable ? 12 : 10}px ${a(ACC, '1f')}` }}>{row.value}</div>
       </div>
     ))
   }
   if (panel.type === 'bars') {
     return panel.bars.map((bar, i) => (
-      <div key={i} style={{ padding: big ? '8px 0 9px' : '5px 0 6px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: big ? 5 : 4 }}>
-          <span style={{ fontFamily: FM, fontSize: big ? 9 : 8, letterSpacing: '.14em', color: mix(BODY, 72) }}>{bar.label}</span>
-          <span style={{ fontFamily: FD, fontSize: big ? 22 : 18, fontWeight: 600, color: bar.color }}>{bar.val}</span>
+      <div key={i} style={{ padding: readable ? '8px 0 9px' : '5px 0 6px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: readable ? 5 : 4 }}>
+          <span style={{ fontFamily: FM, fontSize: mobile ? 10 : big ? 9 : 8, letterSpacing: '.14em', color: mix(BODY, 72) }}>{bar.label}</span>
+          <span style={{ fontFamily: FD, fontSize: readable ? 22 : 18, fontWeight: 600, color: bar.color }}>{bar.val}</span>
         </div>
-        <div style={{ height: big ? 6 : 4, background: a(ACC, '14'), border: `1px solid ${a(ACC, '20')}`, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: bar.w, background: `linear-gradient(90deg, ${mix(bar.color, 53)}, ${bar.color})`, boxShadow: `0 0 ${big ? 10 : 8}px ${mix(bar.color, 53)}` }} />
+        <div style={{ height: readable ? 6 : 4, background: a(ACC, '14'), border: `1px solid ${a(ACC, '20')}`, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: bar.w, background: `linear-gradient(90deg, ${mix(bar.color, 53)}, ${bar.color})`, boxShadow: `0 0 ${readable ? 10 : 8}px ${mix(bar.color, 53)}` }} />
         </div>
       </div>
     ))
@@ -236,16 +240,16 @@ export function PanelBody({ panel, big }) {
   // spark
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: big ? 10 : 8, padding: big ? '5px 0 3px' : '4px 0 2px' }}>
-        <span style={{ fontFamily: FD, fontSize: big ? 44 : 36, fontWeight: 700, color: W, textShadow: `0 0 ${big ? 16 : 14}px ${a(ACC, '66')}` }}>{panel.big}</span>
-        <span style={{ fontFamily: FM, fontSize: big ? 11 : 9, letterSpacing: '.1em', color: panel.deltaColor }}>{panel.delta}</span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: readable ? 10 : 8, padding: readable ? '5px 0 3px' : '4px 0 2px' }}>
+        <span style={{ fontFamily: FD, fontSize: readable ? 44 : 36, fontWeight: 700, color: W, textShadow: `0 0 ${readable ? 16 : 14}px ${a(ACC, '66')}` }}>{panel.big}</span>
+        <span style={{ fontFamily: FM, fontSize: readable ? 11 : 9, letterSpacing: '.1em', color: panel.deltaColor }}>{panel.delta}</span>
       </div>
-      <svg viewBox="0 0 130 38" style={{ width: '100%', height: big ? 64 : 44, display: 'block' }}>
+      <svg viewBox="0 0 130 38" style={{ width: '100%', height: readable ? 64 : 44, display: 'block' }}>
         <polyline points={panel.points} fill="none" stroke={ACC} strokeWidth="1.6" style={{ filter: `drop-shadow(0 0 4px ${ACC})` }} />
         <polyline points={panel.pointsArea} fill={a(ACC, '18')} stroke="none" />
         <circle cx={panel.lastX} cy={panel.lastY} r="2.4" fill={W} style={{ filter: `drop-shadow(0 0 5px ${ACC})` }} />
       </svg>
-      <div style={{ fontFamily: FM, fontSize: big ? '8.5px' : '7.5px', letterSpacing: '.16em', color: a(ACC, '99') }}>{panel.sparkLabel}</div>
+      <div style={{ fontFamily: FM, fontSize: mobile ? '10px' : big ? '8.5px' : '7.5px', letterSpacing: '.16em', color: a(ACC, '99') }}>{panel.sparkLabel}</div>
     </>
   )
 }

@@ -73,12 +73,13 @@
     position: absolute;
     left: 12px;
     right: 12px;
-    top: max(186px, calc(186px + env(safe-area-inset-top) * .12));
+    top: max(224px, calc(224px + env(safe-area-inset-top) * .12));
     bottom: calc(74px + env(safe-area-inset-bottom));
     z-index: 44;
     overflow-y: auto;
     overflow-x: hidden;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: 12px;
     padding-top: 4px;
@@ -134,6 +135,14 @@
   .holo-mobile-domain__panels {
     display: grid;
     gap: 10px;
+  }
+
+  .holo-mobile-domain__actions {
+    position: sticky;
+    bottom: 0;
+    padding-top: 6px;
+    padding-bottom: 4px;
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--phx-bg) 72%, transparent) 30%, var(--phx-bg));
   }
 
   .holo-mobile-action {
