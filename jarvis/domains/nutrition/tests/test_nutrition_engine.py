@@ -16,21 +16,21 @@ with open(_CONST_PATH) as f:
 
 
 class PhaseTests(unittest.TestCase):
-    def test_get_current_phase_cut(self):
-        assert engine.get_current_phase(CONSTITUTION, CUT_TRAINING_DATE) == "cut"
+    def test_get_current_phase_prefers_the_valid_active_phase(self):
+        assert engine.get_current_phase(CONSTITUTION, CUT_TRAINING_DATE) == "recomposition_cut"
+        assert engine.get_current_phase(CONSTITUTION, PEAK_DATE) == "recomposition_cut"
 
-    def test_get_current_phase_peak(self):
-        assert engine.get_current_phase(CONSTITUTION, PEAK_DATE) == "peak"
+    def test_legacy_constitution_without_active_phase_uses_date_selection(self):
+        legacy = json.loads(json.dumps(CONSTITUTION))
+        del legacy["active_phase"]
 
-    def test_cut_runs_through_its_final_day(self):
-        cut_end = date.fromisoformat(CONSTITUTION["phases"]["cut"]["end_date"])
-        assert engine.get_current_phase(CONSTITUTION, cut_end) == "cut"
+        cut_end = date.fromisoformat(legacy["phases"]["cut"]["end_date"])
+        peak_start = date.fromisoformat(legacy["phases"]["peak"]["start_date"])
 
-    def test_peak_starts_the_day_the_cut_ends(self):
-        peak_start = date.fromisoformat(CONSTITUTION["phases"]["peak"]["start_date"])
-        cut_end = date.fromisoformat(CONSTITUTION["phases"]["cut"]["end_date"])
+        assert engine.get_current_phase(legacy, CUT_TRAINING_DATE) == "cut"
+        assert engine.get_current_phase(legacy, cut_end) == "cut"
         assert peak_start == cut_end + timedelta(days=1), "no gap between cut and peak"
-        assert engine.get_current_phase(CONSTITUTION, peak_start) == "peak"
+        assert engine.get_current_phase(legacy, peak_start) == "peak"
 
 
 class TrainingDayTests(unittest.TestCase):
@@ -65,39 +65,21 @@ class TrainingDayTests(unittest.TestCase):
         assert engine.is_training_day(CONSTITUTION, CUT_TRAINING_DATE, None) is True
         assert engine.is_training_day(CONSTITUTION, date(2026, 6, 23), None) is False
 
-    def test_macro_target_follows_the_plan_not_the_weekday(self):
+    def test_macro_target_is_authoritative_across_training_and_recovery_days(self):
         tuesday = date(2026, 6, 23)
         planned = engine.get_macro_target(CONSTITUTION, tuesday, True)
         by_weekday = engine.get_macro_target(CONSTITUTION, tuesday, None)
 
-        assert planned.calories > by_weekday.calories
-        assert planned.carbs_g > by_weekday.carbs_g
-        assert planned.protein_g == by_weekday.protein_g, "protein holds across day types"
+        assert planned == by_weekday == MacroTarget(2600, 175, 315, 70)
 
 
 class MacroTargetTests(unittest.TestCase):
-    def test_cut_training_day_calories(self):
-        target = engine.get_macro_target(CONSTITUTION, CUT_TRAINING_DATE)
-        assert target.calories == 2400
+    def test_training_and_recovery_targets_are_equal_at_recomposition_prescription(self):
+        training = engine.get_macro_target(CONSTITUTION, CUT_TRAINING_DATE, True)
+        recovery = engine.get_macro_target(CONSTITUTION, CUT_REST_DATE, False)
 
-    def test_cut_rest_day_calories(self):
-        target = engine.get_macro_target(CONSTITUTION, CUT_REST_DATE)
-        assert target.calories == 2000
-
-    def test_cut_training_day_protein(self):
-        target = engine.get_macro_target(CONSTITUTION, CUT_TRAINING_DATE)
-        assert target.protein_g == 165
-
-    def test_cut_rest_day_protein(self):
-        target = engine.get_macro_target(CONSTITUTION, CUT_REST_DATE)
-        assert target.protein_g == 165
-
-    def test_peak_calories_same_both_days(self):
-        # Peak feeds the same on training and rest days, unlike the cut.
-        peak_start = date.fromisoformat(CONSTITUTION["phases"]["peak"]["start_date"])
-        monday = engine.get_macro_target(CONSTITUTION, peak_start)
-        friday = engine.get_macro_target(CONSTITUTION, peak_start + timedelta(days=4))
-        assert monday.calories == friday.calories == 2700
+        assert training == MacroTarget(2600, 175, 315, 70)
+        assert recovery == MacroTarget(2600, 175, 315, 70)
 
     def test_returns_macro_target_type(self):
         target = engine.get_macro_target(CONSTITUTION, CUT_TRAINING_DATE)
@@ -284,7 +266,7 @@ class CheckNutritionTests(unittest.TestCase):
     def test_correct_phase(self):
         status = engine.check_nutrition(CONSTITUTION, EMPTY_LOG_ITEMS,
                                         today=CUT_TRAINING_DATE)
-        assert status.phase == "cut"
+        assert status.phase == "recomposition_cut"
 
     def test_correct_training_day_flag(self):
         status = engine.check_nutrition(CONSTITUTION, EMPTY_LOG_ITEMS,
@@ -294,12 +276,12 @@ class CheckNutritionTests(unittest.TestCase):
     def test_remaining_calories_correct_empty_log(self):
         status = engine.check_nutrition(CONSTITUTION, EMPTY_LOG_ITEMS,
                                         today=CUT_TRAINING_DATE)
-        assert status.remaining_calories == 2400
+        assert status.remaining_calories == 2600
 
     def test_remaining_protein_reduces_after_logging(self):
         status = engine.check_nutrition(CONSTITUTION, SAMPLE_LOG_ITEMS,
                                         today=CUT_TRAINING_DATE)
-        assert status.remaining_protein_g == 165 - 72
+        assert status.remaining_protein_g == 175 - 72
 
     def test_protein_target_not_met_empty_log(self):
         status = engine.check_nutrition(CONSTITUTION, EMPTY_LOG_ITEMS,

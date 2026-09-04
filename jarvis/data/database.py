@@ -17,9 +17,11 @@ import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from jarvis.core import clock
+from jarvis.domains.training.operational_plan import project_plan_day
+from jarvis.domains.training.plan_contracts import iso_cycle_id
 
 _DEFAULT_DB_PATH = Path(__file__).resolve().parent / "jarvis.db"
 _ENV_DB_PATH = os.environ.get("JARVIS_DB_PATH")
@@ -62,10 +64,24 @@ CREATE TABLE IF NOT EXISTS meal_log (
     protein_g REAL NOT NULL,
     fat_g REAL NOT NULL,
     carbs_g REAL NOT NULL,
+    quantity_g REAL,
+    measurement_state TEXT,
+    label_source TEXT,
+    fibre_g REAL,
+    is_estimate INTEGER,
+    unit_count REAL,
     source TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_meal_log_date ON meal_log(log_date);
+
+CREATE TABLE IF NOT EXISTS nutrition_protocol_snapshots (
+    protocol_id TEXT PRIMARY KEY,
+    base_protocol_id TEXT NOT NULL,
+    log_date TEXT NOT NULL,
+    protocol_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS nutrition_memory (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -713,6 +729,23 @@ def _migrate_barcode_macro_basis(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+def _migrate_meal_measurement_provenance(connection: sqlite3.Connection) -> None:
+    existing = {
+        row[1] for row in connection.execute("PRAGMA table_info(meal_log)").fetchall()
+    }
+    for name, definition in (
+        ("quantity_g", "REAL"),
+        ("measurement_state", "TEXT"),
+        ("label_source", "TEXT"),
+        ("fibre_g", "REAL"),
+        ("is_estimate", "INTEGER"),
+        ("unit_count", "REAL"),
+    ):
+        if name not in existing:
+            connection.execute(f"ALTER TABLE meal_log ADD COLUMN {name} {definition}")
+    connection.commit()
+
+
 def init_db() -> None:
     """Create all persistence tables and indexes when absent."""
     connection = get_db()
@@ -726,12 +759,17 @@ def init_db() -> None:
         _migrate_portfolio_state_store(connection)
         _migrate_budget_statement_snapshot_provenance(connection)
         _migrate_barcode_macro_basis(connection)
+        _migrate_meal_measurement_provenance(connection)
     finally:
         connection.close()
 
 
-def get_meals_for_date(log_date: date | str) -> list[dict[str, Any]]:
-    connection = get_db()
+def get_meals_for_date(
+    log_date: date | str,
+    connection: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    owns_connection = connection is None
+    connection = connection or get_db()
     try:
         rows = connection.execute(
             "SELECT * FROM meal_log WHERE log_date = ? ORDER BY logged_at, id",
@@ -739,7 +777,8 @@ def get_meals_for_date(log_date: date | str) -> list[dict[str, Any]]:
         ).fetchall()
         return [dict(row) for row in rows]
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def log_meal(
@@ -779,6 +818,333 @@ def log_meal(
         )
         connection.commit()
         return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def _log_meal_components_with_connection(
+    connection: sqlite3.Connection,
+    log_date: date | str,
+    components: list[dict[str, Any]],
+    *,
+    source: str,
+) -> list[int]:
+    if not components:
+        raise ValueError("Protocol meal must contain at least one component")
+    logged_ids = []
+    for component in components:
+        cursor = connection.execute(
+            """
+            INSERT INTO meal_log (
+                log_date, logged_at, item_id, item_type, name, servings,
+                calories, protein_g, fat_g, carbs_g, quantity_g,
+                measurement_state, label_source, fibre_g, is_estimate,
+                unit_count, source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                _date_value(log_date),
+                _utc_now(),
+                component["item_id"],
+                component.get("item_type", "exact_gram_protocol_component"),
+                component["name"],
+                float(component["quantity_g"]),
+                float(component["calories"]),
+                float(component["protein_g"]),
+                float(component["fat_g"]),
+                float(component["carbs_g"]),
+                float(component["quantity_g"]),
+                component.get("measurement_state"),
+                component.get("label_source"),
+                float(component.get("fibre_g", 0)),
+                int(bool(component.get("is_estimate"))),
+                float(component["unit_count"]) if component.get("unit_count") is not None else None,
+                source,
+            ),
+        )
+        logged_ids.append(int(cursor.lastrowid))
+    return logged_ids
+
+
+def log_meal_components_atomically(
+    log_date: date | str,
+    components: list[dict[str, Any]],
+    *,
+    source: str,
+) -> list[int]:
+    """Persist all exact-gram components for one approved protocol meal."""
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        logged_ids = _log_meal_components_with_connection(
+            connection, log_date, components, source=source
+        )
+        connection.commit()
+        return logged_ids
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def verify_and_log_protocol_meal_atomically(
+    *,
+    expected_protocol_id: str,
+    meal_id: str,
+    log_date: date | str,
+    source: str,
+    build_current_protocol: Callable[[sqlite3.Connection], dict],
+) -> dict[str, Any]:
+    """Rebuild, verify, and persist one protocol meal under one write lock."""
+    connection = get_db()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        current = build_current_protocol(connection)
+        protocol = current
+        if current["protocol_id"] != expected_protocol_id:
+            snapshot_row = connection.execute(
+                "SELECT * FROM nutrition_protocol_snapshots WHERE protocol_id = ? AND log_date = ?",
+                (expected_protocol_id, _date_value(log_date)),
+            ).fetchone()
+            if snapshot_row is None or snapshot_row["base_protocol_id"] != current["protocol_id"]:
+                connection.commit()
+                return {"status": "stale"}
+            protocol = json.loads(snapshot_row["protocol_json"])
+        meal = next(
+            (row for row in protocol.get("meals", []) if row.get("meal_id") == meal_id),
+            None,
+        )
+        if meal is None:
+            connection.commit()
+            return {"status": "missing"}
+        log_ids = _log_meal_components_with_connection(
+            connection, log_date, meal["items"], source=source
+        )
+        connection.execute(
+            "DELETE FROM nutrition_protocol_snapshots WHERE log_date = ?",
+            (_date_value(log_date),),
+        )
+        connection.commit()
+        return {"status": "logged", "log_ids": log_ids}
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def save_protocol_snapshot(protocol: dict, log_date: date | str) -> None:
+    connection = get_db()
+    try:
+        connection.execute(
+            """INSERT OR REPLACE INTO nutrition_protocol_snapshots
+               (protocol_id, base_protocol_id, log_date, protocol_json, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                protocol["protocol_id"], protocol["base_protocol_id"],
+                _date_value(log_date), json.dumps(protocol, sort_keys=True), _utc_now(),
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def get_protocol_snapshot(protocol_id: str, log_date: date | str) -> dict | None:
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT protocol_json FROM nutrition_protocol_snapshots WHERE protocol_id = ? AND log_date = ?",
+            (protocol_id, _date_value(log_date)),
+        ).fetchone()
+        return json.loads(row["protocol_json"]) if row else None
+    finally:
+        connection.close()
+
+
+def _historical_evidence_window(days: int) -> tuple[str, str]:
+    """Return the inclusive lower and exclusive upper dates for prior days."""
+    today = clock.today()
+    return (today - timedelta(days=days)).isoformat(), today.isoformat()
+
+
+def get_planned_training_day(target_date: date) -> bool | None:
+    """Return the active plan's training/rest state, or None for weekday fallback."""
+    try:
+        active = get_active_training_plan(iso_cycle_id(target_date))
+    except Exception:
+        return None
+    payload = active.get("payload") if isinstance(active, dict) else None
+    session = project_plan_day(payload, target_date).get("session")
+    if not isinstance(session, dict) or not isinstance(session.get("is_rest"), bool):
+        return None
+    return not session["is_rest"]
+
+
+def get_nutrition_target_for_date(constitution: dict, target_date: date):
+    """Resolve a nutrition target with the same active-plan authority as status."""
+    from jarvis.domains.nutrition import engine
+
+    return engine.get_macro_target(
+        constitution,
+        target_date,
+        training_day=get_planned_training_day(target_date),
+    )
+
+
+def get_recomposition_daily_evidence(
+    days: int = 28,
+    constitution: dict | None = None,
+) -> list[dict[str, Any]]:
+    """Return complete daily meal-and-weight evidence without creating records."""
+    if days < 1:
+        return []
+    cutoff, today = _historical_evidence_window(days)
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT m.log_date AS date, w.weight_kg,
+                   COUNT(DISTINCT CASE
+                       WHEN m.source LIKE 'today_protocol:%' THEN m.source
+                       ELSE 'meal_log:' || m.id
+                   END) AS meal_count,
+                   SUM(m.calories) AS calories,
+                   SUM(m.protein_g) AS protein_g,
+                   SUM(m.fat_g) AS fat_g,
+                   SUM(m.carbs_g) AS carbs_g
+            FROM meal_log m
+            INNER JOIN weight_log w ON w.log_date = m.log_date
+            WHERE m.log_date >= ? AND m.log_date < ?
+            GROUP BY m.log_date, w.weight_kg
+            ORDER BY m.log_date
+            """,
+            (cutoff, today),
+        ).fetchall()
+        if constitution is None:
+            return []
+        from jarvis.domains.nutrition import engine
+
+        phase = constitution.get("phases", {}).get(constitution.get("active_phase"), {})
+        required_meals = max(2, int(phase.get("meals_per_day", 2)))
+        evidence = []
+        for row in rows:
+            item = dict(row)
+            target = get_nutrition_target_for_date(
+                constitution, date.fromisoformat(item["date"])
+            )
+            adherence = engine.classify_nutrition_day(
+                item["calories"], item["protein_g"], target
+            )
+            if (
+                item["meal_count"] >= required_meals
+                and adherence["adherence_status"] == "good"
+            ):
+                evidence.append({
+                    **item,
+                    "complete": True,
+                    "adherence_status": adherence["adherence_status"],
+                })
+        return evidence
+    finally:
+        connection.close()
+
+
+def get_body_measurements(
+    measurement_type: str,
+    days: int = 60,
+) -> list[dict[str, Any]]:
+    """Return optional body-measurement evidence when a compatible table exists."""
+    if days < 1 or measurement_type != "waist":
+        return []
+    connection = get_db()
+    try:
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM pragma_table_info('body_measurements')"
+            ).fetchall()
+        }
+        required = {"log_date", "measurement_type", "value"}
+        if not required.issubset(columns):
+            return []
+        cutoff, today = _historical_evidence_window(days)
+        rows = connection.execute(
+            """
+            SELECT log_date AS date, value AS waist_cm
+            FROM body_measurements
+            WHERE measurement_type = ? AND log_date >= ? AND log_date < ?
+            ORDER BY log_date
+            """,
+            (measurement_type, cutoff, today),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def get_training_performance_guardrails(days: int = 28) -> list[dict[str, Any]]:
+    """Return recent immutable training evidence as read-only guardrails."""
+    if days < 1:
+        return []
+    cutoff, today = _historical_evidence_window(days)
+    connection = get_db()
+    try:
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM pragma_table_info('training_session_evidence')"
+            ).fetchall()
+        }
+        if not {"plan_date", "rpe", "pain_confirmed"}.issubset(columns):
+            return []
+        rows = connection.execute(
+            """
+            SELECT e.plan_date AS date, e.rpe, e.pain_confirmed
+            FROM training_session_evidence e
+            WHERE e.plan_date >= ? AND e.plan_date < ?
+            ORDER BY e.plan_date
+            """,
+            (cutoff, today),
+        ).fetchall()
+        return [
+            {
+                **dict(row),
+                "status": "poor" if row["pain_confirmed"] else "stable",
+            }
+            for row in rows
+        ]
+    finally:
+        connection.close()
+
+
+def get_nutrition_hunger_guardrails(days: int = 28) -> list[dict[str, Any]]:
+    """Return optional hunger evidence when the current schema provides it."""
+    if days < 1:
+        return []
+    connection = get_db()
+    try:
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM pragma_table_info('nutrition_hunger_log')"
+            ).fetchall()
+        }
+        required = {"log_date", "level"}
+        if not required.issubset(columns):
+            return []
+        cutoff, today = _historical_evidence_window(days)
+        rows = connection.execute(
+            """
+            SELECT log_date AS date, level
+            FROM nutrition_hunger_log
+            WHERE log_date >= ? AND log_date < ?
+            ORDER BY log_date
+            """,
+            (cutoff, today),
+        ).fetchall()
+        return [dict(row) for row in rows]
     finally:
         connection.close()
 
@@ -891,8 +1257,12 @@ def save_nutrition_memory(
         connection.close()
 
 
-def get_nutrition_memory(kind: str | None = None) -> list[dict[str, Any]]:
-    connection = get_db()
+def get_nutrition_memory(
+    kind: str | None = None,
+    connection: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    owns_connection = connection is None
+    connection = connection or get_db()
     try:
         if kind:
             rows = connection.execute(
@@ -910,7 +1280,8 @@ def get_nutrition_memory(kind: str | None = None) -> list[dict[str, Any]]:
             results.append(item)
         return results
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def delete_nutrition_memory(memory_id: int) -> bool:
@@ -984,8 +1355,11 @@ def get_calendar_snapshot_import(import_id: int) -> dict[str, Any] | None:
         connection.close()
 
 
-def get_latest_calendar_snapshot_import() -> dict[str, Any] | None:
-    connection = get_db()
+def get_latest_calendar_snapshot_import(
+    connection: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    owns_connection = connection is None
+    connection = connection or get_db()
     try:
         row = connection.execute(
             """
@@ -996,7 +1370,8 @@ def get_latest_calendar_snapshot_import() -> dict[str, Any] | None:
         ).fetchone()
         return _calendar_import_row_to_dict(row)
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def list_calendar_snapshot_imports(limit: int = 10) -> list[dict[str, Any]]:

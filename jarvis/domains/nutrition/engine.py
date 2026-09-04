@@ -4,6 +4,13 @@ import json
 import math
 import re
 
+from jarvis.domains.nutrition.recomposition import (
+    build_today_protocol,
+    evaluate_adjustment_evidence,
+    measurement_state_for_food,
+    validate_planning_substances,
+)
+
 from jarvis.domains.nutrition.data_contracts import (
     MacroTarget, Recipe, LidlStaple, LoggedItem, DailyLog, NutritionStatus,
 )
@@ -351,8 +358,36 @@ def load_lidl_staples(path: Path | None = None) -> list[LidlStaple]:
     return [LidlStaple(**s) for s in data]
 
 
+def load_exact_food_inventory() -> list[dict]:
+    """Normalize canonical Lidl staples for exact-gram protocol generation."""
+    inventory = []
+    for staple in load_lidl_staples():
+        match = re.search(r"(\d+(?:\.\d+)?)g\b", staple.unit.lower())
+        reference_g = float(match.group(1)) if match else 100.0
+        unit_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:wrap|unit|piece|pcs?)\b", staple.unit.lower())
+        labelled_units = float(unit_match.group(1)) if unit_match else None
+        inventory.append({
+            "id": staple.id,
+            "name": staple.name,
+            "reference_g": reference_g,
+            "calories": staple.calories,
+            "protein_g": staple.protein_g,
+            "fat_g": staple.fat_g,
+            "carbs_g": staple.carbs_g,
+            "fibre_g": 0.0,
+            "label_source": f"lidl_staples:{staple.id}",
+            "label_state": "canonical_label",
+            "unit_weight_g": reference_g / labelled_units if labelled_units else None,
+        })
+    return inventory
+
+
 def get_current_phase(constitution: dict, today: date) -> str:
     phases = constitution["phases"]
+    active_phase = constitution.get("active_phase")
+    if active_phase in phases:
+        return active_phase
+
     cut_end = date.fromisoformat(phases["cut"]["end_date"])
     if today <= cut_end:
         return "cut"
@@ -1826,6 +1861,135 @@ def build_nutrition_acceptance_gate(
         no_fake_items,
         "Planner/builder items use real food-brain entries or user-created rows, not prototype filler meals.",
         evidence={"checked_items": len(proposal_items)},
+    )
+
+    phase = constitution.get("phases", {}).get("recomposition_cut", {})
+    training_target = get_macro_target(constitution, gate_date, training_day=True)
+    rest_target = get_macro_target(constitution, gate_date, training_day=False)
+    target_evidence = {
+        "active_phase": constitution.get("active_phase"),
+        "training": [training_target.calories, training_target.protein_g, training_target.carbs_g, training_target.fat_g],
+        "rest": [rest_target.calories, rest_target.protein_g, rest_target.carbs_g, rest_target.fat_g],
+        "meals_per_day": phase.get("meals_per_day"),
+    }
+    approved_target = [2600, 175, 315, 70]
+    _acceptance_check(
+        checks,
+        "recomposition_authority",
+        target_evidence == {
+            "active_phase": "recomposition_cut", "training": approved_target,
+            "rest": approved_target,
+            "meals_per_day": 4,
+        },
+        "The active constitution authorizes the approved 14-day recomposition prescription.",
+        evidence=target_evidence,
+    )
+
+    exact_foods = load_exact_food_inventory()
+    logged_fixture = [{
+        "meal_id": "acceptance-logged-meal", "name": "Acceptance logged meal",
+        "calories": 250.0, "protein_g": 25.0, "carbs_g": 20.0,
+        "fat_g": 8.0, "fibre_g": 2.0,
+    }]
+    immutable_before = json.dumps(logged_fixture, sort_keys=True)
+    protocol = build_today_protocol(
+        target_date=gate_date,
+        status=status,
+        foods=exact_foods,
+        memory_entries=[],
+        calendar_blocks=[],
+        constitution=constitution,
+        logged_meals=logged_fixture,
+    )
+    measurement_rules = phase.get("measurement_rules", {})
+    measurement_fixtures = {
+        "pasta": {"name": "Wholewheat Pasta"},
+        "raw_meat": {"name": "Chicken Breast"},
+        "cooked_meat": {"name": "Cooked Chicken Breast"},
+        "frozen_vegetables": {"name": "Frozen Mixed Vegetables"},
+        "packaged": {"name": "Cookie Crisp"},
+        "wrap": {"name": "Wholewheat Wrap"},
+    }
+    resolved_states = {
+        key: measurement_state_for_food(food, constitution)
+        for key, food in measurement_fixtures.items()
+    }
+    measured_items = [item for meal in protocol.get("meals", []) for item in meal.get("items", [])]
+    _acceptance_check(
+        checks,
+        "exact_measurement_contract",
+        len(protocol.get("meals", [])) == 4
+        and bool(measured_items)
+        and all(
+            float(item.get("quantity_g", 0)) > 0
+            and round(float(item["quantity_g"]), 1) == float(item["quantity_g"])
+            and item.get("measurement_state") in {"dry", "raw", "cooked", "frozen", "as_served"}
+            for item in measured_items
+        )
+        and measurement_rules == {
+            "pasta": "dry", "meat": "raw_unless_explicitly_cooked",
+            "frozen_vegetables": "frozen", "packaged_food": "as_served_label",
+            "wraps": "unit_and_label_grams", "tolerance": {"calories_kcal": 50, "protein_g": 5},
+        }
+        and resolved_states == {
+            "pasta": "dry", "raw_meat": "raw", "cooked_meat": "cooked",
+            "frozen_vegetables": "frozen", "packaged": "as_served", "wrap": "as_served",
+        },
+        "Every proposed component has exact grams and an explicit measurement state.",
+        evidence={"meal_count": len(protocol.get("meals", [])), "measured_items": len(measured_items), "resolved_states": resolved_states},
+    )
+    _acceptance_check(
+        checks,
+        "immutable_logged_meals",
+        json.dumps(logged_fixture, sort_keys=True) == immutable_before
+        and protocol.get("logged_meals") == logged_fixture
+        and protocol.get("requires_approval") is True,
+        "Generating a protocol preserves logged meals and requires approval for proposals.",
+        evidence={"logged_meals": len(protocol.get("logged_meals", [])), "requires_approval": protocol.get("requires_approval")},
+    )
+
+    incomplete_rows = [{"date": (gate_date - timedelta(days=index)).isoformat(), "complete": True, "weight_kg": 77.6} for index in range(13)]
+    complete_rows = incomplete_rows + [{"date": (gate_date - timedelta(days=13)).isoformat(), "complete": True, "weight_kg": 77.6}]
+    locked_review = evaluate_adjustment_evidence(
+        daily_rows=incomplete_rows, waist_rows=[], performance_rows=[], hunger_rows=[], constitution=constitution,
+    )
+    eligible_review = evaluate_adjustment_evidence(
+        daily_rows=complete_rows,
+        waist_rows=[{"date": complete_rows[-1]["date"], "waist_cm": 86}, {"date": complete_rows[0]["date"], "waist_cm": 86}],
+        performance_rows=[{"date": complete_rows[0]["date"], "status": "stable"}],
+        hunger_rows=[{"date": complete_rows[0]["date"], "level": 2}],
+        constitution=constitution,
+    )
+    _acceptance_check(
+        checks,
+        "fourteen_day_adjustment_gate",
+        locked_review.get("status") == "insufficient_evidence"
+        and locked_review.get("eligible") is False
+        and eligible_review.get("status") == "proposal"
+        and eligible_review.get("requires_approval") is True
+        and abs(int(eligible_review.get("kcal_delta", 0))) in {0, 100, 150},
+        "Calorie changes remain locked for 13 days and approval-only after 14 complete days.",
+        evidence={"day_13": locked_review, "day_14": eligible_review},
+    )
+
+    supplements = constitution.get("supplements", {})
+    peptide_states = supplements.get("research_peptides", {})
+    blocked_by_planner = []
+    for peptide in peptide_states:
+        try:
+            validate_planning_substances(["creatine", peptide], constitution)
+        except ValueError:
+            blocked_by_planner.append(peptide)
+    _acceptance_check(
+        checks,
+        "research_peptide_block",
+        bool(peptide_states)
+        and all(row.get("status") == "blocked" and row.get("human_use_dosing") is False for row in peptide_states.values())
+        and set(blocked_by_planner) == set(peptide_states)
+        and validate_planning_substances(["creatine"], constitution) == ["creatine"]
+        and supplements.get("clinician_review_required") is True,
+        "Research-only peptides are excluded from planning and require qualified clinician review.",
+        evidence={"peptides": peptide_states, "blocked_by_planner": blocked_by_planner, "clinician_review_required": supplements.get("clinician_review_required")},
     )
 
     failed = [c for c in checks if c["status"] != "pass" and c.get("severity") == "blocker"]

@@ -508,6 +508,41 @@ def jarvis_chat(request: ChatRequest) -> dict:
     finance_ctx = ""
     finance_projection = {"week_closed": False, "week_budget": 0.0, "recommendations": []}
     lower_message = request.message.lower()
+    history_peptide_text = " ".join(str(row.get("content", "")) for row in request.history)
+    normalized_current = "".join(ch for ch in request.message.lower() if ch.isalnum())
+    normalized_history = "".join(ch for ch in history_peptide_text.lower() if ch.isalnum())
+    peptide_block_message = None
+    try:
+        with open(_NUTRITION_CONSTITUTION_PATH) as f:
+            nutrition_constitution = json.load(f)
+        peptide_names = nutrition_constitution.get("supplements", {}).get("research_peptides", {})
+        current_peptides = [name for name in peptide_names if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_current]
+        strong_dosing_followup = any(term in lower_message for term in (
+            "dose", "dosage", "dosing", "spray", "inject", "microgram", " mcg", " mg",
+            "administer", "cycle", "frequency", "twice", "nasal", "take it", "use it",
+        ))
+        ambiguous_followup = any(term in lower_message for term in (
+            "protocol", "how much", "how many", "daily", "take", "use",
+            "schedule", "amount",
+        ))
+        nutrition_subject = any(term in lower_message for term in (
+            "calorie", "protein", "carb", "fat", "fibre", "fiber", "macro",
+            "meal", "food", "breakfast", "lunch", "dinner", "snack",
+        ))
+        dosing_followup = strong_dosing_followup or (ambiguous_followup and not nutrition_subject)
+        history_peptides = [name for name in peptide_names if "".join(ch for ch in name.lower() if ch.isalnum()) in normalized_history]
+        requested_peptides = current_peptides or (history_peptides if dosing_followup else [])
+        if requested_peptides:
+            nutrition_engine.validate_planning_substances(
+                requested_peptides, nutrition_constitution
+            )
+    except ValueError:
+        peptide_block_message = (
+            "Those research-only peptides are blocked from Phoenix planning and human-use dosing. "
+            "Reconsideration requires a qualified clinician and identifiable product information."
+        )
+    except (OSError, json.JSONDecodeError):
+        peptide_block_message = None
     app_status_intent = domain in ("home", "app", "system") or any(
         phrase in lower_message
         for phrase in ["what are you doing", "what is the app doing", "what are you fetching", "fetching", "ai status", "provider status"]
@@ -589,7 +624,9 @@ def jarvis_chat(request: ChatRequest) -> dict:
     finance_context_blocked = finance_allocation_request and (
         cashflow_authority is None or cashflow_authority.get("data_ready") is not True
     )
-    if finance_context_blocked or finance_allocation_request:
+    if peptide_block_message:
+        response_text = peptide_block_message
+    elif finance_context_blocked or finance_allocation_request:
         response_text = _deterministic_finance_chat_response(cashflow_authority, finance_ctx)
     else:
         ai_status = ai_gateway.status()

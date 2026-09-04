@@ -3,14 +3,13 @@ import Chat from './components/Chat'
 import HoloCommand from './components/holo/HoloCommand'
 import BottomNav from './components/BottomNav'
 import NutritionDashboard from './components/nutrition/NutritionDashboard'
+import TodayProtocol from './components/nutrition/TodayProtocol'
 import RecipeList from './components/nutrition/RecipeList'
 import LogMeal from './components/nutrition/LogMeal'
 import WeightHistory from './components/nutrition/WeightHistory'
 import MealBuilder from './components/nutrition/MealBuilder'
-import DayPlanner from './components/nutrition/DayPlanner'
 import NutritionMemory from './components/nutrition/NutritionMemory'
 import ShoppingList from './components/nutrition/ShoppingList'
-import WeeklyPlanner from './components/nutrition/WeeklyPlanner'
 import NutritionAcceptanceGate from './components/nutrition/NutritionAcceptanceGate'
 import CalendarNutritionBridge from './components/nutrition/CalendarNutritionBridge'
 import TrainingMetrics from './components/training/TrainingMetrics'
@@ -90,31 +89,25 @@ export default function App() {
       case 'dashboard':
         return (
           <NutritionDashboard
+            onTodayProtocol={() => setNutritionScreen('todayProtocol')}
             onLogMeal={() => setNutritionScreen('log')}
             onRecipes={() => setNutritionScreen('recipes')}
             onWeight={() => setNutritionScreen('weight')}
             onQuickAsk={handleQuickAsk}
             onMealBuilder={() => setNutritionScreen('builder')}
-            onDayPlanner={() => setNutritionScreen('day-plan')}
             onMemory={() => setNutritionScreen('memory')}
             onShopping={() => setNutritionScreen('shopping')}
-            onWeeklyPlanner={() => setNutritionScreen('weekly-plan')}
             onAcceptanceGate={() => setNutritionScreen('acceptance-gate')}
             onCalendarBridge={() => setNutritionScreen('calendar-bridge')}
           />
         )
+      case 'todayProtocol':
+        return <TodayProtocol onBack={() => setNutritionScreen('dashboard')} />
       case 'recipes':
         return <RecipeList onBack={() => setNutritionScreen('dashboard')} />
       case 'builder':
         return (
           <MealBuilder
-            onBack={() => setNutritionScreen('dashboard')}
-            onSuccess={() => setNutritionScreen('dashboard')}
-          />
-        )
-      case 'day-plan':
-        return (
-          <DayPlanner
             onBack={() => setNutritionScreen('dashboard')}
             onSuccess={() => setNutritionScreen('dashboard')}
           />
@@ -132,13 +125,6 @@ export default function App() {
         return <NutritionAcceptanceGate onBack={() => setNutritionScreen('dashboard')} />
       case 'calendar-bridge':
         return <CalendarNutritionBridge onBack={() => setNutritionScreen('dashboard')} />
-      case 'weekly-plan':
-        return (
-          <WeeklyPlanner
-            onBack={() => setNutritionScreen('dashboard')}
-            onSuccess={() => setNutritionScreen('dashboard')}
-          />
-        )
       case 'log':
         return (
           <LogMeal

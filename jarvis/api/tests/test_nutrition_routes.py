@@ -9,10 +9,10 @@ from jarvis.api.ai_gateway import AIResult
 client = TestClient(app)
 
 _MOCK_BRIEF = (
-    "Today is a cut training day targeting 2400 kcal and 165g protein. "
-    "Nothing logged yet — full 2400 kcal and 165g protein remaining. "
+    "Today is a recomposition cut day targeting 2600 kcal and 175g protein. "
+    "Nothing logged yet — full 2600 kcal and 175g protein remaining. "
     "Egg White Bites are a strong first meal at 410 kcal and 72g protein. "
-    "Remaining protein target: 165g."
+    "Remaining protein target: 175g."
 )
 
 def _make_mock_ai_result(text: str = _MOCK_BRIEF, ok: bool = True) -> AIResult:
@@ -25,8 +25,21 @@ class NutritionStatusRouteTests(unittest.TestCase):
 
     def test_status_has_phase(self):
         data = client.get("/nutrition/status").json()
-        assert "phase" in data
-        assert data["phase"] in ("cut", "peak")
+        assert data["phase"] == "recomposition_cut"
+
+    def test_status_exposes_authoritative_recomposition_prescription(self):
+        data = client.get("/nutrition/status").json()
+
+        assert data["target"] == {
+            "calories": 2600,
+            "protein_g": 175,
+            "carbs_g": 315,
+            "fat_g": 70,
+        }
+        assert data["calibration"]["minimum_complete_days"] == 14
+        assert data["calibration"]["desired_loss_kg_per_week"] == [0.2, 0.4]
+        assert data["fibre_target_g"] == [30, 35]
+        assert data["fluid_target_l"] == [2.3, 2.7]
 
     def test_status_has_target(self):
         data = client.get("/nutrition/status").json()
@@ -316,24 +329,13 @@ class FullDayPlannerRouteTests(unittest.TestCase):
             assert meal["items"]
             assert meal["total"]["calories"] > 0
 
-    def test_day_plan_can_be_logged_and_deleted(self):
+    def test_day_plan_bulk_logging_is_retired_without_writes(self):
         data = client.get("/nutrition/day-plan").json()
-        if not data["meals"]:
-            self.skipTest("No plan because day is near closed")
-        created = client.post("/nutrition/log/day-plan", json={"plan_id": data["plan_id"]}).json()
-        assert created["status"] == "logged"
-        assert created["requires_approval"] is True
-        assert created["meal_count"] == len(data["meals"])
-        assert created["total"]["calories"] > 0
-        try:
-            for meal in created["meals"]:
-                status = client.get("/nutrition/status").json()
-                logged = next(m for m in status["meal_log"] if m["id"] == meal["meal_id"])
-                assert logged["source"].startswith("phoenix_full_day_planner:")
-        finally:
-            for meal in created["meals"]:
-                deleted = client.delete(f"/nutrition/log/meal/{meal['meal_id']}").json()
-                assert deleted["status"] == "deleted"
+        before = client.get("/nutrition/status").json()["meal_log"]
+        response = client.post("/nutrition/log/day-plan", json={"plan_id": data["plan_id"]})
+        after = client.get("/nutrition/status").json()["meal_log"]
+        assert response.status_code == 410
+        assert after == before
 
     def test_day_plan_rejects_empty_edited_meals(self):
         data = client.get("/nutrition/day-plan").json()
@@ -347,6 +349,13 @@ class FullDayPlannerRouteTests(unittest.TestCase):
             },
         )
         assert response.status_code in (400, 422)
+
+    def test_repeat_yesterday_is_preview_only(self):
+        before = client.get("/nutrition/status").json()["meal_log"]
+        response = client.post("/nutrition/log/repeat-yesterday")
+        after = client.get("/nutrition/status").json()["meal_log"]
+        assert response.status_code == 410
+        assert after == before
 
 
 class NutritionMemoryRouteTests(unittest.TestCase):
@@ -394,7 +403,7 @@ class NutritionMemoryRouteTests(unittest.TestCase):
         assert "requires_approval" in data
         assert "meals" in data
 
-    def test_repeat_yesterday_can_log_when_yesterday_has_meals(self):
+    def test_repeat_yesterday_write_is_retired_even_when_yesterday_has_meals(self):
         from datetime import date, timedelta
         yesterday = (date.today() - timedelta(days=1)).isoformat()
         created_source = client.post(
@@ -412,16 +421,14 @@ class NutritionMemoryRouteTests(unittest.TestCase):
                 "source": "test",
             },
         ).json()
-        logged_ids = []
         try:
-            repeated = client.post("/nutrition/log/repeat-yesterday").json()
-            assert repeated["status"] == "logged"
-            assert repeated["meal_count"] >= 1
-            logged_ids = [meal["meal_id"] for meal in repeated["meals"]]
+            before = client.get("/nutrition/status").json()["meal_log"]
+            repeated = client.post("/nutrition/log/repeat-yesterday")
+            after = client.get("/nutrition/status").json()["meal_log"]
+            assert repeated.status_code == 410
+            assert after == before
         finally:
             client.delete(f"/nutrition/log/meal/{created_source['meal_id']}")
-            for meal_id in logged_ids:
-                client.delete(f"/nutrition/log/meal/{meal_id}")
 
 
 class NutritionShoppingListRouteTests(unittest.TestCase):
@@ -471,7 +478,7 @@ class WeeklyMealPrepRouteTests(unittest.TestCase):
         assert client.get("/nutrition/weekly-plan?days=2").status_code == 422
         assert client.get("/nutrition/weekly-plan?days=8").status_code == 422
 
-    def test_weekly_plan_can_log_and_delete(self):
+    def test_weekly_plan_bulk_logging_is_retired_without_writes(self):
         data = client.get("/nutrition/weekly-plan?days=3").json()
         if not data["days"]:
             self.skipTest("No weekly plan returned")
@@ -484,20 +491,14 @@ class WeeklyMealPrepRouteTests(unittest.TestCase):
                 })
         if not payload_days:
             self.skipTest("No weekly meals to log")
-        created = client.post(
+        before = client.get("/nutrition/status").json()["meal_log"]
+        response = client.post(
             "/nutrition/log/weekly-plan",
             json={"plan_id": data["plan_id"], "days": payload_days},
-        ).json()
-        assert created["status"] == "logged"
-        assert created["requires_approval"] is True
-        assert created["day_count"] == 1
-        assert created["meal_count"] == 1
-        meal_id = created["days"][0]["meals"][0]["meal_id"]
-        try:
-            deleted = client.delete(f"/nutrition/log/meal/{meal_id}").json()
-            assert deleted["status"] == "deleted"
-        finally:
-            pass
+        )
+        after = client.get("/nutrition/status").json()["meal_log"]
+        assert response.status_code == 410
+        assert after == before
 
 
 class NutritionAcceptanceGateRouteTests(unittest.TestCase):
@@ -537,6 +538,15 @@ class NutritionAcceptanceGateRouteTests(unittest.TestCase):
             "no_fake_nutrition_data_regression",
         }
         assert required.issubset(keys)
+
+    def test_acceptance_gate_covers_recomposition_protocol(self):
+        data = client.get("/nutrition/acceptance-gate").json()
+        checks = {row["key"]: row for row in data["checks"]}
+        assert checks["recomposition_authority"]["status"] == "pass"
+        assert checks["exact_measurement_contract"]["status"] == "pass"
+        assert checks["immutable_logged_meals"]["status"] == "pass"
+        assert checks["fourteen_day_adjustment_gate"]["status"] == "pass"
+        assert checks["research_peptide_block"]["status"] == "pass"
 
     def test_acceptance_gate_report_has_no_blockers(self):
         data = client.get("/nutrition/acceptance-gate").json()
@@ -608,14 +618,12 @@ class MacrosFollowTheTrainingPlanTests(unittest.TestCase):
     def test_a_planned_session_is_fuelled_as_a_training_day(self):
         status = self._target(True)
         assert status["is_training_day"] is True
-        assert status["target"]["calories"] == 2400
-        assert status["target"]["carbs_g"] == 260
+        assert status["target"] == {"calories": 2600, "protein_g": 175, "carbs_g": 315, "fat_g": 70}
 
     def test_a_planned_recovery_day_is_fuelled_as_rest(self):
         status = self._target(False)
         assert status["is_training_day"] is False
-        assert status["target"]["calories"] == 2000
-        assert status["target"]["carbs_g"] == 160
+        assert status["target"] == {"calories": 2600, "protein_g": 175, "carbs_g": 315, "fat_g": 70}
 
     def test_no_plan_falls_back_to_the_weekday_list(self):
         from datetime import date
@@ -628,6 +636,5 @@ class MacrosFollowTheTrainingPlanTests(unittest.TestCase):
         assert status["is_training_day"] is expected
 
     def test_protein_holds_across_both_day_types(self):
-        # Only carbs and calories cycle; the protein floor does not move.
-        assert self._target(True)["target"]["protein_g"] == 165
-        assert self._target(False)["target"]["protein_g"] == 165
+        assert self._target(True)["target"]["protein_g"] == 175
+        assert self._target(False)["target"]["protein_g"] == 175

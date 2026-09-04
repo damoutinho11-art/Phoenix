@@ -658,6 +658,85 @@ def test_nutrition_dinner_buy_query_does_not_enter_finance_safety_path() -> None
     assert "cashflow_authority" not in data
 
 
+@pytest.mark.parametrize("substance", ["MOTS-C", "ipamorelin", "BPC-157", "BPC 157"])
+def test_nutrition_chat_blocks_research_peptide_dosing_without_calling_ai(substance: str) -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post(
+            "/jarvis/chat",
+            json={"domain": "nutrition", "message": f"Give me a human dosing protocol for {substance}."},
+        )
+
+    assert response.status_code == 200
+    generate.assert_not_called()
+    text = response.json()["response"].lower()
+    assert "blocked" in text
+    assert "dosing" in text
+
+
+def test_nutrition_chat_blocks_peptide_dosing_followup_from_history() -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post(
+            "/jarvis/chat",
+            json={
+                "domain": "nutrition",
+                "message": "What human dose should I use?",
+                "history": [{"role": "user", "content": "I have BPC-157 nasal spray."}],
+            },
+        )
+    assert response.status_code == 200
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
+
+
+def test_nutrition_chat_blocks_injection_quantity_followup_from_history() -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post(
+            "/jarvis/chat",
+            json={"domain": "nutrition", "message": "How many micrograms should I inject?", "history": [{"role": "user", "content": "I have BPC-157."}]},
+        )
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
+
+
+@pytest.mark.parametrize("message", ["What schedule should I follow?", "What amount should I use?"])
+def test_nutrition_chat_blocks_generic_operational_peptide_followups(message: str) -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post("/jarvis/chat", json={"domain": "nutrition", "message": message, "history": [{"role": "user", "content": "I have BPC-157."}]})
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
+
+
+@pytest.mark.parametrize("message", ["How much should I inject with food?", "What dose should I use with meals?", "What dosage should I follow?", "What dosage should I use with meals?"])
+def test_strong_peptide_dosing_terms_override_nutrition_subjects(message: str) -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.generate_text") as generate:
+        response = client.post("/jarvis/chat", json={"domain": "nutrition", "message": message, "history": [{"role": "user", "content": "I have BPC-157."}]})
+    generate.assert_not_called()
+    assert "blocked" in response.json()["response"].lower()
+
+
+@pytest.mark.parametrize("message", ["How many calories do I have left today?", "What is my daily protein target?"])
+def test_nutrition_chat_allows_macro_questions_after_prior_peptide_mention(message: str) -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
+        "jarvis.api.routers.chat.ai_gateway.generate_text", return_value=AIResult(text="Macro response", provider="test", model="test", ok=True),
+    ) as generate:
+        response = client.post("/jarvis/chat", json={"domain": "nutrition", "message": message, "history": [{"role": "user", "content": "I mentioned BPC-157 earlier."}]})
+    generate.assert_called_once()
+    assert response.json()["response"] == "Macro response"
+
+
+def test_prior_peptide_mention_does_not_block_unrelated_nutrition_chat() -> None:
+    with patch("jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()), patch(
+        "jarvis.api.routers.chat.ai_gateway.generate_text",
+        return_value=AIResult(text="Meal response", provider="test", model="test", ok=True),
+    ) as generate:
+        response = client.post(
+            "/jarvis/chat",
+            json={"domain": "nutrition", "message": "What should I eat for dinner?", "history": [{"role": "user", "content": "I mentioned BPC-157 earlier."}]},
+        )
+    assert response.json()["response"] == "Meal response"
+    generate.assert_called_once()
+
+
 def test_home_generic_shopping_does_not_load_or_report_finance_authority() -> None:
     with patch("jarvis.api.routers.budget._build_cashflow_authority") as build_authority, patch(
         "jarvis.api.routers.chat.ai_gateway.status", return_value=_configured_ai_status()

@@ -86,10 +86,10 @@ export function buildDomains(dayPart) {
       heroChips: [chip('TRAINING DAY', ACC), chip('ON TRACK', G), chip('PROTEIN 68%', Y)],
       heroBrief: 'A high-protein dinner keeps every target in reach. Salmon + potatoes closes most of the remaining 53 g protein gap.',
       heroActions: [
-        { label: 'LOG MEAL', sub: 'logmeal', primary: true },
+        { label: 'TODAY PROTOCOL', sub: 'today-protocol', primary: true },
+        { label: 'LOG MEAL', sub: 'logmeal' },
         { label: 'WEIGH IN', sub: 'weighin' },
         { label: 'BUILD DINNER', sub: 'dinner' },
-        { label: 'PLAN DAY', sub: 'planday' },
       ],
       readout: [
         { k: 'PROTEIN', v: '112/165G', w: '68%' }, { k: 'CARBS', v: '128/232G', w: '55%' },

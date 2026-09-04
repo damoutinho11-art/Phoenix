@@ -2,6 +2,7 @@
 
 from collections import Counter
 from datetime import date, timedelta
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -9,12 +10,10 @@ from jarvis.api.dependencies import get_nutrition_constitution
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
-from jarvis.domains.nutrition import engine
+from jarvis.domains.nutrition import engine, recomposition
 from jarvis.domains.nutrition.data_contracts import NutritionStatus, Recipe, LidlStaple
 from jarvis.domains.calendar import plaan_live
 from jarvis.domains.calendar.tests.fixtures import LIVE_SNAPSHOT_RAW
-from jarvis.domains.training.operational_plan import project_plan_day
-from jarvis.domains.training.plan_contracts import iso_cycle_id
 
 router = APIRouter()
 
@@ -31,16 +30,7 @@ def _planned_training_day(target_date: date) -> bool | None:
     to that weekday list rather than guessing a rest day and under-fuelling a
     session that is actually happening.
     """
-    try:
-        active = database.get_active_training_plan(iso_cycle_id(target_date))
-    except Exception:
-        return None
-    # The stored record wraps the plan; project_plan_day reads the plan itself.
-    payload = active.get("payload") if isinstance(active, dict) else None
-    session = project_plan_day(payload, target_date).get("session")
-    if not isinstance(session, dict) or not isinstance(session.get("is_rest"), bool):
-        return None
-    return not session["is_rest"]
+    return database.get_planned_training_day(target_date)
 
 
 class LogMealRequest(BaseModel):
@@ -113,6 +103,19 @@ class NutritionMemoryRequest(BaseModel):
     note: str | None = Field(default=None, max_length=500)
     payload: dict | None = None
     source: str = Field(default="user", min_length=1, max_length=60)
+
+
+class ReplanProtocolRequest(BaseModel):
+    protocol_id: str = Field(min_length=20, max_length=20)
+    action: Literal["skip", "replace", "adjust_portion"]
+    meal_id: str = Field(min_length=1)
+    item_id: str | None = None
+    quantity_g: float | None = Field(default=None, gt=0)
+
+
+class LogProtocolMealRequest(BaseModel):
+    protocol_id: str = Field(min_length=20, max_length=20)
+    meal_id: str = Field(min_length=1)
 
 _NUTRITION_BRIEF_SYSTEM = (
     "You are J.A.R.V.I.S., a personal nutrition assistant tracking macros during a "
@@ -208,10 +211,10 @@ def _recovery_protocol(status: NutritionStatus) -> dict:
     }
 
 
-def _serialize_status(status: NutritionStatus) -> dict:
+def _serialize_status(status: NutritionStatus, constitution: dict) -> dict:
     t = status.target
     log = status.logged
-    return {
+    response = {
         "as_of": status.as_of.isoformat(),
         "phase": status.phase,
         "is_training_day": status.is_training_day,
@@ -252,6 +255,11 @@ def _serialize_status(status: NutritionStatus) -> dict:
         "recovery_protocol": _recovery_protocol(status),
         "suggested_recipes": [_serialize_recipe(r) for r in status.suggested_recipes],
     }
+    phase = constitution["phases"].get(status.phase, {})
+    for field in ("calibration", "fibre_target_g", "fluid_target_l"):
+        if field in phase:
+            response[field] = phase[field]
+    return response
 
 
 def _meal_to_engine_item(meal: dict) -> dict:
@@ -267,8 +275,12 @@ def _meal_to_engine_item(meal: dict) -> dict:
     }
 
 
-def _status_for_date(constitution: dict, target_date: date) -> tuple[NutritionStatus, list[dict]]:
-    meals = database.get_meals_for_date(target_date)
+def _status_for_date(
+    constitution: dict,
+    target_date: date,
+    connection=None,
+) -> tuple[NutritionStatus, list[dict]]:
+    meals = database.get_meals_for_date(target_date, connection=connection)
     status = engine.check_nutrition(
         constitution,
         daily_log_items=[_meal_to_engine_item(meal) for meal in meals],
@@ -283,11 +295,105 @@ def nutrition_status(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
     status, meals = _status_for_date(constitution, clock.today())
-    response = _serialize_status(status)
+    response = _serialize_status(status, constitution)
     response["meal_log"] = meals
     entries = database.get_nutrition_memory()
     response["memory"] = _memory_summary(entries)
     return response
+
+
+def _today_protocol_context(constitution: dict, connection=None) -> dict:
+    today = clock.today()
+    status, meals = _status_for_date(constitution, today, connection=connection)
+    bridge = _calendar_bridge_context(
+        constitution, today, days=1, connection=connection
+    )
+    calendar_days = bridge.get("days", [])
+    calendar_blocks = calendar_days[0].get("blocks", []) if calendar_days else []
+    return recomposition.build_today_protocol(
+        target_date=today,
+        status=status,
+        foods=engine.load_exact_food_inventory(),
+        memory_entries=database.get_nutrition_memory(connection=connection),
+        calendar_blocks=calendar_blocks,
+        constitution=constitution,
+        logged_meals=meals,
+    )
+
+
+@router.get("/today-protocol")
+def today_protocol(
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    """Return the current exact-gram protocol without logging food."""
+    return _today_protocol_context(constitution)
+
+
+@router.post("/today-protocol/replan")
+def replan_today_protocol(
+    request: ReplanProtocolRequest,
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    current = _today_protocol_context(constitution)
+    source_protocol = current
+    if request.protocol_id != current["protocol_id"]:
+        snapshot = database.get_protocol_snapshot(request.protocol_id, clock.today())
+        if snapshot is None or snapshot.get("base_protocol_id") != current["protocol_id"]:
+            raise HTTPException(
+                status_code=409,
+                detail="Today protocol is stale; refresh before replanning",
+            )
+        source_protocol = snapshot
+    try:
+        replanned = recomposition.replan_protocol(
+            source_protocol,
+            request.model_dump(),
+            engine.load_exact_food_inventory(),
+        )
+        database.save_protocol_snapshot(replanned, clock.today())
+        return replanned
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/today-protocol/log-meal")
+def log_today_protocol_meal(
+    request: LogProtocolMealRequest,
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    result = database.verify_and_log_protocol_meal_atomically(
+        expected_protocol_id=request.protocol_id,
+        meal_id=request.meal_id,
+        log_date=clock.today(),
+        source=f"today_protocol:{request.protocol_id}:{request.meal_id}",
+        build_current_protocol=lambda connection: _today_protocol_context(
+            constitution, connection=connection
+        ),
+    )
+    if result["status"] == "stale":
+        raise HTTPException(
+            status_code=409,
+            detail="Today protocol is stale; refresh before logging",
+        )
+    if result["status"] == "missing":
+        raise HTTPException(status_code=404, detail="Protocol meal not found")
+    return {"status": "logged", "meal_id": request.meal_id, "log_ids": result["log_ids"]}
+
+
+@router.get("/recomposition-review")
+def recomposition_review(
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    review = recomposition.evaluate_adjustment_evidence(
+        daily_rows=database.get_recomposition_daily_evidence(28, constitution),
+        waist_rows=database.get_body_measurements("waist", 60),
+        performance_rows=database.get_training_performance_guardrails(28),
+        hunger_rows=database.get_nutrition_hunger_guardrails(28),
+        constitution=constitution,
+    )
+    if review["status"] == "insufficient_evidence":
+        review["requires_approval"] = False
+    return review
 
 
 @router.post("/log/meal")
@@ -409,11 +515,12 @@ def meal_history(
 
 
 
-@router.get("/calendar-bridge")
-def nutrition_calendar_bridge(
-    days: int = Query(7, ge=1, le=14),
-    start_date: date | None = Query(None),
-    constitution: dict = Depends(get_nutrition_constitution),
+def _calendar_bridge_context(
+    constitution: dict,
+    bridge_date: date,
+    *,
+    days: int,
+    connection=None,
 ) -> dict:
     """Return calendar-aware nutrition timing guidance.
 
@@ -421,10 +528,11 @@ def nutrition_calendar_bridge(
     It does not fetch Plaan live, mutate Plaan, send raw calendar pages to AI, or
     log meals automatically.
     """
-    bridge_date = start_date or clock.today()
-    status, _meals = _status_for_date(constitution, bridge_date)
-    entries = database.get_nutrition_memory()
-    latest_import = database.get_latest_calendar_snapshot_import()
+    status, _meals = _status_for_date(
+        constitution, bridge_date, connection=connection
+    )
+    entries = database.get_nutrition_memory(connection=connection)
+    latest_import = database.get_latest_calendar_snapshot_import(connection=connection)
     imported_snapshot = latest_import.get("snapshot") if latest_import else None
     calendar_snapshot_raw, source_info = plaan_live.resolve_snapshot_raw(LIVE_SNAPSHOT_RAW, imported_snapshot=imported_snapshot)
     result = engine.build_calendar_aware_nutrition_bridge(
@@ -453,6 +561,19 @@ def nutrition_calendar_bridge(
         "mutations_allowed": False,
     }
     return result
+
+
+@router.get("/calendar-bridge")
+def nutrition_calendar_bridge(
+    days: int = Query(7, ge=1, le=14),
+    start_date: date | None = Query(None),
+    constitution: dict = Depends(get_nutrition_constitution),
+) -> dict:
+    return _calendar_bridge_context(
+        constitution,
+        start_date or clock.today(),
+        days=days,
+    )
 
 
 @router.get("/acceptance-gate")
@@ -540,34 +661,10 @@ def repeat_yesterday_preview() -> dict:
 
 @router.post("/log/repeat-yesterday")
 def log_repeat_yesterday() -> dict:
-    yesterday = clock.today() - timedelta(days=1)
-    source_meals = database.get_meals_for_date(yesterday)
-    if not source_meals:
-        raise HTTPException(status_code=404, detail="No meals logged yesterday")
-    logged = []
-    for meal in source_meals:
-        meal_id = database.log_meal(
-            log_date=clock.today(),
-            item_id=f"repeat-yesterday-{meal['item_id']}",
-            item_type=meal["item_type"],
-            name=f"Repeat Yesterday: {meal['name']}",
-            servings=meal["servings"],
-            calories=meal["calories"],
-            protein_g=meal["protein_g"],
-            fat_g=meal["fat_g"],
-            carbs_g=meal["carbs_g"],
-            source="phoenix_memory:repeat_yesterday",
-        )
-        logged.append({**meal, "meal_id": meal_id})
-    return {
-        "status": "logged",
-        "source_date": yesterday.isoformat(),
-        "target_date": clock.today().isoformat(),
-        "meal_count": len(logged),
-        "meals": logged,
-        "total": _total_plan_items(source_meals),
-        "requires_approval": True,
-    }
+    raise HTTPException(
+        status_code=410,
+        detail="Repeat yesterday is preview-only; log each consumed meal independently",
+    )
 
 @router.get("/food-brain")
 def nutrition_food_brain() -> dict:
@@ -755,6 +852,10 @@ def log_weekly_plan(
     request: LogWeeklyPlanRequest,
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
+    raise HTTPException(
+        status_code=410,
+        detail="Bulk nutrition logging is retired; confirm and log one consumed meal at a time",
+    )
     request_day_count = len(request.days) if request.days is not None else 7
     request_start = request.days[0].date if request.days else None
     context = _weekly_plan_context(constitution, start=request_start, days=request_day_count)
@@ -840,6 +941,10 @@ def log_day_plan(
     request: LogDayPlanRequest,
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
+    raise HTTPException(
+        status_code=410,
+        detail="Bulk nutrition logging is retired; confirm and log one consumed meal at a time",
+    )
     context = _day_plan_context(constitution)
     if request.plan_id != context.get("plan_id"):
         raise HTTPException(status_code=404, detail="Day plan not found")
@@ -966,7 +1071,7 @@ def nutrition_brief(
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
     status, _ = _status_for_date(constitution, clock.today())
-    s = _serialize_status(status)
+    s = _serialize_status(status, constitution)
     t = s["target"]
 
     user_message = (

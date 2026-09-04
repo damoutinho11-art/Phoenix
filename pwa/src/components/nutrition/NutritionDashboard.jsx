@@ -4,7 +4,7 @@ import { CockpitShell, DataPanel, EmptyState, SourceStamp, StatusChip } from '..
 import { buildNutritionDashboardModel } from './nutritionDashboardModel'
 
 
-const LIME = '#9dff6f'
+const LIME = '#ff9f43'
 const LIME_BR = '#d5ffc7'
 const PROTEIN_COL = '#ffd166'
 const CARB_COL = '#ffd56b'
@@ -359,15 +359,14 @@ function SafetyLocks({ memory }) {
 
 export default function NutritionDashboard({
   onBack,
+  onTodayProtocol,
   onLogMeal,
   onRecipes,
   onWeight,
   onQuickAsk,
   onMealBuilder,
-  onDayPlanner,
   onMemory,
   onShopping,
-  onWeeklyPlanner,
   onAcceptanceGate,
   onCalendarBridge,
 }) {
@@ -459,9 +458,9 @@ export default function NutritionDashboard({
               <DayModeTabs mode={dayMode} onModeChange={setDayMode} defaultLabel={model.dayLine} />
 
               <div className="phx-nutrition-primary-actions">
+                <CommandButton label="TODAY PROTOCOL" action={onTodayProtocol} primary />
                 <CommandButton label="LOG MEAL" action={onLogMeal} primary />
                 <CommandButton label="BUILD NEXT" action={onMealBuilder} />
-                <CommandButton label="PLAN DAY" action={onDayPlanner} />
               </div>
             </div>
 
@@ -526,10 +525,12 @@ export default function NutritionDashboard({
         <DataPanel eyebrow="[ DETAIL ROUTES ]" title="Nutrition Detail Routes" meta="SUBSECTIONS">
           <div className="phx-panel-body">
             <div className="phx-nutrition-route-grid phx-nutrition-route-grid-clean">
-              <SubsectionRoute code="MEALS" title="Meals" copy="Full meal ledger, add/edit/delete, recipes, and daily history." action={onLogMeal} primary />
-              <SubsectionRoute code="PLAN" title="Plan" copy="Build your next meal and review today's plan." action={onDayPlanner} />
-              <SubsectionRoute code="TARGETS" title="Targets" copy="Preferences, pantry, saved choices, and manual settings." action={onMemory} />
-              <SubsectionRoute code="HISTORY" title="History" copy="Weekly rhythm, trends, and previous-day review." action={onWeight} />
+              <SubsectionRoute code="PROTOCOL" title="Today Protocol" copy="Exact gram meal proposals and single-meal logging." action={onTodayProtocol} primary />
+              <SubsectionRoute code="MEALS" title="Log Meal" copy="Record an independent meal in the food ledger." action={onLogMeal} />
+              <SubsectionRoute code="TRENDS" title="Trends" copy="Weekly rhythm, weight, and previous-day review." action={onWeight} />
+              <SubsectionRoute code="MEMORY" title="Memory" copy="Preferences and saved food choices." action={onMemory} />
+              <SubsectionRoute code="PANTRY" title="Pantry / Shopping" copy="Pantry state and shopping requirements." action={onShopping} />
+              <SubsectionRoute code="RECIPES" title="Recipes" copy="Browse available recipe references." action={onRecipes} />
             </div>
           </div>
         </DataPanel>
