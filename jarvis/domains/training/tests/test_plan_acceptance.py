@@ -758,6 +758,15 @@ def test_acceptance_diagnostics_exposes_safe_source_mismatch_names(
     assert "receipt_bundle" not in diagnostics
 
 
+def test_source_audit_hash_is_independent_of_platform_line_endings():
+    lf_source = "def example():\n    return 1\n"
+    crlf_source = lf_source.replace("\n", "\r\n")
+
+    assert acceptance_module._canonical_source_hash(lf_source) == (
+        acceptance_module._canonical_source_hash(crlf_source)
+    )
+
+
 @pytest.mark.parametrize(
     "tamper",
     (

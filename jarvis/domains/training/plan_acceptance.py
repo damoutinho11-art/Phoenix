@@ -509,6 +509,12 @@ def _completion_advance_is_proven(receipt: WeeklyPlanReceipt) -> bool:
     return cursor == latest_position % len(HYBRID_SEQUENCE) + 1
 
 
+def _canonical_source_hash(source: str) -> str:
+    """Hash Python source independently of checkout line-ending policy."""
+    canonical = source.replace("\r\n", "\n").replace("\r", "\n")
+    return sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _evidence_event_date(event: Mapping[str, Any]) -> date | None:
     value = event.get("training_date", event.get("date"))
     if isinstance(value, date):
@@ -836,9 +842,8 @@ def _source_side_effect_audit() -> tuple[dict[str, str], list[str]]:
     forbidden = []
     for module in _PURE_REPLAY_MODULES:
         path = Path(module.__file__)
-        source_bytes = path.read_bytes()
-        source = source_bytes.decode("utf-8")
-        module_hashes[module.__name__] = sha256(source_bytes).hexdigest()
+        source = path.read_text(encoding="utf-8")
+        module_hashes[module.__name__] = _canonical_source_hash(source)
         tree = ast.parse(source, filename=str(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
