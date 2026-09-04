@@ -2411,6 +2411,44 @@ def test_inferred_rent_reserve_releases_after_current_verified_payment() -> None
     ) == 0.0
 
 
+def test_fixed_rent_rule_bootstraps_from_latest_verified_month() -> None:
+    profile = {
+        "recurring_obligations": [],
+        "fixed_categories": ["Housing"],
+        "merchant_rules": [
+            {
+                "contains": ["erik oü", "rent"],
+                "category": "Housing",
+                "is_income": 0,
+                "fixed": True,
+            }
+        ],
+    }
+    history = [
+        {
+            "month": "2026-08",
+            "merchant": "Erik OÜ",
+            "description": "Rent July",
+            "amount_eur": 420.0,
+            "effective_category": "Housing",
+            "is_income": 0,
+        }
+    ]
+
+    assert budget_router._inferred_recurring_obligations(
+        profile, history, "2026-09"
+    ) == [
+        {
+            "name": "Erik OÜ",
+            "amount_eur": 420.0,
+            "contains": ["erik oü"],
+            "enabled": True,
+            "source": "verified_statement_history",
+            "evidence_months": ["2026-08"],
+        }
+    ]
+
+
 def test_recurring_inference_rejects_incomplete_or_volatile_history() -> None:
     profile = {"recurring_obligations": [], "fixed_categories": ["Housing"]}
     history = [

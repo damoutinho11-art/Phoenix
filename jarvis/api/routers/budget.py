@@ -374,7 +374,29 @@ def _inferred_recurring_obligations(
     inferred: list[dict] = []
     for merchant_key, group in sorted(monthly.items()):
         amounts = group["amounts"]
-        if sorted(amounts) != evidence_months:
+        observed_months = sorted(amounts)
+        stable_monthly_history = observed_months == evidence_months
+        rent_evidence = any(
+            re.search(r"\b(?:rent|lease|mortgage)\b", searchable)
+            for searchable in group["searchable"]
+        )
+        fixed_rent_rule = any(
+            rule.get("fixed") is True
+            and isinstance(rule.get("contains"), list)
+            and any(
+                isinstance(token, str)
+                and any(token.lower() in searchable for searchable in group["searchable"])
+                for token in rule["contains"]
+            )
+            for rule in profile.get("merchant_rules", [])
+            if isinstance(rule, dict)
+        )
+        verified_rent_bootstrap = (
+            observed_months == [evidence_months[-1]]
+            and rent_evidence
+            and fixed_rent_rule
+        )
+        if not stable_monthly_history and not verified_rent_bootstrap:
             continue
         configured_match = any(
             any(
@@ -387,7 +409,7 @@ def _inferred_recurring_obligations(
         if configured_match:
             continue
         values = sorted(amounts.values())
-        median = values[1]
+        median = values[len(values) // 2]
         tolerance = max(Decimal("1.00"), median * Decimal("0.05"))
         if values[-1] - values[0] > tolerance:
             continue
@@ -398,7 +420,7 @@ def _inferred_recurring_obligations(
                 "contains": [merchant_key],
                 "enabled": True,
                 "source": "verified_statement_history",
-                "evidence_months": evidence_months,
+                "evidence_months": observed_months,
             }
         )
     return inferred
