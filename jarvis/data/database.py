@@ -3679,6 +3679,53 @@ def get_effective_budget_statement_transactions(
         connection.close()
 
 
+def get_verified_budget_statement_history() -> list[dict[str, Any]]:
+    """Return deduplicated rows from receipt-verified reconciled PDF imports."""
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """SELECT transactions.*, corrections.corrected_category,
+                      corrections.correction_group_id,
+                      corrections.updated_at AS correction_updated_at,
+                      COALESCE(corrections.corrected_category, transactions.category)
+                        AS effective_category,
+                      snapshots.statement_end_date AS source_statement_end_date,
+                      snapshots.imported_at AS source_imported_at
+               FROM budget_statement_import_transactions AS transactions
+               JOIN budget_statement_snapshots AS snapshots
+                 ON snapshots.statement_import_id = transactions.statement_import_id
+               LEFT JOIN budget_category_corrections AS corrections
+                 ON corrections.statement_import_id = transactions.statement_import_id
+                AND corrections.ordinal = transactions.ordinal
+               WHERE snapshots.receipt_verified=1
+                 AND snapshots.parser='lhv_pdf'
+                 AND snapshots.quality_status='reconciled'
+                 AND snapshots.balance_difference_eur=0
+               ORDER BY snapshots.statement_end_date DESC,
+                        snapshots.imported_at DESC, snapshots.id DESC,
+                        transactions.ordinal"""
+        ).fetchall()
+        deduplicated: list[dict[str, Any]] = []
+        seen: set[tuple[object, ...]] = set()
+        for row in rows:
+            payload = dict(row)
+            identity = (
+                payload.get("date"),
+                normalize_budget_merchant(payload.get("merchant")),
+                payload.get("amount_eur"),
+                payload.get("description"),
+                payload.get("month"),
+                payload.get("is_income"),
+            )
+            if identity in seen:
+                continue
+            seen.add(identity)
+            deduplicated.append(payload)
+        return deduplicated
+    finally:
+        connection.close()
+
+
 def get_budget_category_review_source(month: str) -> dict[str, Any] | None:
     """Return the verified statement source when it contains rows for ``month``."""
     if not isinstance(month, str) or not re.fullmatch(r"\d{4}-\d{2}", month):

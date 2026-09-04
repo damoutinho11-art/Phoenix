@@ -578,8 +578,9 @@ def _build_cashflow_authority(
             "blockers": policy_blockers,
             "weekly_budget_eur": 0.0,
         }
+    verified_history = database.get_verified_budget_statement_history()
     inferred_obligations = _inferred_recurring_obligations(
-        profile, imported_transactions, target_month
+        profile, verified_history, target_month
     )
     if inferred_obligations is None:
         return {

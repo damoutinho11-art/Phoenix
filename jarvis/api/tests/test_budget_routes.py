@@ -70,6 +70,29 @@ def test_statement_receipt_helpers_are_private_implementation_apis() -> None:
     assert callable(database._save_budget_statement_receipt_import)
 
 
+def test_verified_statement_history_deduplicates_overlapping_receipt_imports(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(database, "DB_PATH", tmp_path / "verified-history.db")
+    database.init_db()
+    for _ in range(2):
+        parsed = _parse_reconciled_statement_receipt()
+        saved = client.post(
+            "/budget/save",
+            json={
+                "transactions": parsed["transactions"],
+                "statement_receipt_id": parsed["receipt_id"],
+            },
+        )
+        assert saved.status_code == 200
+
+    history = database.get_verified_budget_statement_history()
+
+    assert len(history) == 1
+    assert history[0]["merchant"] == "Shop"
+    assert history[0]["effective_category"] == "Other"
+
+
 def _parse_reconciled_statement_receipt(raw_text: str | None = None) -> dict:
     raw_text = raw_text or """
 05.05.2026 Starting balance 100.00
@@ -2460,6 +2483,9 @@ def test_cashflow_authority_applies_inferred_unpaid_rent_before_weekly_budget(
     )
     monkeypatch.setattr(
         database, "get_effective_budget_statement_transactions", lambda _: rows
+    )
+    monkeypatch.setattr(
+        database, "get_verified_budget_statement_history", lambda: rows
     )
     monkeypatch.setattr(
         database, "get_budget_statement_import_summary", lambda *_: summary
