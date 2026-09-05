@@ -9,8 +9,8 @@ from jarvis.api.ai_gateway import AIResult
 client = TestClient(app)
 
 _MOCK_BRIEF = (
-    "Today is a recomposition cut day targeting 2600 kcal and 175g protein. "
-    "Nothing logged yet — full 2600 kcal and 175g protein remaining. "
+    "Today is a recomposition cut day targeting 2000 kcal and 175g protein. "
+    "Nothing logged yet — full 2000 kcal and 175g protein remaining. "
     "Egg White Bites are a strong first meal at 410 kcal and 72g protein. "
     "Remaining protein target: 175g."
 )
@@ -31,10 +31,10 @@ class NutritionStatusRouteTests(unittest.TestCase):
         data = client.get("/nutrition/status").json()
 
         assert data["target"] == {
-            "calories": 2600,
+            "calories": 2000,
             "protein_g": 175,
-            "carbs_g": 315,
-            "fat_g": 70,
+            "carbs_g": 190,
+            "fat_g": 60,
         }
         assert data["calibration"]["minimum_complete_days"] == 14
         assert data["calibration"]["desired_loss_kg_per_week"] == [0.2, 0.4]
@@ -618,12 +618,12 @@ class MacrosFollowTheTrainingPlanTests(unittest.TestCase):
     def test_a_planned_session_is_fuelled_as_a_training_day(self):
         status = self._target(True)
         assert status["is_training_day"] is True
-        assert status["target"] == {"calories": 2600, "protein_g": 175, "carbs_g": 315, "fat_g": 70}
+        assert status["target"] == {"calories": 2000, "protein_g": 175, "carbs_g": 190, "fat_g": 60}
 
     def test_a_planned_recovery_day_is_fuelled_as_rest(self):
         status = self._target(False)
         assert status["is_training_day"] is False
-        assert status["target"] == {"calories": 2600, "protein_g": 175, "carbs_g": 315, "fat_g": 70}
+        assert status["target"] == {"calories": 2000, "protein_g": 175, "carbs_g": 190, "fat_g": 60}
 
     def test_no_plan_falls_back_to_the_weekday_list(self):
         from datetime import date

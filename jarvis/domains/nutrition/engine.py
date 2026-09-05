@@ -1872,7 +1872,7 @@ def build_nutrition_acceptance_gate(
         "rest": [rest_target.calories, rest_target.protein_g, rest_target.carbs_g, rest_target.fat_g],
         "meals_per_day": phase.get("meals_per_day"),
     }
-    approved_target = [2600, 175, 315, 70]
+    approved_target = [2000, 175, 190, 60]
     _acceptance_check(
         checks,
         "recomposition_authority",
@@ -1881,7 +1881,7 @@ def build_nutrition_acceptance_gate(
             "rest": approved_target,
             "meals_per_day": 4,
         },
-        "The active constitution authorizes the approved 14-day recomposition prescription.",
+        "The active constitution authorizes the user-approved 2,000 kcal daily target.",
         evidence=target_evidence,
     )
 

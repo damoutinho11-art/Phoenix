@@ -64,6 +64,23 @@ def test_today_protocol_is_read_only_and_exact():
     )
 
 
+def test_user_calorie_target_is_consistent_and_protocol_stays_in_requested_range():
+    constitution = get_nutrition_constitution()
+    phase = constitution["phases"][constitution["active_phase"]]
+    for day_type in ("training_day", "rest_day"):
+        target = phase[day_type]
+        assert target["calories"] == 2000
+        assert 4 * (target["protein_g"] + target["carbs_g"]) + 9 * target["fat_g"] == 2000
+    protocol = _today_protocol()
+    assert protocol["target"]["calories"] == 2000
+    assert len(protocol["meals"]) == 4
+    assert 1900 <= protocol["planned_total"]["calories"] <= 2000
+    assert abs(protocol["target_gap"]["protein_g"]) <= 5
+    assert protocol["planned_total"]["calories"] == pytest.approx(
+        sum(meal["total"]["calories"] for meal in protocol["meals"]), abs=0.1
+    )
+
+
 def test_today_protocol_does_not_claim_target_match_without_verified_fibre():
     protocol = _today_protocol()
 

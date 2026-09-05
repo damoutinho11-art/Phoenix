@@ -70,7 +70,7 @@ class TrainingDayTests(unittest.TestCase):
         planned = engine.get_macro_target(CONSTITUTION, tuesday, True)
         by_weekday = engine.get_macro_target(CONSTITUTION, tuesday, None)
 
-        assert planned == by_weekday == MacroTarget(2600, 175, 315, 70)
+        assert planned == by_weekday == MacroTarget(2000, 175, 190, 60)
 
 
 class MacroTargetTests(unittest.TestCase):
@@ -78,8 +78,8 @@ class MacroTargetTests(unittest.TestCase):
         training = engine.get_macro_target(CONSTITUTION, CUT_TRAINING_DATE, True)
         recovery = engine.get_macro_target(CONSTITUTION, CUT_REST_DATE, False)
 
-        assert training == MacroTarget(2600, 175, 315, 70)
-        assert recovery == MacroTarget(2600, 175, 315, 70)
+        assert training == MacroTarget(2000, 175, 190, 60)
+        assert recovery == MacroTarget(2000, 175, 190, 60)
 
     def test_returns_macro_target_type(self):
         target = engine.get_macro_target(CONSTITUTION, CUT_TRAINING_DATE)
@@ -276,7 +276,7 @@ class CheckNutritionTests(unittest.TestCase):
     def test_remaining_calories_correct_empty_log(self):
         status = engine.check_nutrition(CONSTITUTION, EMPTY_LOG_ITEMS,
                                         today=CUT_TRAINING_DATE)
-        assert status.remaining_calories == 2600
+        assert status.remaining_calories == 2000
 
     def test_remaining_protein_reduces_after_logging(self):
         status = engine.check_nutrition(CONSTITUTION, SAMPLE_LOG_ITEMS,

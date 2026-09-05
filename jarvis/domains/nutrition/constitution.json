@@ -16,16 +16,16 @@
       "start_date": "2026-08-27",
       "end_date": null,
       "training_day": {
-        "calories": 2600,
+        "calories": 2000,
         "protein_g": 175,
-        "carbs_g": 315,
-        "fat_g": 70
+        "carbs_g": 190,
+        "fat_g": 60
       },
       "rest_day": {
-        "calories": 2600,
+        "calories": 2000,
         "protein_g": 175,
-        "carbs_g": 315,
-        "fat_g": 70
+        "carbs_g": 190,
+        "fat_g": 60
       },
       "fibre_target_g": [30, 35],
       "fluid_target_l": [2.3, 2.7],
