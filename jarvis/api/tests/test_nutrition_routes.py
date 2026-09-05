@@ -2,6 +2,8 @@
 
 import unittest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 from jarvis.api.main import app
 from jarvis.api.ai_gateway import AIResult
@@ -432,6 +434,60 @@ class NutritionMemoryRouteTests(unittest.TestCase):
 
 
 class NutritionShoppingListRouteTests(unittest.TestCase):
+    def test_four_day_protocol_shopping_list_multiplies_and_merges_exact_quantities(self):
+        protocol = client.get("/nutrition/today-protocol").json()
+        response = client.get(
+            "/nutrition/shopping-list?source=today_protocol_4_days"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["source"] == "today_protocol_4_days"
+        assert data["source_title"] == "Four days · current protocol"
+        assert data["days"] == 4
+        assert data["requires_approval"] is True
+
+        daily = {}
+        for meal in protocol["meals"]:
+            for item in meal["items"]:
+                measurement_state = item["measurement_state"].replace("_", " ")
+                key = (item["item_id"], measurement_state)
+                daily[key] = daily.get(key, 0.0) + item["quantity_g"]
+
+        returned = {
+            (item["item_id"], item["measurement_state"]): item
+            for item in data["items"]
+        }
+        for key, daily_quantity in daily.items():
+            assert returned[key]["quantity"] == pytest.approx(
+                daily_quantity * 4, abs=0.1
+            )
+            assert returned[key]["unit"] == "g"
+
+    def test_four_day_protocol_shopping_list_preserves_basis_and_pantry_without_subtraction(self):
+        created = client.post(
+            "/nutrition/memory",
+            json={
+                "kind": "pantry",
+                "item_id": "cookie_crisp",
+                "item_type": "food",
+                "name": "Cookie Crisp",
+            },
+        ).json()
+        try:
+            data = client.get(
+                "/nutrition/shopping-list?source=today_protocol_4_days"
+            ).json()
+            cookie = next(item for item in data["items"] if item["name"] == "Cookie Crisp")
+            assert cookie["quantity"] == pytest.approx(154.0)
+            assert cookie["measurement_state"] == "as served"
+            assert cookie["source_label"] == "REFERENCE ESTIMATE"
+            assert cookie["is_estimate"] is True
+            assert cookie in data["already_have"]
+            assert cookie["quantity"] == pytest.approx(154.0)
+        finally:
+            client.delete(f"/nutrition/memory/{created['entry']['id']}")
+
     def test_day_plan_shopping_list_route(self):
         data = client.get("/nutrition/shopping-list").json()
         assert data["source"] == "day_plan"

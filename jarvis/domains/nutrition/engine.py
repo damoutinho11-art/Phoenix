@@ -1111,12 +1111,47 @@ def _shopping_category_for_item(item: dict) -> str:
     return "other"
 
 
-def _shopping_key(item: dict) -> tuple[str, str, str, str]:
+def build_protocol_shopping_items(meals: list[dict], days: int) -> list[dict]:
+    """Convert exact protocol components into repeatable shopping rows."""
+    repeated = []
+    for meal in meals or []:
+        for raw in meal.get("items", []) or []:
+            item = dict(raw)
+            quantity_g = float(item.get("quantity_g", 0) or 0)
+            measurement_state = str(
+                item.get("measurement_state", "as_served")
+            ).replace("_", " ")
+            source_label = item.get("source_label") or str(
+                item.get("label_state", "inventory_estimate")
+            ).replace("_", " ").upper()
+            row = {
+                **item,
+                "name": item.get("name", ""),
+                "item_id": item.get("item_id", ""),
+                "item_type": item.get("item_type", "food"),
+                "quantity": round(quantity_g * days, 1),
+                "unit": "g",
+                "measurement_state": measurement_state,
+                "servings": float(item.get("servings", 1) or 1) * days,
+                "calories": float(item.get("calories", 0) or 0) * days,
+                "protein_g": float(item.get("protein_g", 0) or 0) * days,
+                "carbs_g": float(item.get("carbs_g", 0) or 0) * days,
+                "fat_g": float(item.get("fat_g", 0) or 0) * days,
+                "price_eur": float(item.get("price_eur", 0) or 0) * days,
+                "source_label": source_label,
+                "is_estimate": item.get("is_estimate", True),
+            }
+            repeated.append(row)
+    return repeated
+
+
+def _shopping_key(item: dict) -> tuple[str, str, str, str, str]:
     return (
         str(item.get("item_type", "item")).lower(),
         str(item.get("item_id", "")).lower(),
         str(item.get("name", "")).strip().lower(),
         str(item.get("unit", "serving")).strip().lower(),
+        str(item.get("measurement_state", "")).strip().lower(),
     )
 
 
@@ -1133,7 +1168,7 @@ def build_shopping_list_from_items(
     already-have in Phoenix nutrition memory.
     """
     memory_profile = build_nutrition_memory_profile(memory_entries)
-    merged: dict[tuple[str, str, str, str], dict] = {}
+    merged: dict[tuple[str, str, str, str, str], dict] = {}
 
     for raw in items or []:
         item = dict(raw)
@@ -1149,16 +1184,21 @@ def build_shopping_list_from_items(
                 "item_type": item.get("item_type", "item"),
                 "name": name,
                 "unit": item.get("unit", "serving"),
+                "quantity": 0.0,
+                "measurement_state": item.get("measurement_state", ""),
                 "servings": 0.0,
                 "calories": 0.0,
                 "protein_g": 0.0,
                 "fat_g": 0.0,
                 "carbs_g": 0.0,
                 "estimated_cost_eur": 0.0,
+                "source_label": item.get("source_label", ""),
+                "is_estimate": bool(item.get("is_estimate", True)),
                 "category": category,
                 "already_have": False,
             }
             merged[key] = existing
+        existing["quantity"] += float(item.get("quantity", 0) or 0)
         existing["servings"] += float(item.get("servings", 1) or 1)
         existing["calories"] += float(item.get("calories", 0) or 0)
         existing["protein_g"] += float(item.get("protein_g", 0) or 0)
@@ -1168,6 +1208,7 @@ def build_shopping_list_from_items(
 
     normalized = []
     for item in merged.values():
+        item["quantity"] = _round_macro(item["quantity"])
         item["servings"] = _round_macro(item["servings"])
         item["calories"] = _round_macro(item["calories"])
         item["protein_g"] = _round_macro(item["protein_g"])

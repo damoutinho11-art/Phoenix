@@ -20,6 +20,41 @@ from jarvis.domains.nutrition import engine
 client = TestClient(app)
 
 
+def test_four_day_protocol_engine_keeps_incompatible_measurement_bases_separate():
+    meals = [
+        {
+            "items": [
+                {
+                    "item_id": "test-pasta",
+                    "name": "Test Pasta",
+                    "quantity_g": 25,
+                    "measurement_state": "dry",
+                    "label_state": "reference_estimate",
+                    "is_estimate": True,
+                },
+                {
+                    "item_id": "test-pasta",
+                    "name": "Test Pasta",
+                    "quantity_g": 40,
+                    "measurement_state": "cooked",
+                    "label_state": "reference_estimate",
+                    "is_estimate": True,
+                },
+            ]
+        }
+    ]
+
+    repeated = engine.build_protocol_shopping_items(meals, days=4)
+    shopping = engine.build_shopping_list_from_items(repeated)
+
+    assert {(item["measurement_state"], item["quantity"]) for item in shopping["items"]} == {
+        ("dry", 100.0),
+        ("cooked", 160.0),
+    }
+    assert all(item["source_label"] == "REFERENCE ESTIMATE" for item in shopping["items"])
+    assert all(item["is_estimate"] is True for item in shopping["items"])
+
+
 def _manual_meal_payload() -> dict:
     return {
         "item_id": "stale-write-meal",

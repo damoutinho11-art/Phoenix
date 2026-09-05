@@ -780,7 +780,9 @@ def _flatten_plan_meals(meals: list[dict]) -> list[dict]:
 
 @router.get("/shopping-list")
 def nutrition_shopping_list(
-    source: str = Query("day_plan", pattern="^(day_plan|meal_builder)$"),
+    source: str = Query(
+        "day_plan", pattern="^(day_plan|meal_builder|today_protocol_4_days)$"
+    ),
     suggestion_id: str | None = Query(None),
     constitution: dict = Depends(get_nutrition_constitution),
 ) -> dict:
@@ -790,6 +792,18 @@ def nutrition_shopping_list(
     logs food. Pantry memory marks items as already owned.
     """
     memory_entries = database.get_nutrition_memory()
+    if source == "today_protocol_4_days":
+        protocol = _today_protocol_context(constitution)
+        result = engine.build_shopping_list_from_items(
+            engine.build_protocol_shopping_items(protocol.get("meals", []), days=4),
+            memory_entries=memory_entries,
+            source="today_protocol_4_days",
+            source_title="Four days · current protocol",
+        )
+        result["days"] = 4
+        result["protocol_id"] = protocol["protocol_id"]
+        return result
+
     if source == "meal_builder":
         context = _builder_context(constitution)
         suggestions = context.get("suggestions", [])
