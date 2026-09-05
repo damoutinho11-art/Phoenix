@@ -856,7 +856,9 @@ def _log_meal_components_with_connection(
                 float(component["quantity_g"]),
                 component.get("measurement_state"),
                 component.get("label_source"),
-                float(component.get("fibre_g", 0)),
+                (float(component["fibre_g"])
+                 if component.get("fibre_known") is True and component.get("fibre_g") is not None
+                 else None),
                 int(bool(component.get("is_estimate"))),
                 float(component["unit_count"]) if component.get("unit_count") is not None else None,
                 source,

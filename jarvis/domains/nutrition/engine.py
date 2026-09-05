@@ -18,6 +18,7 @@ from jarvis.domains.nutrition.data_contracts import (
 _DOMAIN_DIR = Path(__file__).parent
 _RECIPES_PATH = _DOMAIN_DIR / "recipes.json"
 _STAPLES_PATH = _DOMAIN_DIR / "lidl_staples.json"
+_FOOD_REFERENCES_PATH = _DOMAIN_DIR / "food_references.json"
 
 _DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday",
               "friday", "saturday", "sunday"]
@@ -359,14 +360,17 @@ def load_lidl_staples(path: Path | None = None) -> list[LidlStaple]:
 
 
 def load_exact_food_inventory() -> list[dict]:
-    """Normalize canonical Lidl staples for exact-gram protocol generation."""
+    """Normalize staple estimates and overlay independently sourced references."""
+    with open(_FOOD_REFERENCES_PATH) as f:
+        references = json.load(f)
+    overlays = references.get("overlays", {})
     inventory = []
     for staple in load_lidl_staples():
         match = re.search(r"(\d+(?:\.\d+)?)g\b", staple.unit.lower())
         reference_g = float(match.group(1)) if match else 100.0
         unit_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:wrap|unit|piece|pcs?)\b", staple.unit.lower())
         labelled_units = float(unit_match.group(1)) if unit_match else None
-        inventory.append({
+        food = {
             "id": staple.id,
             "name": staple.name,
             "reference_g": reference_g,
@@ -375,10 +379,18 @@ def load_exact_food_inventory() -> list[dict]:
             "fat_g": staple.fat_g,
             "carbs_g": staple.carbs_g,
             "fibre_g": 0.0,
-            "label_source": f"lidl_staples:{staple.id}",
-            "label_state": "canonical_label",
+            "fibre_known": False,
+            "label_state": "inventory_estimate",
+            "is_estimate": True,
             "unit_weight_g": reference_g / labelled_units if labelled_units else None,
-        })
+        }
+        overlay = dict(overlays.get(staple.id, {}))
+        fibre_per_100g = overlay.pop("fibre_per_100g", None)
+        food.update(overlay)
+        if fibre_per_100g is not None:
+            food["fibre_g"] = float(fibre_per_100g) * reference_g / 100.0
+        inventory.append(food)
+    inventory.extend(references.get("references", []))
     return inventory
 
 

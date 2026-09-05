@@ -19,18 +19,54 @@ function normalizeMeasurementState(value) {
   return state || null
 }
 
+function safeHttpsUrl(value) {
+  if (typeof value !== 'string') return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' ? url.href : null
+  } catch {
+    return null
+  }
+}
+
+function sourceLabel(item) {
+  if (item.label_state === 'reference_estimate') return 'REFERENCE ESTIMATE'
+  if (item.label_state === 'inventory_estimate') return 'INVENTORY ESTIMATE'
+  return item.is_estimate ? 'REFERENCE ESTIMATE' : 'PRODUCT LABEL'
+}
+
+function sourceLinks(item) {
+  const nutritionUrl = safeHttpsUrl(item.source_url)
+  const fibreUrl = safeHttpsUrl(item.fibre_source_url)
+  if (nutritionUrl && fibreUrl === nutritionUrl) {
+    return [{ label: 'NUTRITION & FIBRE SOURCE', href: nutritionUrl }]
+  }
+  return [
+    nutritionUrl && { label: 'NUTRITION SOURCE', href: nutritionUrl },
+    fibreUrl && { label: 'FIBRE SOURCE', href: fibreUrl },
+  ].filter(Boolean)
+}
+
 function normalizeItem(item = {}) {
   const quantity = formatNumber(item.quantity_g)
   const unitCount = formatNumber(item.unit_count)
   const measurementState = normalizeMeasurementState(item.measurement_state)
-  const verified = quantity !== null && measurementState !== null
+  const verified = quantity !== null && measurementState !== null && measurementState.toLowerCase() !== 'unknown'
 
   return {
     ...item,
     quantityLabel: verified ? `${quantity} g${unitCount !== null ? ` · ${unitCount} UNIT` : ''} · ${measurementState}` : 'MEASUREMENT UNVERIFIED',
-    sourceLabel: item.is_estimate ? 'GENERIC ESTIMATE' : 'PRODUCT LABEL',
+    sourceLabel: sourceLabel(item),
+    sourceLinks: sourceLinks(item),
     measurementVerified: verified,
   }
+}
+
+function fibreLabel(meal) {
+  const amount = formatNumber(meal?.total?.fibre_g)
+  if (amount === null) return 'FIBRE UNAVAILABLE'
+  const hasUnknownFibre = !Array.isArray(meal?.items) || meal.items.some(item => item?.fibre_known !== true)
+  return hasUnknownFibre ? `AT LEAST ${amount} G FIBRE` : `${amount} G FIBRE (EST.)`
 }
 
 function normalizeMacroRow(source) {
@@ -46,6 +82,7 @@ export function buildTodayProtocolModel(raw = {}) {
       ...meal,
       items: Array.isArray(meal?.items) ? meal.items.map(normalizeItem) : [],
       total: normalizeMacroRow(meal?.total),
+      fibreLabel: fibreLabel(meal),
     }))
     : []
   const measurementsVerified = meals.every(meal => meal.items.every(item => item.measurementVerified))
@@ -55,6 +92,9 @@ export function buildTodayProtocolModel(raw = {}) {
     target: normalizeMacroRow(raw.target),
     targetGap: normalizeMacroRow(raw.target_gap),
     remainingTarget: normalizeMacroRow(raw.remaining_target),
+    plannedTotal: normalizeMacroRow(raw.planned_total),
+    nutritionBasis: raw.nutrition_basis === 'labelled' ? 'labelled' : 'estimated',
+    fibreComplete: raw.fibre_complete === true,
     meals,
     measurementsVerified,
     targetMatched: raw.target_matched === true && measurementsVerified,

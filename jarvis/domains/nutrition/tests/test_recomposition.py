@@ -5,6 +5,7 @@ import pytest
 
 from jarvis.domains.nutrition.recomposition import (
     _balance_stage,
+    _hydrate_protocol,
     build_today_protocol,
     evaluate_adjustment_evidence,
     exact_component,
@@ -90,6 +91,42 @@ def test_protocol_reconciles_a_lower_calorie_higher_protein_remaining_target():
     assert protocol["target_matched"] is True
 
 
+def test_protocol_matches_all_macros_at_two_thousand_calories():
+    target = {"calories": 2000, "protein_g": 160, "carbs_g": 210, "fat_g": 58}
+    constitution = {
+        **CONSTITUTION,
+        "phases": {"recomposition_cut": {"fibre_target_g": [30, 35]}},
+    }
+
+    protocol = build_today_protocol(
+        target_date=date(2026, 8, 27), status=status_for(target), foods=FOODS,
+        memory_entries=[], calendar_blocks=[], constitution=constitution, logged_meals=[],
+    )
+
+    assert 1900 <= protocol["planned_total"]["calories"] <= 2000
+    assert abs(protocol["target_gap"]["protein_g"]) <= 5
+    assert abs(protocol["target_gap"]["carbs_g"]) <= 10
+    assert abs(protocol["target_gap"]["fat_g"]) <= 5
+    assert protocol["planned_total"]["fibre_g"] >= 30
+    assert all(300 <= meal["total"]["calories"] <= 700 for meal in protocol["meals"])
+    assert next(meal for meal in protocol["meals"] if meal["slot"] == "pre_training")["total"]["calories"] <= 600
+    assert protocol["target_matched"] is True
+
+
+@pytest.mark.parametrize("macro,value", [("carbs_g", 180), ("fat_g", 40)])
+def test_hydration_does_not_claim_a_macro_mismatch_is_matched(macro, value):
+    total = {"calories": 1980, "protein_g": 160, "carbs_g": 210, "fat_g": 58, "fibre_g": 30}
+    total[macro] = value
+    protocol = {
+        "target": {"calories": 2000, "protein_g": 160, "carbs_g": 210, "fat_g": 58, "fibre_g": 0},
+        "logged_meals": [],
+        "meals": [{"total": total}],
+        "food_constraints": {"fibre_minimum_g": 30},
+    }
+
+    assert _hydrate_protocol(protocol)["target_matched"] is False
+
+
 def test_protocol_reconciles_protein_skewed_logged_meals():
     protocol = build_protocol_for(
         target=TARGET,
@@ -165,6 +202,7 @@ def test_exact_component_scales_macros_and_marks_missing_label_as_estimate():
     assert component == {
         "item_id": "banana", "name": "Banana", "quantity_g": 60.0,
         "measurement_state": "as_served", "label_source": "generic_estimate", "is_estimate": True,
+        "label_state": "reference_estimate", "source_url": None, "fibre_source_url": None, "fibre_known": True,
         "calories": 53.5, "protein_g": 0.7, "carbs_g": 13.5, "fat_g": 0.2, "fibre_g": 1.6,
     }
 

@@ -36,6 +36,34 @@ function api(overrides = {}) {
 afterEach(cleanup)
 
 describe('TodayProtocol command boundary', () => {
+  it('renders estimate provenance, fibre lower bounds, and an estimated target match', async () => {
+    const estimatedProtocol = {
+      ...protocol,
+      nutrition_basis: 'estimated',
+      fibre_complete: false,
+      items: undefined,
+      meals: [{
+        ...protocol.meals[0],
+        total: { ...protocol.meals[0].total, fibre_g: 4.5 },
+        items: [{
+          ...protocol.meals[0].items[0],
+          is_estimate: true,
+          label_state: 'reference_estimate',
+          fibre_known: false,
+          source_url: 'https://example.com/nutrition',
+        }],
+      }],
+    }
+    render(<TodayProtocol api={api({ getTodayProtocol: vi.fn().mockResolvedValue(estimatedProtocol) })} />)
+
+    expect(await screen.findByText('REFERENCE ESTIMATE')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'NUTRITION SOURCE' }).getAttribute('href')).toBe('https://example.com/nutrition')
+    expect(screen.getByText('AT LEAST 4.5 G FIBRE')).toBeTruthy()
+    expect(screen.getByText('ESTIMATED TARGET MATCH')).toBeTruthy()
+    expect(screen.getByText('FIBRE GAP').parentElement.textContent).toContain('UNAVAILABLE')
+    expect(screen.queryByText('PRODUCT LABEL')).toBeNull()
+  })
+
   it('does not write until the user confirms one meal', async () => {
     const client = api()
     const user = userEvent.setup()

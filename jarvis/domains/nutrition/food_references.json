@@ -1,0 +1,52 @@
+{
+  "overlays": {
+    "lidl_001": {
+      "name": "Chicken Breast (cooked reference)",
+      "measurement_state": "cooked",
+      "fibre_g": 0.0,
+      "fibre_known": true,
+      "source_url": "https://fdc.nal.usda.gov/food-details/171477/nutrients",
+      "fibre_source_url": "https://fdc.nal.usda.gov/food-details/171477/nutrients",
+      "label_state": "reference_estimate",
+      "is_estimate": true
+    },
+    "lidl_012": {
+      "fibre_per_100g": 2.6,
+      "fibre_known": true,
+      "fibre_source_url": "https://www.nal.usda.gov/sites/default/files/page-files/Total_Dietary_Fiber.pdf"
+    },
+    "lidl_039": {
+      "fibre_per_100g": 9.2,
+      "fibre_known": true,
+      "fibre_source_url": "https://www.nal.usda.gov/sites/default/files/page-files/Total_Dietary_Fiber.pdf"
+    },
+    "lidl_044": {
+      "fibre_per_100g": 9.8,
+      "fibre_known": true,
+      "fibre_source_url": "https://www.nal.usda.gov/sites/default/files/page-files/Total_Dietary_Fiber.pdf"
+    },
+    "lidl_051": {
+      "fibre_per_100g": 2.6,
+      "fibre_known": true,
+      "fibre_source_url": "https://www.nal.usda.gov/sites/default/files/page-files/Total_Dietary_Fiber.pdf"
+    }
+  },
+  "references": [
+    {
+      "id": "reference_cookie_crisp",
+      "name": "Cookie Crisp",
+      "reference_g": 100.0,
+      "calories": 393,
+      "protein_g": 7.2,
+      "carbs_g": 76.3,
+      "fat_g": 5.2,
+      "fibre_g": 6.0,
+      "fibre_known": true,
+      "source_url": "https://www.nestle-cereals.com/ee/hommikusoogihelbed/cookie-crisp",
+      "fibre_source_url": "https://www.nestle-cereals.com/ee/hommikusoogihelbed/cookie-crisp",
+      "label_state": "reference_estimate",
+      "is_estimate": true,
+      "unit_weight_g": null
+    }
+  ]
+}

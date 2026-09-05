@@ -51,6 +51,9 @@ function MealRow({ meal, pending, portionInputs, onPortionChange, onLog, onRepla
             <strong>{item.name || 'UNNAMED ITEM'}</strong>
             <span>{item.quantityLabel}</span>
             <small>{item.sourceLabel}</small>
+            {item.sourceLinks.map(link => (
+              <a key={`${link.label}:${link.href}`} href={link.href} target="_blank" rel="noreferrer">{link.label}</a>
+            ))}
           </div>
         ))}
       </div>
@@ -60,6 +63,7 @@ function MealRow({ meal, pending, portionInputs, onPortionChange, onLog, onRepla
         <span>{metric(total.protein_g, 'G P')}</span>
         <span>{metric(total.carbs_g, 'G C')}</span>
         <span>{metric(total.fat_g, 'G F')}</span>
+        <span>{meal.fibreLabel}</span>
       </div>
 
       {primaryItem && (
@@ -201,6 +205,12 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
 
   const model = buildTodayProtocolModel(protocol)
   const stale = actionError === STALE_PROTOCOL_MESSAGE
+  const fibreGap = model.fibreComplete
+    ? Math.max(0, Number(protocol.food_constraints?.fibre_minimum_g || 0) - Number(model.plannedTotal.fibre_g || 0) - (protocol.logged_meals || []).reduce((sum, row) => sum + Number(row.fibre_g || 0), 0))
+    : null
+  const targetMatchLabel = model.targetMatched
+    ? (model.nutritionBasis === 'estimated' ? 'ESTIMATED TARGET MATCH' : 'TARGET MATCHED')
+    : 'CHECK TARGET GAP'
 
   return (
     <CockpitShell accent={ORANGE} className="phx-nutrition-cockpit phx-today-protocol-cockpit" aria-label="Today Protocol">
@@ -213,7 +223,7 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
           </div>
           <div className="phx-today-protocol-hero-actions">
             {onBack && <button type="button" onClick={onBack} disabled={pending}>BACK</button>}
-            <StatusChip tone={model.targetMatched ? 'ready' : 'caution'}>{model.targetMatched ? 'TARGET MATCHED' : 'CHECK TARGET GAP'}</StatusChip>
+            <StatusChip tone={model.targetMatched ? 'ready' : 'caution'}>{targetMatchLabel}</StatusChip>
           </div>
         </header>
 
@@ -233,7 +243,7 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
             <div className="phx-today-protocol-metric-grid">
               <TargetMetric label="ENERGY" value={model.targetGap.calories} suffix=" KCAL" />
               <TargetMetric label="PROTEIN" value={model.targetGap.protein_g} suffix=" G" />
-              <TargetMetric label="FIBRE" value={Math.max(0, Number(protocol.food_constraints?.fibre_minimum_g || 0) - Number(protocol.planned_total?.fibre_g || 0) - (protocol.logged_meals || []).reduce((sum, row) => sum + Number(row.fibre_g || 0), 0))} suffix=" G" />
+              <TargetMetric label="FIBRE GAP" value={fibreGap} suffix=" G" />
               <TargetMetric label="MEASUREMENTS" value={model.measurementsVerified ? 1 : null} suffix={model.measurementsVerified ? ' VERIFIED' : ''} />
               <TargetMetric label="REVIEW" value={review?.complete_days} suffix=" COMPLETE DAYS" />
             </div>

@@ -81,11 +81,30 @@ def test_user_calorie_target_is_consistent_and_protocol_stays_in_requested_range
     )
 
 
-def test_today_protocol_does_not_claim_target_match_without_verified_fibre():
-    protocol = _today_protocol()
+def test_today_protocol_does_not_claim_target_match_without_any_fibre_evidence():
+    foods = [{**food, "fibre_g": 0, "fibre_known": False}
+             for food in engine.load_exact_food_inventory()]
+    with patch.object(engine, "load_exact_food_inventory", return_value=foods):
+        protocol = _today_protocol()
 
     assert protocol["food_constraints"]["fibre_minimum_g"] > 0
     assert protocol["target_matched"] is False
+    assert protocol["fibre_complete"] is False
+
+
+@pytest.mark.parametrize("fibre_metadata", [{"fibre_known": False}, {}])
+def test_unknown_fibre_remains_unknown_after_protocol_component_logging(fibre_metadata):
+    component = {"item_id": "unknown-fibre", "name": "Unknown fibre food",
+                 "quantity_g": 100, "calories": 100, "protein_g": 10,
+                 "carbs_g": 10, "fat_g": 2, "fibre_g": 0,
+                 **fibre_metadata, "is_estimate": True}
+    ids = database.log_meal_components_atomically(
+        clock.today(), [component], source="provenance-test"
+    )
+    rows = database.get_meals_for_date(clock.today())
+    row = next(row for row in rows if row["id"] == ids[0])
+    assert row["fibre_g"] is None
+    assert row["is_estimate"] == 1
 
 
 def test_logging_one_protocol_meal_never_logs_the_full_day():
@@ -644,11 +663,14 @@ def test_exact_inventory_is_loaded_from_canonical_staples():
     inventory_by_id = {food["id"]: food for food in inventory}
     sample = canonical["lidl_001"]
 
-    assert set(inventory_by_id) == set(canonical)
-    assert inventory_by_id[sample.id]["name"] == sample.name
+    assert set(canonical) <= set(inventory_by_id)
+    assert "reference_cookie_crisp" in inventory_by_id
+    assert inventory_by_id[sample.id]["name"] == "Chicken Breast (cooked reference)"
     assert inventory_by_id[sample.id]["calories"] == sample.calories
     assert inventory_by_id[sample.id]["protein_g"] == sample.protein_g
-    assert inventory_by_id[sample.id]["label_source"] == f"lidl_staples:{sample.id}"
+    assert inventory_by_id[sample.id]["is_estimate"] is True
+    assert inventory_by_id[sample.id]["measurement_state"] == "cooked"
+    assert inventory_by_id[sample.id]["source_url"].startswith("https://fdc.nal.usda.gov/")
 
 
 def test_recomposition_review_locks_before_fourteen_complete_days():

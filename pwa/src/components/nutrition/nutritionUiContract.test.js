@@ -84,7 +84,7 @@ test('today protocol is a routed orange operational surface with truthful comman
   assert.match(flow, /Promise\.allSettled/)
   assert.match(flow, /Protocol changed\. Refresh before continuing\./)
 
-  for (const token of ['MEASUREMENT UNVERIFIED', 'GENERIC ESTIMATE', 'PRODUCT LABEL']) {
+  for (const token of ['MEASUREMENT UNVERIFIED', 'REFERENCE ESTIMATE', 'INVENTORY ESTIMATE', 'PRODUCT LABEL']) {
     assert.equal(model.includes(token), true)
   }
 
