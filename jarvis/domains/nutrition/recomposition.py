@@ -246,17 +246,17 @@ def _build_four_slots(*, target_date: date, remaining_target: dict, foods: list[
     pasta = _select_food(allowed, "pasta")
     vegetables = _select_food(allowed, "frozen vegetable", "vegetable", "broccoli")
     oil = _select_food(allowed, "olive oil", "oil")
-    scale = max(0.1, remaining_target["calories"] / 2600.0)
+    scale = max(0.1, remaining_target["calories"] / 2000.0)
 
     def component(food: dict, grams: float) -> dict:
         return exact_component(food, max(0.1, _round(grams * scale)), _measurement_state(food, constitution))
 
     rehearsal_timing, portable = _rehearsal_timing(calendar_blocks)
     return [
-        _meal("breakfast", "breakfast", "Breakfast", "09:00", False, [component(cookie, 85), component(yogurt, 250), component(whey, 30)]),
-        _meal("rehearsal_break", "rehearsal_break", "Rehearsal break", rehearsal_timing, portable, [component(wrap, 124), component(banana, 120), component(yogurt, 100)]),
-        _meal("pre_training", "pre_training", "Pre-training", "16:30", False, [component(pasta, 120), component(meat, 150), component(vegetables, 200), component(oil, 10)]),
-        _meal("dinner", "dinner", "Dinner", "20:30", False, [component(pasta, 60), component(meat, 50), component(vegetables, 200), component(oil, 32)]),
+        _meal("breakfast", "breakfast", "Breakfast", "09:00", False, [component(cookie, 38.5), component(yogurt, 200), component(whey, 30)]),
+        _meal("rehearsal_break", "rehearsal_break", "Rehearsal break", rehearsal_timing, portable, [component(wrap, 90.8), component(banana, 60), component(yogurt, 81.3), component(whey, 30)]),
+        _meal("pre_training", "pre_training", "Pre-training", "16:30", False, [component(pasta, 70), component(meat, 120), component(vegetables, 170), component(oil, 18.7)]),
+        _meal("dinner", "dinner", "Dinner", "20:30", False, [component(pasta, 31.5), component(meat, 97), component(vegetables, 134.9), component(oil, 19)]),
     ]
 
 
@@ -442,6 +442,9 @@ def _rebalance_unlogged_meals(protocol: dict, foods: list[dict], protected: set[
     if not protocol["meals"]:
         return _hydrate_protocol(protocol)
     protected = protected or set()
+    current = _hydrate_protocol(deepcopy(protocol))
+    if current["target_matched"]:
+        return current
     allowed = _allowed_protocol_foods(protocol, foods)
     by_id = {food.get("id", food.get("item_id")): food for food in allowed}
     if not by_id:

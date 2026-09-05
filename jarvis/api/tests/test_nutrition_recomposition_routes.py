@@ -81,6 +81,26 @@ def test_user_calorie_target_is_consistent_and_protocol_stays_in_requested_range
     )
 
 
+def test_initial_four_meal_protocol_uses_practical_portions():
+    protocol = _today_protocol()
+    limits = {
+        "reference_cookie_crisp": (25, 100),
+        "lidl_003": (50, 300),
+        "lidl_023": (10, 40),
+        "lidl_044": (62, 124),
+        "lidl_012": (60, 180),
+        "lidl_039": (30, 150),
+        "lidl_001": (50, 200),
+        "lidl_051": (100, 300),
+        "lidl_056": (3, 25),
+    }
+    for meal in protocol["meals"]:
+        assert 300 <= meal["total"]["calories"] <= 700
+        for item in meal["items"]:
+            low, high = limits[item["item_id"]]
+            assert low <= item["quantity_g"] <= high
+
+
 def test_today_protocol_does_not_claim_target_match_without_any_fibre_evidence():
     foods = [{**food, "fibre_g": 0, "fibre_known": False}
              for food in engine.load_exact_food_inventory()]
