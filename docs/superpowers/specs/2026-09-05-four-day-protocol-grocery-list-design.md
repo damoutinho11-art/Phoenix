@@ -6,7 +6,7 @@ Phoenix Nutrition will create a grocery list for four identical days of the curr
 
 ## User Flow
 
-Grocery Mode will offer **4 DAYS · CURRENT PROTOCOL** as its primary source. Selecting it loads the same meal protocol shown in Today Protocol, repeats it four times, and presents the consolidated ingredients. The header and all active controls, borders, badges, and status accents on this Nutrition screen will use the established green Nutrition palette.
+Grocery Mode will offer **4 DAYS · CURRENT PROTOCOL** as its primary source. Selecting it loads the same meal protocol shown in Today Protocol, repeats it four times, and presents the consolidated ingredients.
 
 Each row will show the ingredient name and total quantity for four days. Measurement labels remain explicit, including `dry`, `cooked`, and `as served`. Reference and inventory estimates remain visibly labelled. Phoenix will separate ingredients marked in Nutrition Memory into **Already Have** and leave the remainder under **Need to Buy**.
 
@@ -30,9 +30,11 @@ The PWA API client will request this source. Grocery Mode will make it the defau
 - Keep nutrition and price values marked as estimates where their source is estimated.
 - Use pantry memory only to classify items; do not subtract an unknown pantry quantity from the required total.
 
-## Interface
+## Nutrition Color System
 
-Grocery Mode will use green as the Nutrition identity color. The selected source control will read **4 DAYS · CURRENT PROTOCOL**. Summary cards will state the duration, number of items to buy, pantry item count, and estimated cost. Ingredient rows will lead with shopping quantity; calories and protein may remain secondary supporting data.
+The entire Nutrition domain will use green as its identity color. Every Nutrition screen, including Dashboard, Today Protocol, Grocery Mode, meal logging, meal building, pantry and memory, trends, recipes, and weekly planning, will replace orange or cyan identity accents with the established Nutrition green tokens. This includes headers, selected controls, borders, badges, focus states, progress indicators, links, and informational status accents. Semantic error and warning colors may remain red or amber where changing them would hide their meaning.
+
+Grocery Mode's selected source control will read **4 DAYS · CURRENT PROTOCOL**. Summary cards will state the duration, number of items to buy, pantry item count, and estimated cost. Ingredient rows will lead with shopping quantity; calories and protein may remain secondary supporting data.
 
 Empty and failure states will explain whether the protocol is unavailable or the pantry already covers the list. No state will imply that an order has been placed.
 
@@ -50,8 +52,10 @@ Backend tests will prove that the four-day source:
 - separates pantry items without subtracting unknown stock;
 - reports a four-day duration and performs no logging or purchasing.
 
-PWA tests will prove that Grocery Mode defaults to the four-day protocol source, displays exact totals and estimate labels, and uses the green Nutrition palette. The full backend and PWA suites, the production build, and a mobile-width browser check will run before deployment.
+PWA tests will prove that Grocery Mode defaults to the four-day protocol source and displays exact totals and estimate labels. A Nutrition-wide UI contract will verify that every Nutrition screen uses the green identity palette while retaining semantic error and warning colors. The full backend and PWA suites, the production build, and a mobile-width browser check will run before deployment.
 
 ## Scope
 
-This change covers one four-day list based on the current approved protocol. Variable durations, package-size rounding, meal variety, inventory depletion, purchasing integrations, and automatic ordering are outside this feature.
+This change covers one four-day list based on the current approved protocol and a Nutrition-wide green identity pass across existing Nutrition screens. Variable durations, package-size rounding, meal variety, inventory depletion, purchasing integrations, and automatic ordering are outside this feature.
+
+
