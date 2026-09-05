@@ -558,7 +558,7 @@ export async function logRepeatYesterday() {
   return apiFetch('/nutrition/log/repeat-yesterday', { method: 'POST' })
 }
 
-export async function getNutritionShoppingList(source = 'day_plan', suggestionId = '') {
+export async function getNutritionShoppingList(source = 'today_protocol_4_days', suggestionId = '') {
   const params = new URLSearchParams({ source })
   if (suggestionId) params.set('suggestion_id', suggestionId)
   return apiFetch(`/nutrition/shopping-list?${params.toString()}`)

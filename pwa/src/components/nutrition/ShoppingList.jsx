@@ -18,6 +18,17 @@ function Money({ value }) {
   return <span>€{Number(value || 0).toFixed(2)}</span>
 }
 
+function Quantity({ item }) {
+  if (Number.isFinite(Number(item.quantity)) && Number(item.quantity) > 0) {
+    return (
+      <span>
+        {fmt(item.quantity)} {item.unit || 'g'} · {item.measurement_state || 'as served'}
+      </span>
+    )
+  }
+  return <span>{fmt(item.servings)}× · {item.unit || 'serving'}</span>
+}
+
 function SummaryCard({ label, value, tone = LIME_BR }) {
   return (
     <div style={{ border: `1px solid ${BORDER}`, background: 'rgba(157,255,111,.025)', padding: '10px 11px' }}>
@@ -36,7 +47,8 @@ function ItemRow({ item, mode = 'buy' }) {
         <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '.04em' }}>{item.name}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
           <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: mode === 'have' ? CYAN : LIME, border: `1px solid ${border}`, background: bg, padding: '3px 6px' }}>{String(item.category || 'other').toUpperCase()}</span>
-          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM, border: `1px solid rgba(255,209,102,.12)`, padding: '3px 6px' }}>{fmt(item.servings)}× · {item.unit || 'serving'}</span>
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM, border: `1px solid rgba(255,209,102,.12)`, padding: '3px 6px' }}><Quantity item={item} /></span>
+          {item.source_label && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: LIME_BR, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.04)', padding: '3px 6px' }}>{item.source_label}</span>}
           {item.already_have && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(255,209,102,.24)`, background: 'rgba(255,209,102,.04)', padding: '3px 6px' }}>PANTRY</span>}
         </div>
       </div>
@@ -64,7 +76,7 @@ function Section({ title, subtitle, children, accent = LIME }) {
 }
 
 export default function ShoppingList({ onBack }) {
-  const [source, setSource] = useState('day_plan')
+  const [source, setSource] = useState('today_protocol_4_days')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -89,6 +101,7 @@ export default function ShoppingList({ onBack }) {
   const need = data?.need_to_buy || []
   const have = data?.already_have || []
   const categories = data?.categories || {}
+  const isFourDaySupply = data?.source === 'today_protocol_4_days' && Number(data?.days) === 4
 
   return (
     <div className="phx-scope-nutrition" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-nutrition) 7%, transparent), transparent 34rem), linear-gradient(180deg, #081208 0%, var(--phx-bg) 42%, #04090e 100%)', color: 'rgba(220,248,236,.94)', fontFamily: 'var(--phx-font-body)' }}>
@@ -107,11 +120,12 @@ export default function ShoppingList({ onBack }) {
             Phoenix converts meal plans into a shopping list. Pantry items are separated from missing ingredients. No ordering, no purchasing.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-            <button onClick={() => setSource('day_plan')} style={{ padding: '11px 0', border: `1px solid ${source === 'day_plan' ? 'rgba(157,255,111,.45)' : BORDER}`, background: source === 'day_plan' ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: source === 'day_plan' ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>FROM DAY PLAN</button>
+            <button onClick={() => setSource('today_protocol_4_days')} style={{ padding: '11px 0', border: `1px solid ${source === 'today_protocol_4_days' ? 'rgba(157,255,111,.45)' : BORDER}`, background: source === 'today_protocol_4_days' ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: source === 'today_protocol_4_days' ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>4 DAYS · CURRENT PROTOCOL</button>
             <button onClick={() => setSource('meal_builder')} style={{ padding: '11px 0', border: `1px solid ${source === 'meal_builder' ? 'rgba(157,255,111,.45)' : BORDER}`, background: source === 'meal_builder' ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: source === 'meal_builder' ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>FROM NEXT MEAL</button>
           </div>
           {data?.source_title && <div style={{ marginTop: 11, fontSize: 13, lineHeight: 1.6, color: 'rgba(220,248,236,.78)' }}>{data.source_title} · {data.principle}</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isFourDaySupply ? 5 : 4},1fr)`, gap: 7, marginTop: 12 }}>
+            {isFourDaySupply && <SummaryCard label="4 DAY SUPPLY" value={data.days} />}
             <SummaryCard label="TO BUY" value={data?.need_to_buy_count || 0} />
             <SummaryCard label="PANTRY" value={data?.already_have_count || 0} tone={CYAN} />
             <SummaryCard label="MISSING €" value={<Money value={data?.estimated_missing_cost_eur} />} />
@@ -121,7 +135,7 @@ export default function ShoppingList({ onBack }) {
 
         {error && <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(255,92,122,.25)`, color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 10 }}>{error}</div>}
 
-        <Section title="NEED TO BUY" subtitle={`${need.length} missing ingredients from this ${source === 'day_plan' ? 'day plan' : 'meal suggestion'}.`}>
+        <Section title="NEED TO BUY" subtitle={source === 'today_protocol_4_days' ? 'missing ingredients for four consistent protocol days' : `${need.length} missing ingredients from this meal suggestion.`}>
           {need.length ? need.map(item => <ItemRow key={`${item.item_type}-${item.item_id}-${item.name}`} item={item} />) : <div style={{ padding: '13px 0', color: TEXT_DIM, fontSize: 13 }}>Nothing missing. Your pantry covers this plan.</div>}
         </Section>
 
