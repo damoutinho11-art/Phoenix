@@ -164,6 +164,119 @@ def test_current_plan_returns_404_when_cycle_has_no_active_plan(client: TestClie
     assert response.json()["detail"] == "No active training plan for the current horizon"
 
 
+def test_next_week_proposal_targets_requested_cycle_without_replacing_current_lookup(
+    client: TestClient,
+    seeded_active_plan: str,
+):
+    next_monday = TODAY + timedelta(days=7)
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={
+            "week_start": next_monday.isoformat(),
+            "constraints": [
+                {
+                    "kind": "time_limit",
+                    "values": {
+                        "date": (next_monday + timedelta(days=1)).isoformat(),
+                        "minutes": 45,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    proposal = response.json()
+    assert proposal["cycle_id"] == "2026-W31"
+    assert [day["date"] for day in proposal["days"]] == [
+        (next_monday + timedelta(days=offset)).isoformat() for offset in range(7)
+    ]
+    assert proposal["parent_plan_id"] is None
+    assert client.get("/training/plan/current").json()["plan_id"] == seeded_active_plan
+    detail = client.get(f"/training/plan/proposals/{proposal['plan_id']}").json()
+    assert detail["cycle_id"] == "2026-W31"
+
+
+@pytest.mark.parametrize(
+    "week_start",
+    ["2026-07-21", "2026-08-03", "2026-07-13"],
+)
+def test_proposal_rejects_target_weeks_outside_current_or_next_monday(
+    client: TestClient, week_start: str
+):
+    response = client.post(
+        "/training/plan/proposals", json={"week_start": week_start, "constraints": []}
+    )
+
+    assert response.status_code == 422
+    assert database.list_training_plan_receipts() == []
+
+
+def test_next_week_proposal_queries_calendar_for_requested_horizon(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    next_monday = TODAY + timedelta(days=7)
+    captured = {}
+    monkeypatch.setattr(google_oauth, "connection_status", lambda: {"connected": True})
+
+    def fetch_events(time_min, time_max):
+        captured.update(time_min=time_min, time_max=time_max)
+        return [], []
+
+    monkeypatch.setattr(google_calendar_client, "fetch_events", fetch_events)
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={"week_start": next_monday.isoformat(), "constraints": []},
+    )
+
+    assert response.status_code == 200
+    assert captured["time_min"].date() == next_monday
+    assert captured["time_max"].date() == next_monday + timedelta(days=7)
+
+
+def test_next_week_proposal_does_not_reanchor_relative_today_intent(
+    client: TestClient,
+):
+    next_monday = TODAY + timedelta(days=7)
+
+    response = client.post(
+        "/training/plan/proposals",
+        json={"week_start": next_monday.isoformat(), "intent": "skip today"},
+    )
+
+    assert response.status_code == 422
+    assert "planning horizon" in response.json()["detail"]
+    assert database.list_training_plan_receipts() == []
+
+
+def test_live_apply_validates_and_activates_next_cycle_without_changing_current_plan(
+    client: TestClient,
+    seeded_active_plan: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    next_monday = TODAY + timedelta(days=7)
+    _enable_live_certificate(monkeypatch)
+    proposed = client.post(
+        "/training/plan/proposals",
+        json={"week_start": next_monday.isoformat(), "constraints": []},
+    )
+
+    applied = client.post(
+        f"/training/plan/proposals/{proposed.json()['plan_id']}/apply"
+    )
+
+    assert proposed.status_code == applied.status_code == 200
+    assert applied.json()["cycle_id"] == "2026-W31"
+    assert applied.json()["status"] == "active"
+    next_active = database.get_active_training_plan("2026-W31")
+    assert next_active["plan_id"] == proposed.json()["plan_id"]
+    assert client.get("/training/plan/current").json()["plan_id"] == seeded_active_plan
+    history = client.get("/training/plans/history").json()["items"]
+    assert any(item["plan_id"] == proposed.json()["plan_id"] for item in history)
+
+
 def test_plan_authority_reports_closed_gate_without_exposing_evidence(client: TestClient):
     response = client.get("/training/plan/authority")
 

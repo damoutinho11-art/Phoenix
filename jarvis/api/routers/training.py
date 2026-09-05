@@ -132,6 +132,7 @@ class TrainingPlanProposalRequest(BaseModel):
 
     constraints: list[TrainingConstraintRequest] = Field(default_factory=list, max_length=12)
     intent: str | None = Field(default=None, max_length=500)
+    week_start: date | None = None
 
 
 class TrainingConstraintResponse(BaseModel):
@@ -533,6 +534,17 @@ def _planning_horizon(today: date | None = None) -> tuple[date, date]:
     return week_start, week_start + timedelta(days=6)
 
 
+def _proposal_horizon(requested_week_start: date | None) -> tuple[date, date]:
+    current_start, _ = _planning_horizon()
+    target_start = requested_week_start or current_start
+    if target_start not in {current_start, current_start + timedelta(days=7)}:
+        raise HTTPException(
+            status_code=422,
+            detail="Training proposal week_start must be the current or next Monday",
+        )
+    return target_start, target_start + timedelta(days=6)
+
+
 def _current_cycle() -> str:
     week_start, _ = _planning_horizon()
     return iso_cycle_id(week_start)
@@ -711,8 +723,9 @@ def _validated_constraint(constraint: TrainingConstraint, week_start: date, week
     return TrainingConstraint.from_mapping(constraint.kind, constraint.source, normalized)
 
 
-def _compile_proposal_constraints(request: TrainingPlanProposalRequest) -> tuple[TrainingConstraint, ...]:
-    week_start, week_end = _planning_horizon()
+def _compile_proposal_constraints(
+    request: TrainingPlanProposalRequest, week_start: date, week_end: date
+) -> tuple[TrainingConstraint, ...]:
     constraints = [
         TrainingConstraint.from_mapping(item.kind, item.source, item.values)
         for item in request.constraints
@@ -966,7 +979,9 @@ def _validated_calendar_events(raw_events: list) -> list[dict[str, Any]]:
     return validated_events
 
 
-def _current_calendar_events() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def _current_calendar_events(
+    week_start: date | None = None, week_end: date | None = None
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return (events, evidence) for the planning horizon.
 
     Planning does not require a calendar. When no authoritative source is
@@ -980,7 +995,8 @@ def _current_calendar_events() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     google_reason = None
     try:
         if google_oauth.connection_status().get("connected") is True:
-            week_start, week_end = _planning_horizon()
+            if week_start is None or week_end is None:
+                week_start, week_end = _planning_horizon()
             time_min = datetime.combine(week_start, time.min, tzinfo=timezone.utc)
             time_max = datetime.combine(
                 week_end + timedelta(days=1), time.min, tzinfo=timezone.utc
@@ -1063,14 +1079,20 @@ def _current_calendar_events() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     }
 
 
-def _current_planning_snapshot(constitution: Mapping[str, Any], active: Mapping[str, Any] | None):
-    week_start, _ = _planning_horizon()
+def _current_planning_snapshot(
+    constitution: Mapping[str, Any],
+    active: Mapping[str, Any] | None,
+    week_start: date | None = None,
+    week_end: date | None = None,
+):
+    if week_start is None or week_end is None:
+        week_start, week_end = _planning_horizon()
     preferences, _ = _active_constraint_groups(active)
     preference_map = {
         f"{item['values'].get('avoid_or_prefer', 'prefer')}:{item['values'].get('exercise', '')}": True
         for item in preferences
     }
-    calendar_events, calendar_evidence = _current_calendar_events()
+    calendar_events, calendar_evidence = _current_calendar_events(week_start, week_end)
     snapshot = build_planning_snapshot(
         week_start=week_start,
         created_at=clock.utc_now_iso(),
@@ -1164,10 +1186,13 @@ def propose_training_plan(
     request: TrainingPlanProposalRequest,
     constitution: dict = Depends(get_training_constitution),
 ) -> dict[str, Any]:
-    constraints = _compile_proposal_constraints(request)
+    week_start, week_end = _proposal_horizon(request.week_start)
+    constraints = _compile_proposal_constraints(request, week_start, week_end)
     try:
-        active = database.get_active_training_plan(_current_cycle())
-        snapshot, calendar_evidence = _current_planning_snapshot(constitution, active)
+        active = database.get_active_training_plan(iso_cycle_id(week_start))
+        snapshot, calendar_evidence = _current_planning_snapshot(
+            constitution, active, week_start, week_end
+        )
     except CalendarEvidenceCorrupt as exc:
         # Unreadable calendar data is not the same as having no calendar: it
         # could be hiding a real conflict, so this still fails closed.
