@@ -105,3 +105,12 @@ it('hides the four-day supply summary for a next-meal response', async () => {
 
   expect(screen.queryByText('4 DAY SUPPLY')).toBeNull()
 })
+
+it('shows only the unavailable state when the grocery request fails', async () => {
+  getNutritionShoppingList.mockRejectedValue(new Error('offline'))
+
+  render(<ShoppingList onBack={() => {}} />)
+
+  expect(await screen.findByText('Shopping list unavailable. Start the backend and refresh.')).toBeTruthy()
+  expect(screen.queryByText('Nothing missing. Your pantry covers this plan.')).toBeNull()
+})

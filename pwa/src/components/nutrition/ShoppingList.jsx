@@ -87,6 +87,7 @@ export default function ShoppingList({ onBack }) {
     async function load() {
       setLoading(true)
       setError('')
+      setData(null)
       try {
         const result = await getNutritionShoppingList(source)
         setData(result)
@@ -137,9 +138,9 @@ export default function ShoppingList({ onBack }) {
 
         {error && <div style={{ margin: '14px 18px 0', padding: '11px 13px', border: `1px solid rgba(255,92,122,.25)`, color: '#ff5c7a', fontFamily: 'var(--phx-font-mono)', fontSize: 10 }}>{error}</div>}
 
-        <Section title="NEED TO BUY" subtitle={source === 'today_protocol_4_days' ? 'missing ingredients for four consistent protocol days' : `${need.length} missing ingredients from this meal suggestion.`}>
+        {data && <Section title="NEED TO BUY" subtitle={source === 'today_protocol_4_days' ? 'missing ingredients for four consistent protocol days' : `${need.length} missing ingredients from this meal suggestion.`}>
           {need.length ? need.map(item => <ItemRow key={`${item.item_type}-${item.item_id}-${item.name}`} item={item} />) : <div style={{ padding: '13px 0', color: TEXT_DIM, fontSize: 13 }}>Nothing missing. Your pantry covers this plan.</div>}
-        </Section>
+        </Section>}
 
         {have.length > 0 && <Section title="ALREADY HAVE" subtitle="Marked as pantry in Nutrition Memory." accent={CYAN}>
           {have.map(item => <ItemRow key={`${item.item_type}-${item.item_id}-${item.name}`} item={item} mode="have" />)}

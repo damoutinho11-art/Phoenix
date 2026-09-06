@@ -1194,10 +1194,15 @@ def build_shopping_list_from_items(
                 "estimated_cost_eur": 0.0,
                 "source_label": item.get("source_label", ""),
                 "is_estimate": bool(item.get("is_estimate", True)),
+                "_source_labels": [],
                 "category": category,
                 "already_have": False,
             }
             merged[key] = existing
+        source_label = str(item.get("source_label", "")).strip()
+        if source_label and source_label not in existing["_source_labels"]:
+            existing["_source_labels"].append(source_label)
+        existing["is_estimate"] = existing["is_estimate"] or bool(item.get("is_estimate", True))
         existing["quantity"] += float(item.get("quantity", 0) or 0)
         existing["servings"] += float(item.get("servings", 1) or 1)
         existing["calories"] += float(item.get("calories", 0) or 0)
@@ -1208,6 +1213,7 @@ def build_shopping_list_from_items(
 
     normalized = []
     for item in merged.values():
+        item["source_label"] = " · ".join(item.pop("_source_labels"))
         item["quantity"] = _round_macro(item["quantity"])
         item["servings"] = _round_macro(item["servings"])
         item["calories"] = _round_macro(item["calories"])

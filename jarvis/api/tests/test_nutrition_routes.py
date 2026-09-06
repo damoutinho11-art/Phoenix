@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from jarvis.api.main import app
 from jarvis.api.ai_gateway import AIResult
+from jarvis.domains.nutrition import engine
 
 client = TestClient(app)
 
@@ -434,6 +435,36 @@ class NutritionMemoryRouteTests(unittest.TestCase):
 
 
 class NutritionShoppingListRouteTests(unittest.TestCase):
+    def test_shopping_list_conservatively_combines_mixed_provenance(self):
+        rows = [
+            {
+                "item_id": "mixed",
+                "item_type": "food",
+                "name": "Mixed Food",
+                "unit": "g",
+                "measurement_state": "as served",
+                "quantity": 10,
+                "source_label": "PRODUCT LABEL",
+                "is_estimate": False,
+            },
+            {
+                "item_id": "mixed",
+                "item_type": "food",
+                "name": "Mixed Food",
+                "unit": "g",
+                "measurement_state": "as served",
+                "quantity": 20,
+                "source_label": "INVENTORY ESTIMATE",
+                "is_estimate": True,
+            },
+        ]
+
+        item = engine.build_shopping_list_from_items(rows)["items"][0]
+
+        assert item["quantity"] == 30
+        assert item["is_estimate"] is True
+        assert item["source_label"] == "PRODUCT LABEL · INVENTORY ESTIMATE"
+
     def test_four_day_protocol_shopping_list_multiplies_and_merges_exact_quantities(self):
         protocol = client.get("/nutrition/today-protocol").json()
         response = client.get(

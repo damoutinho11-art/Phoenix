@@ -69,6 +69,7 @@ test('every nutrition surface uses the green identity palette', async () => {
   assert.match(css, /--phx-nutrition-green: #9dff6f/)
   assert.doesNotMatch(css, /--phx-nutrition-orange/)
   assert.doesNotMatch(css, /--phx-nutrition-gold/)
+  assert.doesNotMatch(css, /rgba\(255,\s*159,\s*67/)
 })
 
 test('today protocol is a routed green operational surface with truthful command boundaries', async () => {
