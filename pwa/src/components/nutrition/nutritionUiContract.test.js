@@ -48,7 +48,30 @@ test('nutrition cockpit keeps safety language claim-free', async () => {
   ]) assert.equal(source.includes(forbidden), false)
 })
 
-test('today protocol is a routed orange operational surface with truthful command boundaries', async () => {
+test('every nutrition surface uses the green identity palette', async () => {
+  const files = [
+    'NutritionDashboard.jsx', 'TodayProtocol.jsx', 'ShoppingList.jsx',
+    'LogMeal.jsx', 'MealBuilder.jsx', 'NutritionMemory.jsx',
+    'WeightHistory.jsx', 'RecipeList.jsx', 'WeeklyPlanner.jsx',
+    'DayPlanner.jsx', 'CalendarNutritionBridge.jsx',
+    'NutritionAcceptanceGate.jsx', 'nutriHud.jsx',
+  ]
+  const sources = await Promise.all(
+    files.map(file => readFile(new URL(`./${file}`, import.meta.url), 'utf8'))
+  )
+  for (const source of sources) {
+    assert.equal(source.includes('#ff9f43'), false)
+    assert.equal(source.includes('#ffd166'), false)
+    assert.equal(source.includes('rgba(255,209,102'), false)
+  }
+
+  const css = await readFile(new URL('../cockpit/cockpit.css', import.meta.url), 'utf8')
+  assert.match(css, /--phx-nutrition-green: #9dff6f/)
+  assert.doesNotMatch(css, /--phx-nutrition-orange/)
+  assert.doesNotMatch(css, /--phx-nutrition-gold/)
+})
+
+test('today protocol is a routed green operational surface with truthful command boundaries', async () => {
   const base = new URL('.', import.meta.url)
   const [protocol, flow, model, dashboard, app, holoCommand, holoDomains, client, css] = await Promise.all([
     readFile(new URL('./TodayProtocol.jsx', base), 'utf8'),
@@ -110,8 +133,8 @@ test('today protocol is a routed orange operational surface with truthful comman
   ]) assert.match(client, new RegExp(token))
 
   for (const token of [
-    '--phx-nutrition-orange: #ff9f43',
-    '--phx-nutrition-gold: #ffd166',
+    '--phx-nutrition-green: #9dff6f',
+    '--phx-nutrition-green-bright: #d5ffc7',
     '.phx-today-protocol-meal-grid',
     'grid-template-columns: repeat(2, minmax(0, 1fr))',
     '.phx-today-protocol-command-grid',

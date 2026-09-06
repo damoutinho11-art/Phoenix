@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { getNutritionShoppingList } from '../../api/client'
+import {
+  NUTRITION_GREEN as LIME,
+  NUTRITION_GREEN_BRIGHT as LIME_BR,
+  NUTRITION_GREEN_BORDER as BORDER,
+  NUTRITION_GREEN_MUTED as MUTED,
+  NUTRITION_TEXT_DIM as TEXT_DIM,
+} from './nutritionTheme'
 
-const LIME = '#9dff6f'
-const LIME_BR = '#d5ffc7'
-const BORDER = 'rgba(255,209,102,.18)'
-const MUTED = 'rgba(255,209,102,.38)'
-const TEXT_DIM = 'rgba(190,214,202,.72)'
-const CYAN = '#ffd166'
+const CYAN = LIME
 
 function fmt(value, suffix = '') {
   const n = Number(value || 0)
@@ -39,17 +41,17 @@ function SummaryCard({ label, value, tone = LIME_BR }) {
 }
 
 function ItemRow({ item, mode = 'buy' }) {
-  const border = mode === 'have' ? 'rgba(255,209,102,.14)' : 'rgba(157,255,111,.15)'
-  const bg = mode === 'have' ? 'rgba(255,209,102,.025)' : 'rgba(157,255,111,.025)'
+  const border = mode === 'have' ? 'rgba(157,255,111,.14)' : 'rgba(157,255,111,.15)'
+  const bg = mode === 'have' ? 'rgba(157,255,111,.025)' : 'rgba(157,255,111,.025)'
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '10px 0', borderBottom: `1px solid rgba(255,209,102,.08)` }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, padding: '10px 0', borderBottom: `1px solid rgba(157,255,111,.08)` }}>
       <div>
         <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '.04em' }}>{item.name}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
           <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: mode === 'have' ? CYAN : LIME, border: `1px solid ${border}`, background: bg, padding: '3px 6px' }}>{String(item.category || 'other').toUpperCase()}</span>
-          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM, border: `1px solid rgba(255,209,102,.12)`, padding: '3px 6px' }}><Quantity item={item} /></span>
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM, border: `1px solid rgba(157,255,111,.12)`, padding: '3px 6px' }}><Quantity item={item} /></span>
           {item.source_label && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: LIME_BR, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.04)', padding: '3px 6px' }}>{item.source_label}</span>}
-          {item.already_have && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(255,209,102,.24)`, background: 'rgba(255,209,102,.04)', padding: '3px 6px' }}>PANTRY</span>}
+          {item.already_have && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.04)', padding: '3px 6px' }}>PANTRY</span>}
         </div>
       </div>
       <div style={{ textAlign: 'right', fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: TEXT_DIM }}>
@@ -63,8 +65,8 @@ function ItemRow({ item, mode = 'buy' }) {
 
 function Section({ title, subtitle, children, accent = LIME }) {
   return (
-    <div style={{ margin: '14px 18px 0', border: `1px solid rgba(255,209,102,.14)`, background: 'rgba(0,0,0,.16)' }}>
-      <div style={{ padding: '12px 13px', borderBottom: `1px solid rgba(255,209,102,.10)`, display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+    <div style={{ margin: '14px 18px 0', border: `1px solid rgba(157,255,111,.14)`, background: 'rgba(0,0,0,.16)' }}>
+      <div style={{ padding: '12px 13px', borderBottom: `1px solid rgba(157,255,111,.10)`, display: 'flex', justifyContent: 'space-between', gap: 10 }}>
         <div>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7.5, letterSpacing: '.18em', color: accent }}>{title}</div>
           {subtitle && <div style={{ fontSize: 12, lineHeight: 1.45, color: TEXT_DIM, marginTop: 4 }}>{subtitle}</div>}
@@ -145,10 +147,10 @@ export default function ShoppingList({ onBack }) {
 
         {Object.keys(categories).length > 0 && <Section title="LIDL CATEGORIES" subtitle="Same missing ingredients grouped for shopping speed.">
           {Object.entries(categories).map(([category, items]) => (
-            <div key={category} style={{ padding: '10px 0', borderBottom: `1px solid rgba(255,209,102,.08)` }}>
+            <div key={category} style={{ padding: '10px 0', borderBottom: `1px solid rgba(157,255,111,.08)` }}>
               <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, marginBottom: 6 }}>{category.toUpperCase()}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {items.map(item => <span key={`${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(255,209,102,.12)`, padding: '4px 7px' }}>{item.name} · <Money value={item.estimated_cost_eur} /></span>)}
+                {items.map(item => <span key={`${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(157,255,111,.12)`, padding: '4px 7px' }}>{item.name} · <Money value={item.estimated_cost_eur} /></span>)}
               </div>
             </div>
           ))}
@@ -162,7 +164,7 @@ export default function ShoppingList({ onBack }) {
           {data.budget_basket.map(item => <ItemRow key={`budget-${item.item_id}-${item.name}`} item={item} />)}
         </Section>}
 
-        <div style={{ margin: '14px 18px 16px', padding: '11px 13px', border: `1px solid rgba(255,209,102,.16)`, background: 'rgba(255,209,102,.025)' }}>
+        <div style={{ margin: '14px 18px 16px', padding: '11px 13px', border: `1px solid rgba(157,255,111,.16)`, background: 'rgba(157,255,111,.025)' }}>
           <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Grocery mode is a checklist only. Prices are estimates from the local Lidl staple database, and recipes may need manual ingredient review. Phoenix never purchases anything.

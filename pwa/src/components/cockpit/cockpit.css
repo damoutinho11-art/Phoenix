@@ -13527,8 +13527,8 @@
 
 /* NUTRITION_TODAY_PROTOCOL_V1 */
 .phx-today-protocol-cockpit {
-  --phx-nutrition-orange: #ff9f43;
-  --phx-nutrition-gold: #ffd166;
+  --phx-nutrition-green: #9dff6f;
+  --phx-nutrition-green-bright: #d5ffc7;
 }
 
 .phx-today-protocol-frame {
@@ -13560,7 +13560,7 @@
 .phx-today-protocol-metric span,
 .phx-today-protocol-portion > span,
 .phx-today-protocol-item small {
-  color: var(--phx-nutrition-gold);
+  color: var(--phx-nutrition-green-bright);
   font-family: var(--phx-font-mono, monospace);
   font-size: 0.62rem;
   letter-spacing: 0.08em;
@@ -13600,7 +13600,7 @@
   border: 1px solid rgba(255, 159, 67, 0.42);
   border-radius: 4px;
   background: rgba(255, 159, 67, 0.1);
-  color: var(--phx-nutrition-gold);
+  color: var(--phx-nutrition-green-bright);
   cursor: pointer;
   font-family: var(--phx-font-mono, monospace);
   font-size: 0.62rem;
@@ -13612,8 +13612,8 @@
 .phx-today-protocol-command-grid button:hover,
 .phx-today-protocol-confirm button:hover,
 .phx-today-protocol-retry button:hover {
-  border-color: var(--phx-nutrition-gold);
-  background: rgba(255, 209, 102, 0.14);
+  border-color: var(--phx-nutrition-green-bright);
+  background: rgba(157, 255, 111, 0.14);
 }
 
 .phx-today-protocol-hero button:disabled,
@@ -13648,7 +13648,7 @@
   display: grid;
   align-content: space-between;
   gap: 0.35rem;
-  border-left: 2px solid var(--phx-nutrition-orange);
+  border-left: 2px solid var(--phx-nutrition-green);
   padding: 0.35rem 0.5rem;
   background: rgba(255, 159, 67, 0.06);
 }
@@ -13663,7 +13663,7 @@
 .phx-today-protocol-alert {
   justify-content: space-between;
   padding: 0.65rem 0.8rem;
-  color: var(--phx-nutrition-gold);
+  color: var(--phx-nutrition-green-bright);
   font-family: var(--phx-font-mono, monospace);
   font-size: 0.72rem;
 }
@@ -13707,7 +13707,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.18rem 0.6rem;
-  border-left: 2px solid rgba(255, 209, 102, 0.56);
+  border-left: 2px solid rgba(157, 255, 111, 0.56);
   padding: 0.28rem 0.45rem;
   background: rgba(255, 255, 255, 0.025);
 }
@@ -13727,7 +13727,7 @@
   min-height: 2rem;
   border-top: 1px solid rgba(255, 159, 67, 0.18);
   padding-top: 0.55rem;
-  color: var(--phx-nutrition-gold);
+  color: var(--phx-nutrition-green-bright);
   font-family: var(--phx-font-mono, monospace);
   font-size: 0.66rem;
 }
@@ -13764,9 +13764,9 @@
 .phx-today-protocol-confirm {
   justify-content: flex-end;
   flex-wrap: wrap;
-  border-top: 1px solid rgba(255, 209, 102, 0.24);
+  border-top: 1px solid rgba(157, 255, 111, 0.24);
   padding-top: 0.6rem;
-  color: var(--phx-nutrition-gold);
+  color: var(--phx-nutrition-green-bright);
   font-family: var(--phx-font-mono, monospace);
   font-size: 0.65rem;
 }

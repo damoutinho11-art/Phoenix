@@ -15,7 +15,7 @@ import {
   STALE_PROTOCOL_MESSAGE,
 } from './todayProtocolFlow'
 
-const ORANGE = '#ff9f43'
+const ORANGE = '#9dff6f'
 
 function metric(value, suffix = '') {
   return Number.isFinite(value) ? `${value}${suffix}` : 'UNAVAILABLE'

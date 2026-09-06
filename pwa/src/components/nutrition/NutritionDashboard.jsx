@@ -4,11 +4,11 @@ import { CockpitShell, DataPanel, EmptyState, SourceStamp, StatusChip } from '..
 import { buildNutritionDashboardModel } from './nutritionDashboardModel'
 
 
-const LIME = '#ff9f43'
+const LIME = '#9dff6f'
 const LIME_BR = '#d5ffc7'
-const PROTEIN_COL = '#ffd166'
+const PROTEIN_COL = '#9dff6f'
 const CARB_COL = '#ffd56b'
-const FAT_COL = '#ff9f43'
+const FAT_COL = '#9dff6f'
 
 function safeRound(value) {
   const n = Number(value)

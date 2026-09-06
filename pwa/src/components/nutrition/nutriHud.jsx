@@ -18,9 +18,9 @@ const KEYFRAMES = `
 export const NU = {
   lime: '#9dff6f',
   limeBr: '#d5ffc7',
-  gold: '#ffd166',
-  goldMut: 'rgba(255,209,102,.45)',
-  border: 'rgba(255,209,102,.2)',
+  gold: '#9dff6f',
+  goldMut: 'rgba(157,255,111,.45)',
+  border: 'rgba(157,255,111,.2)',
   borderLime: 'rgba(157,255,111,.28)',
   text: 'rgba(240,255,240,.94)',
   dim: 'rgba(190,214,202,.72)',

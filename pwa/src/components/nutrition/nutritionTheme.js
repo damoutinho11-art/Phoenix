@@ -1,0 +1,7 @@
+export const NUTRITION_GREEN = '#9dff6f'
+export const NUTRITION_GREEN_BRIGHT = '#d5ffc7'
+export const NUTRITION_GREEN_BORDER = 'rgba(157,255,111,.18)'
+export const NUTRITION_GREEN_MUTED = 'rgba(157,255,111,.42)'
+export const NUTRITION_GREEN_SURFACE = 'rgba(157,255,111,.04)'
+export const NUTRITION_TEXT = 'rgba(220,248,236,.94)'
+export const NUTRITION_TEXT_DIM = 'rgba(190,214,202,.72)'

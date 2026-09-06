@@ -185,7 +185,7 @@ export function buildNutritionDashboardModel(status, historyData) {
       remaining: Math.max(0, roundWhole(remainingFat)),
       unit: 'g',
       pct: fatPct,
-      color: '#ff9f43',
+      color: '#9dff6f',
       state: macroState(fatLogged, fatTarget),
     },
   ]
