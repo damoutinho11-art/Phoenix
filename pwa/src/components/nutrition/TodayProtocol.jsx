@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   getRecompositionReview,
+  getNutritionMemory,
   getTodayProtocol,
   postTodayProtocolLogMeal,
   postTodayProtocolReplan,
@@ -30,7 +31,7 @@ function TargetMetric({ label, value, suffix }) {
   )
 }
 
-function MealRow({ meal, pending, portionInputs, onPortionChange, onLog, onReplan, confirmMealId, onCancelLog, onConfirmLog }) {
+function MealRow({ meal, pending, portionInputs, onPortionChange, onLog, onReplan, confirmMealId, onCancelLog, onConfirmLog, pantryEggs, pantryOpen, onTogglePantry }) {
   const primaryItem = meal.items[0]
   const portionKey = primaryItem ? `${meal.meal_id}:${primaryItem.item_id}` : null
   const total = meal.total || {}
@@ -88,6 +89,19 @@ function MealRow({ meal, pending, portionInputs, onPortionChange, onLog, onRepla
         <button type="button" onClick={() => onReplan('skip', meal)} disabled={pending}>SKIP</button>
       </div>
 
+      {pantryEggs && (
+        <div className="phx-today-protocol-pantry">
+          <button type="button" onClick={() => onTogglePantry(meal.meal_id)} disabled={pending}>USE FOOD I HAVE</button>
+          {pantryOpen && (
+            <div>
+              <strong>EGGS · {pantryEggs.count} AVAILABLE</strong>
+              <span>2 eggs · 120 g · inventory estimate</span>
+              <button type="button" onClick={() => onReplan('replace_pantry', meal, pantryEggs)} disabled={pending || pantryEggs.count < 2}>PREVIEW 2 EGGS</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {confirmMealId === meal.meal_id && (
         <div className="phx-today-protocol-confirm" role="alert">
           <span>LOG THIS MEAL AS EATEN?</span>
@@ -104,6 +118,7 @@ const defaultApi = {
   getRecompositionReview,
   postTodayProtocolLogMeal,
   postTodayProtocolReplan,
+  getNutritionMemory,
 }
 
 export default function TodayProtocol({ onBack, api = defaultApi }) {
@@ -115,15 +130,23 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
   const [pending, setPending] = useState(false)
   const [confirmMealId, setConfirmMealId] = useState(null)
   const [portionInputs, setPortionInputs] = useState({})
+  const [pantryEggs, setPantryEggs] = useState(null)
+  const [pantryOpenMeal, setPantryOpenMeal] = useState(null)
   const pendingRef = useRef(false)
 
   async function load() {
     setLoading(true)
     setLoadError(null)
     try {
-      const snapshot = await loadProtocolSnapshot(api.getTodayProtocol, api.getRecompositionReview)
+      const [snapshot, pantry] = await Promise.all([
+        loadProtocolSnapshot(api.getTodayProtocol, api.getRecompositionReview),
+        api.getNutritionMemory?.('pantry').catch(() => ({ entries: [] })) ?? { entries: [] },
+      ])
       setProtocol(snapshot.protocol)
       setReview(snapshot.review)
+      const egg = (pantry.entries || []).find(entry => entry.item_id === 'lidl_002')
+      const count = Number(egg?.payload?.count || 0)
+      setPantryEggs(count > 0 ? { itemId: 'lidl_002', count, gramsEach: Number(egg.payload.quantity_g) / count || 60 } : null)
       if (snapshot.reviewUnavailable) setLoadError('Adjustment review unavailable. Today Protocol remains current.')
     } catch (error) {
       setLoadError('Today Protocol unavailable. Check that the backend is running.')
@@ -172,7 +195,7 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
   }
 
   async function replan(action, meal, item, portionKey) {
-    const payload = { protocol_id: protocol.protocol_id, action, meal_id: meal.meal_id }
+    const payload = { protocol_id: protocol.protocol_id, action: action === 'replace_pantry' ? 'replace' : action, meal_id: meal.meal_id }
     if (action === 'adjust_portion') {
       const quantity = Number(portionInputs[portionKey] ?? item?.quantity_g)
       if (!Number.isFinite(quantity) || quantity <= 0 || !item?.item_id) {
@@ -181,6 +204,10 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
       }
       payload.item_id = item.item_id
       payload.quantity_g = quantity
+    }
+    if (action === 'replace_pantry') {
+      payload.replacement_item_id = item.itemId
+      payload.quantity_g = item.gramsEach * 2
     }
 
     await runAction(async () => {
@@ -259,7 +286,7 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
 
         <section className="phx-today-protocol-meal-grid" aria-label="Returned protocol meal rows">
           {model.meals.map(meal => (
-            <MealRow
+          <MealRow
               key={meal.meal_id || meal.title}
               meal={meal}
               pending={pending}
@@ -269,7 +296,10 @@ export default function TodayProtocol({ onBack, api = defaultApi }) {
               onReplan={replan}
               confirmMealId={confirmMealId}
               onCancelLog={() => setConfirmMealId(null)}
-              onConfirmLog={confirmLog}
+            onConfirmLog={confirmLog}
+            pantryEggs={pantryEggs}
+            pantryOpen={pantryOpenMeal === meal.meal_id}
+            onTogglePantry={mealId => setPantryOpenMeal(current => current === mealId ? null : mealId)}
             />
           ))}
         </section>

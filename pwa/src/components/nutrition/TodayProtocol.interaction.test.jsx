@@ -29,6 +29,7 @@ function api(overrides = {}) {
     getRecompositionReview: vi.fn().mockResolvedValue({ status: 'insufficient_evidence', complete_days: 0 }),
     postTodayProtocolLogMeal: vi.fn().mockResolvedValue({ status: 'logged' }),
     postTodayProtocolReplan: vi.fn().mockResolvedValue(protocol),
+    getNutritionMemory: vi.fn().mockResolvedValue({ entries: [] }),
     ...overrides,
   }
 }
@@ -109,5 +110,29 @@ describe('TodayProtocol command boundary', () => {
     expect(await screen.findByText(/Protocol changed\. Refresh before continuing\./i)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'REFRESH' })).toBeTruthy()
     expect(screen.getByRole('spinbutton', { name: 'Adjust Cookie Crisp grams' }).value).toBe('125')
+  })
+
+  it('previews two counted pantry eggs without logging a meal', async () => {
+    const client = api({
+      getNutritionMemory: vi.fn().mockResolvedValue({ entries: [{
+        kind: 'pantry', item_id: 'lidl_002', name: 'Eggs',
+        payload: { count: 20, quantity_g: 1200, unit: '1 egg (60g)' },
+      }] }),
+    })
+    const user = userEvent.setup()
+    render(<TodayProtocol api={client} />)
+
+    await user.click(await screen.findByRole('button', { name: 'USE FOOD I HAVE' }))
+    expect(screen.getByText(/EGGS · 20 AVAILABLE/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'PREVIEW 2 EGGS' }))
+
+    await waitFor(() => expect(client.postTodayProtocolReplan).toHaveBeenCalledWith({
+      protocol_id: protocol.protocol_id,
+      action: 'replace',
+      meal_id: 'breakfast',
+      replacement_item_id: 'lidl_002',
+      quantity_g: 120,
+    }))
+    expect(client.postTodayProtocolLogMeal).not.toHaveBeenCalled()
   })
 })

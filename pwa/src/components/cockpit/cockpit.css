@@ -13761,6 +13761,33 @@
   overflow-wrap: anywhere;
 }
 
+.phx-today-protocol-pantry {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid rgba(157, 255, 111, 0.22);
+  border-radius: 4px;
+  background: rgba(157, 255, 111, 0.035);
+  padding: 0.55rem;
+}
+
+.phx-today-protocol-pantry > button,
+.phx-today-protocol-pantry > div > button {
+  min-height: 2.35rem;
+  border: 1px solid rgba(157, 255, 111, 0.36);
+  color: var(--phx-nutrition-green-bright);
+  font-family: var(--phx-font-mono, monospace);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+}
+
+.phx-today-protocol-pantry > div {
+  display: grid;
+  gap: 0.4rem;
+  color: rgba(220, 248, 236, 0.76);
+  font-family: var(--phx-font-mono, monospace);
+  font-size: 0.66rem;
+}
+
 .phx-today-protocol-confirm {
   justify-content: flex-end;
   flex-wrap: wrap;

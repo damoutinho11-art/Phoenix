@@ -110,6 +110,7 @@ class ReplanProtocolRequest(BaseModel):
     action: Literal["skip", "replace", "adjust_portion"]
     meal_id: str = Field(min_length=1)
     item_id: str | None = None
+    replacement_item_id: str | None = None
     quantity_g: float | None = Field(default=None, gt=0)
 
 

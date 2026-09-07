@@ -246,6 +246,25 @@ def test_replan_replace_uses_an_allowed_nearest_macro_match():
     assert all(item["quantity_g"] > 0 for item in meal["items"])
 
 
+def test_replan_replace_uses_an_explicit_food_quantity_without_logging_it():
+    egg = {"id": "egg", "name": "Eggs", "reference_g": 60, "calories": 78, "protein_g": 6, "carbs_g": 0.6, "fat_g": 5, "fibre_g": 0, "label_state": "inventory_estimate"}
+    protocol = build_today_protocol(
+        target_date=date(2026, 8, 27), status=status_for(), foods=[*FOODS, egg],
+        memory_entries=[{"kind": "pantry", "item_id": "egg", "name": "Eggs"}],
+        calendar_blocks=[], constitution=CONSTITUTION, logged_meals=[],
+    )
+
+    result = replan_protocol(protocol, {
+        "type": "replace", "meal_id": "breakfast",
+        "replacement_item_id": "egg", "quantity_g": 120,
+    }, [*FOODS, egg])
+    breakfast = next(meal for meal in result["meals"] if meal["meal_id"] == "breakfast")
+
+    assert [(item["item_id"], item["quantity_g"]) for item in breakfast["items"]] == [("egg", 120.0)]
+    assert result["logged_meals"] == []
+    assert result["requires_approval"] is True
+
+
 def test_replan_preserves_all_avoided_foods_while_rebalancing():
     protocol = build_protocol_for(target=TARGET, memory_entries=[{"kind": "dislike", "name": "pasta"}])
     result = replan_protocol(protocol, {"type": "skip", "meal_id": "dinner"}, FOODS)

@@ -623,11 +623,30 @@ def replan_protocol(protocol: dict, action: dict, foods: list[dict]) -> dict:
             _refresh_meal_total(meal)
             protected.add((meal_id, item_id))
         else:
-            meal["items"] = [_nearest_replacement(
-                meal,
-                _allowed_protocol_foods(result, foods),
-                result.get("food_constraints", {}).get("measurement_rules", {}),
-            )]
+            replacement_item_id = action.get("replacement_item_id")
+            if replacement_item_id:
+                food = _find_food(foods, replacement_item_id)
+                if food not in _allowed_protocol_foods(result, foods):
+                    raise ValueError("Unknown protocol food")
+                quantity_g = float(action.get("quantity_g", 0))
+                if quantity_g <= 0:
+                    raise ValueError("Replacement quantity must be positive")
+                replacement = exact_component(
+                    food,
+                    quantity_g,
+                    measurement_state_for_food(
+                        food,
+                        {"measurement_rules": result.get("food_constraints", {}).get("measurement_rules", {})},
+                    ),
+                )
+                meal["items"] = [replacement]
+                protected.add((meal_id, replacement_item_id))
+            else:
+                meal["items"] = [_nearest_replacement(
+                    meal,
+                    _allowed_protocol_foods(result, foods),
+                    result.get("food_constraints", {}).get("measurement_rules", {}),
+                )]
             _refresh_meal_total(meal)
     result = _rebalance_unlogged_meals(result, foods, protected)
     canonical = json.dumps(
