@@ -344,3 +344,107 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 }
 .nav-btn.active .nav-icon,
 .nav-btn.active .nav-label { filter: drop-shadow(0 0 4px currentColor); }
+
+/* ── INSTALL PHOENIX ── */
+.install-phoenix {
+  position: fixed;
+  right: max(11px, calc((100vw - 680px) / 2 + 11px));
+  bottom: calc(61px + env(safe-area-inset-bottom));
+  z-index: 120;
+  display: flex;
+  width: min(360px, calc(100vw - 22px));
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.install-phoenix-row {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.install-phoenix-status {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.install-phoenix-button,
+.install-phoenix-dismiss {
+  pointer-events: auto;
+}
+
+.install-phoenix-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--cyan-br);
+  background: linear-gradient(135deg, rgba(32,216,236,.24), rgba(4,36,44,.92));
+  box-shadow: 0 0 18px rgba(32,216,236,.22), inset 0 0 12px rgba(125,240,255,.08);
+  color: #eaffff;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+  transition: background .2s, box-shadow .2s, opacity .2s;
+}
+
+.install-phoenix-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(32,216,236,.36), rgba(4,36,44,.96));
+  box-shadow: 0 0 24px rgba(32,216,236,.34), inset 0 0 14px rgba(125,240,255,.12);
+}
+
+.install-phoenix-button:focus-visible,
+.install-phoenix-dismiss:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.install-phoenix-button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.install-phoenix-panel {
+  position: relative;
+  width: 100%;
+  padding: 11px 38px 11px 13px;
+  border: 1px solid rgba(125,240,255,.52);
+  background: rgba(1,12,16,.96);
+  box-shadow: 0 12px 30px rgba(0,0,0,.42), 0 0 18px rgba(32,216,236,.14);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.55;
+  letter-spacing: .04em;
+  pointer-events: auto;
+}
+
+.install-phoenix-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--cyan-br);
+  font-size: 18px;
+  line-height: 1;
+}
+
+@media (max-width: 520px) {
+  .install-phoenix-row {
+    width: 100%;
+  }
+
+  .install-phoenix-status {
+    flex: 1;
+  }
+}

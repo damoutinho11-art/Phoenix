@@ -21,6 +21,7 @@ import CalendarDashboard from './components/calendar/CalendarDashboard'
 import EventDetail from './components/calendar/EventDetail'
 import CalendarFeedPublisher from './components/calendar/CalendarFeedPublisher'
 import ConnectorsPanel from './components/calendar/ConnectorsPanel'
+import InstallPhoenix from './components/InstallPhoenix'
 
 export default function App() {
   const [tab, setTab] = useState('home')
@@ -141,7 +142,12 @@ export default function App() {
 
   if (tab === 'home') {
     // Holo Command hosts all five domains itself (dock, keys 1–5, ESC walkback).
-    return <HoloCommand />
+    return (
+      <>
+        <HoloCommand />
+        <InstallPhoenix />
+      </>
+    )
   }
 
   return (
@@ -150,6 +156,7 @@ export default function App() {
       <div key={tab} className="screen-enter" style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {renderContent()}
       </div>
+      <InstallPhoenix />
       <div style={{ flexShrink: 0 }}>
         <BottomNav tab={tab} onTab={switchTab} />
       </div>
