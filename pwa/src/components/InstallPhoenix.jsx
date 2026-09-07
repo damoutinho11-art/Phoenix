@@ -8,8 +8,9 @@ function displayMode(windowRef) {
     : 'browser'
 }
 
-export default function InstallPhoenix({ createController = createPwaInstallController }) {
+export default function InstallPhoenix({ createController = createPwaInstallController, placement = 'nav' }) {
   const controllerRef = useRef(null)
+  const installButtonRef = useRef(null)
   const [snapshot, setSnapshot] = useState(null)
   const [instructionsDismissed, setInstructionsDismissed] = useState(false)
 
@@ -44,31 +45,62 @@ export default function InstallPhoenix({ createController = createPwaInstallCont
     await controllerRef.current?.install()
   }
 
+  function dismissInstructions() {
+    installButtonRef.current?.focus()
+    setInstructionsDismissed(true)
+  }
+
+  const announcement = showInstructions
+    ? 'Manual install instructions: Chrome menu → Add to Home screen → Install'
+    : prompting
+      ? 'Opening Android install prompt…'
+      : snapshot.status === 'dismissed'
+        ? 'Installation dismissed. Phoenix was not installed.'
+        : ''
+
   return (
-    <aside className="install-phoenix" aria-label="Install Phoenix">
-      {showInstructions && (
-        <div className="install-phoenix-panel">
-          <p>Chrome menu → Add to Home screen → Install</p>
-          <button
-            type="button"
-            className="install-phoenix-dismiss"
-            aria-label="Dismiss install instructions"
-            onClick={() => setInstructionsDismissed(true)}
-          >
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-      )}
+    <aside className={`install-phoenix install-phoenix--${placement}`} aria-label="Install Phoenix">
+      <div
+        className="install-phoenix-announcement"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {announcement}
+      </div>
+
+      <div
+        id="install-phoenix-instructions"
+        className="install-phoenix-panel"
+        hidden={!showInstructions}
+      >
+        {showInstructions && (
+          <>
+            <p>Chrome menu → Add to Home screen → Install</p>
+            <button
+              type="button"
+              className="install-phoenix-dismiss"
+              aria-label="Dismiss install instructions"
+              onClick={dismissInstructions}
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="install-phoenix-row">
-        <div className="install-phoenix-status" aria-live="polite">
+        <div className="install-phoenix-status">
           {prompting && 'Opening Android install prompt…'}
           {snapshot.status === 'dismissed' && 'Installation dismissed. Phoenix was not installed.'}
         </div>
         <button
+          ref={installButtonRef}
           type="button"
           className="install-phoenix-button"
           disabled={prompting}
+          aria-expanded={showInstructions}
+          aria-controls="install-phoenix-instructions"
           onClick={requestInstall}
         >
           INSTALL PHOENIX

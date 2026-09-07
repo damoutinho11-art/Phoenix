@@ -359,6 +359,10 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
   pointer-events: none;
 }
 
+.install-phoenix--holo {
+  bottom: calc(126px + env(safe-area-inset-bottom));
+}
+
 .install-phoenix-row {
   display: flex;
   max-width: 100%;
@@ -373,6 +377,15 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
   font-size: 8px;
   line-height: 1.35;
   text-align: right;
+}
+
+.install-phoenix-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .install-phoenix-button,

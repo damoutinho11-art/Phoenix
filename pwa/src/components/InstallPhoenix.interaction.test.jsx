@@ -5,13 +5,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import InstallPhoenix from './InstallPhoenix'
 
-function createController(snapshot) {
-  return {
+function createController(initialSnapshot) {
+  let snapshot = initialSnapshot
+  const listeners = new Set()
+  const controller = {
     dispose: vi.fn(),
     getSnapshot: vi.fn(() => snapshot),
     install: vi.fn(),
-    subscribe: vi.fn(() => vi.fn()),
+    subscribe: vi.fn(listener => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    }),
+    publish(nextSnapshot) {
+      snapshot = nextSnapshot
+      for (const listener of listeners) listener()
+    },
   }
+  return controller
 }
 
 afterEach(cleanup)
@@ -48,6 +58,64 @@ describe('InstallPhoenix', () => {
     expect(screen.queryByText('Chrome menu → Add to Home screen → Install')).toBeNull()
   })
 
+  it('announces manual fallback from a persistent region associated with the install button', async () => {
+    const controller = createController({
+      available: true,
+      standalone: false,
+      status: 'idle',
+      showInstructions: false,
+    })
+    controller.install.mockImplementation(async () => {
+      controller.publish({
+        available: true,
+        standalone: false,
+        status: 'manual',
+        showInstructions: true,
+      })
+    })
+    const user = userEvent.setup()
+
+    render(<InstallPhoenix createController={() => controller} />)
+
+    const installButton = await screen.findByRole('button', { name: 'INSTALL PHOENIX' })
+    const liveRegion = screen.getByRole('status')
+    expect(liveRegion.textContent).toBe('')
+    expect(installButton.getAttribute('aria-expanded')).toBe('false')
+    expect(installButton.getAttribute('aria-controls')).toBe('install-phoenix-instructions')
+    const controlledPanel = document.getElementById(installButton.getAttribute('aria-controls'))
+    expect(controlledPanel).not.toBeNull()
+    expect(controlledPanel.hidden).toBe(true)
+
+    await user.click(installButton)
+
+    await waitFor(() => expect(installButton.getAttribute('aria-expanded')).toBe('true'))
+    const instructions = screen.getByText('Chrome menu → Add to Home screen → Install')
+    expect(controlledPanel.hidden).toBe(false)
+    expect(controlledPanel.contains(instructions)).toBe(true)
+    expect(screen.getByRole('status')).toBe(liveRegion)
+    expect(liveRegion.textContent).toContain('Chrome menu → Add to Home screen → Install')
+  })
+
+  it('collapses manual instructions and returns focus to the install button', async () => {
+    const controller = createController({
+      available: true,
+      standalone: false,
+      status: 'manual',
+      showInstructions: true,
+    })
+    const user = userEvent.setup()
+
+    render(<InstallPhoenix createController={() => controller} />)
+
+    const installButton = await screen.findByRole('button', { name: 'INSTALL PHOENIX' })
+    expect(installButton.getAttribute('aria-expanded')).toBe('true')
+    await user.click(screen.getByRole('button', { name: 'Dismiss install instructions' }))
+
+    expect(installButton.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(installButton)
+    expect(screen.queryByText('Chrome menu → Add to Home screen → Install')).toBeNull()
+  })
+
   it('reports a dismissed native prompt without claiming installation', async () => {
     const controller = createController({
       available: true,
@@ -58,7 +126,7 @@ describe('InstallPhoenix', () => {
 
     render(<InstallPhoenix createController={() => controller} />)
 
-    expect(await screen.findByText('Installation dismissed. Phoenix was not installed.')).toBeTruthy()
+    expect((await screen.findByRole('status')).textContent).toBe('Installation dismissed. Phoenix was not installed.')
     expect(screen.getByRole('button', { name: 'INSTALL PHOENIX' })).toBeTruthy()
   })
 

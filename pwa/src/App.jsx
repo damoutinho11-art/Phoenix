@@ -145,7 +145,7 @@ export default function App() {
     return (
       <>
         <HoloCommand />
-        <InstallPhoenix />
+        <InstallPhoenix placement="holo" />
       </>
     )
   }
