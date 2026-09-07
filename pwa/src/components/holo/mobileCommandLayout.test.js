@@ -47,6 +47,19 @@ test('mobile command surface exposes stable geometry hooks for browser measureme
   assert.match(mobile, /data-phx-mobile-panel/)
 })
 
+test('mobile Home reserves separate vertical bands for the reactor readout and command composer', async () => {
+  const command = await src('./HoloCommand.jsx')
+  const core = await src('./HoloCore.jsx')
+
+  assert.match(command, /const showChips = !isShort && !isMobile/)
+  assert.match(core, /const isMobileHome = isMobile && isHome/)
+  assert.match(core, /const coreTop = isMobileCommand[\s\S]*?: isMobileHome[\s\S]*?'36%'/)
+  assert.match(core, /const coreSize = isMobileCommand[\s\S]*?: isMobileHome[\s\S]*?'min\(36vmin, 232px\)'/)
+  assert.match(core, /const readoutTop = isMobileCommand[\s\S]*?: isMobileHome[\s\S]*?'min\(17vmin, 108px\)'/)
+  assert.match(core, /const resolvedReadoutTransform = isMobileHome \? 'translate\(-50%, 22px\)' : readoutTransform/)
+  assert.match(core, /const readoutTitleSize = isMobileCommand[\s\S]*?: isMobileHome[\s\S]*?'clamp\(38px, 10\.5vw, 52px\)'/)
+})
+
 test('mobile command CSS locks the approved phone readability, spacing, and scrolling contract', async () => {
   const css = await src('./holo.css')
   const mobileRule = css.match(/\.holo-mobile-domain\s*\{[\s\S]*?\n  \}/)?.[0] || ''

@@ -25,8 +25,17 @@ export default function HoloCore({
   const heroAmount = isMoneyReadout ? heroMain.slice(1) : heroMain
   const heroReadoutOffset = isShort ? 34 : 42
   const isMobileCommand = isMobile && !isHome
-  const coreTop = isMobileCommand ? 'max(94px, calc(94px + env(safe-area-inset-top)))' : isShort ? '36%' : '43%'
-  const coreSize = isMobileCommand ? 'min(29vmin, 174px)' : 'min(44vmin, 372px)'
+  const isMobileHome = isMobile && isHome
+  const coreTop = isMobileCommand
+    ? 'max(94px, calc(94px + env(safe-area-inset-top)))'
+    : isMobileHome
+      ? '36%'
+      : isShort ? '36%' : '43%'
+  const coreSize = isMobileCommand
+    ? 'min(29vmin, 174px)'
+    : isMobileHome
+      ? 'min(36vmin, 232px)'
+      : 'min(44vmin, 372px)'
   const haloSize = isMobileCommand ? 'min(42vmin, 250px)' : '70vmin'
   const haloMax = isMobileCommand ? 250 : 600
   const orbitOne = isMobileCommand ? 'min(24vmin, 142px)' : 'min(38vmin, 322px)'
@@ -39,11 +48,18 @@ export default function HoloCore({
   const padTop = isMobileCommand ? 'min(12.8vmin, 76px)' : 'min(18.6vmin, 158px)'
   const padWidth = isMobileCommand ? 'min(18vmin, 106px)' : 'min(28vmin, 240px)'
   const padHeight = isMobileCommand ? 'min(3.8vmin, 23px)' : 'min(6.4vmin, 56px)'
-  const readoutTop = isMobileCommand ? 'min(12.6vmin, 74px)' : isShort ? 'min(17vmin, 148px)' : 'min(24vmin, 204px)'
+  const readoutTop = isMobileCommand
+    ? 'min(12.6vmin, 74px)'
+    : isMobileHome
+      ? 'min(17vmin, 108px)'
+      : isShort ? 'min(17vmin, 148px)' : 'min(24vmin, 204px)'
   const readoutTransform = isMobileCommand ? 'translate(-50%, 0)' : `translate(-50%, ${heroReadoutOffset}px)`
+  const resolvedReadoutTransform = isMobileHome ? 'translate(-50%, 22px)' : readoutTransform
   const readoutTitleSize = isMobileCommand
     ? (isMoneyReadout ? 'clamp(28px, 8.6vw, 38px)' : 'clamp(30px, 8.8vw, 42px)')
-    : isMoneyReadout ? 'clamp(44px, 8.2vmin, 72px)' : isShort ? 'clamp(34px, 6.6vmin, 54px)' : 'clamp(50px, 9.4vmin, 82px)'
+    : isMobileHome
+      ? 'clamp(38px, 10.5vw, 52px)'
+      : isMoneyReadout ? 'clamp(44px, 8.2vmin, 72px)' : isShort ? 'clamp(34px, 6.6vmin, 54px)' : 'clamp(50px, 9.4vmin, 82px)'
   const readoutUnitSize = isMobileCommand ? 10 : isMoneyReadout ? 11 : 12
   const readoutGap = isMobileCommand ? 6 : isHome ? 0 : 10
   const heroLabelSize = isMobileCommand ? 10 : 9
@@ -162,7 +178,7 @@ export default function HoloCore({
         </div>
 
         {/* pedestal hero readout */}
-        <div data-phx-core-readout={isMobileCommand ? '' : undefined} style={{ position: 'absolute', left: 0, top: readoutTop, transform: readoutTransform, textAlign: 'center', whiteSpace: 'nowrap', zIndex: 46 }}>
+        <div data-phx-core-readout={isMobileCommand ? '' : undefined} style={{ position: 'absolute', left: 0, top: readoutTop, transform: resolvedReadoutTransform, textAlign: 'center', whiteSpace: 'nowrap', zIndex: 46 }}>
           <div style={{ animation: 'holo-readoutIn .6s cubic-bezier(.2,.8,.4,1) .3s both' }}>
             {/* On home the unit is taken out of flow so the wordmark itself is
                 dead-center; marginRight cancels the trailing letter-space. */}

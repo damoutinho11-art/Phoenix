@@ -279,7 +279,7 @@ export default function HoloCommand({ startTab = 'home' }) {
   const hot = voiceHot || burst
   const focusPanel = focus ? D.panels.find(p => p.code === focus) : null
   const showTele = !isMobile && !isShort
-  const showChips = !isShort && !(isMobile && !isHome)
+  const showChips = !isShort && !isMobile
   const voiceColor = { idle: a(ACC, '99'), listening: G, processing: Y, speaking: W }[voice]
   const voiceLabel = { idle: 'STANDBY', listening: 'LISTENING', processing: 'PROCESSING', speaking: 'RESPONDING' }[voice]
   const log = chatLog.slice(-3)
