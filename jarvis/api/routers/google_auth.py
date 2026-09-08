@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import os
 import time
+from urllib.parse import parse_qs
+from jarvis.api.access_control import configured_key_digest
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
@@ -23,6 +25,23 @@ _STATE_TTL_SECONDS = 600
 # otherwise generate a new, mismatched verifier. See
 # google_oauth.build_authorization_url() for the full explanation.
 _pending_states: dict[str, dict[str, float | str]] = {}
+
+
+def authorized_callback(scope) -> bool:
+    if scope.get('path') != '/auth/google/callback' or scope.get('method') != 'GET':
+        return False
+    states = parse_qs(scope.get('query_string', b'').decode('ascii', errors='replace')).get('state', [])
+    if len(states) != 1:
+        return False
+    entry = _pending_states.get(states[0])
+    return bool(entry and time.time() - entry['created'] <= _STATE_TTL_SECONDS
+                and entry.get('owner_digest') == configured_key_digest())
+
+
+@router.post('/start')
+def google_start() -> dict:
+    response = google_login()
+    return {'authorization_url': response.headers['location']}
 
 
 def _public_frontend_url() -> str:
@@ -48,7 +67,8 @@ def google_login() -> RedirectResponse:
     _prune_states()
     state = google_oauth.generate_state_token()
     auth_url, code_verifier = google_oauth.build_authorization_url(state)
-    _pending_states[state] = {"created": time.time(), "code_verifier": code_verifier}
+    _pending_states[state] = {"created": time.time(), "code_verifier": code_verifier,
+                              "owner_digest": configured_key_digest()}
     return RedirectResponse(url=auth_url, status_code=302)
 
 
@@ -72,7 +92,7 @@ def google_callback(code: str | None = Query(default=None), state: str | None = 
         credentials = google_oauth.exchange_code_for_tokens(code, pending["code_verifier"])
         google_oauth.store_credentials(credentials)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Google OAuth token exchange failed: {exc}") from exc
+        raise HTTPException(status_code=400, detail="Google OAuth token exchange failed.") from exc
 
     return RedirectResponse(url=f"{_public_frontend_url()}/calendar?connected=google", status_code=302)
 

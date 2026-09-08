@@ -12,6 +12,7 @@ load_dotenv()  # loads .env from project root if present; no-op otherwise
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from jarvis.api.access_control import AccessControlMiddleware
 
 from jarvis.api.routers import (
     admin,
@@ -157,17 +158,20 @@ _DEPLOY_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+app.add_middleware(AccessControlMiddleware, callback_authorized=google_auth.authorized_callback)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_LOCAL_ALLOWED_ORIGINS + _DEPLOY_ALLOWED_ORIGINS,
-    allow_origin_regex=(
-        r"^http://(localhost|127\.0\.0\.1|100\.64\.150\.26|192\.168\.0\.25):\d+$"
-        r"|^https://[a-z0-9-]+\.vercel\.app$"
-    ),
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.get('/access/check', include_in_schema=False)
+def access_check() -> dict:
+    return {'authenticated': True}
 
 app.include_router(finance.router, prefix="/finance", tags=["finance"])
 app.include_router(budget.router, prefix="/budget", tags=["budget"])

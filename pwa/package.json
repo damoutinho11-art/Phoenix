@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/**/*.test.js && vitest run src/components/nutrition/TodayProtocol.interaction.test.jsx src/components/nutrition/ShoppingList.interaction.test.jsx src/components/InstallPhoenix.interaction.test.jsx --environment jsdom",
+    "test": "node --test src/**/*.test.js && vitest run src/components/nutrition/TodayProtocol.interaction.test.jsx src/components/nutrition/ShoppingList.interaction.test.jsx src/components/InstallPhoenix.interaction.test.jsx src/components/AccessGate.test.jsx --environment jsdom",
     "preview": "vite preview"
   },
   "dependencies": {

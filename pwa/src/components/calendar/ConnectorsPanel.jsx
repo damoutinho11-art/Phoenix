@@ -4,6 +4,7 @@ import {
   getGoogleCalendarStatus,
   getGmailStatus,
   disconnectGoogle,
+  startGoogleConnection,
 } from '../../api/client'
 import PlaanExcelImport from './PlaanExcelImport'
 
@@ -11,7 +12,6 @@ const VIOLET_BR = '#d8ccff'
 const TEXT = 'var(--phx-text)'
 const DIM = 'var(--phx-body)'
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 function Pill({ children, tone = 'violet' }) {
   const toneClass = tone === 'good' ? ' phx-pill-good' : tone === 'warn' ? ' phx-pill-warn' : tone === 'bad' ? ' phx-pill-bad' : ''
@@ -78,8 +78,13 @@ export default function ConnectorsPanel({ onBack }) {
     refresh()
   }, [])
 
-  function connectGoogle() {
-    window.location.href = `${BASE_URL}/auth/google/login`
+  async function connectGoogle() {
+    try {
+      const result = await startGoogleConnection()
+      window.location.assign(result.authorization_url)
+    } catch {
+      setError('Unable to start Google connection. Unlock Phoenix and try again.')
+    }
   }
 
   async function handleDisconnect() {

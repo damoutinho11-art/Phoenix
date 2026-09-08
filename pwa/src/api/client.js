@@ -1,9 +1,10 @@
+import { privateFetch } from './accessSession'
 const CONFIGURED_BASE_URL = String(import.meta.env.VITE_API_URL || '').trim()
 const BASE_URL = (CONFIGURED_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '')).replace(/\/$/, '')
 
 async function apiFetch(path, options = {}) {
   if (!BASE_URL) throw new Error('PHOENIX_API_UNCONFIGURED')
-  const response = await fetch(`${BASE_URL}${path}`, options)
+  const response = await privateFetch(`${BASE_URL}${path}`, options)
   const contentType = response.headers.get('content-type') || ''
   const payload = contentType.includes('application/json')
     ? await response.json()
@@ -22,6 +23,9 @@ async function apiFetch(path, options = {}) {
 export async function getHealth() {
   return apiFetch('/health')
 }
+
+export function verifyAccess() { return apiFetch('/access/check') }
+export function startGoogleConnection() { return apiFetch('/auth/google/start', { method: 'POST' }) }
 
 export async function getFinanceSummary() {
   return apiFetch('/finance/summary')
