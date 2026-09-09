@@ -6,6 +6,12 @@ from jarvis.domains.finance import buy_evidence
 
 
 class BuyEvidenceTests(unittest.TestCase):
+    def test_crypto_identity_can_be_verified_inside_an_official_product_card(self):
+        row = {'symbol': 'HYPE-EUR', 'lane': 'crypto', 'name': 'Hyperliquid'}
+        card = '<div class="flip-card-text"><p>HYPE is a digital asset used on the Hyperliquid platform.</p></div>'
+        self.assertTrue(buy_evidence.parse_broker_document(row, card)['broker_verified'])
+        self.assertFalse(buy_evidence.parse_broker_document(row, '<p>News: HYPE and Hyperliquid</p>')['broker_verified'])
+
     def test_crypto_reference_quote_is_dated_eur_and_explicitly_not_broker_quote(self):
         payload = '{"bid":"99", "ask":"101", "time":"2026-09-08T12:00:00Z"}'
         with patch.object(buy_evidence, '_public_text', return_value=payload):

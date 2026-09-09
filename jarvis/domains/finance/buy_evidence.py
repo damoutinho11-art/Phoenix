@@ -112,6 +112,10 @@ def parse_broker_document(row, document, pricing=''):
                 'fee_pct': 0.0 if free else None, 'fee_source': LIGHTYEAR_PRICING}
     name, symbol = re.escape(row.get('name', '')), re.escape(str(row.get('symbol', '')).split('-')[0])
     supported = bool(name and re.search(rf'\b{name}\s*\(?\s*{symbol}\b', text, re.I))
+    cards = re.findall(r'<div\b[^>]*class="[^"]*\bflip-card-text\b[^"]*"[^>]*>(.*?)</div>', document, flags=re.I | re.S)
+    supported = supported or bool(name and symbol and any(
+        re.search(rf'\b{name}\b', _visible(card), re.I)
+        and re.search(rf'\b{symbol}\b', _visible(card), re.I) for card in cards))
     fee = re.search(r'([0-9]+(?:\.[0-9]+)?)%\s*service fee applies to buy and sell', text, re.I)
     return {'broker_verified': supported, 'broker_source': LHV_URL,
             'fee_pct': float(fee.group(1)) if fee else None, 'fee_source': LHV_URL}
@@ -131,6 +135,11 @@ def _broker_evidence(row):
 
 
 def _fetch_candidate(row, today):
+    if row.get('lane') == 'crypto' and row.get('symbol') in {'HYPE-EUR', 'TAO-EUR'}:
+        from .kraken_evidence import fetch_crypto_evidence
+        return {**row, **fetch_crypto_evidence(row['symbol'], today),
+                **_broker_evidence(row), 'verified_at': today.isoformat(),
+                'research_status': 'NO_EVIDENCE', 'research_as_of': None}
     import yfinance as yf
     if not row.get('symbol'):
         raise ValueError('No verified market-data symbol mapping.')

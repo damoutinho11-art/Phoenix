@@ -1,0 +1,1079 @@
+{
+  "summary": [
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "windows": 32,
+      "wait_windows": 18,
+      "mean_policy_return_pct": 0.3591,
+      "mean_equal_weight_return_pct": 1.3244,
+      "outperformed_windows": 14
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "windows": 32,
+      "wait_windows": 18,
+      "mean_policy_return_pct": 0.183,
+      "mean_equal_weight_return_pct": 0.9199,
+      "outperformed_windows": 15
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "windows": 32,
+      "wait_windows": 22,
+      "mean_policy_return_pct": -0.9421,
+      "mean_equal_weight_return_pct": 2.0145,
+      "outperformed_windows": 14
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "windows": 32,
+      "wait_windows": 23,
+      "mean_policy_return_pct": -1.0658,
+      "mean_equal_weight_return_pct": 0.9994,
+      "outperformed_windows": 14
+    }
+  ],
+  "windows": [
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-01-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 3.618922858541377
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 5.337058343331554
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 1.2400879530272708
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -2.3008217981232444
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-05-01",
+      "selected": "IUSQ.DE",
+      "policy_return_pct": 1.464354224131048,
+      "equal_weight_return_pct": 2.413757743859198
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 4.765701813729432
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -0.6503376769009805
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-08-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": 1.0605428799375538,
+      "equal_weight_return_pct": 0.7987587063244613
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-09-01",
+      "selected": "IS3Q.DE",
+      "policy_return_pct": -0.13128210458246414,
+      "equal_weight_return_pct": 0.8555660299231197
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-10-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": 0.48919423381277305,
+      "equal_weight_return_pct": 1.2744130978086095
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-11-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 7.301715567050408
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2024-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 0.2352676429054327
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-01-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": 2.392393253409275,
+      "equal_weight_return_pct": 2.11853313155849
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -2.219099065170732
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-03-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": -7.454827928573648,
+      "equal_weight_return_pct": -8.956052233345613
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -2.4876382663235312
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-05-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 3.594789854419881
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 1.449907938084516
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 5.3058382293438955
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 2.399719085696269
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-09-01",
+      "selected": "SXRV.DE",
+      "policy_return_pct": 4.995924140008734,
+      "equal_weight_return_pct": 3.771470661846025
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-10-01",
+      "selected": "SXRV.DE",
+      "policy_return_pct": 6.469592998528162,
+      "equal_weight_return_pct": 4.264624566583608
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-11-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -1.5729037215973536
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2025-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -0.1816736366013668
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-01-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": 2.4883362266875375,
+      "equal_weight_return_pct": 2.1802581704287247
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-02-01",
+      "selected": "IS3Q.DE",
+      "policy_return_pct": -0.014557980266916015,
+      "equal_weight_return_pct": -1.2837707796761781
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-03-01",
+      "selected": "IS3Q.DE",
+      "policy_return_pct": -5.635086429889302,
+      "equal_weight_return_pct": -5.38499466969366
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 8.58026393379906
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-05-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": 6.0171495911260475,
+      "equal_weight_return_pct": 7.2751673563572155
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-06-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": 1.3145625840981223,
+      "equal_weight_return_pct": 1.510767158864527
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-07-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": -1.9654461394423062,
+      "equal_weight_return_pct": -3.7288487839197098
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.1,
+      "cutoff": "2026-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 0.8532596906763964
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-01-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 3.20527394786743
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 4.916550599810591
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 0.8359354011282701
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -2.6908389641202124
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-05-01",
+      "selected": "IUSQ.DE",
+      "policy_return_pct": 1.059306396579851,
+      "equal_weight_return_pct": 2.0049198775690003
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 4.347474937443489
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -1.046943610084422
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-08-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": 0.6571070757314557,
+      "equal_weight_return_pct": 0.3963679500233186
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-09-01",
+      "selected": "IS3Q.DE",
+      "policy_return_pct": -0.529960118483852,
+      "equal_weight_return_pct": 0.45294849759617284
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-10-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": 0.08803926537070961,
+      "equal_weight_return_pct": 0.8701235192125919
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-11-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 6.873364870736468
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2024-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -0.16487364526645565
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-01-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": 1.9836406746124968,
+      "equal_weight_return_pct": 1.710873808105014
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -2.6094424700295864
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-03-01",
+      "selected": "VWCE.DE",
+      "policy_return_pct": -7.824270194131067,
+      "equal_weight_return_pct": -9.319501580030547
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -2.876909657065992
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-05-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 3.1812372832039117
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 1.0449177804098302
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 4.885455117171974
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 1.9909372620235473
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-09-01",
+      "selected": "SXRV.DE",
+      "policy_return_pct": 4.576778211373567,
+      "equal_weight_return_pct": 3.357212777145683
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-10-01",
+      "selected": "SXRV.DE",
+      "policy_return_pct": 6.044564152939169,
+      "equal_weight_return_pct": 3.84839800116491
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-11-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -1.9658267518043393
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2025-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -0.5801504864513196
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-01-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": 2.079200641531598,
+      "equal_weight_return_pct": 1.772352439327048
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-02-01",
+      "selected": "IS3Q.DE",
+      "policy_return_pct": -0.4137019593177138,
+      "equal_weight_return_pct": -1.6778480346441045
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-03-01",
+      "selected": "IS3Q.DE",
+      "policy_return_pct": -6.011793141629651,
+      "equal_weight_return_pct": -5.762699752979662
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 8.146809245621863
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-05-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": 5.5939269090972354,
+      "equal_weight_return_pct": 6.846922641056489
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-06-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": 0.9101127279117716,
+      "equal_weight_return_pct": 1.1055340499055988
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-07-01",
+      "selected": "SPYI.DE",
+      "policy_return_pct": -2.3568021320942156,
+      "equal_weight_return_pct": -4.113165236274887
+    },
+    {
+      "lane": "etf",
+      "assumed_round_trip_cost_pct": 0.5,
+      "cutoff": "2026-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 0.4506513653040241
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-01-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -2.491981872259219,
+      "equal_weight_return_pct": -4.914846331310267
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 40.66287281403978
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 24.852063702981415
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-04-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -17.11195688677759,
+      "equal_weight_return_pct": -21.247670878190327
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-05-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": 13.226142622402804,
+      "equal_weight_return_pct": 19.068874348284726
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -9.451840719202206
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 2.772943548880487
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-08-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -12.885303747186827,
+      "equal_weight_return_pct": -19.71167450038876
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-09-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 5.379167663037665
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-10-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 12.0790698654059
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-11-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": 42.90479031553034,
+      "equal_weight_return_pct": 46.4159291399741
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2024-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -10.679265486939368
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-01-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": 7.267659980000851,
+      "equal_weight_return_pct": 7.570019384198849
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-02-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -16.335079684581466,
+      "equal_weight_return_pct": -28.00272045291449
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -16.100302758356243
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 3.7019124827018306
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-05-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 14.93850935698767
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-06-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -4.744841570772385,
+      "equal_weight_return_pct": -8.589312923316184
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 29.798168530393447
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 12.810270594822391
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-09-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 6.07625448689177
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-10-01",
+      "selected": "ETH-EUR",
+      "policy_return_pct": -11.453220150519783,
+      "equal_weight_return_pct": -11.467820411259455
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-11-01",
+      "selected": "ETH-EUR",
+      "policy_return_pct": -28.52248137138269,
+      "equal_weight_return_pct": -27.91048272917936
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2025-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -0.23553733174815905
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-01-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -17.1380569692593
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -11.636268319529808
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 4.539158055212086
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 6.1277919298082875
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-05-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -7.100006660627034
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -12.288754761970955
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 2.3180009454768093
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 1,
+      "cutoff": "2026-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 31.82790974594348
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-01-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -3.462259180859073,
+      "equal_weight_return_pct": -5.861014336372117
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 39.26317260194923
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 23.609692801911883
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-04-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -17.93675456938093,
+      "equal_weight_return_pct": -22.031315130360195
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-05-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": 12.09945828365555,
+      "equal_weight_return_pct": 17.884050482935347
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -10.352862255405984
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 1.750276316193474
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-08-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -13.752159772390227,
+      "equal_weight_return_pct": -20.51060305901967
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-09-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 4.330566561858102
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-10-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 10.963799753804253
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-11-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": 41.48278135672112,
+      "equal_weight_return_pct": 44.95898173821305
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2024-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -11.568073233723403
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-01-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": 6.200266975572721,
+      "equal_weight_return_pct": 6.499617678798559
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-02-01",
+      "selected": "BTC-EUR",
+      "policy_return_pct": -17.167607873201995,
+      "equal_weight_return_pct": -28.719146937287714
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -16.935167152024036
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 2.6700013181393847
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-05-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 13.794785695541941
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -9.498917252652817
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 28.506580207288867
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 11.687724492082719
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-09-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 5.020716853309082
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-10-01",
+      "selected": "ETH-EUR",
+      "policy_return_pct": -12.334326472719715,
+      "equal_weight_return_pct": -12.34878145000508
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-11-01",
+      "selected": "ETH-EUR",
+      "policy_return_pct": -29.233735848009566,
+      "equal_weight_return_pct": -28.62782704751183
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2025-12-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -1.2282679419103992
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-01-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -17.96259493662824
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-02-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -12.51555317629353
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-03-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 3.4989156744447474
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-04-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 5.071741460334089
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-05-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -8.024430695050373
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-06-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": -13.161546893301171
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-07-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 1.299860730088206
+    },
+    {
+      "lane": "crypto",
+      "assumed_round_trip_cost_pct": 2,
+      "cutoff": "2026-08-01",
+      "selected": null,
+      "policy_return_pct": 0,
+      "equal_weight_return_pct": 30.51612398798591
+    }
+  ],
+  "limitations": [
+    "Conditional price-only study, not historical broker/research eligibility or actual portfolio performance.",
+    "Universe chosen today; survivorship and revised adjusted-history biases remain.",
+    "Equal target gaps isolate price/risk ranking; personal holdings and sizing are not modeled.",
+    "Costs are assumptions, not reconstructed historical quotes. Taxes and slippage are not modeled.",
+    "30-day windows overlap near short months; observations are not independent.",
+    "WAIT earns zero; outcomes are per-purchase returns, not compounded wealth.",
+    "HYPE and TAO are excluded from this long-period comparison because comparable dated history was not collected."
+  ],
+  "retrieved_as_of": "2026-09-09",
+  "history_source": "Yahoo adjusted daily EUR history via yfinance",
+  "history_snapshot_file": "2026-09-09-price-policy-study.prices.json.gz",
+  "history_sha256": "24420a81c233707cfd29621a9e87aed43e2fd8ef4609df71c162cbe1e2ffa4ab"
+}

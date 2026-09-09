@@ -1372,8 +1372,14 @@ def allocate_weekly_budget(
         candidates = selection_evidence.get('candidates', [])
         if selection_evidence.get('coverage', {}).get('truncated'):
             candidates = []  # A truncated comparison cannot substantiate a winner.
-        selection = select_buys(candidates, constitution, portfolio_state, holdings,
-                                weekly_budget_cents, as_of or date.today())
+        if selection_evidence.get('policy_version') == 'contribution-v2':
+            from .contribution_selection import select_contributions
+            selection = select_contributions(candidates, constitution, portfolio_state, holdings,
+                weekly_budget_cents, as_of or date.today(),
+                horizon_years=(profile or {}).get('risk_profile', {}).get('time_horizon_years'))
+        else:
+            selection = select_buys(candidates, constitution, portfolio_state, holdings,
+                                    weekly_budget_cents, as_of or date.today())
         selection['coverage'] = selection_evidence.get('coverage', {})
         ideal_allocations = dict(selection['allocations_cents'])
         executable_allocations = dict(ideal_allocations)

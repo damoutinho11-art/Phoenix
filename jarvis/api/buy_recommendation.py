@@ -30,17 +30,20 @@ def brief_matches_decision(brief, response):
 
 def evidence_mode():
     mode = os.getenv('PHOENIX_FINANCE_SELECTION_MODE', 'legacy').strip().lower()
-    if mode not in {'legacy', 'evidence_v1'}:
+    if mode not in {'legacy', 'evidence_v1', 'contribution_v2'}:
         raise HTTPException(status_code=503, detail='Finance selection policy is not configured correctly.')
-    return mode == 'evidence_v1'
+    return mode != 'legacy'
 
 
 def load_selection_evidence(constitution, today):
+    policy = ('contribution-v2' if os.getenv('PHOENIX_FINANCE_SELECTION_MODE', '').strip().lower()
+              == 'contribution_v2' else 'evidence-buy-v1')
     try:
         evidence = fetch_evidence(constitution, today)
     except Exception:
-        return {'candidates': [], 'error': 'Selection evidence is unavailable.'}
+        return {'candidates': [], 'policy_version': policy, 'error': 'Selection evidence is unavailable.'}
     evidence = deepcopy(evidence)
+    evidence['policy_version'] = policy
     for candidate in evidence.get('candidates', []):
         if candidate.get('lane') != 'crypto':
             continue

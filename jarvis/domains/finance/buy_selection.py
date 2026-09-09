@@ -104,7 +104,7 @@ def _room(asset, lane, c, p, holdings, budget):
     return room, deficit / (final_total * target), minimum, route
 
 
-def _evaluate(row, c, p, holdings, budget, today):
+def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=True):
     result = {k: v for k, v in row.items() if k != 'history'}
     result.update(eligible=False, policy_eligible=False, score=None)
     try:
@@ -126,6 +126,8 @@ def _evaluate(row, c, p, holdings, budget, today):
         if row.get('currency') and row['currency'] != 'EUR':
             raise ValueError('Non-EUR instrument is outside this policy.')
         result['policy_eligible'] = True
+        result['target_deficit_cents'] = max(0, round((sum(holdings.values()) + budget)
+            * c['target_weights'][asset]) - holdings.get(asset, 0))
         if lane == 'crypto' and row.get('research_verdict') in {'REJECT', 'WATCH'}:
             result['policy_eligible'] = False
             raise ValueError('Validated research does not recommend buying this asset.')
@@ -149,7 +151,7 @@ def _evaluate(row, c, p, holdings, budget, today):
             raise ValueError('Recent validated BUY_CANDIDATE crypto risk research is required.')
         metrics = measure_history(row.get('history', []), today, lane)
         cost = 2 * fee + spread
-        if min(metrics['return_90_pct'], metrics['return_180_pct']) <= cost:
+        if require_positive_returns and min(metrics['return_90_pct'], metrics['return_180_pct']) <= cost:
             result['policy_eligible'] = False
             raise ValueError('Recent returns do not clear the estimated round-trip costs; wait.')
         result.update(eligible=True, reason='Eligible under cash, evidence and risk rules.',

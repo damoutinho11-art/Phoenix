@@ -33,18 +33,22 @@ class EvidenceRecommendationTests(unittest.TestCase):
     def test_crypto_recommendation_and_checklist_select_eth_with_validated_research(self):
         self.check_selection(candidate('eth', 'ETH-EUR', .002, 'crypto'), 'eth', 'ETH-EUR')
 
-    def check_selection(self, evidence_row, expected_asset, expected_symbol):
+    def test_contribution_policy_keeps_verified_buy_during_declining_prices(self):
+        self.check_selection(candidate(growth=-.001), 'global_core_etf', 'VWCE.DE',
+                             mode='contribution_v2', policy='contribution-v2')
+
+    def check_selection(self, evidence_row, expected_asset, expected_symbol, mode='evidence_v1', policy='evidence-buy-v1'):
         from jarvis.api import dependencies
         from jarvis.api.routers import finance
         c, p = state()
         overrides = {dependencies.get_finance_constitution: lambda: c,
                      dependencies.get_portfolio_state: lambda: p,
-                     dependencies.get_finance_profile: lambda: {}}
+                     dependencies.get_finance_profile: lambda: {'risk_profile': {'time_horizon_years': 20}}}
         app = access_fixture.AppAccessControlTests.app
         app.dependency_overrides.update(overrides)
         try:
             with ExitStack() as stack:
-                stack.enter_context(patch.dict(os.environ, {'PHOENIX_FINANCE_SELECTION_MODE': 'evidence_v1', 'PHOENIX_FINANCE_FAIL_CLOSED': 'false'}))
+                stack.enter_context(patch.dict(os.environ, {'PHOENIX_FINANCE_SELECTION_MODE': mode, 'PHOENIX_FINANCE_FAIL_CLOSED': 'false'}))
                 stack.enter_context(patch.object(finance.clock, 'today', return_value=TODAY))
                 stack.enter_context(patch.object(finance, 'current_week_lifecycle', return_value={'week_label': 'W37 2026', 'week_closed': False, 'applied_transactions': [], 'latest_brief': None}))
                 stack.enter_context(patch.object(finance, '_cashflow_authority_for_today', return_value={'data_ready': True, 'weekly_budget_eur': 100}))
@@ -63,7 +67,7 @@ class EvidenceRecommendationTests(unittest.TestCase):
                 response = self.client.get('/finance/recommendation', headers=headers)
                 self.assertEqual(response.status_code, 200, response.text)
                 data = response.json()
-                self.assertEqual(data['buy_selection']['policy_version'], 'evidence-buy-v1')
+                self.assertEqual(data['buy_selection']['policy_version'], policy)
                 self.assertIsNone(data['brief_id'], 'An unrelated stored brief must never authorize the new decision')
                 self.assertTrue(saved.called, 'Changed evidence decisions need a new saved snapshot')
                 self.assertEqual(len(data['recommendations']), 1)
