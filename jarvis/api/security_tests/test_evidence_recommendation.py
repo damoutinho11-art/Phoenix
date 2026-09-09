@@ -72,6 +72,8 @@ class EvidenceRecommendationTests(unittest.TestCase):
                 self.assertTrue(saved.called, 'Changed evidence decisions need a new saved snapshot')
                 self.assertEqual(len(data['recommendations']), 1)
                 leg = data['recommendations'][0]
+                self.assertEqual(finance._recommendation_provenance(leg)['provenance_classification'],
+                                 'CONFIGURED_CANDIDATE_LIVE_PRICE')
                 self.assertEqual(leg['asset'], expected_asset)
                 self.assertEqual(leg['instrument']['resolved_candidate']['symbol'], expected_symbol)
                 checklist = self.client.get('/finance/manual-buy-checklist', headers=headers).json()

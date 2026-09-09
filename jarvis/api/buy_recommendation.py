@@ -68,7 +68,8 @@ def selected_instrument(selection, asset):
         row = decision.get('selected')
         if row and row['asset'] == asset:
             candidate = {**row, 'label': row.get('name', row['symbol']),
-                         'broker_availability_status': 'public_verified', 'selected': True}
+                         'broker_availability_status': 'public_verified', 'selected': True,
+                         'market_data_source': row.get('source'), 'fetch_status': 'ok'}
             return {'display_name': candidate['label'], 'ticker': row['symbol'],
                     'isin': row.get('isin'), 'platform': 'Lightyear' if lane == 'etf' else 'LHV Crypto',
                     'confirmation_required': True, 'resolved_candidate': candidate,

@@ -133,6 +133,8 @@ def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=Tr
             raise ValueError('Validated research does not recommend buying this asset.')
         if row.get('currency') != 'EUR':
             raise ValueError('Verified EUR history and quote required.')
+        if not row.get('source'):
+            raise ValueError('Market evidence source is required.')
         if row.get('broker_verified') is not True or not row.get('broker_source') or not _recent(row.get('verified_at'), today, 1):
             raise ValueError('Current broker availability is unverified.')
         if not _recent(row.get('quote_date'), today, 2 if lane == 'crypto' else 7):

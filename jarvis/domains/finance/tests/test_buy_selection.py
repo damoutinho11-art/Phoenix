@@ -103,7 +103,7 @@ class BuySelectionTests(unittest.TestCase):
 
     def test_empty_or_invalid_evidence_never_falls_back(self):
         bad_fields = [('broker_verified', False), ('currency', 'USD'), ('spread_pct', None),
-                      ('mandate_approved', False), ('product_type', 'EQUITY'),
+                      ('mandate_approved', False), ('product_type', 'EQUITY'), ('source', None),
                       ('fee_pct', float('nan')), ('fund_fee_pct', None), ('isin', 'bad'),
                       ('quote_date', '2026-08-01'), ('verified_at', '2026-09-09')]
         self.assertEqual(decide([])['allocations_cents']['tactical_reserve'], 10000)
