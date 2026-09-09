@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 TICKER_MAP: dict[str, str] = {
     # Crypto
     "btc":  "BTC-EUR",
+    "eth":  "ETH-EUR",
+    "sol":  "SOL-EUR",
     "hype": "HYPE-EUR",
     "tao":  "TAO-EUR",
     # Active ETF sleeves (Lightyear — not yet funded)

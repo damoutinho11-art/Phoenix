@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from jarvis.api.dependencies import get_finance_constitution, get_finance_profile, get_portfolio_state
 from jarvis.api import ai_gateway
+from jarvis.api.buy_recommendation import brief_matches_decision, evidence_mode, load_selection_evidence, selected_instrument, selection_rationale
 from jarvis.api.finance_authority import (
     authoritative_portfolio_state,
     blocked_cashflow_authority,
@@ -46,7 +47,7 @@ def _next_iso_week_label(today: date) -> str:
     next_iso = (today + timedelta(days=7)).isocalendar()
     return f"W{next_iso[1]} {next_iso[0]}"
 
-_CRYPTO_ASSETS = {"btc", "hype", "tao"}
+_CRYPTO_ASSETS = set(engine.CRYPTO_MANDATE_ASSETS)
 
 
 def _finance_fail_closed_enabled() -> bool:
@@ -403,6 +404,10 @@ def _build_draft_memo_content(
     }
 
 _CRYPTO_INSTRUMENTS = {
+    "eth": {"display_name": "Ethereum", "ticker": "ETH", "isin": None, "exchange": None,
+            "platform": "LHV Crypto", "confirmation_required": True},
+    "sol": {"display_name": "Solana", "ticker": "SOL", "isin": None, "exchange": None,
+            "platform": "LHV Crypto", "confirmation_required": True},
     "btc": {
         "display_name": "Bitcoin",
         "ticker": "BTC",
@@ -586,9 +591,14 @@ def _build_finance_recommendation(
             regime="unknown",
             cashflow_authority=authority,
         )
+    selection_inputs = load_selection_evidence(constitution, today) if evidence_mode() else None
+    selection_kwargs = {'selection_evidence': selection_inputs, 'as_of': today} if selection_inputs is not None else {}
     result = engine.allocate_weekly_budget(
-        constitution, portfolio_state, regime=regime, profile=profile
+        constitution, portfolio_state, regime=regime, profile=profile, **selection_kwargs
     )
+    selection = result.get('buy_selection')
+    if selection:
+        constitution = engine.expand_evidence_constitution(constitution)
     ticket = result["approval_ticket"]
     mandate = ticket["weekly_dual_lane_mandate"]
     etf_universe = load_etf_universe(engine.DEFAULT_ETF_UNIVERSE_PATH)
@@ -605,10 +615,10 @@ def _build_finance_recommendation(
             "amount": amount,
             "lane": "crypto" if asset in _CRYPTO_ASSETS else "etf",
             "route": constitution["asset_routes"].get(asset),
-            "instrument": _instrument_for(asset, etf_universe, etf_resolutions),
+            "instrument": selected_instrument(selection, asset) if selection else _instrument_for(asset, etf_universe, etf_resolutions),
         }
         for asset, amount in ticket["executable_allocation"].items()
-        if amount > 0
+        if amount > 0 and (not selection or asset != 'tactical_reserve')
     ]
 
     crypto = mandate["crypto_lane"]
@@ -624,6 +634,8 @@ def _build_finance_recommendation(
         )
 
     rationale = "; ".join(rationale_parts) or "No buys recommended this week."
+    if selection:
+        rationale = selection_rationale(selection)
     dyn = result.get("dynamic_context", {})
     news_thesis = ""
     verdict_with_instruments = {
@@ -664,7 +676,10 @@ def _build_finance_recommendation(
         "cashflow_authority": authority,
     }
 
-    # Research context — advisory only; never overrides amounts or routes
+    if selection:
+        response['buy_selection'] = selection
+
+    # Research context is explanatory; evidence-mode crypto screening happened before allocation.
     research_legs = [
         _build_research_leg_context(r["asset"], r["lane"])
         for r in recommendations
@@ -689,9 +704,13 @@ def _build_finance_recommendation(
         "for all recommendation legs. Research only — no trades."
     )
 
-    # Auto-save brief (once per ISO week — idempotent on repeated calls)
+    # Legacy briefs remain weekly. Evidence briefs identify the current snapshot;
+    # a changed choice must never inherit a previous choice's approval ID.
     response["week_label"] = week_label
-    if persist_brief and not database.brief_exists_for_week(week_label, "finance"):
+    latest_brief = database.get_latest_brief_for_week(week_label, "finance") if selection else None
+    needs_brief = (not brief_matches_decision(latest_brief, response) if selection
+                   else not database.brief_exists_for_week(week_label, "finance"))
+    if persist_brief and needs_brief:
         coverage = _build_data_coverage_from_recommendation(response, etf_universe)
         checklist = _build_manual_buy_checklist(response)
         coverage_summary = coverage["sections"]["coverage_summary"]
@@ -747,6 +766,8 @@ def _build_finance_recommendation(
         )
 
     latest_brief = database.get_latest_brief_for_week(week_label, "finance")
+    if selection and not brief_matches_decision(latest_brief, response):
+        latest_brief = None
     response["brief_id"] = latest_brief["id"] if latest_brief else None
     response["brief_status"] = latest_brief["status"] if latest_brief else None
     if latest_brief and latest_brief.get("user_action") is not None:
@@ -1388,6 +1409,8 @@ def finance_manual_buy_checklist(
 
 
 _ASSET_DISPLAY_NAMES = {
+    "eth": "Ethereum",
+    "sol": "Solana",
     "btc": "Bitcoin",
     "hype": "Hyperliquid",
     "tao": "Bittensor",
@@ -2897,12 +2920,12 @@ def _build_transaction_apply_preview(
     asset = transaction["asset"]
     holdings = portfolio_state.get("holdings", {})
 
-    if asset not in holdings:
+    if asset not in holdings and asset not in {'eth', 'sol'}:
         raise HTTPException(
             status_code=400,
             detail=(
                 f"Asset '{asset}' not found in portfolio_state holdings. "
-                "Only assets already tracked in portfolio_state are supported in v1."
+                "Only tracked assets and supported ETH/SOL additions are allowed."
             ),
         )
 
@@ -2915,8 +2938,8 @@ def _build_transaction_apply_preview(
     )
 
     after_units = copy.deepcopy(before_units)
-    if asset in after_units:
-        current = after_units[asset]
+    if asset in after_units or asset in {'eth', 'sol'}:
+        current = after_units.get(asset)
         if current is None:
             current = 0.0
         after_units[asset] = round(current + transaction["units"], 10)

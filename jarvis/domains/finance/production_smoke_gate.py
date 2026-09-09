@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import tempfile
 from datetime import date
@@ -269,8 +270,11 @@ def run_local_smoke_gate() -> dict[str, Any]:
             acceptance_gate._seed_acceptance_evidence()
             ledger_before = database.get_finance_transactions()
             snapshots_before = database.list_finance_portfolio_snapshots()
+            local_key = 'synthetic-offline-smoke-key'
             with patch.dict(
-                "os.environ", {"PHOENIX_FINANCE_FAIL_CLOSED": "false"}
+                "os.environ", {"PHOENIX_FINANCE_FAIL_CLOSED": "false",
+                               'PHOENIX_ACCESS_KEY_SHA256': hashlib.sha256(local_key.encode()).hexdigest(),
+                               'PHOENIX_FINANCE_SELECTION_MODE': 'legacy'}
             ), patch(
                 "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
                 side_effect=_smoke_resolution,
@@ -281,7 +285,7 @@ def run_local_smoke_gate() -> dict[str, Any]:
                 "jarvis.api.routers.budget._build_cashflow_authority",
                 side_effect=acceptance_gate._offline_cashflow_authority,
             ):
-                client = TestClient(app)
+                client = TestClient(app, headers={'Authorization': f'Bearer {local_key}'})
                 coverage_response = client.get("/finance/data-coverage")
                 checklist_response = client.get("/finance/manual-buy-checklist")
                 recommendation_response = client.get("/finance/recommendation")

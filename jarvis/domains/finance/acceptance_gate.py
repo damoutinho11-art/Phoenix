@@ -8,6 +8,7 @@ An optional ``--live-url`` performs a read-only production coverage check.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import tempfile
 from datetime import date
@@ -276,7 +277,11 @@ def run_local_acceptance_gate() -> dict[str, Any]:
             database.init_db()
             _seed_acceptance_evidence()
             ledger_before = database.get_finance_transactions()
-            with patch(
+            local_key = 'synthetic-offline-acceptance-key'
+            with patch.dict('os.environ', {
+                'PHOENIX_ACCESS_KEY_SHA256': hashlib.sha256(local_key.encode()).hexdigest(),
+                'PHOENIX_FINANCE_SELECTION_MODE': 'legacy',
+            }), patch(
                 "jarvis.api.routers.finance.resolve_best_etf_candidate_with_broker_check",
                 side_effect=_resolution,
             ), patch(
@@ -286,7 +291,7 @@ def run_local_acceptance_gate() -> dict[str, Any]:
                 "jarvis.api.routers.budget._build_cashflow_authority",
                 side_effect=_offline_cashflow_authority,
             ):
-                response = TestClient(app).get("/finance/data-coverage")
+                response = TestClient(app).get("/finance/data-coverage", headers={'Authorization': f'Bearer {local_key}'})
             response.raise_for_status()
             coverage = response.json()
             errors = evaluate_finance_acceptance(coverage)

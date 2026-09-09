@@ -17,7 +17,7 @@ from .etf_scoring import ETF_SLEEVES, load_etf_universe, score_etf_universe
 
 
 APPROVAL_NOTICE = "Manual approval required. No trades executed."
-CRYPTO_MANDATE_ASSETS = ("btc", "hype", "tao")
+CRYPTO_MANDATE_ASSETS = ("btc", "eth", "sol", "hype", "tao")
 WEEKLY_DUAL_LANE_MANDATE = "weekly_crypto_and_stock_fund_etf"
 
 # Default data file locations, resolved relative to this module's own
@@ -165,7 +165,7 @@ def compute_asset_target_weights(
     result["quality_etf"] = gt * 2.0 / 5.0
 
     crypto_total = sleeve_targets.get("crypto", 0.0)
-    engine_crypto_assets = [k for k in ["btc", "hype", "tao"] if k in result]
+    engine_crypto_assets = [k for k in CRYPTO_MANDATE_ASSETS if k in result]
     available = [
         a for a in engine_crypto_assets
         if phase >= int(crypto_universe.get(a, {}).get("phase_unlock", 1))
@@ -651,7 +651,7 @@ def crypto_room_for_asset(
     final_total_cents: int,
     constitution: dict[str, Any],
 ) -> int:
-    if asset not in {"btc", "hype", "tao"}:
+    if asset not in CRYPTO_MANDATE_ASSETS:
         return final_total_cents
 
     risk_rules = constitution.get("crypto_risk_rules", {})
@@ -662,7 +662,7 @@ def crypto_room_for_asset(
     btc_value = holdings.get("btc", 0) + executable.get("btc", 0)
     hype_value = holdings.get("hype", 0) + executable.get("hype", 0)
     tao_value = holdings.get("tao", 0) + executable.get("tao", 0)
-    total_crypto_value = btc_value + hype_value + tao_value
+    total_crypto_value = sum(holdings.get(a, 0) + executable.get(a, 0) for a in crypto_like_assets())
     hype_tao_value = hype_value + tao_value
 
     total_crypto_room = max(0, int(final_total_cents * total_crypto_max) - total_crypto_value)
@@ -670,12 +670,17 @@ def crypto_room_for_asset(
         btc_room = max(0, int(final_total_cents * btc_max) - btc_value)
         return min(btc_room, total_crypto_room)
 
+    if asset in {'eth', 'sol'}:
+        maximum = float(constitution.get('sleeve_bands', {}).get(asset, {}).get('max_weight', constitution.get('target_weights', {}).get(asset, 0)))
+        room = max(0, int(final_total_cents * maximum) - holdings.get(asset, 0) - executable.get(asset, 0))
+        return min(room, total_crypto_room)
+
     hype_tao_room = max(0, int(final_total_cents * hype_tao_max) - hype_tao_value)
     return min(hype_tao_room, total_crypto_room)
 
 
 def crypto_like_assets() -> set[str]:
-    return {"btc", "hype", "tao", "discovery"}
+    return set(CRYPTO_MANDATE_ASSETS) | {'discovery'}
 
 
 def weekly_crypto_buy_room(
@@ -1303,13 +1308,32 @@ def build_approval_ticket(
     }
 
 
+def expand_evidence_constitution(constitution):
+    """Activate only already-configured supported crypto; preserve phase rules."""
+    from copy import deepcopy
+    expanded = deepcopy(constitution)
+    for asset in CRYPTO_MANDATE_ASSETS:
+        config = expanded.get('crypto_universe', {}).get(asset)
+        if not config or config.get('platform') != 'lhv_crypto' or asset in expanded['target_weights']:
+            continue
+        expanded['target_weights'][asset] = 0.0
+        expanded['asset_routes'][asset] = 'lhv_crypto'
+        expanded.setdefault('minimum_efficient_buys', {})[asset] = max(
+            (expanded.get('minimum_efficient_buys', {}).get(a, 20.0) for a in CRYPTO_MANDATE_ASSETS), default=20.0)
+    return expanded
+
+
 def allocate_weekly_budget(
     constitution: dict[str, Any],
     portfolio_state: dict[str, Any],
     *,
     regime: str | None = None,
     profile: dict[str, Any] | None = None,
+    selection_evidence: dict[str, Any] | None = None,
+    as_of: date | None = None,
 ) -> dict[str, Any]:
+    if selection_evidence is not None:
+        constitution = expand_evidence_constitution(constitution)
     dynamic_context: dict[str, Any] = {}
     if regime is not None and profile is not None:
         # Pre-compute holdings total to determine portfolio phase
@@ -1342,12 +1366,28 @@ def allocate_weekly_budget(
     before_total_cents = sum(holdings.values())
     statuses_before = current_statuses(constitution, holdings)
     etf_scores = etf_scores_for_holdings(constitution, holdings)
-    ideal_allocations = calculate_ideal_allocations(
-        constitution, holdings, weekly_budget_cents, etf_scores
-    )
-    executable_allocations, warnings = calculate_executable_allocations(
-        constitution, portfolio_state, holdings, ideal_allocations, weekly_budget_cents
-    )
+    selection = None
+    if selection_evidence is not None:
+        from .buy_selection import select_buys
+        candidates = selection_evidence.get('candidates', [])
+        if selection_evidence.get('coverage', {}).get('truncated'):
+            candidates = []  # A truncated comparison cannot substantiate a winner.
+        selection = select_buys(candidates, constitution, portfolio_state, holdings,
+                                weekly_budget_cents, as_of or date.today())
+        selection['coverage'] = selection_evidence.get('coverage', {})
+        ideal_allocations = dict(selection['allocations_cents'])
+        executable_allocations = dict(ideal_allocations)
+        warnings = [{'category': 'evidence', 'asset': None, 'amount_cents': 0,
+                     'reason': f"{lane.upper()}: {decision['reason']}"}
+                    for lane, decision in selection['lanes'].items() if decision['status'] == 'WAIT']
+        etf_scores = {}  # Never label preset market scores as the active method.
+    else:
+        ideal_allocations = calculate_ideal_allocations(
+            constitution, holdings, weekly_budget_cents, etf_scores
+        )
+        executable_allocations, warnings = calculate_executable_allocations(
+            constitution, portfolio_state, holdings, ideal_allocations, weekly_budget_cents
+        )
     staleness_warning = portfolio_state_staleness_warning(portfolio_state)
     if staleness_warning:
         warnings = [
@@ -1409,7 +1449,20 @@ def allocate_weekly_budget(
         "approval_notice": APPROVAL_NOTICE,
         "dynamic_context": dynamic_context,
     }
+    if selection is not None:
+        result['buy_selection'] = selection
+        for lane, mandate_key in [('crypto', 'crypto_lane'), ('etf', 'stock_fund_etf_lane')]:
+            decision = selection['lanes'][lane]
+            result['weekly_dual_lane_mandate'][mandate_key].update(
+                reason=decision['reason'],
+                status='READY_FOR_MANUAL_BUY' if decision['status'] == 'BUY' else 'WAIT_FOR_EVIDENCE')
+        chosen = selection['lanes']['etf']['selected']
+        result['etf_scoring_verdict'] = {'selected_ideal_etf': chosen['asset'] if chosen else None,
+                                        'selected_label': chosen['symbol'] if chosen else 'WAIT',
+                                        'sleeves': [], 'policy_version': selection['policy_version']}
     result["approval_ticket"] = build_approval_ticket(portfolio_state, result)
+    if selection is not None:
+        result['approval_ticket']['buy_selection'] = selection
     return result
 
 
@@ -1453,7 +1506,7 @@ def crypto_risk_status(
     btc_value = holdings.get("btc", 0) + executable_allocations.get("btc", 0)
     hype_value = holdings.get("hype", 0) + executable_allocations.get("hype", 0)
     tao_value = holdings.get("tao", 0) + executable_allocations.get("tao", 0)
-    total_crypto_value = btc_value + hype_value + tao_value
+    total_crypto_value = sum(holdings.get(a, 0) + executable_allocations.get(a, 0) for a in crypto_like_assets())
     hype_tao_value = hype_value + tao_value
 
     return {

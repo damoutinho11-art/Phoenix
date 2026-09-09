@@ -107,7 +107,8 @@ def test_reports_configured_yfinance_ticker_map_and_crypto_count() -> None:
     assert sources["source_name"] == "yfinance"
     assert sources["supported_tickers"] == TICKER_MAP
     assert summary["total_live_price_tickers_configured"] == len(TICKER_MAP)
-    assert summary["total_crypto_tickers_configured"] == 3
+    assert summary["total_crypto_tickers_configured"] == 5
+    assert {"btc", "eth", "sol", "hype", "tao"} <= sources["supported_tickers"].keys()
 
 
 def test_reports_every_etf_candidate_and_expanded_curated_universe() -> None:

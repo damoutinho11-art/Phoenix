@@ -34,3 +34,12 @@ Task 2: complete (commits a1cfcf6..9d4c8ed, review clean; Minor: duplicate learn
 Task 3: complete (commits 9d4c8ed..93f9e92, review clean)
 Task 4: complete (commits 93f9e92..97c2d88, review clean)
 Task 5: complete (full verification and browser QA passed; final branch review clean)
+
+## Evidence buy engine — 2026-09-08
+Base 5ae31ad3; branch codex/evidence-buy-engine.
+Policy and synthetic tests implemented. Public adapter verified with synthetic tests and official broker pages.
+Engine and authenticated API integration implemented, validating regressions.
+Helper agents failed from account usage limits; continuing locally.
+No production deployment or private financial writes performed.
+
+2026-09-09: Completed local evidence engine, authenticated ETF/ETH recommendation/checklist tests, ISIN deduplication, dated brief binding, strict crypto identity and BUY_CANDIDATE research. Added explicit additional ETF review and offline replay. Domain145+10 subtests, security/API15, frontend301 and build passed. Independent final review found no important issues. Public source coverage gaps and point-in-time performance evaluation remain promotion blockers; production unchanged. See docs/reviews/2026-09-09-evidence-buy-engine.md.

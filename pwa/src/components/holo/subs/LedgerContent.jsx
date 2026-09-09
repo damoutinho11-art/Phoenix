@@ -9,8 +9,8 @@ import {
 } from '../../../api/client'
 import { financeBody, financeButton, financeLabel, financeMicro } from './financeReadability'
 
-// portfolio_state holding keys — apply only works for assets already tracked
-const FALLBACK_ASSETS = ['global_core_etf', 'growth_nasdaq_etf', 'quality_etf', 'btc', 'discovery', 'tactical_reserve', 'hype', 'tao']
+// Supported holdings, including first purchases in the expanded crypto mandate.
+const FALLBACK_ASSETS = ['global_core_etf', 'growth_nasdaq_etf', 'quality_etf', 'btc', 'eth', 'sol', 'discovery', 'tactical_reserve', 'hype', 'tao']
 const today = () => new Date().toISOString().slice(0, 10)
 const eur = v => Number(v).toLocaleString('en-US', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 })
 const isApplied = t => !!t.applied_at || t.portfolio_state_updated === 1 || t.portfolio_state_updated === true
@@ -175,7 +175,7 @@ function TxRow({ tx, onChanged, onApplyOpen, applyOpen, onApplied }) {
 // This is the "after I buy" step: log the executed BTC/ETF orders, then
 // apply each to portfolio state (which also records a performance snapshot).
 export function LedgerContent({ assets }) {
-  const assetOptions = assets?.length ? assets : FALLBACK_ASSETS
+  const assetOptions = [...new Set([...(assets?.length ? assets : FALLBACK_ASSETS), 'eth', 'sol'])]
   const [ledger, setLedger] = useState(null)
   const [error, setError] = useState(false)
   const [applyId, setApplyId] = useState(null)
