@@ -2449,7 +2449,8 @@ def get_pnl_cost_basis() -> dict[str, dict]:
             SELECT
                 asset,
                 SUM(amount_eur) AS cost_basis_eur,
-                SUM(units)      AS total_units_bought
+                SUM(units)      AS total_units_bought,
+                COUNT(DISTINCT COALESCE(symbol, 'unknown')) AS instrument_count
             FROM finance_transaction_ledger
             WHERE portfolio_state_updated = 1
               AND (voided IS NULL OR voided = 0)
@@ -2461,6 +2462,7 @@ def get_pnl_cost_basis() -> dict[str, dict]:
             row["asset"]: {
                 "cost_basis_eur": row["cost_basis_eur"],
                 "total_units_bought": row["total_units_bought"],
+                "instrument_count": row['instrument_count'],
             }
             for row in rows
         }

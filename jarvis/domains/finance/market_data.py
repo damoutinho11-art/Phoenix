@@ -7,6 +7,7 @@ calls this module.
 from __future__ import annotations
 
 import logging
+from math import isfinite
 from copy import deepcopy
 from datetime import date
 from typing import Any
@@ -92,14 +93,17 @@ def _convert_to_eur(price: float, currency: str, fx: dict[str, float]) -> float 
     GBP (→ EUR) and USD (→ EUR).  Returns None for unknown currencies.
     """
     c = (currency or "").strip()
+    if not isfinite(price) or price <= 0:
+        return None
     if c == "EUR":
         return price
-    if c in ("GBp", "GBX"):          # pence — divide by 100 first
-        return (price / 100.0) * fx.get("GBPEUR", 1.0)
-    if c == "GBP":
-        return price * fx.get("GBPEUR", 1.0)
-    if c == "USD":
-        return price * fx.get("USDEUR", 1.0)
+    pair = 'GBPEUR' if c in ('GBP', 'GBp', 'GBX') else 'USDEUR' if c == 'USD' else None
+    rate = fx.get(pair)
+    if pair:
+        if rate is None or not isfinite(rate) or rate <= 0:
+            return None
+        converted = price * rate / (100 if c in ('GBp', 'GBX') else 1)
+        return converted if isfinite(converted) and converted > 0 else None
     log.warning("Unknown currency %r — cannot convert to EUR", c)
     return None
 
@@ -124,7 +128,7 @@ def _fetch_fx_rates() -> dict[str, float]:
     return rates
 
 
-def fetch_current_prices(keys: list[str]) -> tuple[dict[str, float], list[str]]:
+def fetch_current_prices(keys: list[str], *, symbol_map: dict[str, str] | None = None) -> tuple[dict[str, float], list[str]]:
     """Fetch live EUR prices per unit for the given portfolio_state keys.
 
     Returns
@@ -146,9 +150,10 @@ def fetch_current_prices(keys: list[str]) -> tuple[dict[str, float], list[str]]:
         if key in _SKIP_KEYS:
             continue
 
-        symbol = TICKER_MAP.get(key)
+        symbol = (symbol_map if symbol_map is not None else TICKER_MAP).get(key)
         if not symbol:
             log.debug("No ticker mapping for %r — skipping", key)
+            failed.append(key)
             continue
 
         try:
@@ -437,6 +442,8 @@ def detect_market_regime(portfolio_state: dict[str, Any] | None = None) -> str: 
     try:
         import yfinance as yf
         vix = float(yf.Ticker("^VIX").fast_info.last_price)
+        if not isfinite(vix) or vix <= 0:
+            return 'unknown'
         log.info("VIX fetched: %.2f", vix)
     except Exception as exc:
         log.warning("VIX fetch failed (%s) — market regime unknown", exc)
@@ -466,25 +473,68 @@ def update_portfolio_state_prices(
     metadata      : {prices_fetched, holdings_updated, needs_units, failed}
     """
     updated = deepcopy(portfolio_state)
+    from .positions import validate_positions, number
     units: dict[str, Any] = portfolio_state.get("units", {})
+    positions = portfolio_state.get('positions', {})
 
     all_keys = (
         list(portfolio_state.get("holdings", {}).keys())
         + list(portfolio_state.get("legacy_holdings", {}).keys())
     )
+    all_keys = [key for key in dict.fromkeys(all_keys) if key not in _SKIP_KEYS and (
+        portfolio_state.get('holdings', {}).get(key, portfolio_state.get('legacy_holdings', {}).get(key, 0))
+        or units.get(key) or key in positions)]
 
-    prices_eur, failed = fetch_current_prices(all_keys)
+    symbol_map = {key: TICKER_MAP[key] for key in all_keys if key in TICKER_MAP and key not in positions}
+    position_keys = {}
+    invalid = []
+    for asset, instruments in positions.items():
+        try:
+            validate_positions(instruments)
+            if asset not in portfolio_state.get('holdings', {}):
+                raise ValueError('Position sleeve is not tracked.')
+        except (ValueError, TypeError, AttributeError):
+            invalid.append(asset)
+            continue
+        for symbol, position in instruments.items():
+            if position['units'] > 0:
+                key = f'{asset}:{symbol}'
+                symbol_map[key] = symbol
+                position_keys[key] = (asset, symbol)
+    keys = list(symbol_map)
+    # Keep legacy call shape for consumers without instrument positions.
+    prices_eur, failed = (fetch_current_prices(keys, symbol_map=symbol_map) if positions
+                          else fetch_current_prices(all_keys))
 
     holdings_updated: list[str] = []
     needs_units: list[str] = []
 
+    for asset, instruments in positions.items():
+        if asset in invalid:
+            continue
+        needed = [f'{asset}:{symbol}' for symbol, p in instruments.items() if p['units'] > 0]
+        if any(key not in prices_eur or key in failed for key in needed):
+            invalid.append(asset)
+            continue
+        for symbol, p in updated['positions'][asset].items():
+            p['value_eur'] = round(p['units'] * prices_eur[f'{asset}:{symbol}'], 2) if p['units'] else 0
+            p['unpriced_buys'] = []
+        updated['holdings'][asset] = round(sum(p['value_eur'] for p in updated['positions'][asset].values()), 2)
+        holdings_updated.append(asset)
+
     for key, eur_price in prices_eur.items():
+        if key in position_keys or key in positions:
+            continue
         unit_count = units.get(key)
         if unit_count is None:
             needs_units.append(key)
             continue
-
-        new_value = round(float(unit_count) * eur_price, 2)
+        try:
+            new_value = round(number(unit_count) * number(eur_price, positive=True), 2)
+            number(new_value)
+        except ValueError:
+            failed.append(key)
+            continue
 
         if key in updated.get("holdings", {}):
             updated["holdings"][key] = new_value
@@ -493,11 +543,19 @@ def update_portfolio_state_prices(
             updated["legacy_holdings"][key] = new_value
             holdings_updated.append(key)
 
-    updated["as_of"] = date.today().isoformat()
+    failed = sorted(set(failed) | set(invalid))
+    # Cash needs no quote; a nonzero investment without a price or units does.
+    for key in all_keys:
+        value = portfolio_state.get('holdings', {}).get(key, portfolio_state.get('legacy_holdings', {}).get(key, 0))
+        if value and key not in _SKIP_KEYS and key not in holdings_updated:
+            failed.append(key)
+    updated['price_refresh_complete'] = not failed
+    if updated['price_refresh_complete']:
+        updated["as_of"] = date.today().isoformat()
 
     return updated, {
         "prices_fetched": {k: round(v, 4) for k, v in prices_eur.items()},
         "holdings_updated": holdings_updated,
         "needs_units": needs_units,
-        "failed": failed,
+        "failed": sorted(set(failed)),
     }

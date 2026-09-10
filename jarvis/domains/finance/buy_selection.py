@@ -246,6 +246,7 @@ def select_buys(candidates, constitution, portfolio_state, holdings, weekly_budg
                                   for r in evaluations if r.get('lane') == lane]
         lanes[lane] = result
     allocations['tactical_reserve'] = allocations.get('tactical_reserve', 0) + remaining
-    return {'policy_version': POLICY_VERSION, 'as_of': as_of.isoformat(), 'method': METHOD,
+    from .portfolio_projection import finalize_selection
+    return finalize_selection({'policy_version': POLICY_VERSION, 'as_of': as_of.isoformat(), 'method': METHOD,
             'limitations': list(LIMITATIONS), 'lanes': lanes, 'candidates': evaluations,
-            'allocations_cents': allocations}
+            'allocations_cents': allocations}, constitution, holdings, budget)

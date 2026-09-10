@@ -27,6 +27,26 @@ class EvidenceRecommendationTests(unittest.TestCase):
         self.assertEqual(after['holdings']['eth'], 25)
         self.assertEqual(after['units']['eth'], .01)
 
+    def test_mixed_fund_accounting_survives_api_apply_and_void_helpers(self):
+        from jarvis.api.routers.finance import _apply_transaction_to_portfolio_state, _reverse_transaction_in_portfolio_state
+        original = {'holdings': {'global_core_etf': 300}, 'units': {'global_core_etf': 2}}
+        tx = {'id': 9, 'asset': 'global_core_etf', 'symbol': 'SPYI.DE', 'amount_eur': 100, 'units': 10}
+        updated, before, after = _apply_transaction_to_portfolio_state(tx, original)
+        self.assertEqual(updated['positions']['global_core_etf']['SPYI.DE']['units'], 10)
+        self.assertIsNone(updated['units']['global_core_etf'])
+        reversed_state, _, _ = _reverse_transaction_in_portfolio_state(tx, updated)
+        self.assertEqual(reversed_state['holdings'], original['holdings'])
+
+    def test_mixed_funds_have_no_aggregate_average_unit_price(self):
+        from jarvis.api.routers import finance
+        state = {'holdings': {'global_core_etf': 400}, 'positions': {'global_core_etf':
+                 {'VWCE.DE': {'units': 2, 'value_eur': 300}, 'SPYI.DE': {'units': 10, 'value_eur': 100}}}}
+        with patch.object(finance.database, 'get_pnl_cost_basis', return_value={
+            'global_core_etf': {'cost_basis_eur': 400, 'total_units_bought': 12}}):
+            result = finance.finance_pnl(state)['pnl'][0]
+        self.assertIsNone(result['avg_price_eur'])
+        self.assertIsNone(result['units'])
+
     def test_recommendation_and_checklist_share_real_evidence_selection(self):
         self.check_selection(candidate(), 'global_core_etf', 'VWCE.DE')
 
@@ -68,8 +88,14 @@ class EvidenceRecommendationTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200, response.text)
                 data = response.json()
                 self.assertEqual(data['buy_selection']['policy_version'], policy)
+                self.assertIn('decision_comparison', data['buy_selection'])
+                self.assertIn('portfolio value', data['rationale'])
                 self.assertIsNone(data['brief_id'], 'An unrelated stored brief must never authorize the new decision')
                 self.assertTrue(saved.called, 'Changed evidence decisions need a new saved snapshot')
+                import json
+                archived = json.loads(saved.call_args.kwargs['full_brief_json'])
+                self.assertIn('decision_replay_snapshot', archived)
+                self.assertNotIn('decision_replay_snapshot', data, 'Raw research history belongs in the private archive, not every response')
                 self.assertEqual(len(data['recommendations']), 1)
                 leg = data['recommendations'][0]
                 self.assertEqual(finance._recommendation_provenance(leg)['provenance_classification'],

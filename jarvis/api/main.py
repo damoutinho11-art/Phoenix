@@ -88,7 +88,8 @@ async def _auto_refresh_prices():
             constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
             if state and constitution:
                 updated, meta = update_portfolio_state_prices(state, constitution)
-                updated["prices_refreshed_at"] = clock.utc_now_iso()
+                if updated.get('price_refresh_complete', not meta.get('failed')):
+                    updated["prices_refreshed_at"] = clock.utc_now_iso()
                 database.save_portfolio_state(updated)
                 _log.info("Auto price refresh: updated %s", meta.get("holdings_updated"))
         except Exception:

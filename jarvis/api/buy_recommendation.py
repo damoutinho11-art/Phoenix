@@ -15,7 +15,7 @@ def decision_signature(response):
         return None
     snapshot = {'week_budget': response.get('week_budget'),
                 'policy_version': selection['policy_version'], 'as_of': selection['as_of'],
-                'lanes': selection['lanes']}
+                'lanes': selection['lanes'], 'projection': selection.get('projection')}
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
@@ -97,4 +97,14 @@ def selection_rationale(selection):
                 parts.append(f"Costs use {row.get('quote_venue', 'a reference market spread')}; confirm the actual broker quote before buying.")
         else:
             parts.append(prefix + 'WAIT. ' + decision['reason'])
-    return '\n'.join(parts) + '\nBest-supported within the evaluated universe; future returns are uncertain.'
+    comparison = selection.get('decision_comparison')
+    if comparison:
+        plan, cash = comparison['selected_plan'], comparison['cash_alternative']
+        parts.append(f"Projected portfolio value after estimated costs: €{plan['net_total_cents']/100:.2f}. "
+                     f"Distance from target allocation: {plan['target_distance_pct']:.2f}% versus "
+                     f"{cash['target_distance_pct']:.2f}% if this contribution stays in cash. "
+                     'This measures allocation fit, not expected returns.')
+        if plan['constraint_breaches']:
+            parts.append('Projected limits still exceeded: ' + ', '.join(
+                b['constraint'] for b in plan['constraint_breaches']) + '. No automatic selling.')
+    return '\n'.join(parts) + '\nSelection follows the configured contribution policy; investment outperformance is unproven.'

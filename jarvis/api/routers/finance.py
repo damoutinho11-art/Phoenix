@@ -21,6 +21,7 @@ from jarvis.api.finance_authority import (
 from jarvis.api.finance_lifecycle import current_week_lifecycle
 from jarvis.core import clock
 from jarvis.domains.finance import engine
+from jarvis.domains.finance.positions import apply_position_transaction, correct_position_units
 from jarvis.domains.finance.etf_scoring import load_etf_universe
 from jarvis.domains.finance.market_data import (
     ETF_CANDIDATE_TICKERS,
@@ -762,7 +763,8 @@ def _build_finance_recommendation(
             amount_eur=sum(r["amount"] for r in recommendations) or None,
             route=primary["route"] if primary else None,
             thesis=rationale,
-            full_brief_json=json.dumps(response),
+            full_brief_json=json.dumps({**response, **({'decision_replay_snapshot': result['decision_replay_snapshot']}
+                if selection else {})}, allow_nan=False),
         )
 
     latest_brief = database.get_latest_brief_for_week(week_label, "finance")
@@ -1462,6 +1464,7 @@ def finance_holdings(
             "current_weight": round(s.current_weight, 4) if s else 0.0,
             "target_weight": s.target_weight if s else 0.0,
             "is_crypto": key in _CRYPTO_ASSETS,
+            "positions": portfolio_state.get("positions", {}).get(key, {}),
         })
 
     legacy = []
@@ -1653,6 +1656,8 @@ def finance_brief(
 def finance_get_portfolio_state(portfolio_state: dict = Depends(get_portfolio_state)) -> dict:
     """Return the raw portfolio state (units, holdings, legacy_holdings) for inspection."""
     return {
+        "positions": portfolio_state.get('positions', {}),
+        "price_refresh_complete": portfolio_state.get('price_refresh_complete'),
         "as_of": portfolio_state.get("as_of"),
         "prices_refreshed_at": portfolio_state.get("prices_refreshed_at"),
         "holdings": portfolio_state.get("holdings", {}),
@@ -1681,6 +1686,8 @@ def finance_pnl(portfolio_state: dict = Depends(get_portfolio_state)) -> dict:
         cost_basis = float(row["cost_basis_eur"])
         total_units = float(row["total_units_bought"])
         avg_price = cost_basis / total_units if total_units > 0 else 0.0
+        mixed = len([p for p in portfolio_state.get('positions', {}).get(asset, {}).values()
+                     if p.get('units', 0) > 0]) > 1 or row.get('instrument_count', 1) > 1
         gain_eur = round(current_eur - cost_basis, 4)
         gain_pct = round((gain_eur / cost_basis * 100) if cost_basis > 0 else 0.0, 4)
         pnl_list.append({
@@ -1689,8 +1696,9 @@ def finance_pnl(portfolio_state: dict = Depends(get_portfolio_state)) -> dict:
             "current_value_eur": round(current_eur, 4),
             "gain_eur": gain_eur,
             "gain_pct": gain_pct,
-            "avg_price_eur": round(avg_price, 4),
-            "units": round(total_units, 8),
+            "avg_price_eur": None if mixed else round(avg_price, 4),
+            "units": None if mixed else round(total_units, 8),
+            "multiple_instruments": mixed,
         })
 
     total_cost = sum(item["cost_basis_eur"] for item in pnl_list)
@@ -1726,13 +1734,15 @@ def finance_refresh_prices() -> dict:
 
     updated_state, meta = update_portfolio_state_prices(portfolio_state, constitution)
 
-    updated_state["prices_refreshed_at"] = clock.utc_now_iso()
+    if updated_state.get('price_refresh_complete', not meta.get('failed')):
+        updated_state["prices_refreshed_at"] = clock.utc_now_iso()
     database.save_portfolio_state(updated_state)
 
     return {
         "updated": True,
         "as_of": updated_state["as_of"],
-        "prices_refreshed_at": updated_state["prices_refreshed_at"],
+        "prices_refreshed_at": updated_state.get("prices_refreshed_at"),
+        "price_refresh_complete": updated_state.get('price_refresh_complete'),
         "prices_fetched": meta["prices_fetched"],
         "holdings_updated": meta["holdings_updated"],
         "needs_units": meta["needs_units"],
@@ -2929,31 +2939,14 @@ def _build_transaction_apply_preview(
             ),
         )
 
-    before_holdings = copy.deepcopy(holdings)
-    before_units = copy.deepcopy(portfolio_state.get("units", {}))
-
-    after_holdings = copy.deepcopy(before_holdings)
-    after_holdings[asset] = round(
-        (after_holdings.get(asset) or 0.0) + transaction["amount_eur"], 10
-    )
-
-    after_units = copy.deepcopy(before_units)
-    if asset in after_units or asset in {'eth', 'sol'}:
-        current = after_units.get(asset)
-        if current is None:
-            current = 0.0
-        after_units[asset] = round(current + transaction["units"], 10)
-
-    before: dict = {
-        "holdings": before_holdings,
-        "units": before_units,
-        "as_of": portfolio_state.get("as_of"),
-    }
-    after: dict = {
-        "holdings": after_holdings,
-        "units": after_units,
-        "as_of": clock.utc_now().date().isoformat(),
-    }
+    try:
+        updated = apply_position_transaction(portfolio_state, transaction)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    before = {key: copy.deepcopy(portfolio_state.get(key, {})) for key in ('holdings', 'units', 'positions')}
+    after = {key: updated[key] for key in ('holdings', 'units', 'positions')}
+    before['as_of'] = portfolio_state.get('as_of')
+    after['as_of'] = clock.utc_now().date().isoformat()
     return before, after
 
 
@@ -2968,6 +2961,8 @@ def _apply_transaction_to_portfolio_state(
 
     new_state = copy.deepcopy(portfolio_state)
     new_state["holdings"] = after["holdings"]
+    new_state['positions'] = after['positions']
+    new_state['price_refresh_complete'] = False
     if after["units"]:
         new_state["units"] = after["units"]
     new_state["as_of"] = after["as_of"]
@@ -3066,29 +3061,15 @@ def _reverse_transaction_in_portfolio_state(
             detail=f"Asset '{asset}' not found in portfolio_state holdings.",
         )
 
-    before_holdings = copy.deepcopy(holdings)
-    before_units = copy.deepcopy(portfolio_state.get("units", {}))
-
-    after_holdings = copy.deepcopy(before_holdings)
-    after_holdings[asset] = round(
-        max(0.0, (after_holdings.get(asset) or 0.0) - transaction["amount_eur"]), 10
-    )
-
-    after_units = copy.deepcopy(before_units)
-    if asset in after_units:
-        current = after_units[asset]
-        if current is None:
-            current = 0.0
-        after_units[asset] = round(max(0.0, current - transaction["units"]), 10)
-
-    before = {"holdings": before_holdings, "units": before_units, "as_of": portfolio_state.get("as_of")}
-    after = {"holdings": after_holdings, "units": after_units, "as_of": clock.utc_now().date().isoformat()}
-
-    new_state = copy.deepcopy(portfolio_state)
-    new_state["holdings"] = after["holdings"]
-    if after["units"]:
-        new_state["units"] = after["units"]
-    new_state["as_of"] = after["as_of"]
+    try:
+        new_state = apply_position_transaction(portfolio_state, transaction, reverse=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    before = {key: copy.deepcopy(portfolio_state.get(key, {})) for key in ('holdings', 'units', 'positions')}
+    after = {key: new_state[key] for key in ('holdings', 'units', 'positions')}
+    before['as_of'] = portfolio_state.get('as_of')
+    after['as_of'] = clock.utc_now().date().isoformat()
+    new_state['as_of'] = after['as_of']
 
     return new_state, before, after
 
@@ -3101,6 +3082,7 @@ class VoidTransactionPayload(BaseModel):
 class PatchPortfolioUnitsPayload(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     asset: str = Field(min_length=1)
+    symbol: str | None = None
     units: float = Field(ge=0)
     holdings_eur: float | None = Field(default=None, ge=0)
     reason: str = Field(default="Manual data correction", min_length=1)
@@ -3126,20 +3108,18 @@ def finance_patch_portfolio_units(payload: PatchPortfolioUnitsPayload) -> dict:
     before_holdings = copy.deepcopy(portfolio_state.get("holdings", {}))
     before_legacy = copy.deepcopy(portfolio_state.get("legacy_holdings", {}))
 
-    new_state = copy.deepcopy(portfolio_state)
-    if payload.asset in new_state.get("units", {}):
-        new_state["units"][payload.asset] = round(payload.units, 10)
-    if payload.holdings_eur is not None:
-        if payload.asset in new_state.get("holdings", {}):
-            new_state["holdings"][payload.asset] = round(payload.holdings_eur, 2)
-        elif payload.asset in new_state.get("legacy_holdings", {}):
-            new_state["legacy_holdings"][payload.asset] = round(payload.holdings_eur, 2)
+    try:
+        new_state = correct_position_units(portfolio_state, payload.asset, payload.units, payload.holdings_eur, symbol=payload.symbol)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     database.save_portfolio_state(new_state)
 
     return {
         "asset": payload.asset,
         "units_before": before_units.get(payload.asset),
+        "symbol": payload.symbol,
+        "positions": new_state.get('positions', {}).get(payload.asset, {}),
         "units_after": new_state["units"].get(payload.asset),
         "holdings_eur_before": before_holdings.get(payload.asset) or before_legacy.get(payload.asset),
         "holdings_eur_after": (

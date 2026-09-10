@@ -112,7 +112,8 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
             'comparison_cost_pct': r.get('comparison_cost_pct')} for r in evaluations if r.get('lane') == lane]
         lanes[lane] = decision
     allocations['tactical_reserve'] = allocations.get('tactical_reserve', 0) + remaining
-    return {'policy_version': POLICY_VERSION, 'as_of': as_of.isoformat(),
+    from .portfolio_projection import finalize_selection
+    return finalize_selection({'policy_version': POLICY_VERSION, 'as_of': as_of.isoformat(),
             'method': 'Largest eligible target shortfall first, then lowest verified cost. No return forecast.',
             'horizon_years': horizon, 'limitations': list(LIMITATIONS), 'lanes': lanes,
-            'candidates': evaluations, 'allocations_cents': allocations}
+            'candidates': evaluations, 'allocations_cents': allocations}, constitution, holdings, budget)

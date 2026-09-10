@@ -26,12 +26,12 @@ function Field({ label, children }) {
 }
 
 function RecordForm({ assets, onSaved }) {
-  const [form, setForm] = useState({ asset: assets[0] || '', platform: '', amount_eur: '', units: '', price: '', currency: 'EUR', fee_eur: '0', executed_at: today(), notes: '' })
+  const [form, setForm] = useState({ asset: assets[0] || '', symbol: '', platform: '', amount_eur: '', units: '', price: '', currency: 'EUR', fee_eur: '0', executed_at: today(), notes: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const num = v => Number(String(v).replace(',', '.'))
-  const valid = form.asset && form.platform.trim() && num(form.amount_eur) > 0 && num(form.units) > 0 && num(form.price) > 0
+  const valid = form.asset && (!form.asset.endsWith('_etf') || form.symbol.trim()) && form.platform.trim() && num(form.amount_eur) > 0 && num(form.units) > 0 && num(form.price) > 0
 
   const submit = async () => {
     if (!valid || saving) return
@@ -39,6 +39,7 @@ function RecordForm({ assets, onSaved }) {
     try {
       await postManualFinanceTransaction({
         asset: form.asset,
+        symbol: form.symbol.trim().toUpperCase() || null,
         platform: form.platform.trim(),
         side: 'buy',
         amount_eur: num(form.amount_eur),
@@ -49,7 +50,7 @@ function RecordForm({ assets, onSaved }) {
         executed_at: form.executed_at,
         notes: form.notes.trim() || null,
       })
-      setForm({ asset: assets[0] || '', platform: '', amount_eur: '', units: '', price: '', currency: 'EUR', fee_eur: '0', executed_at: today(), notes: '' })
+      setForm({ asset: assets[0] || '', symbol: '', platform: '', amount_eur: '', units: '', price: '', currency: 'EUR', fee_eur: '0', executed_at: today(), notes: '' })
       onSaved()
     } catch (e) {
       setError(e?.message || 'Could not save the record.')
@@ -66,6 +67,7 @@ function RecordForm({ assets, onSaved }) {
             {assets.map(k => <option key={k} value={k}>{k.replace(/_/g, ' ').toUpperCase()}</option>)}
           </select>
         </Field>
+        <Field label="INSTRUMENT SYMBOL"><input className="phx-input" style={inputStyle} value={form.symbol} placeholder="e.g. SPYI.DE / BTC-EUR" onChange={e => set('symbol', e.target.value)} /></Field>
         <Field label="PLATFORM"><input className="phx-input" style={inputStyle} value={form.platform} placeholder="Lightyear / LHV" onChange={e => set('platform', e.target.value)} /></Field>
         <Field label="AMOUNT €"><input className="phx-input" style={inputStyle} inputMode="decimal" value={form.amount_eur} placeholder="85.00" onChange={e => set('amount_eur', e.target.value)} /></Field>
         <Field label="UNITS"><input className="phx-input" style={inputStyle} inputMode="decimal" value={form.units} placeholder="0.0012" onChange={e => set('units', e.target.value)} /></Field>

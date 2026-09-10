@@ -54,5 +54,14 @@ HYPE and TAO now have verified Kraken EUR history/reference quote mappings.
 LHV public product evidence confirms HYPE. TAO broker availability remains
 unconfirmed and cannot be assumed from the exchange data.
 
-Deployment status: pending. Preserve owner authentication and persistent data;
-no automatic trades or holding edits are part of rollout.
+Deployment status: verified live on 2026-09-09.
+- Backend commit: `7cb0cc1168f777d88001b9931d15a18dff42c7b0`.
+- Railway deployment `e022ab4b-aa43-421b-adfc-e460ccbf392c`: SUCCESS.
+- Production selection mode independently verified as `contribution_v2`.
+- Vercel deployment `dpl_5d22kv5VEdSuazmYiMLRXxB5deXQ`: READY; alias
+  `https://phoenix-phoenix123.vercel.app/` points to this deployment.
+- Authenticated static-bundle verification confirmed the expected Railway API origin.
+- Final access checks: absent credentials 401, invalid credentials 401,
+  public health 200, owner credentials 200. No private finance endpoints were
+  read for these checks.
+- Owner authentication and persistent data preserved; no trades or holding edits.

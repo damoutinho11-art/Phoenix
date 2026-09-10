@@ -278,6 +278,8 @@ def portfolio_state_freshness_blockers(
     current = current.astimezone(timezone.utc)
 
     blockers: list[str] = []
+    if portfolio_state.get('price_refresh_complete') is False:
+        blockers.append('Portfolio valuation is incomplete; refresh all instrument prices before requesting a recommendation.')
     holdings_warning = portfolio_state_staleness_warning(
         portfolio_state, today=current.date()
     )
@@ -1154,6 +1156,7 @@ def build_weekly_dual_lane_mandate(
     etf_scores: dict[str, dict[str, Any]],
     warnings: list[dict[str, Any]],
     weekly_budget_cents: int,
+    projected_holdings: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     crypto_assets = set(CRYPTO_MANDATE_ASSETS)
     stock_fund_etf_assets = set(ETF_SLEEVES)
@@ -1168,7 +1171,8 @@ def build_weekly_dual_lane_mandate(
     crypto_asset = _lane_primary_asset(crypto_executable) or _lane_primary_asset(crypto_ideal)
     stock_fund_etf_asset = _lane_primary_asset(stock_fund_etf_executable) or _lane_primary_asset(stock_fund_etf_ideal)
     crypto_status = crypto_risk_status(
-        constitution, holdings, executable_allocations, weekly_budget_cents
+        constitution, holdings, executable_allocations, weekly_budget_cents,
+        projected_holdings=projected_holdings,
     )
     crypto_amount = sum(crypto_executable.values())
     stock_fund_etf_amount = sum(stock_fund_etf_executable.values())
@@ -1411,6 +1415,9 @@ def allocate_weekly_budget(
     executable_projected_holdings = {
         name: holdings[name] + executable_allocations[name] for name in holdings
     }
+    if selection is not None:
+        ideal_projected_holdings = dict(selection['projection']['holdings_cents'])
+        executable_projected_holdings = dict(ideal_projected_holdings)
 
     result = {
         "currency": constitution.get("currency", "EUR"),
@@ -1437,7 +1444,8 @@ def allocate_weekly_budget(
             constitution, portfolio_state
         ),
         "crypto_risk_status": crypto_risk_status(
-            constitution, holdings, executable_allocations, weekly_budget_cents
+            constitution, holdings, executable_allocations, weekly_budget_cents,
+            projected_holdings=executable_projected_holdings if selection is not None else None,
         ),
         "weekly_dual_lane_mandate": build_weekly_dual_lane_mandate(
             constitution=constitution,
@@ -1447,6 +1455,7 @@ def allocate_weekly_budget(
             etf_scores=etf_scores,
             warnings=warnings,
             weekly_budget_cents=weekly_budget_cents,
+            projected_holdings=executable_projected_holdings if selection is not None else None,
         ),
         "transition_cash_warning": should_show_transition_cash_warning(
             constitution, portfolio_state, executable_projected_holdings
@@ -1457,6 +1466,10 @@ def allocate_weekly_budget(
     }
     if selection is not None:
         result['buy_selection'] = selection
+        from .buy_replay import capture_snapshot
+        result['decision_replay_snapshot'] = capture_snapshot(candidates, constitution, portfolio_state,
+            holdings, weekly_budget_cents, as_of or date.today(), selection['policy_version'],
+            (profile or {}).get('risk_profile', {}).get('time_horizon_years'))
         for lane, mandate_key in [('crypto', 'crypto_lane'), ('etf', 'stock_fund_etf_lane')]:
             decision = selection['lanes'][lane]
             result['weekly_dual_lane_mandate'][mandate_key].update(
@@ -1496,6 +1509,7 @@ def crypto_risk_status(
     holdings: dict[str, int],
     executable_allocations: dict[str, int],
     weekly_budget_cents: int,
+    *, projected_holdings: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     final_total = sum(holdings.values()) + weekly_budget_cents
     risk_rules = constitution.get("crypto_risk_rules", {})
@@ -1514,6 +1528,11 @@ def crypto_risk_status(
     tao_value = holdings.get("tao", 0) + executable_allocations.get("tao", 0)
     total_crypto_value = sum(holdings.get(a, 0) + executable_allocations.get(a, 0) for a in crypto_like_assets())
     hype_tao_value = hype_value + tao_value
+    if projected_holdings is not None:
+        final_total = sum(projected_holdings.values())
+        btc_value = projected_holdings.get('btc', 0)
+        hype_tao_value = projected_holdings.get('hype', 0) + projected_holdings.get('tao', 0)
+        total_crypto_value = sum(projected_holdings.get(a, 0) for a in crypto_like_assets())
 
     return {
         "btc_weight": btc_value / final_total if final_total else 0.0,

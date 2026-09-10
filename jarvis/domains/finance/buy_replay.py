@@ -13,6 +13,27 @@ from pathlib import Path
 from .buy_selection import select_buys
 
 
+def capture_snapshot(candidates, constitution, portfolio_state, holdings, budget,
+                     as_of, policy_version, horizon_years):
+    """Capture decision inputs, not unrelated account/profile information."""
+    def clean(value):
+        if isinstance(value, float) and not isfinite(value):
+            # float() restores these JSON-safe sentinels during evidence checks.
+            # Infinity is invalid evidence; it must never become an omittable gap.
+            return str(value)
+        if isinstance(value, dict):
+            return {k: clean(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [clean(v) for v in value]
+        return value
+    return clean({'as_of': as_of.isoformat(), 'policy_version': policy_version,
+                  'implementation_version': 'portfolio-foundation-v1',
+                  'horizon_years': horizon_years, 'candidates': candidates,
+                  'constitution': constitution, 'holdings_cents': holdings,
+                  'weekly_budget_cents': budget,
+                  'portfolio_state': {'platform_status': portfolio_state.get('platform_status', {})}})
+
+
 def _outcome(row, raw_rows, start, horizon):
     if not row:
         return {'symbol': None, 'net_return_pct': 0.0, 'status': 'CASH'}
@@ -46,8 +67,17 @@ def replay_snapshots(snapshots, horizon_days=30):
     for snapshot in snapshots:
         today = date.fromisoformat(snapshot['as_of'])
         rows = snapshot['candidates']
-        result = select_buys(rows, snapshot['constitution'], snapshot['portfolio_state'],
-                             snapshot['holdings_cents'], snapshot['weekly_budget_cents'], today)
+        policy = snapshot.get('policy_version', 'evidence-buy-v1')
+        if policy == 'contribution-v2':
+            from .contribution_selection import select_contributions
+            result = select_contributions(rows, snapshot['constitution'], snapshot['portfolio_state'],
+                snapshot['holdings_cents'], snapshot['weekly_budget_cents'], today,
+                horizon_years=snapshot.get('horizon_years'))
+        elif policy == 'evidence-buy-v1':
+            result = select_buys(rows, snapshot['constitution'], snapshot['portfolio_state'],
+                                 snapshot['holdings_cents'], snapshot['weekly_budget_cents'], today)
+        else:
+            raise ValueError('Unknown archived selection policy.')
         decisions.append(result)
         for lane, decision in result['lanes'].items():
             eligible = [r for r in result['candidates'] if r.get('lane') == lane and r['eligible']]
