@@ -102,5 +102,20 @@ Final checks before rollout:
 - Public-history replay: exact decisions, metrics, configuration and source date
   reproduced without network.
 
-Deployment is pending at this source commit. Existing production policy and
-access controls are unchanged by this release.
+Rollout verified on 2026-09-10:
+
+- Source commit: `447ba3dd52901b996782c6a6820b1886ab8ec9e3`, pushed to `origin/main`.
+- Railway deployment `9b1b18cb-e33a-461e-820f-b4bbc8361ab7`: SUCCESS; exact source
+  commit verified through deployment metadata.
+- Vercel deployment `dpl_2gC7TtekBvKbiW6EB9QjVY4WCXgr`: READY; production alias
+  `phoenix-phoenix123.vercel.app`. The git push triggered deployment automatically.
+- Authenticated static frontend inspection confirmed the comparison action, new
+  route and correct Railway origin in the published JavaScript bundle.
+- Live access checks: absent/invalid owner credentials returned 401; public health
+  returned 200; owner access check returned 200. Anonymous optimizer GET and run
+  POST returned 401. Owner optimizer status GET returned 200 with `no-store`.
+- Live checks read response headers only; no private financial response bodies,
+  holdings changes, production optimizer runs or trades were performed.
+
+The production contribution policy and default-deny access controls remain active.
+The optimizer is available for owner-triggered research comparison only.

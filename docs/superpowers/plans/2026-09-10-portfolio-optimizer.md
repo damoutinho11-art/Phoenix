@@ -26,5 +26,9 @@ exposures, fees and cash; never invent missing data or investment performance.
   consistent contributions/costs, unitized results and archived public inputs.
 - [x] Run synthetic and real public-history evaluation; record limitations and
   promotion status without backdating broker/research evidence.
-- [ ] Obtain independent implementation review, fix findings, run relevant
+- [x] Obtain independent implementation review, fix findings, run relevant
   domain/API/security/frontend checks, deploy and verify owner access.
+
+Completed as a research challenger. The conditional evaluation did not justify
+promotion; the production contribution policy remains unchanged. Rollout and
+validation evidence: `docs/reviews/2026-09-10-portfolio-optimizer-review.md`.
