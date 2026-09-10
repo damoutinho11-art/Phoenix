@@ -104,7 +104,7 @@ def _room(asset, lane, c, p, holdings, budget):
     return room, deficit / (final_total * target), minimum, route
 
 
-def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=True):
+def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=True, sizing=None):
     result = {k: v for k, v in row.items() if k != 'history'}
     result.update(eligible=False, policy_eligible=False, score=None)
     try:
@@ -118,7 +118,7 @@ def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=Tr
             raise ValueError('Crypto asset is not supported by the current mandate and ledger.')
         if lane == 'crypto' and row['symbol'] != f'{asset.upper()}-EUR':
             raise ValueError('Crypto market identity does not match the asset and its research.')
-        room, gap, minimum, route = _room(asset, lane, c, p, holdings, budget)
+        room, gap, minimum, route = (sizing or _room)(asset, lane, c, p, holdings, budget)
         if row.get('broker_available') is False:
             raise ValueError('Instrument is not available at the configured broker.')
         if lane == 'etf' and row.get('mandate_approved') is not True:

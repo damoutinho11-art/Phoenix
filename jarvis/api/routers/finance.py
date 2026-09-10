@@ -6,6 +6,7 @@ import os
 import re
 from datetime import date, timedelta
 from typing import Any, Literal
+from threading import Lock
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,6 +36,33 @@ from jarvis.domains.finance.market_data import (
 from jarvis.data import database
 
 router = APIRouter()
+_optimizer_run_lock = Lock()
+
+
+@router.get('/optimizer')
+def finance_optimizer_status():
+    record = database.get_latest_optimizer_run()
+    if not record:
+        return {'status': 'NOT_RUN', 'promotion_status': 'NOT_VALIDATED', 'selected_plan': None}
+    return {**json.loads(record['result_json']), 'run_id': record['id'], 'created_at': record['created_at']}
+
+
+@router.post('/optimizer/run')
+def finance_optimizer_run(
+    constitution: dict = Depends(get_finance_constitution),
+    portfolio_state: dict = Depends(get_portfolio_state),
+    profile: dict = Depends(get_finance_profile),
+):
+    from jarvis.api.finance_optimizer import run_optimizer
+    if not _optimizer_run_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail='A portfolio comparison is already running.')
+    try:
+        today = clock.today()
+        closed = current_week_lifecycle(today)['week_closed']
+        authority = _cashflow_authority_for_today(today, week_closed=closed)
+        return run_optimizer(constitution, portfolio_state, profile, authority, today, week_closed=closed)
+    finally:
+        _optimizer_run_lock.release()
 
 
 def _iso_week_label(today: date | None = None) -> str:

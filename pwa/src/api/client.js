@@ -35,6 +35,10 @@ export async function getFinanceRecommendation() {
   return apiFetch('/finance/recommendation')
 }
 
+export function runFinanceOptimizer() {
+  return apiFetch('/finance/optimizer/run', { method: 'POST' })
+}
+
 export async function getFinanceManualBuyChecklist() {
   return apiFetch('/finance/manual-buy-checklist')
 }

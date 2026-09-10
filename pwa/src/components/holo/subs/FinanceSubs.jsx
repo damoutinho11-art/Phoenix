@@ -5,6 +5,7 @@ import { getFinanceBrief, getFinanceManualBuyChecklist, getFinanceRecommendation
 import { SubLabel } from './SubShell'
 import { financeBody, financeButton, financeLabel, financeMicro, financeMonoBody } from './financeReadability'
 import { formatCashAuthorityBrief } from './financeBriefAuthority'
+import { OptimizerSummary } from './OptimizerSummary'
 
 const dirColor = h => (h.dir === 'TRIM' ? R : h.dir === 'FEED' ? Y : ACC)
 const briefUnavailable = text => /AI brief unavailable|Unable to generate brief/i.test(text || '')
@@ -352,6 +353,7 @@ export function BriefContent() {
         {briefText.slice(0, n)}
         <span style={{ display: 'inline-block', width: 7, height: 14, background: ACC, boxShadow: `0 0 8px ${ACC}`, verticalAlign: -2, animation: 'holo-cursorBlink 1.1s ease-in-out infinite' }} />
       </div>
+      <OptimizerSummary />
       {done && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginTop: 12, animation: 'holo-fadeIn .5s ease both' }}>
           <span style={{ width: 40, height: 1, background: `linear-gradient(90deg, transparent, ${a(ACC, '88')})` }} />

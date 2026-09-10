@@ -19,6 +19,32 @@ class EvidenceRecommendationTests(unittest.TestCase):
     def tearDownClass(cls):
         access_fixture.AppAccessControlTests.tearDownClass()
 
+    def test_optimizer_routes_require_owner_and_never_return_snapshot_history(self):
+        from jarvis.api.routers import finance
+        from jarvis.api.dependencies import get_finance_constitution, get_portfolio_state, get_finance_profile
+        app = access_fixture.AppAccessControlTests.app
+        headers = {'Authorization': f'Bearer {access_fixture.KEY}'}
+        with patch.object(finance.database,'get_latest_optimizer_run',return_value={
+            'id':7,'created_at':'2026-09-10','snapshot_json':'PRIVATE INPUTS',
+            'result_json':'{"status":"RESEARCH_READY","promotion_status":"NOT_VALIDATED"}'}):
+            assert self.client.get('/finance/optimizer').status_code == 401
+            response = self.client.get('/finance/optimizer',headers=headers)
+            assert response.status_code == 200
+            assert 'PRIVATE INPUTS' not in response.text
+        previous = dict(app.dependency_overrides)
+        try:
+            for dependency in (get_finance_constitution, get_portfolio_state, get_finance_profile):
+                app.dependency_overrides[dependency] = lambda: {}
+            with patch.object(finance,'current_week_lifecycle',return_value={'week_closed':True}), \
+                 patch.object(finance,'_cashflow_authority_for_today',return_value={'data_ready':True}):
+                assert self.client.post('/finance/optimizer/run').status_code == 401
+                response = self.client.post('/finance/optimizer/run',headers=headers)
+                assert response.status_code == 200
+                assert response.json()['status'] == 'WEEK_CLOSED'
+        finally:
+            app.dependency_overrides.clear()
+            app.dependency_overrides.update(previous)
+
     def test_manual_preview_can_record_new_eth_without_mutating_input(self):
         from jarvis.api.routers.finance import _build_transaction_apply_preview
         original = {'holdings': {'btc': 100}, 'units': {'btc': .001}}

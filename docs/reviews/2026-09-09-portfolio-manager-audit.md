@@ -111,7 +111,16 @@ those tests import the app with a different CORS environment before the security
 fixture sets its test origin. A combined exploratory run reproduced this
 fixture-order failure; isolated real-app authentication/CORS tests pass.
 
-Deployment of this foundation: pending at the time of this commit.
+Foundation deployment verified live on 2026-09-10:
+- Source commit `6d834de18ac1c551c8508835706464261e829f35` pushed to main.
+- Railway `1bb432a0-62f0-4c90-9f6f-bf6bf5f323b9`: SUCCESS, exact commit confirmed.
+- Vercel `dpl_J2VxEfqF3VjKVLANbooNAXgd91Td`: READY, user alias
+  `https://phoenix-phoenix123.vercel.app/` confirmed on this deployment.
+- Protected static-bundle verification confirmed both the Railway API origin
+  and the new instrument symbol field. Deployment protection preserved.
+- Access checks: missing key 401, invalid key 401, public health 200, owner key 200.
+- Vercel CLI 59.15.1 returned a scope-access error; the previously working 59.14.0
+  deployed successfully with the same account/project. No access controls changed.
 No production balances have been migrated or reconciled by this code review.
 
 ## User's allocation direction

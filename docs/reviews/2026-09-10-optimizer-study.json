@@ -1,0 +1,2903 @@
+{
+  "retrieved_as_of": "2026-09-10",
+  "configuration": {
+    "cutoffs": [
+      "2024-01-01",
+      "2024-02-01",
+      "2024-03-01",
+      "2024-04-01",
+      "2024-05-01",
+      "2024-06-01",
+      "2024-07-01",
+      "2024-08-01",
+      "2024-09-01",
+      "2024-10-01",
+      "2024-11-01",
+      "2024-12-01",
+      "2025-01-01",
+      "2025-02-01",
+      "2025-03-01",
+      "2025-04-01",
+      "2025-05-01",
+      "2025-06-01",
+      "2025-07-01",
+      "2025-08-01",
+      "2025-09-01",
+      "2025-10-01",
+      "2025-11-01",
+      "2025-12-01",
+      "2026-01-01",
+      "2026-02-01",
+      "2026-03-01",
+      "2026-04-01",
+      "2026-05-01",
+      "2026-06-01",
+      "2026-07-01",
+      "2026-08-01"
+    ],
+    "cost_cases": [
+      {
+        "etf": 0.05,
+        "crypto": 0.5
+      },
+      {
+        "etf": 0.25,
+        "crypto": 1.0
+      }
+    ],
+    "contribution_cents": 10000,
+    "horizon_years": 20,
+    "tolerance": 40
+  },
+  "history_provenance": {
+    "VWCE.DE": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "VWCE.DE",
+      "omitted_provider_closes": 1,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:18.270405+00:00"
+    },
+    "SPYI.DE": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "SPYI.DE",
+      "omitted_provider_closes": 1,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:18.540256+00:00"
+    },
+    "IUSQ.DE": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "IUSQ.DE",
+      "omitted_provider_closes": 1,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:18.770566+00:00"
+    },
+    "IS3Q.DE": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "IS3Q.DE",
+      "omitted_provider_closes": 1,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:19.056344+00:00"
+    },
+    "XNAS.DE": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "XNAS.DE",
+      "omitted_provider_closes": 1,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:19.294028+00:00"
+    },
+    "SXRV.DE": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "SXRV.DE",
+      "omitted_provider_closes": 1,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:19.542554+00:00"
+    },
+    "BTC-EUR": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "BTC-EUR",
+      "omitted_provider_closes": 0,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:19.968452+00:00"
+    },
+    "ETH-EUR": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "ETH-EUR",
+      "omitted_provider_closes": 0,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:20.250657+00:00"
+    },
+    "SOL-EUR": {
+      "currency": "EUR",
+      "original_currency": "EUR",
+      "fx_symbol": null,
+      "symbol": "SOL-EUR",
+      "omitted_provider_closes": 0,
+      "missing_fx_dates": 0,
+      "source": "Yahoo adjusted daily closes via yfinance; same-date FX",
+      "retrieved_at": "2026-09-10T18:01:20.521886+00:00"
+    }
+  },
+  "history_source": "Yahoo adjusted daily EUR closes via yfinance",
+  "history_snapshot_file": "2026-09-10-optimizer-study.prices.json.gz",
+  "history_sha256": "0e0626056cf3eaf694183b5497899531d120eb9bd48469ad9c83787deb29c858",
+  "studies": [
+    {
+      "model_version": "portfolio-regret-v1",
+      "promotion_status": "NOT_VALIDATED",
+      "start": "2024-01-02",
+      "end": "2026-09-08",
+      "contribution_count": 32,
+      "assumed_one_way_cost_pct": {
+        "etf": 0.05,
+        "crypto": 0.5
+      },
+      "horizon_years": 20,
+      "drawdown_tolerance_pct": 40,
+      "summary": [
+        {
+          "strategy": "optimizer",
+          "contributions_eur": 3200.0,
+          "ending_value_eur": 3582.9,
+          "entry_costs_eur": 2.89,
+          "time_weighted_return_pct": 27.970613,
+          "annualized_time_weighted_return_pct": 9.627731,
+          "max_drawdown_pct": 19.558783
+        },
+        {
+          "strategy": "broad_etf",
+          "contributions_eur": 3200.0,
+          "ending_value_eur": 4044.55,
+          "entry_costs_eur": 1.6,
+          "time_weighted_return_pct": 56.255251,
+          "annualized_time_weighted_return_pct": 18.098112,
+          "max_drawdown_pct": 21.076177
+        },
+        {
+          "strategy": "etf80_btc20",
+          "contributions_eur": 3200.0,
+          "ending_value_eur": 3878.66,
+          "entry_costs_eur": 4.48,
+          "time_weighted_return_pct": 61.171626,
+          "annualized_time_weighted_return_pct": 19.46957,
+          "max_drawdown_pct": 21.354587
+        }
+      ],
+      "decisions": [
+        {
+          "signal_date": "2024-01-01",
+          "execution_date": "2024-01-02",
+          "history_end": "2023-12-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "CASH": 0
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2998,
+              "estimated_cost_cents": 2
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 9.95696988,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 0.0,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 0.0,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 30.0010007,
+            "CASH": 60.04202942
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-02-01",
+          "execution_date": "2024-02-01",
+          "history_end": "2024-01-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3143,
+            "BTC-EUR": 954,
+            "CASH": 6000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7996,
+              "estimated_cost_cents": 4
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 4.74792216,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 39.79495347,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 0.0,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 15.64226347,
+            "CASH": 39.8148609
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-03-01",
+          "execution_date": "2024-03-01",
+          "history_end": "2024-02-23",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3285,
+            "BTC-EUR": 1371,
+            "IS3Q.DE": 8411,
+            "CASH": 8000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.61775975,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 43.16945169,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 0.0,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 10.57664445,
+            "CASH": 38.63614411
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-04-01",
+          "execution_date": "2024-04-02",
+          "history_end": "2024-03-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3349,
+            "BTC-EUR": 2720,
+            "IS3Q.DE": 13812,
+            "CASH": 12000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "SOL-EUR",
+              "asset": "sol",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.49660839,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 44.9245247,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.75303334,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 7.99894908,
+            "CASH": 35.82688449
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-05-01",
+          "execution_date": "2024-05-02",
+          "history_end": "2024-04-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3272,
+            "BTC-EUR": 2359,
+            "IS3Q.DE": 18396,
+            "SOL-EUR": 1408,
+            "CASH": 15000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8995,
+              "estimated_cost_cents": 5
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.65146257,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 54.32027764,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.79226574,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 6.48884482,
+            "CASH": 29.74714923
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-06-01",
+          "execution_date": "2024-06-03",
+          "history_end": "2024-05-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3341,
+            "BTC-EUR": 3702,
+            "IS3Q.DE": 28101,
+            "SOL-EUR": 1804,
+            "CASH": 15000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 6000,
+              "principal_cents": 5997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 9.19028013,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 55.05449261,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.91273109,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 5.39436506,
+            "CASH": 27.44813111
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-07-01",
+          "execution_date": "2024-07-01",
+          "history_end": "2024-06-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3679,
+            "BTC-EUR": 5126,
+            "IS3Q.DE": 35808,
+            "SOL-EUR": 1541,
+            "CASH": 17000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8995,
+              "estimated_cost_cents": 5
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 8.36842393,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 61.25314448,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.10680302,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 5.02980422,
+            "CASH": 23.24182435
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-08-01",
+          "execution_date": "2024-08-01",
+          "history_end": "2024-07-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3546,
+            "BTC-EUR": 6454,
+            "IS3Q.DE": 44334,
+            "SOL-EUR": 1878,
+            "CASH": 17000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "SOL-EUR",
+              "asset": "sol",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.75730478,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 59.29277996,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.64909434,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 4.26207046,
+            "CASH": 24.03875047
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-09-01",
+          "execution_date": "2024-09-02",
+          "history_end": "2024-08-30",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3485,
+            "BTC-EUR": 5778,
+            "IS3Q.DE": 49826,
+            "SOL-EUR": 3075,
+            "CASH": 20000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.26959928,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 64.91064356,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 3.33662475,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 3.78150805,
+            "CASH": 21.70162437
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-10-01",
+          "execution_date": "2024-10-01",
+          "history_end": "2024-09-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3562,
+            "BTC-EUR": 6147,
+            "IS3Q.DE": 59911,
+            "SOL-EUR": 3375,
+            "CASH": 20000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6996,
+              "estimated_cost_cents": 4
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.90145755,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 64.97023723,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 3.27730358,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 3.45889047,
+            "CASH": 20.39211117
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-11-01",
+          "execution_date": "2024-11-01",
+          "history_end": "2024-10-25",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3651,
+            "BTC-EUR": 9309,
+            "IS3Q.DE": 67305,
+            "SOL-EUR": 3811,
+            "CASH": 21000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7996,
+              "estimated_cost_cents": 4
+            },
+            {
+              "symbol": "SOL-EUR",
+              "asset": "sol",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 8.09006926,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 65.44100394,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.17669705,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 3.17293403,
+            "CASH": 19.11929571
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-12-01",
+          "execution_date": "2024-12-02",
+          "history_end": "2024-11-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3942,
+            "BTC-EUR": 13292,
+            "IS3Q.DE": 80083,
+            "SOL-EUR": 7167,
+            "CASH": 22000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7996,
+              "estimated_cost_cents": 4
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.19806551,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 64.54092475,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 5.25170367,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 2.88854693,
+            "CASH": 16.12075914
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-01-01",
+          "execution_date": "2025-01-02",
+          "history_end": "2024-12-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 4046,
+            "BTC-EUR": 14787,
+            "IS3Q.DE": 85969,
+            "SOL-EUR": 5716,
+            "CASH": 22000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7996,
+              "estimated_cost_cents": 4
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.07438828,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 60.32531279,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.01097475,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 8.44999263,
+            "CASH": 16.13933155
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-02-01",
+          "execution_date": "2025-02-03",
+          "history_end": "2025-01-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 12306,
+            "BTC-EUR": 17457,
+            "IS3Q.DE": 89449,
+            "SOL-EUR": 6960,
+            "CASH": 23000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8995,
+              "estimated_cost_cents": 5
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.59321949,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 56.19997236,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.37290308,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 13.38321961,
+            "CASH": 14.45068547
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-03-01",
+          "execution_date": "2025-03-03",
+          "history_end": "2025-02-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 20285,
+            "BTC-EUR": 15184,
+            "IS3Q.DE": 87625,
+            "SOL-EUR": 4441,
+            "CASH": 23000
+          },
+          "trades": [
+            {
+              "symbol": "VWCE.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6996,
+              "estimated_cost_cents": 4
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 10.69891167,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 54.58787324,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.76661621,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 4.35830826,
+            "XNAS.DE": 12.63697585,
+            "CASH": 14.95131478
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-04-01",
+          "execution_date": "2025-04-01",
+          "history_end": "2025-03-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 18042,
+            "BTC-EUR": 16102,
+            "IS3Q.DE": 80523,
+            "SOL-EUR": 3589,
+            "VWCE.DE": 6481,
+            "CASH": 24000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1999,
+              "estimated_cost_cents": 1
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2985,
+              "estimated_cost_cents": 15
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 12.02550387,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 51.99185993,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.26120047,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 4.0832656,
+            "XNAS.DE": 11.36711588,
+            "CASH": 18.27105424
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-05-01",
+          "execution_date": "2025-05-02",
+          "history_end": "2025-04-25",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 17455,
+            "BTC-EUR": 20706,
+            "IS3Q.DE": 78842,
+            "SOL-EUR": 4060,
+            "VWCE.DE": 6227,
+            "CASH": 29000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 999,
+              "estimated_cost_cents": 1
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2985,
+              "estimated_cost_cents": 15
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 14.24816869,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 47.41691425,
+            "IUSQ.DE": 0.60081552,
+            "SOL-EUR": 2.44175277,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.74502327,
+            "XNAS.DE": 10.49773266,
+            "CASH": 21.04959284
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-06-01",
+          "execution_date": "2025-06-02",
+          "history_end": "2025-05-30",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 19203,
+            "BTC-EUR": 25997,
+            "IS3Q.DE": 82579,
+            "SOL-EUR": 4287,
+            "VWCE.DE": 6604,
+            "IUSQ.DE": 1034,
+            "CASH": 35000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 999,
+              "estimated_cost_cents": 1
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2985,
+              "estimated_cost_cents": 15
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 15.69241099,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 44.71270467,
+            "IUSQ.DE": 1.10077536,
+            "SOL-EUR": 2.32121199,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.5757602,
+            "XNAS.DE": 10.3975353,
+            "CASH": 22.19960149
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-07-01",
+          "execution_date": "2025-07-01",
+          "history_end": "2025-06-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 19720,
+            "BTC-EUR": 28719,
+            "IS3Q.DE": 82341,
+            "SOL-EUR": 4087,
+            "VWCE.DE": 6671,
+            "IUSQ.DE": 2061,
+            "CASH": 41000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 999,
+              "estimated_cost_cents": 1
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2985,
+              "estimated_cost_cents": 15
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 16.29330414,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 42.31664637,
+            "IUSQ.DE": 1.5725937,
+            "SOL-EUR": 2.10038904,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.42835705,
+            "XNAS.DE": 10.13449274,
+            "CASH": 24.15421697
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-08-01",
+          "execution_date": "2025-08-01",
+          "history_end": "2025-07-25",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 20980,
+            "BTC-EUR": 35400,
+            "IS3Q.DE": 85256,
+            "SOL-EUR": 4700,
+            "VWCE.DE": 6986,
+            "IUSQ.DE": 3207,
+            "CASH": 47000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 17.51156822,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 39.92956031,
+            "IUSQ.DE": 3.842335,
+            "SOL-EUR": 2.20124019,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.27188595,
+            "XNAS.DE": 9.82596152,
+            "CASH": 23.41744881
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-09-01",
+          "execution_date": "2025-09-01",
+          "history_end": "2025-08-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 20500,
+            "BTC-EUR": 34294,
+            "IS3Q.DE": 84885,
+            "SOL-EUR": 5468,
+            "VWCE.DE": 6964,
+            "IUSQ.DE": 8325,
+            "CASH": 50000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 15.55770286,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 38.50864896,
+            "IUSQ.DE": 3.77669203,
+            "SOL-EUR": 2.48059483,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.15926526,
+            "XNAS.DE": 13.83426106,
+            "CASH": 22.68283499
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-10-01",
+          "execution_date": "2025-10-01",
+          "history_end": "2025-09-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 31911,
+            "BTC-EUR": 35929,
+            "IS3Q.DE": 86820,
+            "SOL-EUR": 5539,
+            "VWCE.DE": 7169,
+            "IUSQ.DE": 8569,
+            "CASH": 50000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 15.22854043,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 36.79873862,
+            "IUSQ.DE": 3.63197871,
+            "SOL-EUR": 2.34771036,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.03858739,
+            "XNAS.DE": 17.7618975,
+            "CASH": 21.19254701
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-11-01",
+          "execution_date": "2025-11-03",
+          "history_end": "2025-10-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 44873,
+            "BTC-EUR": 34914,
+            "IS3Q.DE": 89603,
+            "SOL-EUR": 5025,
+            "VWCE.DE": 7481,
+            "IUSQ.DE": 8945,
+            "CASH": 50000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 13.91905468,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 35.72174648,
+            "IUSQ.DE": 3.56607505,
+            "SOL-EUR": 2.00330096,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 2.98242676,
+            "XNAS.DE": 21.47538631,
+            "CASH": 20.33200976
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-12-01",
+          "execution_date": "2025-12-01",
+          "history_end": "2025-11-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 52456,
+            "BTC-EUR": 28981,
+            "IS3Q.DE": 89988,
+            "SOL-EUR": 3689,
+            "VWCE.DE": 7445,
+            "IUSQ.DE": 8899,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.47976059,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 35.64544688,
+            "IUSQ.DE": 7.48416537,
+            "SOL-EUR": 1.4612621,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 2.94906379,
+            "XNAS.DE": 20.77852115,
+            "CASH": 20.20178013
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-01-01",
+          "execution_date": "2026-01-02",
+          "history_end": "2025-12-23",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 52104,
+            "BTC-EUR": 27830,
+            "IS3Q.DE": 90544,
+            "SOL-EUR": 3312,
+            "VWCE.DE": 7475,
+            "IUSQ.DE": 19016,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 10.65157152,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 34.65454156,
+            "IUSQ.DE": 11.10358395,
+            "SOL-EUR": 1.26762504,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 2.86095929,
+            "XNAS.DE": 19.94213016,
+            "CASH": 19.51958848
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-02-01",
+          "execution_date": "2026-02-02",
+          "history_end": "2026-01-30",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 51948,
+            "BTC-EUR": 26235,
+            "IS3Q.DE": 92068,
+            "SOL-EUR": 3083,
+            "VWCE.DE": 7568,
+            "IUSQ.DE": 29367,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "VWCE.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 9.67139023,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 33.94036805,
+            "IUSQ.DE": 10.82598502,
+            "SOL-EUR": 1.1365312,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 6.47450454,
+            "XNAS.DE": 19.150348,
+            "CASH": 18.80087295
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-03-01",
+          "execution_date": "2026-03-02",
+          "history_end": "2026-02-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 50689,
+            "BTC-EUR": 20606,
+            "IS3Q.DE": 93752,
+            "SOL-EUR": 2159,
+            "VWCE.DE": 17782,
+            "IUSQ.DE": 29856,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6996,
+              "estimated_cost_cents": 4
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.47027262,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 33.98781903,
+            "IUSQ.DE": 13.35991879,
+            "SOL-EUR": 0.78270012,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 6.44649072,
+            "XNAS.DE": 18.3762326,
+            "CASH": 19.57656613
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-04-01",
+          "execution_date": "2026-04-01",
+          "history_end": "2026-03-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 48662,
+            "BTC-EUR": 21793,
+            "IS3Q.DE": 88795,
+            "SOL-EUR": 2236,
+            "VWCE.DE": 16833,
+            "IUSQ.DE": 34887,
+            "CASH": 54000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7996,
+              "estimated_cost_cents": 4
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.86177589,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 32.03259717,
+            "IUSQ.DE": 15.4699461,
+            "SOL-EUR": 0.80663199,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 6.07246701,
+            "XNAS.DE": 17.5547074,
+            "CASH": 20.20187445
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-05-01",
+          "execution_date": "2026-05-04",
+          "history_end": "2026-04-24",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 55846,
+            "BTC-EUR": 24048,
+            "IS3Q.DE": 94825,
+            "SOL-EUR": 2204,
+            "VWCE.DE": 18274,
+            "IUSQ.DE": 46436,
+            "CASH": 56000
+          },
+          "trades": [
+            {
+              "symbol": "VWCE.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6996,
+              "estimated_cost_cents": 4
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 995,
+              "estimated_cost_cents": 5
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 8.14078225,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 30.82496814,
+            "IUSQ.DE": 15.0950511,
+            "SOL-EUR": 0.71645905,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 8.21457364,
+            "XNAS.DE": 18.15398018,
+            "CASH": 18.85418563
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-06-01",
+          "execution_date": "2026-06-01",
+          "history_end": "2026-05-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 62429,
+            "BTC-EUR": 24173,
+            "IS3Q.DE": 98470,
+            "SOL-EUR": 2187,
+            "VWCE.DE": 26751,
+            "IUSQ.DE": 49163,
+            "CASH": 58000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7996,
+              "estimated_cost_cents": 4
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.29929432,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 29.73406327,
+            "IUSQ.DE": 17.25976767,
+            "SOL-EUR": 0.6603879,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 8.07774882,
+            "XNAS.DE": 18.85110019,
+            "CASH": 18.11763782
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-07-01",
+          "execution_date": "2026-07-01",
+          "history_end": "2026-06-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 63435,
+            "BTC-EUR": 19714,
+            "IS3Q.DE": 101809,
+            "SOL-EUR": 2006,
+            "VWCE.DE": 27089,
+            "IUSQ.DE": 57904,
+            "CASH": 60000
+          },
+          "trades": [
+            {
+              "symbol": "VWCE.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6996,
+              "estimated_cost_cents": 4
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 5.76511977,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 29.77280503,
+            "IUSQ.DE": 16.93332125,
+            "SOL-EUR": 0.58663033,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 9.96774411,
+            "XNAS.DE": 18.55079499,
+            "CASH": 18.42358453
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-08-01",
+          "execution_date": "2026-08-03",
+          "history_end": "2026-07-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 58687,
+            "BTC-EUR": 20920,
+            "IS3Q.DE": 101186,
+            "SOL-EUR": 1964,
+            "VWCE.DE": 33589,
+            "IUSQ.DE": 57149,
+            "CASH": 63000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6996,
+              "estimated_cost_cents": 4
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.03767486,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 29.20306732,
+            "IUSQ.DE": 18.51274636,
+            "SOL-EUR": 0.56682569,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 9.69404689,
+            "XNAS.DE": 16.93752507,
+            "CASH": 19.0481138
+          },
+          "blockers": []
+        }
+      ],
+      "limitations": [
+        "Conditional current-universe price study; eligibility and costs are assumed, not historical broker or research evidence.",
+        "Survivorship, revised adjusted prices and choice of evaluation period can bias these results.",
+        "Monthly contributions; strategies retain cash and instrument units without sales or ongoing rebalancing.",
+        "Daily unitized returns remove external deposits; final values are marked without liquidation costs.",
+        "ETF and crypto daily closing times differ. Taxes, liquidity depth, cash interest and intra-day losses are unmodeled.",
+        "Historical drawdown screening is not a future-loss guarantee; no hypothetical macro crash screen.",
+        "No retrospective result alone promotes this model to live recommendations."
+      ]
+    },
+    {
+      "model_version": "portfolio-regret-v1",
+      "promotion_status": "NOT_VALIDATED",
+      "start": "2024-01-02",
+      "end": "2026-09-08",
+      "contribution_count": 32,
+      "assumed_one_way_cost_pct": {
+        "etf": 0.25,
+        "crypto": 1.0
+      },
+      "horizon_years": 20,
+      "drawdown_tolerance_pct": 40,
+      "summary": [
+        {
+          "strategy": "optimizer",
+          "contributions_eur": 3200.0,
+          "ending_value_eur": 3578.58,
+          "entry_costs_eur": 8.94,
+          "time_weighted_return_pct": 27.198687,
+          "annualized_time_weighted_return_pct": 9.380802,
+          "max_drawdown_pct": 19.580776
+        },
+        {
+          "strategy": "broad_etf",
+          "contributions_eur": 3200.0,
+          "ending_value_eur": 4036.46,
+          "entry_costs_eur": 8.0,
+          "time_weighted_return_pct": 55.046525,
+          "annualized_time_weighted_return_pct": 17.756795,
+          "max_drawdown_pct": 21.095216
+        },
+        {
+          "strategy": "etf80_btc20",
+          "contributions_eur": 3200.0,
+          "ending_value_eur": 3868.95,
+          "entry_costs_eur": 12.8,
+          "time_weighted_return_pct": 59.565712,
+          "annualized_time_weighted_return_pct": 19.024511,
+          "max_drawdown_pct": 21.388121
+        }
+      ],
+      "decisions": [
+        {
+          "signal_date": "2024-01-01",
+          "execution_date": "2024-01-02",
+          "history_end": "2023-12-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "CASH": 0
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2992,
+              "estimated_cost_cents": 8
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 9.91785213,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 0.0,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 0.0,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 29.97395312,
+            "CASH": 60.10819475
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-02-01",
+          "execution_date": "2024-02-01",
+          "history_end": "2024-01-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3137,
+            "BTC-EUR": 950,
+            "CASH": 6000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 4.73414063,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 39.76678128,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 0.0,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 15.63263069,
+            "CASH": 39.8664474
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-03-01",
+          "execution_date": "2024-03-01",
+          "history_end": "2024-02-23",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3278,
+            "BTC-EUR": 1365,
+            "IS3Q.DE": 8394,
+            "CASH": 8000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4987,
+              "estimated_cost_cents": 13
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.59334494,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 43.14503128,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 0.0,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 10.56942026,
+            "CASH": 38.69220352
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-04-01",
+          "execution_date": "2024-04-02",
+          "history_end": "2024-03-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3342,
+            "BTC-EUR": 2707,
+            "IS3Q.DE": 13784,
+            "CASH": 12000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4987,
+              "estimated_cost_cents": 13
+            },
+            {
+              "symbol": "SOL-EUR",
+              "asset": "sol",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.47607656,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 44.90669856,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.73684211,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 7.99521531,
+            "CASH": 35.88516746
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-05-01",
+          "execution_date": "2024-05-02",
+          "history_end": "2024-04-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3265,
+            "BTC-EUR": 2347,
+            "IS3Q.DE": 18359,
+            "SOL-EUR": 1401,
+            "CASH": 15000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8977,
+              "estimated_cost_cents": 23
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.62905501,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 54.3038201,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.78313038,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 6.48602475,
+            "CASH": 29.79796976
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-06-01",
+          "execution_date": "2024-06-03",
+          "history_end": "2024-05-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3334,
+            "BTC-EUR": 3683,
+            "IS3Q.DE": 28045,
+            "SOL-EUR": 1795,
+            "CASH": 15000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 6000,
+              "principal_cents": 5985,
+              "estimated_cost_cents": 15
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 9.16016952,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 55.04512957,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.90349714,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 5.3929022,
+            "CASH": 27.49830158
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-07-01",
+          "execution_date": "2024-07-01",
+          "history_end": "2024-06-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3671,
+            "BTC-EUR": 5100,
+            "IS3Q.DE": 35737,
+            "SOL-EUR": 1534,
+            "CASH": 17000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8977,
+              "estimated_cost_cents": 23
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 8.34143736,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 61.2445041,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.10111082,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 5.02814721,
+            "CASH": 23.2848005
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-08-01",
+          "execution_date": "2024-08-01",
+          "history_end": "2024-07-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3539,
+            "BTC-EUR": 6421,
+            "IS3Q.DE": 44245,
+            "SOL-EUR": 1868,
+            "CASH": 17000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4987,
+              "estimated_cost_cents": 13
+            },
+            {
+              "symbol": "SOL-EUR",
+              "asset": "sol",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.73241811,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 59.28709056,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.63391137,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 4.26180154,
+            "CASH": 24.08477842
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-09-01",
+          "execution_date": "2024-09-02",
+          "history_end": "2024-08-30",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3478,
+            "BTC-EUR": 5749,
+            "IS3Q.DE": 49727,
+            "SOL-EUR": 3060,
+            "CASH": 20000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9975,
+              "estimated_cost_cents": 25
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.24966029,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 64.90123819,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 3.32648469,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 3.78088685,
+            "CASH": 21.74172999
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-10-01",
+          "execution_date": "2024-10-01",
+          "history_end": "2024-09-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3555,
+            "BTC-EUR": 6116,
+            "IS3Q.DE": 59791,
+            "SOL-EUR": 3358,
+            "CASH": 20000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6982,
+              "estimated_cost_cents": 18
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.8768656,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 64.96565546,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 3.26710903,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 3.45877683,
+            "CASH": 20.43159308
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-11-01",
+          "execution_date": "2024-11-01",
+          "history_end": "2024-10-25",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3643,
+            "BTC-EUR": 9262,
+            "IS3Q.DE": 67171,
+            "SOL-EUR": 3792,
+            "CASH": 21000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7980,
+              "estimated_cost_cents": 20
+            },
+            {
+              "symbol": "SOL-EUR",
+              "asset": "sol",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 8.06527456,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 65.44088194,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.16412686,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 3.17229488,
+            "CASH": 19.15742176
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2024-12-01",
+          "execution_date": "2024-12-02",
+          "history_end": "2024-11-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 3934,
+            "BTC-EUR": 13225,
+            "IS3Q.DE": 79923,
+            "SOL-EUR": 7131,
+            "CASH": 22000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7980,
+              "estimated_cost_cents": 20
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.16594332,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 64.55244432,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 5.23672094,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 2.88897212,
+            "CASH": 16.15591931
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-01-01",
+          "execution_date": "2025-01-02",
+          "history_end": "2024-12-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 4038,
+            "BTC-EUR": 14713,
+            "IS3Q.DE": 85797,
+            "SOL-EUR": 5687,
+            "CASH": 22000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7980,
+              "estimated_cost_cents": 20
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.04250905,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 60.33332161,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 3.99915615,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 8.45117964,
+            "CASH": 16.17383355
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-02-01",
+          "execution_date": "2025-02-03",
+          "history_end": "2025-01-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 12282,
+            "BTC-EUR": 17369,
+            "IS3Q.DE": 89270,
+            "SOL-EUR": 6925,
+            "CASH": 23000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8977,
+              "estimated_cost_cents": 23
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 990,
+              "estimated_cost_cents": 10
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.56013676,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 56.2107636,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 4.36047427,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 0.0,
+            "XNAS.DE": 13.38618375,
+            "CASH": 14.48244161
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-03-01",
+          "execution_date": "2025-03-03",
+          "history_end": "2025-02-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 20244,
+            "BTC-EUR": 15108,
+            "IS3Q.DE": 87450,
+            "SOL-EUR": 4419,
+            "CASH": 23000
+          },
+          "trades": [
+            {
+              "symbol": "VWCE.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6982,
+              "estimated_cost_cents": 18
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 10.66779871,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 54.59380833,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.75871971,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 4.35876466,
+            "XNAS.DE": 12.63804524,
+            "CASH": 14.98286335
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-04-01",
+          "execution_date": "2025-04-01",
+          "history_end": "2025-03-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 18006,
+            "BTC-EUR": 16021,
+            "IS3Q.DE": 80362,
+            "SOL-EUR": 3571,
+            "VWCE.DE": 6468,
+            "CASH": 24000
+          },
+          "trades": [
+            {
+              "symbol": "IS3Q.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1995,
+              "estimated_cost_cents": 5
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2970,
+              "estimated_cost_cents": 30
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.98979753,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 51.99535333,
+            "IUSQ.DE": 0.0,
+            "SOL-EUR": 2.25451882,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 4.08351379,
+            "XNAS.DE": 11.36792661,
+            "CASH": 18.30888991
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-05-01",
+          "execution_date": "2025-05-02",
+          "history_end": "2025-04-25",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 17420,
+            "BTC-EUR": 20602,
+            "IS3Q.DE": 78684,
+            "SOL-EUR": 4040,
+            "VWCE.DE": 6215,
+            "CASH": 29000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2970,
+              "estimated_cost_cents": 30
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 14.20616171,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 47.42056796,
+            "IUSQ.DE": 0.60086302,
+            "SOL-EUR": 2.43479099,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.7456005,
+            "XNAS.DE": 10.49852948,
+            "CASH": 21.09348633
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-06-01",
+          "execution_date": "2025-06-02",
+          "history_end": "2025-05-30",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 19165,
+            "BTC-EUR": 25866,
+            "IS3Q.DE": 82414,
+            "SOL-EUR": 4265,
+            "VWCE.DE": 6591,
+            "IUSQ.DE": 1032,
+            "CASH": 35000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2970,
+              "estimated_cost_cents": 30
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 15.64622897,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 44.71730874,
+            "IUSQ.DE": 0.55995659,
+            "SOL-EUR": 2.31416169,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.5762344,
+            "XNAS.DE": 10.93977211,
+            "CASH": 22.24633749
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-07-01",
+          "execution_date": "2025-07-01",
+          "history_end": "2025-06-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 20709,
+            "BTC-EUR": 28575,
+            "IS3Q.DE": 82176,
+            "SOL-EUR": 4067,
+            "VWCE.DE": 6658,
+            "IUSQ.DE": 1044,
+            "CASH": 41000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 1000,
+              "principal_cents": 997,
+              "estimated_cost_cents": 3
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 3000,
+              "principal_cents": 2970,
+              "estimated_cost_cents": 30
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 16.24389792,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 42.31601063,
+            "IUSQ.DE": 1.05100002,
+            "SOL-EUR": 2.09427589,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.42849492,
+            "XNAS.DE": 10.66396836,
+            "CASH": 24.20235226
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-08-01",
+          "execution_date": "2025-08-01",
+          "history_end": "2025-07-25",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 22033,
+            "BTC-EUR": 35222,
+            "IS3Q.DE": 85086,
+            "SOL-EUR": 4677,
+            "VWCE.DE": 6972,
+            "IUSQ.DE": 2140,
+            "CASH": 47000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 5000,
+              "principal_cents": 4987,
+              "estimated_cost_cents": 13
+            },
+            {
+              "symbol": "BTC-EUR",
+              "asset": "btc",
+              "lane": "crypto",
+              "cash_outlay_cents": 2000,
+              "principal_cents": 1980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 17.45777744,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 39.92829556,
+            "IUSQ.DE": 3.34448631,
+            "SOL-EUR": 2.19477515,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.27174948,
+            "XNAS.DE": 10.33942289,
+            "CASH": 23.46349315
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-09-01",
+          "execution_date": "2025-09-01",
+          "history_end": "2025-08-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 21528,
+            "BTC-EUR": 34121,
+            "IS3Q.DE": 84715,
+            "SOL-EUR": 5440,
+            "VWCE.DE": 6950,
+            "IUSQ.DE": 7251,
+            "CASH": 50000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9975,
+              "estimated_cost_cents": 25
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 15.51095554,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 38.51031912,
+            "IUSQ.DE": 3.29620875,
+            "SOL-EUR": 2.47295209,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.15937813,
+            "XNAS.DE": 14.32084735,
+            "CASH": 22.72933903
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-10-01",
+          "execution_date": "2025-10-01",
+          "history_end": "2025-09-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 32967,
+            "BTC-EUR": 35748,
+            "IS3Q.DE": 86647,
+            "SOL-EUR": 5511,
+            "VWCE.DE": 7154,
+            "IUSQ.DE": 7463,
+            "CASH": 50000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9975,
+              "estimated_cost_cents": 25
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 15.18187416,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 36.79825027,
+            "IUSQ.DE": 3.16947317,
+            "SOL-EUR": 2.34047523,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 3.03824348,
+            "XNAS.DE": 18.2371053,
+            "CASH": 21.23457839
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-11-01",
+          "execution_date": "2025-11-03",
+          "history_end": "2025-10-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 45984,
+            "BTC-EUR": 34739,
+            "IS3Q.DE": 89424,
+            "SOL-EUR": 5000,
+            "VWCE.DE": 7466,
+            "IUSQ.DE": 7791,
+            "CASH": 50000
+          },
+          "trades": [
+            {
+              "symbol": "XNAS.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8977,
+              "estimated_cost_cents": 23
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 13.87445533,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 35.71517008,
+            "IUSQ.DE": 3.11165783,
+            "SOL-EUR": 1.99695664,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 2.98185565,
+            "XNAS.DE": 21.95094676,
+            "CASH": 20.36895771
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2025-12-01",
+          "execution_date": "2025-12-01",
+          "history_end": "2025-11-28",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 53521,
+            "BTC-EUR": 28836,
+            "IS3Q.DE": 89808,
+            "SOL-EUR": 3670,
+            "VWCE.DE": 7430,
+            "IUSQ.DE": 7751,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9975,
+              "estimated_cost_cents": 25
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 11.44326583,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 35.63936807,
+            "IUSQ.DE": 7.03437821,
+            "SOL-EUR": 1.45640122,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 2.948518,
+            "XNAS.DE": 21.23925061,
+            "CASH": 20.23881805
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-01-01",
+          "execution_date": "2026-01-02",
+          "history_end": "2025-12-23",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 53161,
+            "BTC-EUR": 27690,
+            "IS3Q.DE": 90363,
+            "SOL-EUR": 3295,
+            "VWCE.DE": 7460,
+            "IUSQ.DE": 17843,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9975,
+              "estimated_cost_cents": 25
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 10.61786055,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 34.65011676,
+            "IUSQ.DE": 10.66694275,
+            "SOL-EUR": 1.26348323,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 2.86057204,
+            "XNAS.DE": 20.38483513,
+            "CASH": 19.55618953
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-02-01",
+          "execution_date": "2026-02-02",
+          "history_end": "2026-01-30",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 53002,
+            "BTC-EUR": 26103,
+            "IS3Q.DE": 91884,
+            "SOL-EUR": 3067,
+            "VWCE.DE": 7552,
+            "IUSQ.DE": 28160,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "VWCE.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 10000,
+              "principal_cents": 9975,
+              "estimated_cost_cents": 25
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 9.6412465,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 33.93771953,
+            "IUSQ.DE": 10.4010076,
+            "SOL-EUR": 1.1328086,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 6.47366691,
+            "XNAS.DE": 19.57649875,
+            "CASH": 18.83705211
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-03-01",
+          "execution_date": "2026-03-02",
+          "history_end": "2026-02-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 51717,
+            "BTC-EUR": 20503,
+            "IS3Q.DE": 93564,
+            "SOL-EUR": 2148,
+            "VWCE.DE": 17747,
+            "IUSQ.DE": 28629,
+            "CASH": 51000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6982,
+              "estimated_cost_cents": 18
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.44778234,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 33.98743144,
+            "IUSQ.DE": 12.93581314,
+            "SOL-EUR": 0.78026808,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 6.44665625,
+            "XNAS.DE": 18.78637074,
+            "CASH": 19.61567801
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-04-01",
+          "execution_date": "2026-04-01",
+          "history_end": "2026-03-27",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 49650,
+            "BTC-EUR": 21683,
+            "IS3Q.DE": 88617,
+            "SOL-EUR": 2224,
+            "VWCE.DE": 16799,
+            "IUSQ.DE": 33711,
+            "CASH": 54000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.83730446,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 32.03054969,
+            "IUSQ.DE": 15.06918139,
+            "SOL-EUR": 0.80386317,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 6.07198624,
+            "XNAS.DE": 17.94595611,
+            "CASH": 20.24115895
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-05-01",
+          "execution_date": "2026-05-04",
+          "history_end": "2026-04-24",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 56980,
+            "BTC-EUR": 23927,
+            "IS3Q.DE": 94635,
+            "SOL-EUR": 2193,
+            "VWCE.DE": 18237,
+            "IUSQ.DE": 45141,
+            "CASH": 56000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 9000,
+              "principal_cents": 8977,
+              "estimated_cost_cents": 23
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 7.79152691,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 30.81669869,
+            "IUSQ.DE": 17.62284672,
+            "SOL-EUR": 0.7141229,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 5.93864991,
+            "XNAS.DE": 18.55482106,
+            "CASH": 18.56133381
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-06-01",
+          "execution_date": "2026-06-01",
+          "history_end": "2026-05-29",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 63696,
+            "BTC-EUR": 23139,
+            "IS3Q.DE": 98273,
+            "SOL-EUR": 2176,
+            "VWCE.DE": 19327,
+            "IUSQ.DE": 57256,
+            "CASH": 57000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 8000,
+              "principal_cents": 7980,
+              "estimated_cost_cents": 20
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 6.99386726,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 29.70345809,
+            "IUSQ.DE": 19.71787563,
+            "SOL-EUR": 0.65770583,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 5.84167304,
+            "XNAS.DE": 19.25240368,
+            "CASH": 17.83301647
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-07-01",
+          "execution_date": "2026-07-01",
+          "history_end": "2026-06-26",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 64722,
+            "BTC-EUR": 18871,
+            "IS3Q.DE": 101606,
+            "SOL-EUR": 1996,
+            "VWCE.DE": 19571,
+            "IUSQ.DE": 66093,
+            "CASH": 59000
+          },
+          "trades": [
+            {
+              "symbol": "VWCE.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6982,
+              "estimated_cost_cents": 18
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 5.52040276,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 29.72317539,
+            "IUSQ.DE": 19.33442741,
+            "SOL-EUR": 0.58389719,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 7.76764636,
+            "XNAS.DE": 18.93336376,
+            "CASH": 18.13708713
+          },
+          "blockers": []
+        },
+        {
+          "signal_date": "2026-08-01",
+          "execution_date": "2026-08-03",
+          "history_end": "2026-07-31",
+          "status": "RESEARCH_READY",
+          "input_holdings_cents": {
+            "XNAS.DE": 59878,
+            "BTC-EUR": 20025,
+            "IS3Q.DE": 100984,
+            "SOL-EUR": 1955,
+            "VWCE.DE": 26160,
+            "IUSQ.DE": 65231,
+            "CASH": 62000
+          },
+          "trades": [
+            {
+              "symbol": "IUSQ.DE",
+              "asset": "global_core_etf",
+              "lane": "etf",
+              "cash_outlay_cents": 7000,
+              "principal_cents": 6982,
+              "estimated_cost_cents": 18
+            }
+          ],
+          "selected_weights_pct": {
+            "BTC-EUR": 5.78397816,
+            "ETH-EUR": 0.0,
+            "IS3Q.DE": 29.16800254,
+            "IUSQ.DE": 20.85784845,
+            "SOL-EUR": 0.56467802,
+            "SPYI.DE": 0.0,
+            "SXRV.DE": 0.0,
+            "VWCE.DE": 7.55599844,
+            "XNAS.DE": 17.29503343,
+            "CASH": 18.77446096
+          },
+          "blockers": []
+        }
+      ],
+      "limitations": [
+        "Conditional current-universe price study; eligibility and costs are assumed, not historical broker or research evidence.",
+        "Survivorship, revised adjusted prices and choice of evaluation period can bias these results.",
+        "Monthly contributions; strategies retain cash and instrument units without sales or ongoing rebalancing.",
+        "Daily unitized returns remove external deposits; final values are marked without liquidation costs.",
+        "ETF and crypto daily closing times differ. Taxes, liquidity depth, cash interest and intra-day losses are unmodeled.",
+        "Historical drawdown screening is not a future-loss guarantee; no hypothetical macro crash screen.",
+        "No retrospective result alone promotes this model to live recommendations."
+      ]
+    }
+  ]
+}

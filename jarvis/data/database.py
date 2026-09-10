@@ -319,6 +319,14 @@ CREATE TABLE IF NOT EXISTS brief_history (
 CREATE INDEX IF NOT EXISTS idx_brief_history_week ON brief_history(week_label);
 CREATE INDEX IF NOT EXISTS idx_brief_history_status ON brief_history(status);
 
+CREATE TABLE IF NOT EXISTS finance_optimizer_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    input_sha256 TEXT NOT NULL UNIQUE,
+    snapshot_json TEXT NOT NULL,
+    result_json TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS finance_transaction_ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
@@ -2319,6 +2327,29 @@ def reject_training_plan_proposal(plan_id: str) -> dict[str, Any]:
     except Exception:
         connection.rollback()
         raise
+    finally:
+        connection.close()
+
+
+def save_optimizer_run(input_sha256: str, snapshot: dict, result: dict) -> int:
+    """Private research archive, deliberately separate from actionable briefs."""
+    connection = get_db()
+    try:
+        connection.execute(
+            'INSERT OR IGNORE INTO finance_optimizer_runs (created_at,input_sha256,snapshot_json,result_json) VALUES (?,?,?,?)',
+            (_utc_now(), input_sha256, json.dumps(snapshot, allow_nan=False), json.dumps(result, allow_nan=False)))
+        row = connection.execute('SELECT id FROM finance_optimizer_runs WHERE input_sha256=?', (input_sha256,)).fetchone()
+        connection.commit()
+        return int(row['id'])
+    finally:
+        connection.close()
+
+
+def get_latest_optimizer_run() -> dict | None:
+    connection = get_db()
+    try:
+        row = connection.execute('SELECT * FROM finance_optimizer_runs ORDER BY id DESC LIMIT 1').fetchone()
+        return dict(row) if row else None
     finally:
         connection.close()
 
