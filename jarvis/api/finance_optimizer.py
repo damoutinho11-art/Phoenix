@@ -11,6 +11,7 @@ from jarvis.domains.finance.optimizer_evidence import (
     replay_snapshot, snapshot_digest,
 )
 from jarvis.domains.finance.portfolio_optimizer import VERSION, LIMITATIONS
+from jarvis.domains.finance.portfolio_downside import downside_config, compare_downside
 
 VALIDATION_ASSESSMENT = (
     'Initial conditional study (January 2024 to September 2026): this model earned lower returns '
@@ -70,7 +71,14 @@ def run_optimizer(constitution, state, profile, authority, today, *, week_closed
             'eligibility_evidence': evidence.get('candidates', [])}
         snapshot = _json_safe(prepare_snapshot(holdings, rows, histories, budget, today,
             profile.get('risk_profile', {}), provenance))
+        snapshot['downside_configuration'] = downside_config(snapshot)
         result = replay_snapshot(snapshot)
+        result['downside_comparison'] = compare_downside(snapshot,result)
+        result['limitations'] = [line for line in result['limitations']
+            if 'hypothetical crashes and forward-looking macro stress tests' not in line]
+        result['limitations'].extend([
+            'The allocator uses historical risk; separate illustrative stress comparisons do not change its chosen allocations.',
+            'The investment horizon amortizes entry costs; this one-period model does not optimize terminal wealth over the full investment horizon.'])
         result['validation_assessment'] = VALIDATION_ASSESSMENT
         assumed = [r for r in identities if str(r['identity_source']).startswith('legacy_ticker_mapping')]
         if assumed:

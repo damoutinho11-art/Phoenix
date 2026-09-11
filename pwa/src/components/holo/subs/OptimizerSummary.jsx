@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { runFinanceOptimizer } from '../../../api/client'
 import { ACC, BODY, a, deep } from '../holoTokens'
 import { financeBody, financeButton } from './financeReadability'
+import { DownsideComparison } from './DownsideComparison'
 
 const euros = cents => new Intl.NumberFormat('en-IE', {style:'currency', currency:'EUR'}).format(cents / 100)
 const labels = {RESEARCH_READY:'Research comparison ready', INSUFFICIENT_DATA:'More verified data needed',
@@ -40,6 +41,7 @@ export function OptimizerSummary() {
           {' '}Modeled historical drawdown: {plan.historical_drawdown_pct.toFixed(1)}%.</p>}
         {result.blockers?.length > 0 && <p>{result.blockers.join(' ')}</p>}
         {result.validation_assessment && <p>{result.validation_assessment}</p>}
+        <DownsideComparison report={result.downside_comparison} />
         {result.limitations?.length > 0 && <details><summary>Comparison assumptions and limits</summary>
           <ul>{result.limitations.map((text,i)=><li key={i}>{text}</li>)}</ul>
         </details>}

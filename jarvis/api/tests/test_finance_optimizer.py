@@ -60,6 +60,11 @@ def test_full_research_pipeline_archives_exact_inputs_without_changing_state():
     saved = database.get_latest_optimizer_run()
     replayed = replay_snapshot(json.loads(saved['snapshot_json']))
     assert replayed['selected_plan'] == result['selected_plan']
+    from jarvis.domains.finance.portfolio_downside import compare_downside
+    snapshot = json.loads(saved['snapshot_json'])
+    assert 'downside_configuration' in snapshot
+    assert result['downside_comparison'] == compare_downside(snapshot,replayed)
+    assert result['downside_comparison']['plans'][0]['id'] == 'selected'
     assert result['promotion_status'] == 'NOT_VALIDATED'
     assert state == original
     assert database.get_latest_brief_for_week('W37 2026','finance') is None

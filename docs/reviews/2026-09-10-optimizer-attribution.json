@@ -1,0 +1,591 @@
+{
+  "source_report": "2026-09-10-optimizer-study.json",
+  "source_history_sha256": "0e0626056cf3eaf694183b5497899531d120eb9bd48469ad9c83787deb29c858",
+  "source_report_sha256": "606e34e3a1bfb2b3d8570ec98dddd7de1a9e5f2a34a0186a597c15051ac91954",
+  "results": [
+    {
+      "version": "contribution-attribution-v1",
+      "benchmark": "VWCE.DE",
+      "contribution_count": 32,
+      "contributions_eur": 3200.0,
+      "ending_cash_eur": 660.0,
+      "ending_value_eur": 3582.9,
+      "benchmark_ending_value_eur": 4044.55,
+      "ending_value_gap_eur": -461.648471,
+      "entry_costs_eur": 2.89,
+      "cash_timing_effect_eur": -198.144534,
+      "instrument_selection_effect_eur": -262.655404,
+      "fee_difference_effect_eur": -0.848533,
+      "instruments": {
+        "XNAS.DE": {
+          "cash_outlay_eur": 490.0,
+          "principal_eur": 489.74,
+          "entry_cost_eur": 0.26,
+          "ending_value_eur": 611.849197,
+          "selection_effect_eur": 10.725424
+        },
+        "BTC-EUR": {
+          "cash_outlay_eur": 290.0,
+          "principal_eur": 288.55,
+          "entry_cost_eur": 1.45,
+          "ending_value_eur": 259.187673,
+          "selection_effect_eur": -120.990233
+        },
+        "IS3Q.DE": {
+          "cash_outlay_eur": 820.0,
+          "principal_eur": 819.56,
+          "entry_cost_eur": 0.44,
+          "ending_value_eur": 1020.479213,
+          "selection_effect_eur": -111.617084
+        },
+        "SOL-EUR": {
+          "cash_outlay_eur": 50.0,
+          "principal_eur": 49.75,
+          "entry_cost_eur": 0.25,
+          "ending_value_eur": 27.666612,
+          "selection_effect_eur": -41.316911
+        },
+        "VWCE.DE": {
+          "cash_outlay_eur": 310.0,
+          "principal_eur": 309.83,
+          "entry_cost_eur": 0.17,
+          "ending_value_eur": 345.408267,
+          "selection_effect_eur": 0.0
+        },
+        "IUSQ.DE": {
+          "cash_outlay_eur": 580.0,
+          "principal_eur": 579.68,
+          "entry_cost_eur": 0.32,
+          "ending_value_eur": 658.310425,
+          "selection_effect_eur": 0.543401
+        }
+      },
+      "contributions": [
+        {
+          "execution_date": "2024-01-02",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -33.934978,
+          "instrument_selection_effect_eur": 4.71724,
+          "fee_difference_effect_eur": -0.037756
+        },
+        {
+          "execution_date": "2024-02-01",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -10.535714,
+          "instrument_selection_effect_eur": -11.550398,
+          "fee_difference_effect_eur": 0.021043
+        },
+        {
+          "execution_date": "2024-03-01",
+          "unspent_contribution_eur": 40.0,
+          "cash_timing_effect_eur": -18.268429,
+          "instrument_selection_effect_eur": -10.541993,
+          "fee_difference_effect_eur": -0.024835
+        },
+        {
+          "execution_date": "2024-04-02",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -12.800954,
+          "instrument_selection_effect_eur": -25.192622,
+          "fee_difference_effect_eur": -0.019948
+        },
+        {
+          "execution_date": "2024-05-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -14.3226,
+          "fee_difference_effect_eur": -0.054503
+        },
+        {
+          "execution_date": "2024-06-03",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -8.302652,
+          "instrument_selection_effect_eur": -15.936403,
+          "fee_difference_effect_eur": -0.074123
+        },
+        {
+          "execution_date": "2024-07-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -15.2368,
+          "fee_difference_effect_eur": -0.050349
+        },
+        {
+          "execution_date": "2024-08-01",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -11.127292,
+          "instrument_selection_effect_eur": -22.911192,
+          "fee_difference_effect_eur": -0.02559
+        },
+        {
+          "execution_date": "2024-09-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -14.770305,
+          "fee_difference_effect_eur": 0.007385
+        },
+        {
+          "execution_date": "2024-10-01",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -3.355116,
+          "instrument_selection_effect_eur": -11.109563,
+          "fee_difference_effect_eur": -0.104225
+        },
+        {
+          "execution_date": "2024-11-01",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -3.170387,
+          "instrument_selection_effect_eur": -16.907812,
+          "fee_difference_effect_eur": -0.011105
+        },
+        {
+          "execution_date": "2024-12-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -18.877199,
+          "fee_difference_effect_eur": -0.057064
+        },
+        {
+          "execution_date": "2025-01-02",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -2.369354,
+          "instrument_selection_effect_eur": -4.793948,
+          "fee_difference_effect_eur": -0.023589
+        },
+        {
+          "execution_date": "2025-02-03",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -3.376276,
+          "fee_difference_effect_eur": -0.035417
+        },
+        {
+          "execution_date": "2025-03-03",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -2.313005,
+          "instrument_selection_effect_eur": -8.189056,
+          "fee_difference_effect_eur": -0.069872
+        },
+        {
+          "execution_date": "2025-04-01",
+          "unspent_contribution_eur": 50.0,
+          "cash_timing_effect_eur": -15.707342,
+          "instrument_selection_effect_eur": -15.596835,
+          "fee_difference_effect_eur": -0.074775
+        },
+        {
+          "execution_date": "2025-05-02",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -20.995651,
+          "instrument_selection_effect_eur": -16.863482,
+          "fee_difference_effect_eur": -0.064048
+        },
+        {
+          "execution_date": "2025-06-02",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -18.577682,
+          "instrument_selection_effect_eur": -17.368504,
+          "fee_difference_effect_eur": -0.0571
+        },
+        {
+          "execution_date": "2025-07-01",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -17.595308,
+          "instrument_selection_effect_eur": -16.180923,
+          "fee_difference_effect_eur": -0.061297
+        },
+        {
+          "execution_date": "2025-08-01",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -8.074828,
+          "instrument_selection_effect_eur": -11.508535,
+          "fee_difference_effect_eur": -0.043674
+        },
+        {
+          "execution_date": "2025-09-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 4.006091,
+          "fee_difference_effect_eur": -0.002003
+        },
+        {
+          "execution_date": "2025-10-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 1.86719,
+          "fee_difference_effect_eur": -0.000934
+        },
+        {
+          "execution_date": "2025-11-03",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -1.495404,
+          "instrument_selection_effect_eur": -1.445962,
+          "fee_difference_effect_eur": 0.000803
+        },
+        {
+          "execution_date": "2025-12-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 0.11126,
+          "fee_difference_effect_eur": -5.6e-05
+        },
+        {
+          "execution_date": "2026-01-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 0.020505,
+          "fee_difference_effect_eur": -1e-05
+        },
+        {
+          "execution_date": "2026-02-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 0.0,
+          "fee_difference_effect_eur": 0.0
+        },
+        {
+          "execution_date": "2026-03-02",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -3.511531,
+          "instrument_selection_effect_eur": 0.148617,
+          "fee_difference_effect_eur": 0.011086
+        },
+        {
+          "execution_date": "2026-04-01",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -3.130436,
+          "instrument_selection_effect_eur": 0.132547,
+          "fee_difference_effect_eur": 0.011499
+        },
+        {
+          "execution_date": "2026-05-04",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -1.684783,
+          "instrument_selection_effect_eur": -0.962402,
+          "fee_difference_effect_eur": -0.038558
+        },
+        {
+          "execution_date": "2026-06-01",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -0.44656,
+          "instrument_selection_effect_eur": 0.043373,
+          "fee_difference_effect_eur": 0.010202
+        },
+        {
+          "execution_date": "2026-07-01",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -0.296493,
+          "instrument_selection_effect_eur": 0.0,
+          "fee_difference_effect_eur": 0.010099
+        },
+        {
+          "execution_date": "2026-08-03",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -0.450635,
+          "instrument_selection_effect_eur": -0.059419,
+          "fee_difference_effect_eur": 0.010184
+        }
+      ],
+      "interpretation": "Exact ex-post ending-wealth decomposition against the same dated broad-ETF contributions. Positive effects helped; negative effects hurt.",
+      "limitations": [
+        "Development-period diagnosis, not fresh validation or evidence of future outperformance.",
+        "Cash timing assumes the unspent contribution could instead have bought the benchmark on its original contribution date.",
+        "Instrument selection uses outlays before fees; fee differences include the subsequent growth or loss of the foregone units.",
+        "Effects decompose ending EUR wealth, not annualized or time-weighted return percentages.",
+        "The study earns zero interest on cash. Taxes and executable historical quotes are not modeled."
+      ]
+    },
+    {
+      "version": "contribution-attribution-v1",
+      "benchmark": "VWCE.DE",
+      "contribution_count": 32,
+      "contributions_eur": 3200.0,
+      "ending_cash_eur": 650.0,
+      "ending_value_eur": 3578.58,
+      "benchmark_ending_value_eur": 4036.46,
+      "ending_value_gap_eur": -457.874844,
+      "entry_costs_eur": 8.94,
+      "cash_timing_effect_eur": -197.302143,
+      "instrument_selection_effect_eur": -261.143817,
+      "fee_difference_effect_eur": 0.571116,
+      "instruments": {
+        "XNAS.DE": {
+          "cash_outlay_eur": 500.0,
+          "principal_eur": 498.73,
+          "entry_cost_eur": 1.27,
+          "ending_value_eur": 624.268004,
+          "selection_effect_eur": 11.313354
+        },
+        "BTC-EUR": {
+          "cash_outlay_eur": 280.0,
+          "principal_eur": 277.2,
+          "entry_cost_eur": 2.8,
+          "ending_value_eur": 248.104033,
+          "selection_effect_eur": -120.027831
+        },
+        "IS3Q.DE": {
+          "cash_outlay_eur": 820.0,
+          "principal_eur": 817.92,
+          "entry_cost_eur": 2.08,
+          "ending_value_eur": 1018.437158,
+          "selection_effect_eur": -111.617084
+        },
+        "SOL-EUR": {
+          "cash_outlay_eur": 50.0,
+          "principal_eur": 49.5,
+          "entry_cost_eur": 0.5,
+          "ending_value_eur": 27.527584,
+          "selection_effect_eur": -41.316911
+        },
+        "VWCE.DE": {
+          "cash_outlay_eur": 240.0,
+          "principal_eur": 239.39,
+          "entry_cost_eur": 0.61,
+          "ending_value_eur": 269.015493,
+          "selection_effect_eur": 0.0
+        },
+        "IUSQ.DE": {
+          "cash_outlay_eur": 660.0,
+          "principal_eur": 658.32,
+          "entry_cost_eur": 1.68,
+          "ending_value_eur": 741.229596,
+          "selection_effect_eur": 0.504656
+        }
+      },
+      "contributions": [
+        {
+          "execution_date": "2024-01-02",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -33.934978,
+          "instrument_selection_effect_eur": 4.71724,
+          "fee_difference_effect_eur": 0.091427
+        },
+        {
+          "execution_date": "2024-02-01",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -10.535714,
+          "instrument_selection_effect_eur": -11.550398,
+          "fee_difference_effect_eur": 0.105215
+        },
+        {
+          "execution_date": "2024-03-01",
+          "unspent_contribution_eur": 40.0,
+          "cash_timing_effect_eur": -18.268429,
+          "instrument_selection_effect_eur": -10.541993,
+          "fee_difference_effect_eur": 0.077635
+        },
+        {
+          "execution_date": "2024-04-02",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -12.800954,
+          "instrument_selection_effect_eur": -25.192622,
+          "fee_difference_effect_eur": 0.08435
+        },
+        {
+          "execution_date": "2024-05-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -14.3226,
+          "fee_difference_effect_eur": -0.062587
+        },
+        {
+          "execution_date": "2024-06-03",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -8.302652,
+          "instrument_selection_effect_eur": -15.936403,
+          "fee_difference_effect_eur": -0.049806
+        },
+        {
+          "execution_date": "2024-07-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -15.2368,
+          "fee_difference_effect_eur": -0.054446
+        },
+        {
+          "execution_date": "2024-08-01",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -11.127292,
+          "instrument_selection_effect_eur": -22.911192,
+          "fee_difference_effect_eur": 0.068188
+        },
+        {
+          "execution_date": "2024-09-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -14.770305,
+          "fee_difference_effect_eur": 0.036926
+        },
+        {
+          "execution_date": "2024-10-01",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -3.355116,
+          "instrument_selection_effect_eur": -11.109563,
+          "fee_difference_effect_eur": -0.128908
+        },
+        {
+          "execution_date": "2024-11-01",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -3.170387,
+          "instrument_selection_effect_eur": -16.907812,
+          "fee_difference_effect_eur": 0.031622
+        },
+        {
+          "execution_date": "2024-12-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -18.877199,
+          "fee_difference_effect_eur": -0.063645
+        },
+        {
+          "execution_date": "2025-01-02",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -2.369354,
+          "instrument_selection_effect_eur": -4.793948,
+          "fee_difference_effect_eur": -0.01071
+        },
+        {
+          "execution_date": "2025-02-03",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": -3.376276,
+          "fee_difference_effect_eur": -0.049276
+        },
+        {
+          "execution_date": "2025-03-03",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -2.313005,
+          "instrument_selection_effect_eur": -8.189056,
+          "fee_difference_effect_eur": -0.078179
+        },
+        {
+          "execution_date": "2025-04-01",
+          "unspent_contribution_eur": 50.0,
+          "cash_timing_effect_eur": -15.707342,
+          "instrument_selection_effect_eur": -15.596835,
+          "fee_difference_effect_eur": 0.010881
+        },
+        {
+          "execution_date": "2025-05-02",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -20.995651,
+          "instrument_selection_effect_eur": -16.863482,
+          "fee_difference_effect_eur": 0.060861
+        },
+        {
+          "execution_date": "2025-06-02",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -18.577682,
+          "instrument_selection_effect_eur": -16.809752,
+          "fee_difference_effect_eur": 0.067443
+        },
+        {
+          "execution_date": "2025-07-01",
+          "unspent_contribution_eur": 60.0,
+          "cash_timing_effect_eur": -17.595308,
+          "instrument_selection_effect_eur": -16.180923,
+          "fee_difference_effect_eur": 0.058447
+        },
+        {
+          "execution_date": "2025-08-01",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -8.074828,
+          "instrument_selection_effect_eur": -11.508535,
+          "fee_difference_effect_eur": 0.014084
+        },
+        {
+          "execution_date": "2025-09-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 4.006091,
+          "fee_difference_effect_eur": -0.010015
+        },
+        {
+          "execution_date": "2025-10-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 1.86719,
+          "fee_difference_effect_eur": -0.004668
+        },
+        {
+          "execution_date": "2025-11-03",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -1.495404,
+          "instrument_selection_effect_eur": -1.445962,
+          "fee_difference_effect_eur": 0.026686
+        },
+        {
+          "execution_date": "2025-12-01",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 0.11126,
+          "fee_difference_effect_eur": -0.000278
+        },
+        {
+          "execution_date": "2026-01-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 0.020505,
+          "fee_difference_effect_eur": -5.1e-05
+        },
+        {
+          "execution_date": "2026-02-02",
+          "unspent_contribution_eur": 0.0,
+          "cash_timing_effect_eur": -0.0,
+          "instrument_selection_effect_eur": 0.0,
+          "fee_difference_effect_eur": 0.0
+        },
+        {
+          "execution_date": "2026-03-02",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -3.511531,
+          "instrument_selection_effect_eur": 0.148617,
+          "fee_difference_effect_eur": 0.077811
+        },
+        {
+          "execution_date": "2026-04-01",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -3.130436,
+          "instrument_selection_effect_eur": 0.132547,
+          "fee_difference_effect_eur": 0.057495
+        },
+        {
+          "execution_date": "2026-05-04",
+          "unspent_contribution_eur": 10.0,
+          "cash_timing_effect_eur": -0.842392,
+          "instrument_selection_effect_eur": -0.009567,
+          "fee_difference_effect_eur": 0.021709
+        },
+        {
+          "execution_date": "2026-06-01",
+          "unspent_contribution_eur": 20.0,
+          "cash_timing_effect_eur": -0.44656,
+          "instrument_selection_effect_eur": 0.043373,
+          "fee_difference_effect_eur": 0.051008
+        },
+        {
+          "execution_date": "2026-07-01",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -0.296493,
+          "instrument_selection_effect_eur": 0.0,
+          "fee_difference_effect_eur": 0.070692
+        },
+        {
+          "execution_date": "2026-08-03",
+          "unspent_contribution_eur": 30.0,
+          "cash_timing_effect_eur": -0.450635,
+          "instrument_selection_effect_eur": -0.059419,
+          "fee_difference_effect_eur": 0.071204
+        }
+      ],
+      "interpretation": "Exact ex-post ending-wealth decomposition against the same dated broad-ETF contributions. Positive effects helped; negative effects hurt.",
+      "limitations": [
+        "Development-period diagnosis, not fresh validation or evidence of future outperformance.",
+        "Cash timing assumes the unspent contribution could instead have bought the benchmark on its original contribution date.",
+        "Instrument selection uses outlays before fees; fee differences include the subsequent growth or loss of the foregone units.",
+        "Effects decompose ending EUR wealth, not annualized or time-weighted return percentages.",
+        "The study earns zero interest on cash. Taxes and executable historical quotes are not modeled."
+      ]
+    }
+  ]
+}
