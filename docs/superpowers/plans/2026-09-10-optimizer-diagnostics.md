@@ -6,4 +6,4 @@
 - [x] Implement separately versioned downside analysis and archived configuration.
 - [x] Integrate comparison into protected research result and existing brief.
 - [x] Review, test unchanged v1 replay and new behavior, publish evidence.
-- [ ] Deploy and verify owner-only access and published frontend.
+- [x] Deploy and verify owner-only access and published frontend.

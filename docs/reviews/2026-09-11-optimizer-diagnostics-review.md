@@ -122,4 +122,23 @@ Verification completed before deployment:
 - Original study replay: all original decisions, metrics, configuration and price
   hash remained unchanged. Git whitespace checks passed.
 
-Deployment status will be recorded after rollout.
+## Production rollout
+
+Source commit `ab31c15a762268d365860ff0b517d0f3d2b60dda` was pushed to main.
+Railway deployment `f9b560ef-44d5-4202-9942-b09f8dcd3533` reached SUCCESS with
+that exact commit. Vercel deployment `dpl_CVzjUoEb87RY2Jog3FcDEKWohZbV` reached
+READY and serves the production alias `https://phoenix-phoenix123.vercel.app/`.
+Authenticated Vercel asset retrieval confirmed the published downside component,
+observed-endpoint text and correct Railway API origin.
+
+Post-release headers-only checks confirmed absent/invalid owner access returns
+401, public health returns 200, and valid owner access returns 200. Anonymous
+GET `/finance/optimizer` and POST `/finance/optimizer/run` return 401; owner GET
+returns 200. Private responses carry `Cache-Control: no-store`. No private response
+bodies were read and no owner-authorized production optimizer run was triggered.
+
+The comparison is available on newly generated research results. Existing saved
+results are preserved. Selection remains `contribution_v2`; research diagnostics
+do not promote the optimizer or authorize trades. Live verification covers the
+deployed assets and access boundary; full result behavior was tested locally with
+synthetic inputs. These rollout notes were recorded after the source deployment.
