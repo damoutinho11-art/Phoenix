@@ -87,6 +87,16 @@ class EvidenceRecommendationTests(unittest.TestCase):
         from jarvis.api import dependencies
         from jarvis.api.routers import finance
         c, p = state()
+        from jarvis.api.tests.test_crypto_investment_review import reviewed_memo, records
+        from datetime import timedelta
+        research_memo = reviewed_memo()
+        research_memo.update(id=1, asset=expected_asset, research_quality_checked_at=TODAY.isoformat())
+        review = research_memo['validation']['investment_review']
+        review.update(asset=expected_asset, reviewed_at=TODAY.isoformat(), valid_until=(TODAY+timedelta(days=7)).isoformat())
+        review['alternatives'][1]['asset'] = 'btc' if expected_asset != 'btc' else 'eth'
+        for source in review['sources']:
+            source['checked_at'] = TODAY.isoformat()
+        research_records = records(research_memo)
         overrides = {dependencies.get_finance_constitution: lambda: c,
                      dependencies.get_portfolio_state: lambda: p,
                      dependencies.get_finance_profile: lambda: {'risk_profile': {'time_horizon_years': 20}}}
@@ -104,9 +114,9 @@ class EvidenceRecommendationTests(unittest.TestCase):
                 stack.enter_context(patch.object(finance.database, 'brief_exists_for_week', return_value=True))
                 stack.enter_context(patch.object(finance.database, 'get_latest_brief_for_week', return_value={'id': 42, 'status': 'pending', 'full_brief_json': '{}'}))
                 saved = stack.enter_context(patch.object(finance.database, 'save_brief'))
-                stack.enter_context(patch.object(finance.database, 'find_active_research_memo_for_leg', return_value={'id': 1, 'verdict': 'BUY_CANDIDATE', 'research_quality_checked_at': TODAY.isoformat()}))
+                stack.enter_context(patch.object(finance.database, 'find_active_research_memo_for_leg', return_value=research_memo))
                 stack.enter_context(patch.object(finance.database, 'get_research_memo_evidence_summary', return_value={'evidence_status': 'EVIDENCE_STRONG'}))
-                stack.enter_context(patch.object(finance.database, 'list_research_validation_records_by_memo_id', return_value=[{'created_at': TODAY.isoformat()}]))
+                stack.enter_context(patch.object(finance.database, 'list_research_validation_records_by_memo_id', return_value=research_records))
                 stack.enter_context(patch('jarvis.api.buy_recommendation.fetch_evidence', return_value={'candidates': [evidence_row]}))
                 stack.enter_context(patch('jarvis.data.database.get_db', side_effect=AssertionError('Private database accessed')))
                 headers = {'Authorization': f'Bearer {access_fixture.KEY}'}

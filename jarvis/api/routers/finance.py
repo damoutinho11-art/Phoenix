@@ -2375,6 +2375,23 @@ def _synthesize_memo_from_evidence(
         "unverified": unverified_count,
     }
 
+    from jarvis.domains.finance.investment_review import validated_investment_review
+    review, review_reason = validated_investment_review(memo, records, clock.today())
+    if review is not None and memo.get('verdict') == review['verdict']:
+        result = dict(rule_applied="EXTERNAL_REVIEW", rule_reason=review_reason,
+                      evidence_counts=evidence_counts, verdict=review['verdict'],
+                      data_confidence="MEDIUM", source_limitation=review_reason,
+                      buy_candidate_auto_assigned=False, synthesis_only=True,
+                      investment_approval=False)
+        return result, dict(thesis=review['thesis'], risks=review['risks'],
+                            verdict=review['verdict'], data_confidence="MEDIUM",
+                            notes=f"Dated assistant research valid through {review['valid_until']}. {review_reason}")
+
+    external_market = any(
+        isinstance(r.get('raw_json'), dict)
+        and r['raw_json'].get('adapter') == 'crypto_price_adapter_v1'
+        and r['raw_json'].get('fetch_status') == 'success' for r in records)
+
     # Base asset risks (drop the generic "insufficient research" placeholder from draft)
     if asset in _CRYPTO_ASSETS:
         base_risks = [r for r in _CRYPTO_DRAFT_RISKS if "Insufficient research" not in r]
@@ -2387,7 +2404,14 @@ def _synthesize_memo_from_evidence(
     evidence_risks = [_SYNTHESIS_EVIDENCE_RISKS["local_only"]]
 
     # --- Apply synthesis rules in priority order ---
-    if total == 0:
+    if memo.get('verdict') == 'REJECT':
+        verdict = 'REJECT'
+        data_confidence = 'MEDIUM'
+        rule_applied = 'REJECTION_RETAINED'
+        rule_reason = 'Existing rejection requires an explicit new investment review before reconsideration.'
+        verdict_line = rule_reason
+
+    elif total == 0:
         # Rule E: no records
         verdict = "INSUFFICIENT_DATA"
         data_confidence = "LOW"
@@ -2502,6 +2526,22 @@ def _synthesize_memo_from_evidence(
         "data_confidence": data_confidence,
         "notes": notes,
     }
+
+    if external_market:
+        limitation = ('Records report external market price checks. These verify market facts, '
+                      'not an investment thesis or expected outperformance.')
+        synthesis_result['source_limitation'] = limitation
+        new_fields['thesis'] = (f"PHOENIX evidence synthesis: {verdict_line}\n\n{limitation}\n\n"
+                                'Manual review required before any action.')
+        new_fields['risks'] = [r for r in risks if r != _SYNTHESIS_EVIDENCE_RISKS['local_only']] + [limitation]
+    if isinstance(memo.get('validation'), dict) and memo['validation'].get('investment_review'):
+        new_fields['notes'] += ' ' + review_reason
+        limitation = 'External review cannot be applied: ' + review_reason
+        if review is not None:
+            limitation = 'External review conflicts with the current memo verdict; explicit reconsideration is required.'
+        synthesis_result['source_limitation'] = limitation
+        new_fields['thesis'] = f"PHOENIX evidence synthesis: {verdict_line}\n\n{limitation}"
+        new_fields['risks'] = [r for r in risks if r != _SYNTHESIS_EVIDENCE_RISKS['local_only']] + [limitation]
 
     return synthesis_result, new_fields
 

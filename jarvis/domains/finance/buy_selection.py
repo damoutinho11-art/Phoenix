@@ -130,7 +130,7 @@ def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=Tr
             * c['target_weights'][asset]) - holdings.get(asset, 0))
         if lane == 'crypto' and row.get('research_verdict') in {'REJECT', 'WATCH'}:
             result['policy_eligible'] = False
-            raise ValueError('Validated research does not recommend buying this asset.')
+            raise ValueError(row.get('research_review_reason') or 'Validated research does not recommend buying this asset.')
         if row.get('currency') != 'EUR':
             raise ValueError('Verified EUR history and quote required.')
         if not row.get('source'):

@@ -6,6 +6,7 @@ import os
 from fastapi import HTTPException
 from jarvis.data import database
 from jarvis.domains.finance.buy_evidence import fetch_evidence
+from jarvis.domains.finance.investment_review import validated_investment_review, review_digest
 
 
 def decision_signature(response):
@@ -58,6 +59,22 @@ def load_selection_evidence(constitution, today):
                 candidate.update(research_status=summary['evidence_status'],
                                  research_verdict=memo.get('verdict'),
                                  research_as_of=min(dates) if dates and all(dates) else None)
+                review, reason = validated_investment_review(memo, records, today)
+                candidate['research_review_reason'] = reason
+                if review is not None and memo.get('verdict') == review['verdict']:
+                    candidate.update(research_verdict=review['verdict'], research_as_of=review['reviewed_at'])
+                    candidate['research_review_reason'] = f"{review['verdict']}: {review['thesis']}"
+                    digest = review_digest(review)
+                    candidate['research_review_proof'] = {
+                        'memo_id': memo['id'], 'review_sha256': digest,
+                        'review': deepcopy(review),
+                        'bound_checks': [{k: deepcopy(r.get(k)) for k in
+                                          ('id', 'check_type', 'field_name', 'status', 'raw_json')}
+                                         for r in records if isinstance(r.get('raw_json'), dict)
+                                         and r['raw_json'].get('external_review_sha256') == digest],
+                    }
+                elif memo.get('verdict') == 'BUY_CANDIDATE':
+                    candidate.update(research_verdict='WATCH', research_as_of=None)
         except Exception:
             candidate.update(research_status='NO_EVIDENCE', research_as_of=None, research_verdict=None)
     return evidence

@@ -1,0 +1,386 @@
+[
+  {
+    "memo": {
+      "asset": "btc",
+      "title": "BTC external contribution review 2026-09-11",
+      "thesis": "BTC is the leading candidate for further crypto allocation research in this three-asset comparison: it had lower observed volatility and drawdown than ETH and SOL. WATCH because this does not establish that adding BTC improves this portfolio versus a broad ETF or cash after costs; an evaluated joint allocation case is still missing.",
+      "risks": [
+        "Crypto can suffer deep drawdowns or permanent loss; this short sample understates possible tail losses.",
+        "Custody and broker access risk; reference spreads are not executable LHV prices.",
+        "Protocol and demand assumptions can change; historical returns do not establish fair value."
+      ],
+      "data_confidence": "MEDIUM",
+      "verdict": "WATCH",
+      "sources": [
+        {
+          "url": "https://bitcoin.org/en/faq",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "da61ef79fb5c4c386a1aa47200207e853b80a8cec642a3ba80ffcc8d9e40917a",
+          "role": "protocol",
+          "claim": "Bitcoin has a scheduled supply limit; its price still depends on demand."
+        },
+        {
+          "url": "https://www.lhv.ee/en/crypto/",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "52516f827b02d374c6eaf1af47c38e59c2b2aeb44bad0e751b8b589c8c0e44bd",
+          "role": "broker_cost",
+          "claim": "LHV lists these assets, charges 0.5% on buys and sells and says acquired assets cannot currently be used for transfers or payments."
+        },
+        {
+          "role": "market_risk",
+          "url": "https://finance.yahoo.com/quote/BTC-EUR/",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "f5b58d3ff23f17301d213f43cb25217f1345fa7b39bad770ab3f63f21a340631",
+          "claim": "Archived EUR adjusted daily closes and computed 181-observation risk metrics through 2026-09-10; no forecast or executable broker quote.",
+          "artifact": "docs/reviews/2026-09-11-crypto-market-evidence.json",
+          "hash_scope": "Canonical JSON of this candidate history, metrics and symbol."
+        }
+      ],
+      "validation": {
+        "investment_review": {
+          "version": "crypto-investment-review-v1",
+          "asset": "btc",
+          "reviewed_at": "2026-09-11",
+          "valid_until": "2026-09-18",
+          "reviewer_type": "assistant_research",
+          "reviewer": "Phoenix owner-requested assistant research",
+          "strategy": "long_term_spot_contribution",
+          "verdict": "WATCH",
+          "thesis": "BTC is the leading candidate for further crypto allocation research in this three-asset comparison: it had lower observed volatility and drawdown than ETH and SOL. WATCH because this does not establish that adding BTC improves this portfolio versus a broad ETF or cash after costs; an evaluated joint allocation case is still missing.",
+          "risks": [
+            "Crypto can suffer deep drawdowns or permanent loss; this short sample understates possible tail losses.",
+            "Custody and broker access risk; reference spreads are not executable LHV prices.",
+            "Protocol and demand assumptions can change; historical returns do not establish fair value."
+          ],
+          "alternatives": [
+            {
+              "asset": "cash",
+              "reason": "Retains liquidity and avoids crypto price risk while the incremental allocation case is unresolved."
+            },
+            {
+              "asset": "broad_etf",
+              "reason": "Requires an explicit common-horizon comparison of portfolio risk and after-cost outcomes."
+            },
+            {
+              "asset": "eth",
+              "reason": "Compare different protocol exposure and measured risk, without extrapolating recent winners."
+            }
+          ],
+          "invalidation_conditions": [
+            "Reopen if a reproducible joint ETF/crypto/cash allocation comparison establishes a robust benefit across plausible assumptions.",
+            "Expire this review on 2026-09-18 or earlier if source facts, protocol risks, broker costs or cash authority change."
+          ],
+          "sources": [
+            {
+              "url": "https://bitcoin.org/en/faq",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "da61ef79fb5c4c386a1aa47200207e853b80a8cec642a3ba80ffcc8d9e40917a",
+              "role": "protocol",
+              "claim": "Bitcoin has a scheduled supply limit; its price still depends on demand."
+            },
+            {
+              "url": "https://www.lhv.ee/en/crypto/",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "52516f827b02d374c6eaf1af47c38e59c2b2aeb44bad0e751b8b589c8c0e44bd",
+              "role": "broker_cost",
+              "claim": "LHV lists these assets, charges 0.5% on buys and sells and says acquired assets cannot currently be used for transfers or payments."
+            },
+            {
+              "role": "market_risk",
+              "url": "https://finance.yahoo.com/quote/BTC-EUR/",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "f5b58d3ff23f17301d213f43cb25217f1345fa7b39bad770ab3f63f21a340631",
+              "claim": "Archived EUR adjusted daily closes and computed 181-observation risk metrics through 2026-09-10; no forecast or executable broker quote.",
+              "artifact": "docs/reviews/2026-09-11-crypto-market-evidence.json",
+              "hash_scope": "Canonical JSON of this candidate history, metrics and symbol."
+            }
+          ]
+        }
+      },
+      "status": "draft",
+      "notes": "Assistant research, not independent analyst consensus or investment approval. Limited BTC/ETH/SOL comparison; existing allocation mandate is not proven optimal."
+    },
+    "checks": [
+      {
+        "asset": "btc",
+        "check_type": "SOURCE_CONFIDENCE",
+        "field_name": "external_source_review",
+        "source_primary": "Dated external assistant research",
+        "status": "PASS",
+        "confidence": "medium",
+        "notes": "Confirms completeness and binding of the stated review; does not certify future returns.",
+        "raw_json": {
+          "external_review_sha256": "e5447bbe177bc2fa05ab892fe4271e944c190ee8bf51adff7ad6d3cbcef28e5f"
+        }
+      },
+      {
+        "asset": "btc",
+        "check_type": "MANUAL_REVIEW",
+        "field_name": "investment_thesis_review",
+        "source_primary": "Dated external assistant research",
+        "status": "PASS",
+        "confidence": "medium",
+        "notes": "Confirms completeness and binding of the stated review; does not certify future returns.",
+        "raw_json": {
+          "external_review_sha256": "e5447bbe177bc2fa05ab892fe4271e944c190ee8bf51adff7ad6d3cbcef28e5f"
+        }
+      }
+    ]
+  },
+  {
+    "memo": {
+      "asset": "eth",
+      "title": "ETH external contribution review 2026-09-11",
+      "thesis": "WATCH: ETH had higher observed volatility and drawdown than BTC in this sample. Protocol utility and staking possibilities do not establish an attractive spot return at the current price, and no LHV staking income is assumed. A marginal portfolio benefit over BTC, broad ETFs and cash has not been established.",
+      "risks": [
+        "Crypto can suffer deep drawdowns or permanent loss; this short sample understates possible tail losses.",
+        "Custody and broker access risk; reference spreads are not executable LHV prices.",
+        "Protocol and demand assumptions can change; historical returns do not establish fair value."
+      ],
+      "data_confidence": "MEDIUM",
+      "verdict": "WATCH",
+      "sources": [
+        {
+          "url": "https://ethereum.org/en/staking/",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "0ad534b132daa18157763a4c050c1262c6c8d1e1b304288aa49dc5636d08055d",
+          "role": "protocol",
+          "claim": "Staking involves distinct operational, slashing and counterparty risks; spot ownership alone does not establish staking income."
+        },
+        {
+          "url": "https://www.lhv.ee/en/crypto/",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "52516f827b02d374c6eaf1af47c38e59c2b2aeb44bad0e751b8b589c8c0e44bd",
+          "role": "broker_cost",
+          "claim": "LHV lists these assets, charges 0.5% on buys and sells and says acquired assets cannot currently be used for transfers or payments."
+        },
+        {
+          "role": "market_risk",
+          "url": "https://finance.yahoo.com/quote/ETH-EUR/",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "0b56939ad33564ede159104eb1457a59617341b1a1a20d14ce243760c61fdbbc",
+          "claim": "Archived EUR adjusted daily closes and computed 181-observation risk metrics through 2026-09-10; no forecast or executable broker quote.",
+          "artifact": "docs/reviews/2026-09-11-crypto-market-evidence.json",
+          "hash_scope": "Canonical JSON of this candidate history, metrics and symbol."
+        }
+      ],
+      "validation": {
+        "investment_review": {
+          "version": "crypto-investment-review-v1",
+          "asset": "eth",
+          "reviewed_at": "2026-09-11",
+          "valid_until": "2026-09-18",
+          "reviewer_type": "assistant_research",
+          "reviewer": "Phoenix owner-requested assistant research",
+          "strategy": "long_term_spot_contribution",
+          "verdict": "WATCH",
+          "thesis": "WATCH: ETH had higher observed volatility and drawdown than BTC in this sample. Protocol utility and staking possibilities do not establish an attractive spot return at the current price, and no LHV staking income is assumed. A marginal portfolio benefit over BTC, broad ETFs and cash has not been established.",
+          "risks": [
+            "Crypto can suffer deep drawdowns or permanent loss; this short sample understates possible tail losses.",
+            "Custody and broker access risk; reference spreads are not executable LHV prices.",
+            "Protocol and demand assumptions can change; historical returns do not establish fair value."
+          ],
+          "alternatives": [
+            {
+              "asset": "cash",
+              "reason": "Retains liquidity and avoids crypto price risk while the incremental allocation case is unresolved."
+            },
+            {
+              "asset": "broad_etf",
+              "reason": "Requires an explicit common-horizon comparison of portfolio risk and after-cost outcomes."
+            },
+            {
+              "asset": "btc",
+              "reason": "Compare different protocol exposure and measured risk, without extrapolating recent winners."
+            }
+          ],
+          "invalidation_conditions": [
+            "Reopen if a reproducible joint ETF/crypto/cash allocation comparison establishes a robust benefit across plausible assumptions.",
+            "Expire this review on 2026-09-18 or earlier if source facts, protocol risks, broker costs or cash authority change."
+          ],
+          "sources": [
+            {
+              "url": "https://ethereum.org/en/staking/",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "0ad534b132daa18157763a4c050c1262c6c8d1e1b304288aa49dc5636d08055d",
+              "role": "protocol",
+              "claim": "Staking involves distinct operational, slashing and counterparty risks; spot ownership alone does not establish staking income."
+            },
+            {
+              "url": "https://www.lhv.ee/en/crypto/",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "52516f827b02d374c6eaf1af47c38e59c2b2aeb44bad0e751b8b589c8c0e44bd",
+              "role": "broker_cost",
+              "claim": "LHV lists these assets, charges 0.5% on buys and sells and says acquired assets cannot currently be used for transfers or payments."
+            },
+            {
+              "role": "market_risk",
+              "url": "https://finance.yahoo.com/quote/ETH-EUR/",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "0b56939ad33564ede159104eb1457a59617341b1a1a20d14ce243760c61fdbbc",
+              "claim": "Archived EUR adjusted daily closes and computed 181-observation risk metrics through 2026-09-10; no forecast or executable broker quote.",
+              "artifact": "docs/reviews/2026-09-11-crypto-market-evidence.json",
+              "hash_scope": "Canonical JSON of this candidate history, metrics and symbol."
+            }
+          ]
+        }
+      },
+      "status": "draft",
+      "notes": "Assistant research, not independent analyst consensus or investment approval. Limited BTC/ETH/SOL comparison; existing allocation mandate is not proven optimal."
+    },
+    "checks": [
+      {
+        "asset": "eth",
+        "check_type": "SOURCE_CONFIDENCE",
+        "field_name": "external_source_review",
+        "source_primary": "Dated external assistant research",
+        "status": "PASS",
+        "confidence": "medium",
+        "notes": "Confirms completeness and binding of the stated review; does not certify future returns.",
+        "raw_json": {
+          "external_review_sha256": "92448225c0aee6c9bc11281e6185627a97d1347d0f3e7c8d28162321ae81e893"
+        }
+      },
+      {
+        "asset": "eth",
+        "check_type": "MANUAL_REVIEW",
+        "field_name": "investment_thesis_review",
+        "source_primary": "Dated external assistant research",
+        "status": "PASS",
+        "confidence": "medium",
+        "notes": "Confirms completeness and binding of the stated review; does not certify future returns.",
+        "raw_json": {
+          "external_review_sha256": "92448225c0aee6c9bc11281e6185627a97d1347d0f3e7c8d28162321ae81e893"
+        }
+      }
+    ]
+  },
+  {
+    "memo": {
+      "asset": "sol",
+      "title": "SOL external contribution review 2026-09-11",
+      "thesis": "WATCH: SOL had higher observed volatility and drawdown than BTC in this sample. Its staking and issuance mechanics do not establish an attractive spot return, and no LHV staking income is assumed. A marginal portfolio benefit over BTC, broad ETFs and cash has not been established.",
+      "risks": [
+        "Crypto can suffer deep drawdowns or permanent loss; this short sample understates possible tail losses.",
+        "Custody and broker access risk; reference spreads are not executable LHV prices.",
+        "Protocol and demand assumptions can change; historical returns do not establish fair value."
+      ],
+      "data_confidence": "MEDIUM",
+      "verdict": "WATCH",
+      "sources": [
+        {
+          "url": "https://solana.com/staking",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "331d2f7b4401775ab9e1aecdd8936a9fc9d32cd5f71948380d1d5fb4f6db9e64",
+          "role": "protocol",
+          "claim": "Solana uses stake-weighted consensus; staking rewards depend on issuance, participation and validator costs."
+        },
+        {
+          "url": "https://www.lhv.ee/en/crypto/",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "52516f827b02d374c6eaf1af47c38e59c2b2aeb44bad0e751b8b589c8c0e44bd",
+          "role": "broker_cost",
+          "claim": "LHV lists these assets, charges 0.5% on buys and sells and says acquired assets cannot currently be used for transfers or payments."
+        },
+        {
+          "role": "market_risk",
+          "url": "https://finance.yahoo.com/quote/SOL-EUR/",
+          "checked_at": "2026-09-11",
+          "evidence_sha256": "1ebf7f974abeaf7b6e0103a4c3a1188c91719db8d59910682c2a54917b38f131",
+          "claim": "Archived EUR adjusted daily closes and computed 181-observation risk metrics through 2026-09-10; no forecast or executable broker quote.",
+          "artifact": "docs/reviews/2026-09-11-crypto-market-evidence.json",
+          "hash_scope": "Canonical JSON of this candidate history, metrics and symbol."
+        }
+      ],
+      "validation": {
+        "investment_review": {
+          "version": "crypto-investment-review-v1",
+          "asset": "sol",
+          "reviewed_at": "2026-09-11",
+          "valid_until": "2026-09-18",
+          "reviewer_type": "assistant_research",
+          "reviewer": "Phoenix owner-requested assistant research",
+          "strategy": "long_term_spot_contribution",
+          "verdict": "WATCH",
+          "thesis": "WATCH: SOL had higher observed volatility and drawdown than BTC in this sample. Its staking and issuance mechanics do not establish an attractive spot return, and no LHV staking income is assumed. A marginal portfolio benefit over BTC, broad ETFs and cash has not been established.",
+          "risks": [
+            "Crypto can suffer deep drawdowns or permanent loss; this short sample understates possible tail losses.",
+            "Custody and broker access risk; reference spreads are not executable LHV prices.",
+            "Protocol and demand assumptions can change; historical returns do not establish fair value."
+          ],
+          "alternatives": [
+            {
+              "asset": "cash",
+              "reason": "Retains liquidity and avoids crypto price risk while the incremental allocation case is unresolved."
+            },
+            {
+              "asset": "broad_etf",
+              "reason": "Requires an explicit common-horizon comparison of portfolio risk and after-cost outcomes."
+            },
+            {
+              "asset": "btc",
+              "reason": "Compare different protocol exposure and measured risk, without extrapolating recent winners."
+            }
+          ],
+          "invalidation_conditions": [
+            "Reopen if a reproducible joint ETF/crypto/cash allocation comparison establishes a robust benefit across plausible assumptions.",
+            "Expire this review on 2026-09-18 or earlier if source facts, protocol risks, broker costs or cash authority change."
+          ],
+          "sources": [
+            {
+              "url": "https://solana.com/staking",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "331d2f7b4401775ab9e1aecdd8936a9fc9d32cd5f71948380d1d5fb4f6db9e64",
+              "role": "protocol",
+              "claim": "Solana uses stake-weighted consensus; staking rewards depend on issuance, participation and validator costs."
+            },
+            {
+              "url": "https://www.lhv.ee/en/crypto/",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "52516f827b02d374c6eaf1af47c38e59c2b2aeb44bad0e751b8b589c8c0e44bd",
+              "role": "broker_cost",
+              "claim": "LHV lists these assets, charges 0.5% on buys and sells and says acquired assets cannot currently be used for transfers or payments."
+            },
+            {
+              "role": "market_risk",
+              "url": "https://finance.yahoo.com/quote/SOL-EUR/",
+              "checked_at": "2026-09-11",
+              "evidence_sha256": "1ebf7f974abeaf7b6e0103a4c3a1188c91719db8d59910682c2a54917b38f131",
+              "claim": "Archived EUR adjusted daily closes and computed 181-observation risk metrics through 2026-09-10; no forecast or executable broker quote.",
+              "artifact": "docs/reviews/2026-09-11-crypto-market-evidence.json",
+              "hash_scope": "Canonical JSON of this candidate history, metrics and symbol."
+            }
+          ]
+        }
+      },
+      "status": "draft",
+      "notes": "Assistant research, not independent analyst consensus or investment approval. Limited BTC/ETH/SOL comparison; existing allocation mandate is not proven optimal."
+    },
+    "checks": [
+      {
+        "asset": "sol",
+        "check_type": "SOURCE_CONFIDENCE",
+        "field_name": "external_source_review",
+        "source_primary": "Dated external assistant research",
+        "status": "PASS",
+        "confidence": "medium",
+        "notes": "Confirms completeness and binding of the stated review; does not certify future returns.",
+        "raw_json": {
+          "external_review_sha256": "9305fb9c5c0b0e5fd808c60d1485cba2c10502778b6a0632cf988941eb8b6d98"
+        }
+      },
+      {
+        "asset": "sol",
+        "check_type": "MANUAL_REVIEW",
+        "field_name": "investment_thesis_review",
+        "source_primary": "Dated external assistant research",
+        "status": "PASS",
+        "confidence": "medium",
+        "notes": "Confirms completeness and binding of the stated review; does not certify future returns.",
+        "raw_json": {
+          "external_review_sha256": "9305fb9c5c0b0e5fd808c60d1485cba2c10502778b6a0632cf988941eb8b6d98"
+        }
+      }
+    ]
+  }
+]
