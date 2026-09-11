@@ -1,6 +1,8 @@
 """Budget API — parse, save, and summarise personal bank transactions."""
 
 import io
+import base64
+import binascii
 import hashlib
 import json
 import math
@@ -16,6 +18,7 @@ from pypdf import PdfReader
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
+from jarvis.data.budget_supplements import project_supplements, supplement_summary, save_reviewed_supplement
 from jarvis.domains.finance.cashflow_authority import (
     MAX_SAFE_EUROS,
     calculate_cashflow_authority,
@@ -112,6 +115,12 @@ class SaveRequest(BaseModel):
 
 class BudgetMemoryRequest(BaseModel):
     profile: object
+
+
+class ImageSupplementRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    image_base64: str
+    review: dict
 
 
 class CategoryCorrectionRequest(BaseModel):
@@ -442,7 +451,7 @@ def _unpaid_recurring_bills(
 ) -> float | None:
     if not isinstance(profile, dict) or not isinstance(transactions, list):
         return None
-    searchable: list[str] = []
+    searchable: list[tuple[str, str]] = []
     for row in transactions:
         if not isinstance(row, dict):
             return None
@@ -450,7 +459,7 @@ def _unpaid_recurring_bills(
         description = row.get("description", "")
         if not isinstance(merchant, str) or not isinstance(description, str):
             return None
-        searchable.append(f"{merchant} {description}".lower())
+        searchable.append((str(row.get('date','')),f"{merchant} {description}".lower()))
     total = Decimal("0")
     obligations = profile.get("recurring_obligations", [])
     if not valid_recurring_obligations(obligations):
@@ -474,7 +483,9 @@ def _unpaid_recurring_bills(
             return None
         if not amount.is_finite() or amount < 0:
             return None
-        if any(any(token in row for token in tokens) for row in searchable):
+        effective_from = obligation.get('effective_from','')
+        if any((not effective_from or day >= effective_from) and any(token in text for token in tokens)
+               for day,text in searchable):
             continue
         total += amount
     try:
@@ -593,6 +604,12 @@ def _build_cashflow_authority(
     summary = database.get_budget_statement_import_summary(
         statement_import_id, target_month
     )
+    try:
+        snapshot, supplement_rows = project_supplements(snapshot,decision_today)
+        transactions.extend(row for row in supplement_rows if row['month']==target_month)
+        summary = supplement_summary(summary,supplement_rows,target_month)
+    except (ValueError,TypeError,KeyError,RecursionError,OverflowError):
+        return {'data_ready':False,'blockers':['Reviewed image supplement cannot be reconciled.'],'weekly_budget_eur':0.0}
     correction_revision = database.get_budget_correction_revision(statement_import_id)
     policy_blockers = cashflow_authority_structural_blockers(
         policy=profile,
@@ -1403,6 +1420,17 @@ def save_transactions(request: SaveRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"saved": saved}
+
+
+@router.post('/statement-image-supplement')
+def import_statement_image_supplement(request: ImageSupplementRequest) -> dict:
+    try:
+        if len(request.image_base64)>12*1024*1024:
+            raise ValueError('Image exceeds size limit.')
+        image=base64.b64decode(request.image_base64,validate=True)
+        return save_reviewed_supplement(request.review,image,clock.today())
+    except (ValueError,TypeError,KeyError,binascii.Error) as exc:
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 
 @router.get("/summary")

@@ -8,4 +8,4 @@ only by the existing contribution comparison. Python; existing public HTTP helpe
 - [x] Add exchange parser and connect optional evidence to candidate fetching.
 - [x] Preserve broker gates, same-share-class ambiguity and conflicting evidence.
 - [x] Verify public source, domain/API/security tests and independent review.
-- [ ] Deploy, check live recommendation and document remaining investment blockers.
+- [x] Deploy, check live recommendation and document remaining investment blockers.

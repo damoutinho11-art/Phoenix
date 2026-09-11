@@ -139,7 +139,7 @@ def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
         return False
     if not isinstance(source, dict):
         return False
-    if source.get("parser") != "lhv_pdf" or source.get("quality_status") != "reconciled":
+    if source.get("parser") not in {"lhv_pdf","lhv_pdf_with_reviewed_image"} or source.get("quality_status") != "reconciled":
         return False
     if not isinstance(source.get("filename_hash"), str) or not re.fullmatch(
         r"[0-9a-fA-F]{64}", source["filename_hash"]
@@ -147,6 +147,22 @@ def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
         return False
     if source.get("receipt_verified") is not True:
         return False
+    if source.get('parser')=='lhv_pdf_with_reviewed_image':
+        supplements=source.get('image_supplements')
+        if not isinstance(supplements,list) or not supplements or type(source.get('image_supplement_rows')) is not int or source['image_supplement_rows']<=0:
+            return False
+        if any(not isinstance(item,dict) or item.get('review_type')!='owner_authorized_image_review'
+               or type(item.get('id')) is not int or item['id']<=0
+               or any(not isinstance(item.get(key),str) or not re.fullmatch('[0-9a-f]{64}',item[key])
+                      for key in ('image_sha256','payload_sha256')) for item in supplements):
+            return False
+        try:
+            if date.fromisoformat(source['base_statement_end_date']) >= date.fromisoformat(source['statement_end_date']):
+                return False
+        except (ValueError,TypeError,KeyError):
+            return False
+        if not _valid_exact_cent_json_number(source.get('base_closing_balance_eur'),nonnegative=False):
+            return False
     if not _valid_exact_zero(source.get("balance_difference_eur")):
         return False
     statement_end_date = source.get("statement_end_date")
@@ -249,6 +265,12 @@ def valid_recurring_obligations(value: object) -> bool:
     for obligation in value:
         if not isinstance(obligation, dict):
             return False
+        if 'effective_from' in obligation:
+            try:
+                if date.fromisoformat(obligation['effective_from']).isoformat()!=obligation['effective_from']:
+                    return False
+            except (ValueError,TypeError):
+                return False
         if not isinstance(obligation.get("name"), str) or not obligation["name"].strip():
             return False
         if type(obligation.get("enabled")) is not bool:

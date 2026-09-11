@@ -39,4 +39,24 @@ lacks external investment research. This release does not turn those checks into
 BUY_CANDIDATE, alter risk limits, approve a brief, or place an order. Portfolio
 manager research remains unvalidated; broader research and policy work continues.
 
-Deployment and live decision verification are pending.
+## Rollout
+
+Source `f1c3b22c7ebdd6c50245a96ee36b691ec7a8ed87` was pushed to main.
+Railway deployment `89693f41-bcbf-4b34-86a0-c100cbf21d96` reached SUCCESS at the
+exact commit. Vercel deployment `dpl_AWzdyD2dMjTUKbQbmg5M6rYzjoRf` reached READY
+and serves the production Phoenix alias; frontend source was unchanged.
+
+Owner-authorized live decision checks verified the new dated exchange fee/hash
+exclusion is present and the ETF lane selects XNAS.DE. The manual checklist is
+READY_FOR_MANUAL_REVIEW, with the brief pending. Crypto remains WAIT. The ETF
+memo's WATCH verdict is not a claim of investment outperformance: ETF selection
+uses the contribution/cost rule, while crypto requires BUY_CANDIDATE research.
+No approval, trade, order or portfolio state update was performed. GET decision
+generation may persist its pending recommendation snapshot, as designed.
+
+Post-deployment access checks: absent and invalid credentials 401; public health
+200; owner access 200. Private owner data was read only for the requested
+investment-readiness review, with credentials kept out of output. Personal
+amounts and holdings are not stored in this source-controlled review.
+
+These rollout notes were recorded after deploying the source commit.
