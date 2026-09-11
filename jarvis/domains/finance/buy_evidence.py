@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 
 from .market_data import ETF_CANDIDATE_TICKERS, TICKER_MAP
 from .lightyear_catalog import verify_lightyear_candidate, _public_candidate_url
+from .fund_cost_evidence import exchange_url, parse_exchange_cost
 
 _pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix='public-buy-evidence')
 _lock = Lock()
@@ -157,10 +158,17 @@ def _fetch_candidate(row, today):
     if row['lane'] == 'crypto' and (quote['spread_pct'] is None or quote['quote_date'] is None):
         quote = crypto_reference_quote(row['symbol'])
     broker = _broker_evidence(row)
+    fund_cost = {}
+    if row['lane'] == 'etf' and exchange_url(row['symbol']):
+        try:
+            fund_cost['fund_cost_evidence'] = parse_exchange_cost(
+                row['symbol'], _public_text(exchange_url(row['symbol'])), today)
+        except (ValueError, TypeError, OSError):
+            pass  # Missing independent evidence never weakens a broker gate.
     if row.get('mandate_review') and row['mandate_review'].get('isin') != broker.get('isin'):
         row = {**row, 'mandate_approved': False}
     return {**row, 'history': history, 'currency': currency, 'product_type': info.get('quoteType'), **quote,
-            **broker, 'verified_at': today.isoformat(),
+            **broker, **fund_cost, 'verified_at': today.isoformat(),
             'source': 'yfinance adjusted daily closes and quote; official public broker page',
             'retrieved_at': datetime.now(timezone.utc).isoformat(),
             'research_status': 'NO_EVIDENCE', 'research_as_of': None}

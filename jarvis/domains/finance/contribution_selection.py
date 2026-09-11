@@ -5,6 +5,7 @@ No forecast or claim of superior returns. Historical risk remains explanatory.
 import re
 from math import isfinite
 from .buy_selection import _evaluate, _number, _recent, LIMITATIONS
+from .fund_cost_evidence import independent_cost_floor, conflicting_fund_cost
 
 POLICY_VERSION = 'contribution-v2'
 
@@ -17,12 +18,18 @@ def _cost(row, horizon):
 def _known_cost_floor(row, today):
     """Even free execution cannot offset a higher verified annual fund fee."""
     try:
-        if (row.get('evidence_conflict') or row.get('currency') != 'EUR' or row.get('broker_verified') is not True
+        if row.get('evidence_conflict') or row.get('currency') != 'EUR' or row.get('product_type') != 'ETF':
+            return None
+        independent = independent_cost_floor(row,today)
+        if independent:
+            return independent
+        if (row.get('broker_verified') is not True
             or not row.get('broker_source') or not _recent(row.get('verified_at'), today, 1)
             or row.get('product_type') != 'ETF'
             or not re.fullmatch(r'[A-Z]{2}[A-Z0-9]{9}[0-9]', str(row.get('isin', '')))):
             return None
-        return _number(row.get('fund_fee_pct'), maximum=5)
+        return {'annual_fee_pct':_number(row.get('fund_fee_pct'), maximum=5),
+                'isin':row['isin'],'source':row['broker_source'],'verified_at':row['verified_at']}
     except (TypeError, ValueError):
         return None
 
@@ -40,6 +47,9 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
                               require_positive_returns=False) for row in candidates]
     identities = [(r.get('lane'), r.get('symbol')) for r in evaluations]
     for row, identity in zip(evaluations, identities):
+        if row.get('lane') == 'etf' and conflicting_fund_cost(row,as_of):
+            row.update(eligible=False,evidence_conflict=True,
+                       reason='Independent exchange and broker fund identity or annual fee evidence is conflicting.')
         if identities.count(identity) > 1:
             row.update(eligible=False, reason='Duplicate candidate identity.')
     funds = {}
@@ -74,9 +84,10 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
             if row['eligible']:
                 continue
             floor = _known_cost_floor(row, as_of) if lane == 'etf' else None
-            if (leader and floor is not None and row.get('isin') != leader.get('isin')
-                and floor > leader['comparison_cost_pct'] + 1e-9):
+            if (leader and floor is not None and floor['isin'] != leader.get('isin')
+                and floor['annual_fee_pct'] > leader['comparison_cost_pct'] + 1e-9):
                 row['reason'] += ' Verified annual fee lower bound exceeds the selected total cost estimate, even with free execution.'
+                row['cost_floor_exclusion'] = floor
             else:
                 unresolved.append(row)
         decision = {'status': 'WAIT', 'selected': None, 'amount_eur': 0,
@@ -109,7 +120,9 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
         decision['alternatives'] = [{'symbol': r.get('symbol'), 'asset': r.get('asset'),
             'eligible': r['eligible'], 'reason': r['reason'],
             'target_deficit_cents': r.get('target_deficit_cents'),
-            'comparison_cost_pct': r.get('comparison_cost_pct')} for r in evaluations if r.get('lane') == lane]
+            'comparison_cost_pct': r.get('comparison_cost_pct'),
+            **({'cost_floor_exclusion':r['cost_floor_exclusion']} if 'cost_floor_exclusion' in r else {})
+            } for r in evaluations if r.get('lane') == lane]
         lanes[lane] = decision
     allocations['tactical_reserve'] = allocations.get('tactical_reserve', 0) + remaining
     from .portfolio_projection import finalize_selection
