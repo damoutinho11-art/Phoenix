@@ -140,6 +140,8 @@ def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=Tr
         if not _recent(row.get('quote_date'), today, 2 if lane == 'crypto' else 7):
             raise ValueError('Quote and spread evidence is stale.')
         fee = _number(row.get('fee_pct'), maximum=10)
+        if row.get('spread_pct') is None and row.get('quote_issue'):
+            raise ValueError(row['quote_issue'])
         spread = _number(row.get('spread_pct'), maximum=10)
         if lane == 'etf':
             if row.get('product_type') != 'ETF':

@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from html import unescape
 import json
+import httpx
 from math import isfinite
 import re
 from threading import Lock
@@ -158,6 +159,20 @@ def _fetch_candidate(row, today):
     if row['lane'] == 'crypto' and (quote['spread_pct'] is None or quote['quote_date'] is None):
         quote = crypto_reference_quote(row['symbol'])
     broker = _broker_evidence(row)
+    from .buy_selection import _recent
+    if row['lane'] == 'etf' and (quote['spread_pct'] is None or quote['quote_date'] is None
+                                or not _recent(quote['quote_date'], today, 7)):
+        quote['quote_issue'] = 'Primary quote has missing, stale, future-dated or crossed bid/ask evidence.'
+        if broker.get('broker_verified') is True and broker.get('isin') and currency == 'EUR':
+            from .etf_reference_quote import fetch_reference_quote
+            try:
+                quote = {**quote, **fetch_reference_quote(broker['isin'], today),
+                         'quote_fallback_reason': quote['quote_issue'],
+                         'quote_primary_source': quote['quote_source'],
+                         'quote_primary_date': quote['quote_date']}
+                quote.pop('quote_issue', None)
+            except (ValueError, TypeError, OSError, httpx.HTTPError):
+                quote['quote_issue'] += ' A dated exchange reference quote is also unavailable.'
     fund_cost = {}
     if row['lane'] == 'etf' and exchange_url(row['symbol']):
         try:
@@ -169,7 +184,7 @@ def _fetch_candidate(row, today):
         row = {**row, 'mandate_approved': False}
     return {**row, 'history': history, 'currency': currency, 'product_type': info.get('quoteType'), **quote,
             **broker, **fund_cost, 'verified_at': today.isoformat(),
-            'source': 'yfinance adjusted daily closes and quote; official public broker page',
+            'source': 'yfinance adjusted daily closes; named quote source; official public broker page',
             'retrieved_at': datetime.now(timezone.utc).isoformat(),
             'research_status': 'NO_EVIDENCE', 'research_as_of': None}
 
