@@ -3,6 +3,32 @@ import hashlib
 import hmac
 import os
 import re
+import secrets
+import time
+
+SESSION_SECONDS = 30 * 24 * 60 * 60
+
+
+def issue_device_session():
+    digest = configured_key_digest()
+    if not digest:
+        raise ValueError('Owner authentication is not configured.')
+    issued = int(time.time())
+    expires = issued + SESSION_SECONDS
+    payload = f'phoenix-session-v1.{issued}.{expires}.{secrets.token_hex(24)}'
+    signature = hmac.new(bytes.fromhex(digest), payload.encode(), hashlib.sha256).hexdigest()
+    return {'token': payload + '.' + signature, 'expires_at': expires}
+
+
+def valid_device_session(token, digest):
+    if not re.fullmatch(r'phoenix-session-v1\.[0-9]{10}\.[0-9]{10}\.[0-9a-f]{48}\.[0-9a-f]{64}', token):
+        return False
+    payload, signature = token.rsplit('.', 1)
+    _, issued, expires, _ = payload.split('.')
+    expected = hmac.new(bytes.fromhex(digest), payload.encode(), hashlib.sha256).hexdigest()
+    return (hmac.compare_digest(signature, expected)
+            and int(issued) <= time.time() < int(expires)
+            and int(expires) - int(issued) == SESSION_SECONDS)
 
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import JSONResponse
@@ -44,6 +70,9 @@ class AccessControlMiddleware:
         scheme, _, token = auth.partition(' ')
         authorized = (scheme.lower() == 'bearer' and bool(token) and len(token) <= 1024
                       and hmac.compare_digest(hashlib.sha256(token.encode()).hexdigest(), digest))
+        scope.setdefault('state', {})['owner_key_authenticated'] = authorized
+        if not authorized and scheme.lower() == 'bearer' and len(token) <= 1024:
+            authorized = valid_device_session(token, digest)
         # OAuth state is a short-lived, one-time credential issued only after owner authentication.
         if not authorized and self.callback_authorized:
             authorized = self.callback_authorized(scope)

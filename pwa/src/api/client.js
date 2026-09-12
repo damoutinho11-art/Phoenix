@@ -25,6 +25,7 @@ export async function getHealth() {
 }
 
 export function verifyAccess() { return apiFetch('/access/check') }
+export function createDeviceSession() { return apiFetch('/access/session', { method: 'POST' }) }
 export function startGoogleConnection() { return apiFetch('/auth/google/start', { method: 'POST' }) }
 
 export async function getFinanceSummary() {

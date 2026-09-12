@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()  # loads .env from project root if present; no-op otherwise
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from jarvis.api.access_control import AccessControlMiddleware
 
@@ -173,6 +173,14 @@ app.add_middleware(
 @app.get('/access/check', include_in_schema=False)
 def access_check() -> dict:
     return {'authenticated': True}
+
+
+@app.post('/access/session', include_in_schema=False)
+def create_device_session(request: Request) -> dict:
+    if not getattr(request.state, 'owner_key_authenticated', False):
+        raise HTTPException(status_code=403, detail='Owner key required to create a device session.')
+    from jarvis.api.access_control import issue_device_session
+    return issue_device_session()
 
 app.include_router(finance.router, prefix="/finance", tags=["finance"])
 app.include_router(budget.router, prefix="/budget", tags=["budget"])
