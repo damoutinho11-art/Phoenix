@@ -9,6 +9,13 @@ def choose(rows, holdings=None):
 
 
 class ContributionSelectionTests(unittest.TestCase):
+    def test_crypto_wait_summary_explains_research_blocker(self):
+        row = candidate('eth', 'ETH-EUR', lane='crypto')
+        row.update(research_verdict='WATCH', research_review_reason='WATCH: marginal portfolio benefit is unresolved.')
+        result = choose([row])
+        self.assertEqual(result['lanes']['crypto']['status'], 'WAIT')
+        self.assertIn('marginal portfolio benefit', result['lanes']['crypto']['reason'])
+
     def test_missing_horizon_waits_for_etf_but_preserves_crypto_independence(self):
         c,p,h = inputs()
         result = select_contributions([candidate(), candidate('eth','ETH-EUR',lane='crypto')],

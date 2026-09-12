@@ -92,6 +92,12 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
                 unresolved.append(row)
         decision = {'status': 'WAIT', 'selected': None, 'amount_eur': 0,
                     'reason': 'No mandate-eligible instrument has verified evidence and contribution room.'}
+        research_blocked = [r for r in evaluations if r.get('lane') == lane
+                            and r.get('target_deficit_cents', 0) > 0
+                            and r.get('research_verdict') in {'WATCH', 'REJECT'}]
+        if research_blocked:
+            decision['reason'] = 'Research does not support a contribution: ' + '; '.join(
+                f"{r['symbol']}: {r['reason']}" for r in research_blocked)
         if horizon_missing:
             decision['reason'] = 'Configure a valid investment horizon (1–50 years) before comparing long-term ETF costs.'
         elif unresolved:
