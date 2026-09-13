@@ -87,7 +87,7 @@ def _room(asset, lane, c, p, holdings, budget):
     cap = _number(c.get('sleeve_bands', {}).get(asset, {}).get('max_weight', target), maximum=1)
     room = min(deficit, max(0, int(final_total * cap) - current), budget)
     if lane == 'crypto':
-        crypto_assets = set(c.get('crypto_universe', {})) | {'btc', 'eth', 'sol', 'hype', 'tao', 'discovery'}
+        crypto_assets = constitution_crypto_assets(c)
         rules = c.get('crypto_risk_rules', {})
         total_room = max(0, int(final_total * _number(rules.get('total_crypto_hard_max', .225), maximum=1))
                          - sum(holdings.get(a, 0) for a in crypto_assets))
@@ -100,7 +100,8 @@ def _room(asset, lane, c, p, holdings, budget):
             room = min(room, max(0, int(final_total * _number(rules.get('hype_tao_combined_max', .075), maximum=1)) - combined))
     minimum = max(1, round(_number(c.get('minimum_efficient_buys', {}).get(asset, 0)) * 100))
     if room < minimum:
-        raise ValueError('No efficient buy fits the target, cash and risk limits.')
+        raise ValueError(f'Available contribution room is €{room/100:.2f}; the configured minimum buy is €{minimum/100:.2f}. '
+                         'Target, cash and risk limits still apply.')
     return room, deficit / (final_total * target), minimum, route
 
 
@@ -167,7 +168,7 @@ def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=Tr
 
 
 def constitution_crypto_assets(constitution):
-    return set(constitution.get('crypto_universe', {})) | {'btc', 'eth', 'sol', 'hype', 'tao', 'discovery'}
+    return set(constitution.get('crypto_universe', {})) | {'btc', 'eth', 'sol', 'hype', 'tao'}
 
 
 def _scores(rows):

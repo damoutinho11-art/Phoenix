@@ -78,6 +78,16 @@ def test_policy_cannot_fall_back_to_legacy_approvals(client, monkeypatch):
     assert error.value.status_code == 503
 
 
+def test_summary_constitution_exposes_active_risk_ceiling(client):
+    client.put('/finance/investment-policy',json={'version':'core-satellite-v1','crypto_max_weight':.1})
+    from jarvis.api.dependencies import get_finance_constitution
+    c=get_finance_constitution()
+    assert c['crypto_risk_rules']['total_crypto_hard_max']==.1
+    assert c['target_weights']['btc']<=.1
+    assert c['minimum_efficient_buys']['eth']==20
+    assert c['minimum_efficient_buys']['sol']==20
+
+
 def test_background_research_loads_saved_policy(client, monkeypatch):
     from jarvis.api.routers import finance
     from jarvis.data.investment_policy import save_policy

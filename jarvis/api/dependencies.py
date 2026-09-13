@@ -31,6 +31,8 @@ def get_finance_constitution() -> dict:
             if os.getenv('PHOENIX_FINANCE_SELECTION_MODE', 'legacy').strip().lower() != 'contribution_v2':
                 raise HTTPException(status_code=503, detail='Owner investment policy requires contribution_v2 selection mode.')
             constitution['investment_policy'] = policy
+            from jarvis.domains.finance.investment_policy import apply_policy
+            constitution = apply_policy(finance_engine.expand_evidence_constitution(constitution))
         finance_engine.validate_constitution(constitution)
         return constitution
     except ValueError as exc:

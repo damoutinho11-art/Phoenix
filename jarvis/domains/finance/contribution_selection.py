@@ -92,6 +92,12 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
                 unresolved.append(row)
         decision = {'status': 'WAIT', 'selected': None, 'amount_eur': 0,
                     'reason': 'No mandate-eligible instrument has verified evidence and contribution room.'}
+        if lane == 'crypto' and constitution.get('investment_policy_context') and not policy_rows:
+            relevant = [r for r in evaluations if r.get('lane') == lane
+                        and constitution['target_weights'].get(r.get('asset'), 0) > 0]
+            if relevant:
+                decision['reason'] = 'Crypto contribution paused: ' + '; '.join(
+                    f"{r.get('symbol')}: {r['reason']}" for r in relevant)
         research_blocked = [r for r in evaluations if r.get('lane') == lane
                             and r.get('target_deficit_cents', 0) > 0
                             and r.get('research_verdict') in {'WATCH', 'REJECT'}]

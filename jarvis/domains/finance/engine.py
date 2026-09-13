@@ -682,7 +682,8 @@ def crypto_room_for_asset(
 
 
 def crypto_like_assets() -> set[str]:
-    return set(CRYPTO_MANDATE_ASSETS) | {'discovery'}
+    # Discovery contains legacy equity funds and has its own sleeve limit.
+    return set(CRYPTO_MANDATE_ASSETS)
 
 
 def weekly_crypto_buy_room(

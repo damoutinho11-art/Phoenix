@@ -30,3 +30,23 @@ validated return forecast. Existing allocation preferences and phase eligibility
 remain inputs. Experimental portfolio optimization has not been promoted. Owner
 policy activation and updated strategic research require a separate authenticated
 read-back after deployment. No private holdings or policy documents are committed.
+
+## September 13 activation and accounting follow-up
+
+Railway deployment a4d2c8bd-4ed5-4428-95c4-6c5621ee2a98 served
+8ebd53a4e48312509498093cb683c717d2f1475c successfully. The owner-delegated
+policy was saved and read back through authenticated endpoints. Private strategic
+research memos 7/8/9 passed validation: BTC conditional BUY_CANDIDATE, ETH/SOL WATCH,
+dated September 13 and expiring September 20. These are eligibility judgments,
+not transaction approval or return forecasts.
+
+The live check uncovered a pre-existing classification error: legacy China equity
+in the discovery sleeve was counted as crypto. The follow-up excludes discovery
+from crypto exposure and buy caps, while preserving its value in portfolio totals,
+its own sleeve limit, and the prohibition on automatic sales. The crypto WAIT
+summary now reports available contribution room and the configured minimum buy.
+API summary dependencies expose the active policy too; universe expansion precedes
+policy application so ETH/SOL minimum-buy metadata is preserved.
+
+Final follow-up validation: 793 finance domain/API tests and 11 subtests passed;
+28 access-control tests and 24 subtests passed. No trades or approvals were made.

@@ -81,3 +81,35 @@ def test_adjusted_targets_fit_existing_etf_bands(cap,phase,regime):
     for asset in ('global_core_etf','growth_nasdaq_etf','quality_etf'):
         assert adjusted['target_weights'][asset] <= adjusted['sleeve_bands'][asset]['max_weight'] + 1e-10
     assert sum(adjusted['target_weights'].values()) == pytest.approx(1)
+
+
+def test_legacy_china_equity_is_not_crypto_but_still_counts_in_total():
+    from jarvis.domains.finance import engine
+    from jarvis.domains.finance.portfolio_projection import finalize_selection
+    from jarvis.domains.finance.tests.test_evidence_allocation import state
+    from jarvis.domains.finance.tests.test_buy_selection import TODAY
+    c,p=state()
+    c['target_weights']['discovery']=0
+    c['asset_routes']['discovery']='manual_review'
+    c['legacy_holding_policy']={'china_etf':{'maps_to':'discovery','classification':'legacy_unwanted_fee_sensitive',
+        'new_buys_allowed':False,'sell_allowed_without_explicit_user_approval':False}}
+    p['holdings']['btc']=100
+    p['legacy_holdings']={'china_etf':200}
+    c['investment_policy']={'version':'core-satellite-v1','crypto_max_weight':.1}
+    result=engine.allocate_weekly_budget(c,p,selection_evidence={'policy_version':'contribution-v2','candidates':[]},as_of=TODAY)
+    assert result['investable_after_cents']==140000
+    assert result['crypto_risk_status']['total_crypto_weight']==pytest.approx(10000/140000)
+    assert result['buy_selection']['decision_comparison']['selected_plan']['crypto_weight_pct']==pytest.approx(10000/140000*100,abs=1e-6)
+
+
+def test_crypto_wait_explains_small_contribution_room():
+    from jarvis.domains.finance.contribution_selection import select_contributions
+    from jarvis.domains.finance.tests.test_buy_selection import candidate, TODAY
+    c,p,h=inputs()
+    c['investment_policy']={'version':'core-satellite-v1','crypto_max_weight':.1}
+    h['btc']=5400
+    h['tactical_reserve']-=5400
+    result=select_contributions([candidate('btc','BTC-EUR',lane='crypto')],apply_policy(c),p,h,10000,TODAY,horizon_years=20)
+    assert result['lanes']['crypto']['status']=='WAIT'
+    assert '€1.00' in result['lanes']['crypto']['reason']
+    assert '€20.00' in result['lanes']['crypto']['reason']
