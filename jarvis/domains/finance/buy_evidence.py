@@ -10,6 +10,7 @@ import re
 from threading import Lock
 from time import monotonic
 from urllib.request import Request, urlopen
+from jarvis.core import clock
 
 from .market_data import ETF_CANDIDATE_TICKERS, TICKER_MAP
 from .lightyear_catalog import verify_lightyear_candidate, _public_candidate_url
@@ -146,7 +147,10 @@ def _fetch_candidate(row, today):
     if not row.get('symbol'):
         raise ValueError('No verified market-data symbol mapping.')
     ticker = yf.Ticker(row['symbol'])
-    frame = ticker.history(start=(today - timedelta(days=400)).isoformat(), end=today.isoformat(),
+    # Crypto daily candles close at UTC midnight, independently of the owner's
+    # local contribution day. Never treat the current UTC candle as completed.
+    history_end = min(today, clock.utc_now().date()) if row.get('lane') == 'crypto' else today
+    frame = ticker.history(start=(today - timedelta(days=400)).isoformat(), end=history_end.isoformat(),
                            interval='1d', auto_adjust=True, timeout=8)
     metadata = ticker.get_history_metadata()
     info = ticker.get_info()

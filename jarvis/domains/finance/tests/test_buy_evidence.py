@@ -1,11 +1,19 @@
 """Public adapter tests use only synthetic provider responses."""
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from unittest.mock import patch
 from jarvis.domains.finance import buy_evidence
 
 
 class BuyEvidenceTests(unittest.TestCase):
+    def test_local_monday_does_not_admit_unfinished_utc_crypto_candle(self):
+        # Stop at the provider call: its exclusive end must remain Sunday UTC.
+        with patch('jarvis.core.clock.utc_now', return_value=datetime(2026, 9, 13, 22, 0, tzinfo=timezone.utc)), patch('yfinance.Ticker') as ticker:
+            ticker.return_value.history.side_effect = RuntimeError('stop before network')
+            with self.assertRaisesRegex(RuntimeError, 'stop before network'):
+                buy_evidence._fetch_candidate({'symbol':'BTC-EUR', 'lane':'crypto'}, date(2026, 9, 14))
+            self.assertEqual(ticker.return_value.history.call_args.kwargs['end'], '2026-09-13')
+
     def test_crypto_identity_can_be_verified_inside_an_official_product_card(self):
         row = {'symbol': 'HYPE-EUR', 'lane': 'crypto', 'name': 'Hyperliquid'}
         card = '<div class="flip-card-text"><p>HYPE is a digital asset used on the Hyperliquid platform.</p></div>'
