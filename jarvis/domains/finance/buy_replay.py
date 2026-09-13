@@ -68,7 +68,7 @@ def replay_snapshots(snapshots, horizon_days=30):
         today = date.fromisoformat(snapshot['as_of'])
         rows = snapshot['candidates']
         policy = snapshot.get('policy_version', 'evidence-buy-v1')
-        if policy == 'contribution-v2':
+        if policy in {'contribution-v2', 'contribution-v3'}:
             from .contribution_selection import select_contributions
             result = select_contributions(rows, snapshot['constitution'], snapshot['portfolio_state'],
                 snapshot['holdings_cents'], snapshot['weekly_budget_cents'], today,

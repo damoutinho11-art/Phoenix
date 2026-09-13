@@ -1,5 +1,6 @@
 """Owner risk preferences are allocation constraints, not market research."""
 from copy import deepcopy
+from datetime import date
 import hashlib
 import json
 from math import isfinite
@@ -8,14 +9,29 @@ CRYPTO = ('btc', 'eth', 'sol', 'hype', 'tao')
 
 
 def validate_policy(value):
-    if not isinstance(value, dict) or set(value) != {'version', 'crypto_max_weight'}:
-        raise ValueError('Investment policy requires version and crypto_max_weight only.')
-    if value['version'] != 'core-satellite-v1':
+    if not isinstance(value, dict):
+        raise ValueError('Investment policy must be an object.')
+    version = value.get('version')
+    keys = {'version', 'crypto_max_weight'}
+    if version == 'core-satellite-v2':
+        keys |= {'crypto_contribution_weight', 'effective_from'}
+    elif version != 'core-satellite-v1':
         raise ValueError('Unsupported investment policy version.')
+    if set(value) != keys:
+        raise ValueError('Investment policy fields do not match its version.')
     cap = value['crypto_max_weight']
     if isinstance(cap, bool) or not isinstance(cap, (int, float)) or not isfinite(cap) or not 0 < cap < .5:
         raise ValueError('Crypto maximum must be greater than zero and less than half of invested assets.')
-    return {'version':value['version'], 'crypto_max_weight':float(cap)}
+    result = {'version': version, 'crypto_max_weight': float(cap)}
+    if version == 'core-satellite-v2':
+        share = value['crypto_contribution_weight']
+        if isinstance(share, bool) or not isinstance(share, (int, float)) or not isfinite(share) or not 0 < share <= cap:
+            raise ValueError('Recurring crypto share must be positive and no greater than its exposure ceiling.')
+        start = value['effective_from']
+        if not isinstance(start, str) or date.fromisoformat(start).isoformat() != start:
+            raise ValueError('Policy start must be an ISO date.')
+        result.update(crypto_contribution_weight=float(share), effective_from=start)
+    return result
 
 
 def policy_digest(value):
@@ -33,13 +49,16 @@ def apply_policy(constitution):
     previous = dict(weights)
     cap = policy['crypto_max_weight']
     total_crypto = sum(weights.get(a, 0) for a in CRYPTO)
-    target = min(total_crypto, cap)
+    recurring = policy['version'] == 'core-satellite-v2'
+    target = policy['crypto_contribution_weight'] if recurring else min(total_crypto, cap)
     # Preserve the configured mix within BTC/ETH/SOL. Unsupported satellite
     # targets are redirected to BTC; holdings themselves remain untouched.
     mix = {a:weights.get(a,0) for a in ('btc','eth','sol')}
     mix['btc'] += sum(weights.get(a,0) for a in ('hype','tao'))
     for asset in CRYPTO:
         weights[asset] = target * mix.get(asset,0) / total_crypto if total_crypto else 0.0
+        if recurring:
+            weights[asset] = target if asset == 'btc' else 0.0
         result['asset_routes'][asset] = 'lhv_crypto'
     core = [a for a in weights if a not in CRYPTO and a != 'tactical_reserve']
     core_before = sum(previous.get(a,0) for a in core)
@@ -75,8 +94,12 @@ def apply_policy(constitution):
         band['max_weight'] = cap
     result['investment_policy_context'] = {
         'policy_sha256':policy_digest(policy), 'role':'long_term_speculative_satellite',
-        'permitted_crypto':['btc','eth','sol'], 'crypto_max_weight':cap,
+        'permitted_crypto':['btc'] if recurring else ['btc','eth','sol'], 'crypto_max_weight':cap,
         'crypto_target_weight':target, 'automatic_selling':False,
         'target_basis':'Existing configured mix bounded by owner ceiling and sleeve limits; not an optimized return forecast.',
     }
+    if recurring:
+        result['investment_policy_context'].update(
+            crypto_contribution_weight=target, effective_from=policy['effective_from'],
+            target_basis='Recurring BTC share of recorded purchase outlays, bounded by a separate exposure ceiling; not a return forecast.')
     return result

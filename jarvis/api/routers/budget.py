@@ -18,11 +18,13 @@ from pypdf import PdfReader
 from jarvis.api import ai_gateway
 from jarvis.core import clock
 from jarvis.data import database
+from jarvis.data.finance_cash_reconciliation import cash_reconciliation_blockers
 from jarvis.data.budget_supplements import project_supplements, supplement_summary, save_reviewed_supplement
 from jarvis.domains.finance.cashflow_authority import (
     MAX_SAFE_EUROS,
     calculate_cashflow_authority,
     cashflow_authority_structural_blockers,
+    closed_cashflow_authority,
     valid_recurring_obligations,
 )
 
@@ -690,8 +692,27 @@ def _build_cashflow_authority(
     )
     source = dict(snapshot)
     source["receipt_verified"] = True
+    reconciliation_blockers = cash_reconciliation_blockers(
+        source["statement_end_date"], decision_today
+    )
+    if reconciliation_blockers:
+        result = {
+            **result,
+            "data_ready": False,
+            "weekly_budget_eur": 0.0,
+            "blockers": list(result.get("blockers") or []) + reconciliation_blockers,
+        }
     return {
         **result,
+        "catch_up_context": {
+            "remaining_weekly_windows": result.get("remaining_weekly_windows"),
+            "additional_entitlement_eur": 0.0,
+            "explanation": (
+                "Unspent evidenced cash is already spread across the remaining weekly "
+                "windows. Missed weeks create no additional cash entitlement. "
+                "Recorded purchases must be covered by a later verified statement."
+            ),
+        },
         "policy": profile,
         "policy_version": profile["version"],
         "inferred_recurring_obligations": inferred_obligations,
@@ -1514,9 +1535,17 @@ def forget_learned_merchant(rule_id: int) -> dict:
 
 @router.get("/investment-capacity")
 def budget_investment_capacity(month: str = "") -> dict:
+    from jarvis.api.finance_lifecycle import current_week_lifecycle
+
     today = clock.today()
     target_month = month or today.strftime("%Y-%m")
-    return _build_cashflow_authority(target_month, today=today)
+    if _validated_budget_month(target_month) != today.strftime("%Y-%m"):
+        raise HTTPException(status_code=422, detail="Investment capacity is actionable only for the current month.")
+    lifecycle = current_week_lifecycle(today)
+    authority = _build_cashflow_authority(
+        target_month, today=today, week_closed=lifecycle["week_closed"]
+    )
+    return closed_cashflow_authority(authority) if lifecycle["week_closed"] else authority
 
 
 @router.get("/transactions")

@@ -8,6 +8,7 @@ via app.dependency_overrides without touching router code.
 import json
 import sqlite3
 import os
+from jarvis.core import clock
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -31,6 +32,12 @@ def get_finance_constitution() -> dict:
             if os.getenv('PHOENIX_FINANCE_SELECTION_MODE', 'legacy').strip().lower() != 'contribution_v2':
                 raise HTTPException(status_code=503, detail='Owner investment policy requires contribution_v2 selection mode.')
             constitution['investment_policy'] = policy
+            if policy['version'] == 'core-satellite-v2':
+                from jarvis.data.contribution_history import load_contribution_history
+                try:
+                    constitution['contribution_history'] = load_contribution_history(policy, clock.today())
+                except (sqlite3.Error, ValueError, TypeError) as exc:
+                    raise HTTPException(status_code=503, detail='Recorded contribution history is unavailable; recommendations paused.') from exc
             from jarvis.domains.finance.investment_policy import apply_policy
             constitution = apply_policy(finance_engine.expand_evidence_constitution(constitution))
         finance_engine.validate_constitution(constitution)

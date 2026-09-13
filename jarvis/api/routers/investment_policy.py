@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 import sqlite3
 import os
+from jarvis.core import clock
 from jarvis.data.investment_policy import get_policy, save_policy
 from jarvis.domains.finance.investment_policy import apply_policy, policy_digest
 from jarvis.domains.finance import engine
@@ -12,8 +13,10 @@ router=APIRouter()
 
 class PolicyPayload(BaseModel):
     model_config=ConfigDict(extra='forbid',strict=True)
-    version:Literal['core-satellite-v1']
+    version:Literal['core-satellite-v1','core-satellite-v2']
     crypto_max_weight:float=Field(gt=0,lt=.5,allow_inf_nan=False)
+    crypto_contribution_weight:float | None=Field(default=None,gt=0,lt=.5,allow_inf_nan=False)
+    effective_from:str | None=None
 
 @router.get('/investment-policy')
 def read_policy():
@@ -28,10 +31,13 @@ def write_policy(payload:PolicyPayload):
     if os.getenv('PHOENIX_FINANCE_SELECTION_MODE', 'legacy').strip().lower() != 'contribution_v2':
         raise HTTPException(status_code=409,detail='Owner investment policy requires contribution_v2 selection mode.')
     try:
+        value = payload.model_dump(exclude_none=True)
+        if value.get('effective_from', clock.today().isoformat()) > clock.today().isoformat():
+            raise ValueError('Policy activation cannot be in the future.')
         constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
-        constitution['investment_policy'] = payload.model_dump()
-        engine.validate_constitution(apply_policy(constitution))
-        policy=save_policy(payload.model_dump())
+        constitution['investment_policy'] = value
+        engine.validate_constitution(apply_policy(engine.expand_evidence_constitution(constitution)))
+        policy=save_policy(value)
     except ValueError as exc:
         raise HTTPException(status_code=422,detail=str(exc)) from exc
     except (sqlite3.Error, OSError) as exc:

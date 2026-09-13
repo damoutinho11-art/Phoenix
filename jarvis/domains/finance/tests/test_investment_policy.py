@@ -113,3 +113,20 @@ def test_crypto_wait_explains_small_contribution_room():
     assert result['lanes']['crypto']['status']=='WAIT'
     assert '€1.00' in result['lanes']['crypto']['reason']
     assert '€20.00' in result['lanes']['crypto']['reason']
+
+
+def test_recurring_policy_separates_purchase_share_and_exposure_ceiling():
+    c,_,_=inputs()
+    c['investment_policy']={'version':'core-satellite-v2','crypto_max_weight':.15,
+        'crypto_contribution_weight':.1,'effective_from':'2026-09-13'}
+    result=apply_policy(c)
+    assert result['target_weights']['btc']==.1
+    assert result['target_weights']['eth']==0
+    assert result['crypto_risk_rules']['total_crypto_hard_max']==.15
+
+
+@pytest.mark.parametrize('share',[0,.16,True,float('nan')])
+def test_recurring_share_must_fit_ceiling(share):
+    with pytest.raises(ValueError):
+        validate_policy({'version':'core-satellite-v2','crypto_max_weight':.15,
+            'crypto_contribution_weight':share,'effective_from':'2026-09-13'})

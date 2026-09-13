@@ -245,14 +245,17 @@ class FinanceRecommendationRouteTests(unittest.TestCase):
 
     def test_recommendation_rationale_uses_valid_euro_symbol(self) -> None:
         data = client.get("/finance/recommendation").json()
-        self.assertIsInstance(data["rationale"], str)
+        self.assertIsInstance(data["rationale"].splitlines()[0], str)
         self.assertIn("€", data["rationale"])
         self.assertNotIn("â¬", data["rationale"])
         self.assertEqual(
-            data["rationale"],
+            data["rationale"].splitlines()[0],
             "Buy BTC €46.15 (crypto lane); "
             "Buy growth_nasdaq_etf €69.23 (ETF lane)",
         )
+
+        self.assertIn("exact issuer overlap is unavailable", data["rationale"])
+        self.assertFalse(data["holding_identity_review"]["exact_issuer_overlap"]["available"])
 
     def test_recommendation_routes_and_safety_contract_are_unchanged(self) -> None:
         data = client.get("/finance/recommendation").json()

@@ -14,6 +14,12 @@ from jarvis.data import database
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def fixed_budget_decision_date(monkeypatch):
+    # These statement fixtures describe August. Individual boundary tests override it.
+    monkeypatch.setattr(budget_router.clock, 'today', lambda: date(2026, 8, 11))
+
+
 _COMPLETE_AUTHORITY_POLICY = {
     "emergency_fund_floor_eur": 5000,
     "emergency_fund_balance_eur": 5000,
@@ -24,6 +30,42 @@ _COMPLETE_AUTHORITY_POLICY = {
     "recurring_obligations": [],
 }
 _REQUIRED_STORED_AUTHORITY_FIELDS = tuple(_COMPLETE_AUTHORITY_POLICY)
+
+
+def test_capacity_rejects_historical_month_as_actionable():
+    with patch('jarvis.api.routers.budget.clock.today', return_value=date(2026, 9, 14)):
+        response = client.get('/budget/investment-capacity?month=2026-08')
+    assert response.status_code == 422
+
+
+def test_capacity_projects_current_week_closure(monkeypatch, tmp_path):
+    monkeypatch.setattr(database, 'DB_PATH', tmp_path / 'closed.db')
+    database.init_db()
+    monkeypatch.setattr(database, 'get_latest_brief_for_week', lambda *args: {'status': 'approved'})
+    monkeypatch.setattr(budget_router, '_build_cashflow_authority', lambda *args, **kwargs: {'data_ready': True, 'blockers': [], 'weekly_budget_eur': 100.0})
+    with patch('jarvis.api.routers.budget.clock.today', return_value=date(2026, 9, 14)):
+        data = client.get('/budget/investment-capacity').json()
+    assert data['data_ready'] is False
+    assert data['weekly_budget_eur'] == 0
+
+
+@pytest.mark.parametrize('effective_date,expected_ready', [('2026-08-11', False), ('2026-08-12', True)])
+def test_authority_reconciles_purchases_against_effective_supplement_date(monkeypatch, tmp_path, effective_date, expected_ready):
+    monkeypatch.setattr(database, 'DB_PATH', tmp_path / 'cash-reconciliation.db')
+    database.init_db()
+    database.save_budget_memory_profile({**_COMPLETE_AUTHORITY_POLICY, 'version': 2})
+    _save_authoritative_statement_for_investment_capacity()
+    connection = database.get_db()
+    connection.execute("INSERT INTO finance_transaction_ledger (created_at, executed_at, asset, platform, side, amount_eur, units, price, currency) VALUES ('2026-08-11', '2026-08-11', 'btc', 'manual', 'buy', 20, 1, 20, 'EUR')")
+    connection.commit()
+    connection.close()
+    monkeypatch.setattr(budget_router, 'project_supplements', lambda snapshot, today: ({**snapshot, 'statement_end_date': effective_date}, []))
+    result = budget_router._build_cashflow_authority('2026-08', today=date(2026, 8, 12))
+    assert result['data_ready'] is expected_ready
+    assert (result['weekly_budget_eur'] > 0) is expected_ready
+    assert result['source']['statement_end_date'] == effective_date
+    assert result['catch_up_context']['additional_entitlement_eur'] == 0
+    assert 'remaining' in result['catch_up_context']['explanation']
 
 
 def _mock_verified_authority_evidence(

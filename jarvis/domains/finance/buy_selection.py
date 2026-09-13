@@ -72,7 +72,7 @@ def measure_history(points, today, lane):
             'last_close': anchor.isoformat(), 'observations': len(window), 'missing_closes': missing}
 
 
-def _room(asset, lane, c, p, holdings, budget):
+def _room(asset, lane, c, p, holdings, budget, *, contribution_due=None):
     target = _number(c['target_weights'].get(asset, 0), maximum=1)
     final_total = sum(holdings.values()) + budget
     if target <= 0 or final_total <= 0:
@@ -84,6 +84,8 @@ def _room(asset, lane, c, p, holdings, budget):
         raise ValueError('Broker route is not ready.')
     current = holdings.get(asset, 0)
     deficit = max(0, round(final_total * target) - current)
+    if contribution_due is not None:
+        deficit = contribution_due
     cap = _number(c.get('sleeve_bands', {}).get(asset, {}).get('max_weight', target), maximum=1)
     room = min(deficit, max(0, int(final_total * cap) - current), budget)
     if lane == 'crypto':

@@ -17,6 +17,8 @@ def decision_signature(response):
     snapshot = {'week_budget': response.get('week_budget'),
                 'policy_version': selection['policy_version'], 'as_of': selection['as_of'],
                 'lanes': selection['lanes'], 'projection': selection.get('projection')}
+    if selection.get('recurring_contribution'):
+        snapshot['recurring_contribution'] = selection['recurring_contribution']
     if selection.get('investment_policy'):
         snapshot['investment_policy'] = selection['investment_policy']
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True, allow_nan=False).encode()).hexdigest()
@@ -113,6 +115,11 @@ def selection_rationale(selection):
                      f"Combined crypto ceiling: {policy['crypto_max_weight']:.1%} of invested assets; "
                      f"current configured target: {policy['crypto_target_weight']:.1%}. "
                      'This is an owner risk preference, not a return forecast. No automatic selling.')
+    recurring = selection.get('recurring_contribution')
+    if recurring:
+        parts.append(f"Recurring BTC purchase share: {recurring['crypto_contribution_weight']:.0%}; "
+                     f"EUR {recurring['due_cents']/100:.2f} due before current cash, minimum purchase and exposure limits. "
+                     'Only recorded purchases build contribution credit; missed recommendations do not create cash.')
     for lane, decision in selection['lanes'].items():
         prefix = f"{lane.upper()} — "
         row = decision.get('selected')

@@ -107,3 +107,28 @@ def test_background_research_loads_saved_policy(client, monkeypatch):
     with pytest.raises(RuntimeError,match='synthetic stop'):
         finance._run_research_autopilot_internal(portfolio_state=state()[1],profile={})
     assert len(loaded) == 2
+
+
+def test_recurring_policy_loads_bound_history(client):
+    from jarvis.core import clock
+    from jarvis.api.dependencies import get_finance_constitution
+    value = {'version':'core-satellite-v2','crypto_max_weight':.15,
+             'crypto_contribution_weight':.1,'effective_from':clock.today().isoformat()}
+    response = client.put('/finance/investment-policy',json=value)
+    assert response.status_code == 200, response.text
+    c = get_finance_constitution()
+    assert c['target_weights']['btc'] == .1
+    assert c['target_weights']['eth'] == 0
+    assert c['contribution_history']['total_purchase_outlay_cents'] == 0
+    assert c['contribution_history']['policy_sha256'] == response.json()['policy_sha256']
+
+
+@pytest.mark.parametrize('changes', [
+    {'crypto_contribution_weight':.16}, {'effective_from':'2999-01-01'},
+    {'effective_from':'invalid'}, {'version':'core-satellite-v1'},
+])
+def test_invalid_recurring_policy_rejected(client, changes):
+    value = {'version':'core-satellite-v2','crypto_max_weight':.15,
+             'crypto_contribution_weight':.1,'effective_from':'2026-09-13', **changes}
+    assert client.put('/finance/investment-policy',json=value).status_code == 422
+    assert get_policy() is None

@@ -705,6 +705,10 @@ def _build_finance_recommendation(
         "cashflow_authority": authority,
     }
 
+    from jarvis.domains.finance.holding_identity import build_identity_review
+    response['holding_identity_review'] = build_identity_review(portfolio_state)
+    if response['holding_identity_review']['held_fund_count']:
+        response['rationale'] += '\nLegacy fund ownership identities remain unverified; exact issuer overlap is unavailable.'
     if selection:
         response['buy_selection'] = selection
 

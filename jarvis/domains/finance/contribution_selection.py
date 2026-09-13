@@ -4,7 +4,7 @@ No forecast or claim of superior returns. Historical risk remains explanatory.
 """
 import re
 from math import isfinite
-from .buy_selection import _evaluate, _number, _recent, LIMITATIONS
+from .buy_selection import _room, _evaluate, _number, _recent, LIMITATIONS
 from .fund_cost_evidence import independent_cost_floor, conflicting_fund_cost
 
 POLICY_VERSION = 'contribution-v2'
@@ -43,8 +43,20 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
     budget = int(_number(weekly_budget_cents))
     if budget != weekly_budget_cents or any(v < 0 or not isfinite(v) for v in holdings.values()):
         raise ValueError('Nonnegative integer budget and valid holdings required.')
+    from .recurring_contributions import recurring_context
+    recurring = recurring_context(constitution, budget, as_of)
+    def sizing(asset, lane, c, p, values, cash):
+        return _room(asset, lane, c, p, values, cash,
+                     contribution_due=recurring['due_cents'] if recurring and asset == 'btc' else None)
     evaluations = [_evaluate(row, constitution, portfolio_state, holdings, budget, as_of,
-                              require_positive_returns=False) for row in candidates]
+                              require_positive_returns=False, sizing=sizing) for row in candidates]
+    if recurring:
+        for row in evaluations:
+            if row.get('asset') == 'btc' and row.get('policy_eligible'):
+                row['target_deficit_cents'] = recurring['due_cents']
+                if row.get('eligible') and int(row['room_cents'] / (1 + row['one_way_cost_pct']/100)) < row['minimum_cents']:
+                    row.update(eligible=False, policy_eligible=False,
+                               reason='Funded contribution room does not meet the minimum purchase amount after estimated fees.')
     identities = [(r.get('lane'), r.get('symbol')) for r in evaluations]
     for row, identity in zip(evaluations, identities):
         if row.get('lane') == 'etf' and conflicting_fund_cost(row,as_of):
@@ -114,15 +126,19 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
             amount = min(remaining, leader['room_cents'])
             if len(tied) > 1:
                 decision['reason'] = 'Equivalent target shortfalls and costs; no unique instrument choice.'
-            elif amount < leader['minimum_cents']:
-                decision['reason'] = 'Remaining cash cannot support an efficient contribution.'
+            elif amount < leader['minimum_cents'] or (recurring and lane == 'crypto'
+                    and int(amount / (1 + leader['one_way_cost_pct'] / 100)) < leader['minimum_cents']):
+                decision['reason'] = 'Contribution must meet the minimum purchase amount after estimated fees; wait for sufficient funded contribution room.'
             else:
                 allocations[leader['asset']] += amount
                 remaining -= amount
                 principal = int(amount / (1 + leader['one_way_cost_pct'] / 100))
                 reason = (f"{leader['symbol']} fills the largest eligible {lane} target shortfall "
-                          f"(€{priority / 100:.2f}) with the lowest verified comparison cost. "
+                          f"(EUR {priority / 100:.2f}) with the lowest verified comparison cost. "
                           'Recent returns do not forecast the next winner or veto the contribution.')
+                if lane == 'crypto' and recurring:
+                    reason = (f"BTC recurring contribution: {recurring['crypto_contribution_weight']:.0%} of cumulative purchase outlays, "
+                              f"with EUR {recurring['due_cents']/100:.2f} due before cash and exposure limits. No return forecast.")
                 if lane == 'etf':
                     reason += (f" Cost comparison: current annual fund fee plus estimated entry costs divided by "
                                f"the configured {horizon:g}-year horizon; future fees may change.")
@@ -138,7 +154,8 @@ def select_contributions(candidates, constitution, portfolio_state, holdings,
         lanes[lane] = decision
     allocations['tactical_reserve'] = allocations.get('tactical_reserve', 0) + remaining
     from .portfolio_projection import finalize_selection
-    return finalize_selection({'policy_version': POLICY_VERSION, 'as_of': as_of.isoformat(),
+    return finalize_selection({'policy_version': 'contribution-v3' if recurring else POLICY_VERSION,
+            **({'recurring_contribution': recurring} if recurring else {}), 'as_of': as_of.isoformat(),
             'method': 'Largest eligible target shortfall first, then lowest verified cost. No return forecast.',
             'horizon_years': horizon, 'limitations': list(LIMITATIONS), 'lanes': lanes,
             'candidates': evaluations, 'allocations_cents': allocations}, constitution, holdings, budget)
