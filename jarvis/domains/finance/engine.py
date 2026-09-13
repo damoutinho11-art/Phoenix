@@ -1336,7 +1336,7 @@ def allocate_weekly_budget(
     selection_evidence: dict[str, Any] | None = None,
     as_of: date | None = None,
 ) -> dict[str, Any]:
-    if selection_evidence is not None:
+    if selection_evidence is not None or constitution.get('investment_policy') is not None:
         constitution = expand_evidence_constitution(constitution)
     dynamic_context: dict[str, Any] = {}
     if regime is not None and profile is not None:
@@ -1362,6 +1362,17 @@ def allocate_weekly_budget(
             },
         }
 
+    from .investment_policy import apply_policy
+    constitution = apply_policy(constitution)
+    if constitution.get('investment_policy_context'):
+        dynamic_context['asset_targets_pct'] = {a:round(w*100,2) for a,w in constitution['target_weights'].items() if w>0}
+        dynamic_context['investment_policy'] = constitution['investment_policy_context']
+        dynamic_context['sleeve_targets_pct'] = {
+            'crypto': round(constitution['investment_policy_context']['crypto_target_weight'] * 100, 2),
+            'cash': round(constitution['target_weights'].get('tactical_reserve', 0) * 100, 2),
+            'etf': round(sum(w for a, w in constitution['target_weights'].items()
+                             if a not in {'btc', 'eth', 'sol', 'hype', 'tao', 'tactical_reserve'}) * 100, 2),
+        }
     validate_constitution(constitution)
 
     holdings = investable_holdings(constitution, portfolio_state)
@@ -1385,6 +1396,8 @@ def allocate_weekly_budget(
             selection = select_buys(candidates, constitution, portfolio_state, holdings,
                                     weekly_budget_cents, as_of or date.today())
         selection['coverage'] = selection_evidence.get('coverage', {})
+        if constitution.get('investment_policy_context'):
+            selection['investment_policy'] = constitution['investment_policy_context']
         ideal_allocations = dict(selection['allocations_cents'])
         executable_allocations = dict(ideal_allocations)
         warnings = [{'category': 'evidence', 'asset': None, 'amount_cents': 0,
@@ -1463,6 +1476,7 @@ def allocate_weekly_budget(
         "warnings": warnings,
         "approval_notice": APPROVAL_NOTICE,
         "dynamic_context": dynamic_context,
+        "effective_target_weights": dict(constitution['target_weights']),
     }
     if selection is not None:
         result['buy_selection'] = selection

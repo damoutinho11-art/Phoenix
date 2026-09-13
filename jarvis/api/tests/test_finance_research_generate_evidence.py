@@ -144,6 +144,16 @@ def test_generate_evidence_creates_records() -> None:
     assert len(data["records"]) == data["generated_count"]
 
 
+def test_generated_allocation_context_uses_saved_policy(monkeypatch):
+    from jarvis.data.investment_policy import save_policy
+    monkeypatch.setenv('PHOENIX_FINANCE_SELECTION_MODE','contribution_v2')
+    save_policy({'version':'core-satellite-v1','crypto_max_weight':.05})
+    memo_id = _create_memo()
+    data = _generate(memo_id)
+    context = next(r for r in data['records'] if r['field_name']=='portfolio_allocation_context')
+    assert 0 < float(context['secondary_value']) <= .05
+
+
 # ---------------------------------------------------------------------------
 # 2. Records linked to memo_id
 # ---------------------------------------------------------------------------

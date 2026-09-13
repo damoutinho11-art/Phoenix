@@ -101,3 +101,32 @@ def test_selection_does_not_override_rejected_memo(monkeypatch):
     assert bridge.load_selection_evidence({},TODAY)['candidates'][0]['research_verdict']=='REJECT'
     monkeypatch.setattr(finance.clock,'today',lambda:TODAY)
     assert finance._synthesize_memo_from_evidence(memo, checks)[1]['verdict']=='REJECT'
+
+
+@pytest.mark.parametrize('active_cap',[None,.1,.2])
+def test_strategic_review_requires_matching_owner_policy(active_cap,monkeypatch):
+    from jarvis.api import buy_recommendation as bridge
+    from jarvis.domains.finance.investment_policy import policy_digest
+    policy={'version':'core-satellite-v1','crypto_max_weight':.1}
+    memo=reviewed_memo(); memo['id']=1
+    memo['validation']['investment_review'].update(
+        decision_basis='strategic_allocation',role='long_term_speculative_satellite',
+        investment_policy_sha256=policy_digest(policy))
+    monkeypatch.setattr(bridge,'fetch_evidence',lambda c,d:{'candidates':[{'asset':'btc','lane':'crypto'}]})
+    monkeypatch.setattr(bridge.database,'find_active_research_memo_for_leg',lambda *args:memo)
+    monkeypatch.setattr(bridge.database,'get_research_memo_evidence_summary',lambda *args:{'evidence_status':'EVIDENCE_STRONG'})
+    monkeypatch.setattr(bridge.database,'list_research_validation_records_by_memo_id',lambda *args:records(memo))
+    constitution={} if active_cap is None else {'investment_policy':{**policy,'crypto_max_weight':active_cap}}
+    row=bridge.load_selection_evidence(constitution,TODAY)['candidates'][0]
+    assert (row['research_verdict']=='BUY_CANDIDATE') is (active_cap==.1)
+    if active_cap!=.1:
+        assert 'policy' in row['research_review_reason'].lower()
+
+
+def test_policy_change_invalidates_same_amount_approval():
+    from jarvis.api.buy_recommendation import decision_signature
+    response={'week_budget':100,'buy_selection':{'policy_version':'contribution-v2',
+        'as_of':'2026-09-12','lanes':{},'investment_policy':{'crypto_max_weight':.1}}}
+    changed=deepcopy(response)
+    changed['buy_selection']['investment_policy']['crypto_max_weight']=.2
+    assert decision_signature(response)!=decision_signature(changed)

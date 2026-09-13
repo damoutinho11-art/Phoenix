@@ -32,6 +32,13 @@ def validated_investment_review(memo, records, today):
             raise ValueError('Unsupported investment review scope.')
         if review.get('verdict') not in {'BUY_CANDIDATE', 'WATCH', 'REJECT'}:
             raise ValueError('Investment review verdict is invalid.')
+        strategic_fields = {'decision_basis', 'role', 'investment_policy_sha256'}
+        if strategic_fields.intersection(review):
+            if (review.get('decision_basis') != 'strategic_allocation'
+                    or review.get('role') != 'long_term_speculative_satellite'
+                    or review.get('asset') not in {'btc', 'eth', 'sol'}
+                    or not re.fullmatch(r'[0-9a-f]{64}', review.get('investment_policy_sha256', ''))):
+                raise ValueError('Strategic allocation research requires a valid owner policy binding.')
 
         def text(value):
             return isinstance(value, str) and 0 < len(value.strip()) <= 10000

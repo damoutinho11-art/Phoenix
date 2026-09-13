@@ -165,7 +165,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_LOCAL_ALLOWED_ORIGINS + _DEPLOY_ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -183,6 +183,8 @@ def create_device_session(request: Request) -> dict:
     return issue_device_session()
 
 app.include_router(finance.router, prefix="/finance", tags=["finance"])
+from jarvis.api.routers import investment_policy
+app.include_router(investment_policy.router, prefix="/finance", tags=["finance"])
 app.include_router(budget.router, prefix="/budget", tags=["budget"])
 app.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 app.include_router(training.router, prefix="/training", tags=["training"])

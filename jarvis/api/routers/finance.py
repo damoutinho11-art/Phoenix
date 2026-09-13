@@ -2033,7 +2033,9 @@ def _generate_evidence_records(
     )
     portfolio_state = authoritative_portfolio_state(portfolio_state, authority)
     asset = memo.get("asset") or ""
-    target_weights = constitution.get("target_weights", {})
+    if constitution.get('investment_policy'):
+        constitution = engine.expand_evidence_constitution(constitution)
+    target_weights = {} if constitution.get('investment_policy') else constitution.get("target_weights", {})
     asset_routes = constitution.get("asset_routes", {})
     holdings = portfolio_state.get("holdings", {})
 
@@ -2047,6 +2049,8 @@ def _generate_evidence_records(
             result = engine.allocate_weekly_budget(
                 constitution, portfolio_state, regime=regime, profile=profile
             )
+            if constitution.get('investment_policy'):
+                target_weights = result.get('effective_target_weights', {})
             ticket = result.get("approval_ticket", {})
             exec_alloc: dict = ticket.get("executable_allocation", {})
             mandate = ticket.get("weekly_dual_lane_mandate", {})
@@ -2748,7 +2752,7 @@ def _run_research_autopilot_internal(
 ) -> dict:
     """Core autopilot logic — callable from both the endpoint and background task."""
     if constitution is None:
-        constitution = engine.load_json(engine.DEFAULT_CONSTITUTION_PATH)
+        constitution = get_finance_constitution()
     if portfolio_state is None:
         portfolio_state = database.load_portfolio_state() or {}
     if profile is None:

@@ -6,6 +6,8 @@ via app.dependency_overrides without touching router code.
 """
 
 import json
+import sqlite3
+import os
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -20,6 +22,15 @@ def get_finance_constitution() -> dict:
     """Load and validate the finance constitution. HTTP 500 on violation."""
     try:
         constitution = finance_engine.load_json(finance_engine.DEFAULT_CONSTITUTION_PATH)
+        from jarvis.data.investment_policy import get_policy
+        try:
+            policy = get_policy()
+        except (sqlite3.Error, ValueError, TypeError) as exc:
+            raise HTTPException(status_code=503, detail='Owner investment policy is unavailable; recommendations paused.') from exc
+        if policy is not None:
+            if os.getenv('PHOENIX_FINANCE_SELECTION_MODE', 'legacy').strip().lower() != 'contribution_v2':
+                raise HTTPException(status_code=503, detail='Owner investment policy requires contribution_v2 selection mode.')
+            constitution['investment_policy'] = policy
         finance_engine.validate_constitution(constitution)
         return constitution
     except ValueError as exc:

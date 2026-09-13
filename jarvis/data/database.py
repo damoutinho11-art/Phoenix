@@ -44,6 +44,11 @@ class BudgetCorrectionConflict(ValueError):
 
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS finance_investment_policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    value_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS plaan_feed_cache (
     source_hash TEXT PRIMARY KEY,
     snapshot_json TEXT,

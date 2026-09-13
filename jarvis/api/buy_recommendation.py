@@ -17,6 +17,8 @@ def decision_signature(response):
     snapshot = {'week_budget': response.get('week_budget'),
                 'policy_version': selection['policy_version'], 'as_of': selection['as_of'],
                 'lanes': selection['lanes'], 'projection': selection.get('projection')}
+    if selection.get('investment_policy'):
+        snapshot['investment_policy'] = selection['investment_policy']
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
@@ -60,6 +62,12 @@ def load_selection_evidence(constitution, today):
                                  research_verdict=memo.get('verdict'),
                                  research_as_of=min(dates) if dates and all(dates) else None)
                 review, reason = validated_investment_review(memo, records, today)
+                if review is not None and review.get('decision_basis') == 'strategic_allocation':
+                    from jarvis.domains.finance.investment_policy import policy_digest
+                    active_policy = constitution.get('investment_policy')
+                    if (active_policy is None or
+                            policy_digest(active_policy) != review['investment_policy_sha256']):
+                        review, reason = None, 'Strategic research must be refreshed for the active owner investment policy.'
                 candidate['research_review_reason'] = reason
                 if review is not None and memo.get('verdict') == review['verdict']:
                     candidate.update(research_verdict=review['verdict'], research_as_of=review['reviewed_at'])
@@ -99,6 +107,12 @@ def selected_instrument(selection, asset):
 
 def selection_rationale(selection):
     parts = []
+    policy = selection.get('investment_policy')
+    if policy:
+        parts.append(f"ETF core with a long-term speculative crypto allocation. "
+                     f"Combined crypto ceiling: {policy['crypto_max_weight']:.1%} of invested assets; "
+                     f"current configured target: {policy['crypto_target_weight']:.1%}. "
+                     'This is an owner risk preference, not a return forecast. No automatic selling.')
     for lane, decision in selection['lanes'].items():
         prefix = f"{lane.upper()} — "
         row = decision.get('selected')
