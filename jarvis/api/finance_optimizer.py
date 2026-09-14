@@ -100,7 +100,8 @@ def run_optimizer(constitution, state, profile, authority, today, *, week_closed
             # Reported, never blocking: the fund is real and the series is sound.
             result['excluded_from_estimation'] = [
                 {'symbol': s, 'code': OFFICIAL_NAV_HISTORY_INSUFFICIENT_SINCE_INCEPTION,
-                 'inception': held[s].get('inception'),
+                 'expected_history_start': held[s].get('expected_history_start'),
+                 'history_start_basis': held[s].get('history_start_basis'),
                  'weekly_returns': held[s].get('weekly_returns'),
                  'value_cents': holdings[s], 'reason': held[s]['error']}
                 for s in immature]

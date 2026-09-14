@@ -123,6 +123,9 @@ def optimize_portfolio(holdings_cents, candidates, histories, budget_cents, as_o
         holdings = {s:v for s,v in holdings_cents.items() if v or s == 'CASH'}
         if sum(holdings.values())+budget <= 0:
             raise ValueError('No portfolio value or contribution is available.')
+        fixed = sorted(set(fixed_symbols or ()) & set(holdings))
+        if set(fixed) & {row.get('symbol') for row in candidates}:
+            raise ValueError('A sleeve excluded from estimation cannot also be a contribution candidate.')
         rows = []
         for row in candidates:
             if not row.get('eligible'):
@@ -143,9 +146,6 @@ def optimize_portfolio(holdings_cents, candidates, histories, budget_cents, as_o
             raise ValueError('Duplicate candidate identity must be reconciled before optimization.')
         if not rows:
             raise ValueError('No candidate has sufficient verified history.')
-        fixed = sorted(set(fixed_symbols or ()) & set(holdings))
-        if set(fixed) & {r['symbol'] for r in rows}:
-            raise ValueError('A sleeve excluded from estimation cannot also be a contribution candidate.')
         symbols = sorted((set(holdings)-{'CASH'}-set(fixed)) | {r['symbol'] for r in rows})
         if not symbols:
             raise ValueError('No held instrument has sufficient history to compare.')

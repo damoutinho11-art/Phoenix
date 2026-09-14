@@ -35,12 +35,39 @@ OFFICIAL_NAV_HISTORY_INSUFFICIENT_SINCE_INCEPTION = (
     'official_nav_history_insufficient_since_inception')
 PUBLIC_MARKET_HISTORY_UNAVAILABLE = 'public_market_history_unavailable'
 
-# Fund launch dates, so a short series can be attributed to the fund's age
-# rather than to a truncated document. A fund with no recorded inception is
-# treated conservatively: a short series is a defect, because nothing proves
-# otherwise.
-#   LHVEVF - LHV Euro Bond Fund, launched 28 January 2025 (LHV fund page).
-FUND_INCEPTION = {'LHVEVF': date(2025, 1, 28)}
+# The date from which NAV history should reasonably exist, so a short series can
+# be attributed to the fund's age rather than to a truncated document. A fund
+# with no recorded entry is treated conservatively: a short series is a defect,
+# because nothing proves otherwise.
+#
+# The basis is recorded explicitly because a fund has several defensible "start"
+# dates and they are not interchangeable. Legal formation predates any NAV;
+# a marketing "launched" date can postdate the first published valuation. Only
+# the start of operation answers the question this validator actually asks,
+# which is whether history should exist back to a given point. Never substitute
+# one basis for another without changing this record and its source.
+FUND_HISTORY_METADATA = {
+    'LHVEVF': {
+        'expected_history_start': date(2025, 1, 28),
+        'basis': 'start_of_operation',
+        'source': 'LHV fund page: LHV Euro Bond Fund launched 28 January 2025, '
+                  'which matches its operational start.',
+    },
+    'LHVWORLDA': {
+        'expected_history_start': date(2007, 8, 13),
+        'basis': 'start_of_operation',
+        'source': 'LHV February 2026 fund report: founded 27 April 2007, start of '
+                  'operation 13 August 2007. The fund page separately states '
+                  '"Launched: 13 February 2008"; that later date is deliberately '
+                  'not used, because history may exist before it.',
+    },
+}
+
+# How far after its expected start a published series may begin and still count
+# as complete since launch. A first published NAV can lag the start of operation
+# by a few publication days; beyond that the document is truncated rather than
+# the fund young, and the distance is always reported either way.
+MAX_HISTORY_START_LAG_DAYS = 14
 
 # weekly_panel requires more than 104 continuous completed weekly returns. Depth
 # is measured in those same genuine weekly periods rather than in raw chart
@@ -85,10 +112,11 @@ class NavHistoryImmature(NavHistoryError):
 
     code = OFFICIAL_NAV_HISTORY_INSUFFICIENT_SINCE_INCEPTION
 
-    def __init__(self, message, *, symbol, inception, weekly_returns):
+    def __init__(self, message, *, symbol, expected_history_start, basis, weekly_returns):
         super().__init__(message)
         self.symbol = symbol
-        self.inception = inception
+        self.expected_history_start = expected_history_start
+        self.basis = basis
         self.weekly_returns = weekly_returns
 
 
@@ -164,24 +192,37 @@ def _cadence(records, today):
     return days, weeks, len(weeks) / calendar_weeks
 
 
+def history_start_lag(symbol, first_day):
+    """Days between where history should start and where the document starts.
+
+    None when no expected start is recorded. Negative means the series reaches
+    back further than expected, which is never a defect.
+    """
+    metadata = FUND_HISTORY_METADATA.get(symbol)
+    if metadata is None:
+        return None
+    return (first_day - metadata['expected_history_start']).days
+
+
 def _insufficient(symbol, weekly_returns, detail, days, today):
     """Attribute a short series to the fund's age only when it proves that.
 
-    A series that reaches back to the fund's launch is everything the fund has;
-    one that starts later is a truncated document. Without a recorded inception
-    nothing proves youth, so the conservative reading is a defect.
+    A series reaching back to the start of operation is everything the fund has;
+    one that starts materially later is a truncated document. Without a recorded
+    expected start nothing proves youth, so the conservative reading is a defect.
     """
-    inception = FUND_INCEPTION.get(symbol)
-    complete_since_launch = (
-        inception is not None and 0 <= (days[0] - inception).days <= MAX_NAV_GAP_DAYS)
-    if not complete_since_launch:
+    metadata = FUND_HISTORY_METADATA.get(symbol)
+    lag = history_start_lag(symbol, days[0])
+    if metadata is None or lag > MAX_HISTORY_START_LAG_DAYS:
         raise NavHistoryError(detail)
+    start = metadata['expected_history_start'].isoformat()
     raise NavHistoryImmature(
         f'{symbol}: official NAV history is valid but insufficient since inception '
-        f'(launched {inception.isoformat()}). It carries {weekly_returns} completed '
+        f'({metadata["basis"]} {start}). It carries {weekly_returns} completed '
         f'weekly returns and {MINIMUM_WEEKLY_RETURNS} are required, which the fund '
         'cannot yet have. The holding is retained as a constrained fixed sleeve.',
-        symbol=symbol, inception=inception.isoformat(), weekly_returns=weekly_returns)
+        symbol=symbol, expected_history_start=start, basis=metadata['basis'],
+        weekly_returns=weekly_returns)
 
 
 def _validate_depth_and_continuity(symbol, records, today):
@@ -215,6 +256,18 @@ def _validate_depth_and_continuity(symbol, records, today):
     return len(weeks)
 
 
+def _history_start_provenance(symbol, first_day):
+    """Record which start date was used and where it came from, never just a date."""
+    metadata = FUND_HISTORY_METADATA.get(symbol)
+    if metadata is None:
+        return {'expected_history_start': None, 'history_start_basis': None,
+                'history_start_source': None, 'history_start_lag_days': None}
+    return {'expected_history_start': metadata['expected_history_start'].isoformat(),
+            'history_start_basis': metadata['basis'],
+            'history_start_source': metadata['source'],
+            'history_start_lag_days': history_start_lag(symbol, first_day)}
+
+
 def parse_nav_history(symbol, payload, today, *, time_span=HISTORY_TIME_SPAN,
                       document_sha256=None, retrieved_at=None):
     """Normalized {date, nav_eur} observations with the provenance that backs them."""
@@ -245,7 +298,7 @@ def parse_nav_history(symbol, payload, today, *, time_span=HISTORY_TIME_SPAN,
         'weekly_returns': weeks - 1,
         'first_date': observations[0]['date'],
         'last_date': observations[-1]['date'],
-        'inception': FUND_INCEPTION[symbol].isoformat() if symbol in FUND_INCEPTION else None,
+        **_history_start_provenance(symbol, date.fromisoformat(observations[0]['date'])),
         'valuation_basis': 'Manager-published net asset value per unit; not a traded price.',
     }
     return observations, provenance

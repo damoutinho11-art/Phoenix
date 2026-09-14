@@ -77,7 +77,7 @@ from datetime import timedelta
 from jarvis.domains.finance import optimizer_evidence
 from jarvis.domains.finance.lhv_fund_nav import ISINS
 from jarvis.domains.finance.lhv_nav_history import (
-    FUND_INCEPTION, NavHistoryError, NavHistoryImmature, nav_history_record)
+    FUND_HISTORY_METADATA, NavHistoryError, NavHistoryImmature, nav_history_record)
 
 LAST_PUBLISHED = date(2026, 9, 4)
 
@@ -190,7 +190,8 @@ def immature_nav(symbol, today):
         '(launched 2025-01-28). It carries 85 completed weekly returns and 110 are '
         'required, which the fund cannot yet have. The holding is retained as a '
         'constrained fixed sleeve.',
-        symbol='LHVEVF', inception='2025-01-28', weekly_returns=85)
+        symbol='LHVEVF', expected_history_start='2025-01-28',
+        basis='start_of_operation', weekly_returns=85)
 
 
 def test_a_young_fund_is_optimized_around_rather_than_blocking_the_run():
@@ -206,7 +207,8 @@ def test_a_young_fund_is_optimized_around_rather_than_blocking_the_run():
     excluded = result['excluded_from_estimation']
     assert [e['symbol'] for e in excluded] == ['LHVEVF']
     assert excluded[0]['code'] == 'official_nav_history_insufficient_since_inception'
-    assert excluded[0]['inception'] == '2025-01-28'
+    assert excluded[0]['expected_history_start'] == '2025-01-28'
+    assert excluded[0]['history_start_basis'] == 'start_of_operation'
     assert excluded[0]['weekly_returns'] == 85
     assert 'valid but insufficient since inception' in excluded[0]['reason']
 

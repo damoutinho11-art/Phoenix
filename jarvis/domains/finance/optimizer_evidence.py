@@ -181,7 +181,9 @@ def fetch_histories(symbols, today):
                               else OFFICIAL_NAV_HISTORY_UNAVAILABLE if official
                               else MARKET_HISTORY_UNAVAILABLE)}
                 if isinstance(exc, NavHistoryImmature):
-                    record.update(inception=exc.inception, weekly_returns=exc.weekly_returns)
+                    record.update(expected_history_start=exc.expected_history_start,
+                                  history_start_basis=exc.basis,
+                                  weekly_returns=exc.weekly_returns)
                 records[symbol] = record
         if len(_cache) >= 4:
             _cache.clear()

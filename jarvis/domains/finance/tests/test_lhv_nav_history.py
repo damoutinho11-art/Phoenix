@@ -7,7 +7,7 @@ import pytest
 
 from jarvis.domains.finance.lhv_fund_nav import ISINS
 from jarvis.domains.finance.lhv_nav_history import (
-    FUND_INCEPTION, MAX_NAV_GAP_DAYS, MINIMUM_WEEKLY_COVERAGE, MINIMUM_WEEKLY_RETURNS,
+    FUND_HISTORY_METADATA, MAX_NAV_GAP_DAYS, MINIMUM_WEEKLY_COVERAGE, MINIMUM_WEEKLY_RETURNS,
     SOURCE_TYPE, NavHistoryError, NavHistoryImmature, nav_history_record,
     parse_nav_history, weekly_periods)
 
@@ -245,7 +245,7 @@ def test_a_genuine_weekly_series_passes_cadence():
 
 def young_payload(symbol='LHVEVF', weeks=85):
     """A complete, sound series that reaches back to the fund's launch."""
-    inception = FUND_INCEPTION[symbol]
+    inception = FUND_HISTORY_METADATA[symbol]['expected_history_start']
     rows = [{'timestamp': (inception + timedelta(weeks=i)).isoformat() + 'T12:00:00Z',
              'price': round(10 + 0.01*i, 4)} for i in range(weeks)]
     return {'fundData': {'shortName': symbol, 'isin': ISINS[symbol],
@@ -260,10 +260,11 @@ def test_a_fund_younger_than_the_requirement_is_immature_not_invalid():
         parse_nav_history('LHVEVF', document, today)
     error = excinfo.value
     assert error.code == 'official_nav_history_insufficient_since_inception'
-    assert error.inception == '2025-01-28'
+    assert error.expected_history_start == '2025-01-28'
+    assert error.basis == 'start_of_operation'
     assert error.weekly_returns < MINIMUM_WEEKLY_RETURNS
     assert 'valid but insufficient since inception' in str(error)
-    assert 'launched 2025-01-28' in str(error)
+    assert 'start_of_operation 2025-01-28' in str(error)
     assert 'constrained fixed sleeve' in str(error)
 
 
@@ -282,12 +283,43 @@ def test_a_truncated_series_is_invalid_even_for_a_fund_with_a_known_inception():
     assert not isinstance(excinfo.value, NavHistoryImmature)
 
 
-def test_a_short_series_for_a_fund_with_no_recorded_inception_is_invalid():
+def test_a_short_series_for_a_fund_with_no_expected_start_is_invalid(monkeypatch):
     """Nothing proves youth, so the conservative reading is a defect."""
-    assert SYMBOL not in FUND_INCEPTION
+    monkeypatch.setitem(FUND_HISTORY_METADATA, SYMBOL, None)
+    monkeypatch.delitem(FUND_HISTORY_METADATA, SYMBOL)
     with pytest.raises(NavHistoryError) as excinfo:
         parse_nav_history(SYMBOL, payload(series(count=40)), TODAY)
     assert not isinstance(excinfo.value, NavHistoryImmature)
+
+
+# --- the expected start is a stated concept, not a bare date ------------------
+
+def test_every_recorded_start_declares_its_basis_and_source():
+    for symbol, metadata in FUND_HISTORY_METADATA.items():
+        assert metadata['basis'] == 'start_of_operation', symbol
+        assert isinstance(metadata['expected_history_start'], date), symbol
+        assert len(metadata['source']) > 40, symbol
+
+
+def test_lhvworlda_uses_start_of_operation_not_the_later_launched_date():
+    """History may exist before the marketing date, so the later one would truncate."""
+    metadata = FUND_HISTORY_METADATA['LHVWORLDA']
+    assert metadata['expected_history_start'] == date(2007, 8, 13)
+    assert metadata['expected_history_start'] < date(2008, 2, 13)
+    assert '13 February 2008' in metadata['source']
+
+
+def test_provenance_records_the_basis_and_source_not_only_the_date():
+    _, provenance = parse_nav_history(SYMBOL, payload(), TODAY)
+    assert provenance['expected_history_start'] == '2007-08-13'
+    assert provenance['history_start_basis'] == 'start_of_operation'
+    assert 'start of operation' in provenance['history_start_source']
+    assert provenance['history_start_lag_days'] is not None
+
+
+def test_a_series_reaching_back_further_than_expected_is_not_a_defect():
+    from jarvis.domains.finance.lhv_nav_history import history_start_lag
+    assert history_start_lag('LHVEVF', date(2025, 1, 20)) == -8
 
 
 def test_a_young_funds_document_defects_are_still_defects():
@@ -302,6 +334,6 @@ def test_a_young_funds_document_defects_are_still_defects():
 
 def test_lhvevf_cannot_meet_the_requirement_before_its_history_exists():
     """The concrete case: a real holding that simply has not lived long enough."""
-    inception = FUND_INCEPTION['LHVEVF']
+    inception = FUND_HISTORY_METADATA['LHVEVF']['expected_history_start']
     weeks_available = (date(2026, 9, 14) - inception).days // 7
     assert weeks_available < MINIMUM_WEEKLY_RETURNS
