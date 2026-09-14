@@ -36,6 +36,11 @@ TICKER_MAP: dict[str, str] = {
     "lhv_growth_euro_bond":      "LHVEVF",
 }
 
+# Broker-only fund share classes. These are priced from the issuer's official
+# public NAV, not a market feed, and no public daily price history exists for
+# them. Never pass one to a market-data provider expecting a ticker lookup.
+BROKER_ONLY_SYMBOLS: frozenset[str] = frozenset({"LHVWORLDA", "LHVEVF"})
+
 # Candidate instruments are evaluated separately from TICKER_MAP so existing
 # portfolio refresh behavior remains backward-compatible.
 ETF_CANDIDATE_TICKERS: dict[str, list[dict[str, Any]]] = {
@@ -157,9 +162,9 @@ def fetch_current_prices(keys: list[str], *, symbol_map: dict[str, str] | None =
             continue
 
         try:
-            if symbol in {'LHVWORLDA', 'LHVEVF'}:
+            if symbol in BROKER_ONLY_SYMBOLS:
                 from .lhv_fund_nav import fetch_fund_nav
-                prices_eur[key] = fetch_fund_nav(symbol)['nav_eur']
+                prices_eur[key] = round(fetch_fund_nav(symbol)['nav_eur'], 6)
                 continue
             info = yf.Ticker(symbol).fast_info
             raw_price = float(info.last_price)
@@ -507,6 +512,10 @@ def update_portfolio_state_prices(
                 key = f'{asset}:{symbol}'
                 symbol_map[key] = symbol
                 position_keys[key] = (asset, symbol)
+    # Sleeves recorded in both the active and legacy sections are unresolvable;
+    # their values are never written back, so do not spend a price request on them.
+    for key in invalid:
+        symbol_map.pop(key, None)
     keys = list(symbol_map)
     # Keep legacy call shape for consumers without instrument positions.
     prices_eur, failed = (fetch_current_prices(keys, symbol_map=symbol_map) if positions

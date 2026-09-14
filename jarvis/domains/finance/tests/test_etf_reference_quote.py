@@ -53,3 +53,63 @@ def test_adapter_only_uses_fallback_for_invalid_quote_and_verified_identity(monk
         assert 'crossed' in result['quote_fallback_reason']
     elif not verified:
         assert result['spread_pct'] is None
+
+
+# --- charset-aware decoding and raw-byte evidence hashing -------------------
+
+def german_document():
+    """Tradegate pages carry German labels; the charset decides how they decode."""
+    return document().replace('<table>', '<table><caption>Börse Tradegate - Geldkurs</caption>')
+
+
+def test_str_documents_are_still_accepted_and_hashed_as_utf8():
+    import hashlib
+    from jarvis.domains.finance.etf_reference_quote import parse_quote
+    text = german_document()
+    result = parse_quote(text, ISIN, TODAY)
+    assert result['quote_document_sha256'] == hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+@pytest.mark.parametrize('encoding,content_type', [
+    ('utf-8', 'text/html; charset=utf-8'),
+    ('iso-8859-1', 'text/html; charset=ISO-8859-1'),
+    ('cp1252', 'text/html; charset=windows-1252'),
+    ('iso-8859-1', None),           # undeclared: must not fail the fallback quote
+    ('utf-8', None),
+    ('iso-8859-1', 'text/html; charset=utf-8'),   # mislabelled by the venue
+])
+def test_quote_parses_whatever_charset_the_venue_serves(encoding, content_type):
+    from jarvis.domains.finance.etf_reference_quote import parse_quote
+    raw = german_document().encode(encoding)
+    result = parse_quote(raw, ISIN, TODAY, content_type=content_type)
+    assert result['quote_date'] == '2026-09-11'
+    assert result['quote_isin'] == ISIN
+
+
+@pytest.mark.parametrize('encoding', ['utf-8', 'iso-8859-1', 'cp1252'])
+def test_evidence_hash_is_taken_over_the_received_bytes(encoding):
+    """The digest must be reproducible from the response body, not a re-encoding."""
+    import hashlib
+    from jarvis.domains.finance.etf_reference_quote import parse_quote
+    raw = german_document().encode(encoding)
+    result = parse_quote(raw, ISIN, TODAY)
+    assert result['quote_document_sha256'] == hashlib.sha256(raw).hexdigest()
+
+
+def test_meta_declared_charset_is_used_when_no_header_is_present():
+    from jarvis.domains.finance.etf_reference_quote import decode_document
+    raw = '<meta charset="iso-8859-1"><p>Börse</p>'.encode('iso-8859-1')
+    assert 'Börse' in decode_document(raw)
+
+
+def test_undecodable_bytes_never_raise():
+    from jarvis.domains.finance.etf_reference_quote import decode_document
+    assert isinstance(decode_document(b'\xff\xfe\x81 B\xf6rse', 'text/html; charset=utf-8'), str)
+    assert isinstance(decode_document(b'\x81\x8d', 'text/html; charset=bogus-codec'), str)
+
+
+def test_validation_still_fails_closed_on_decoded_bytes():
+    from jarvis.domains.finance.etf_reference_quote import parse_quote
+    raw = german_document().replace('EUR', 'USD').encode('iso-8859-1')
+    with pytest.raises(ValueError):
+        parse_quote(raw, ISIN, TODAY)

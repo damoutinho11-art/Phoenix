@@ -9,13 +9,20 @@ from threading import Lock
 from time import monotonic
 
 from .buy_selection import _evaluate, _number
-from .market_data import TICKER_MAP
+from .market_data import BROKER_ONLY_SYMBOLS, TICKER_MAP
 from .positions import validate_positions
 from .portfolio_optimizer import VERSION, SCENARIOS, optimize_portfolio
 
 _pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='optimizer-history')
 _cache, _lock = {}, Lock()
 CASH_ASSETS = {'tactical_reserve', 'lhv_growth_cash_pending_settlement'}
+
+# Broker-only fund share classes are priced from the issuer's official NAV and
+# have no public daily price series. Optimizing them from NAV history is not
+# supported yet, so they are classified as unsupported rather than looked up.
+BROKER_ONLY_HISTORY = ('Broker-only fund share class priced from official issuer NAV. '
+    'No public daily price history exists for it, and NAV-based history is not '
+    'supported for optimization yet.')
 
 
 def reconcile_holdings(state):
@@ -92,6 +99,8 @@ def eligible_candidates(rows, constitution, state, sleeve_holdings, budget, toda
 
 def fetch_eur_history(symbol, today):
     """Five years of adjusted closes; non-EUR conversion uses same-date FX only."""
+    if symbol in BROKER_ONLY_SYMBOLS:
+        raise ValueError(f'{symbol}: {BROKER_ONLY_HISTORY}')
     import yfinance as yf
     start = (today-timedelta(days=5*366)).isoformat()
     ticker = yf.Ticker(symbol)
@@ -118,7 +127,7 @@ def fetch_eur_history(symbol, today):
             continue
         close = _number(value, minimum=1e-12) * (fx[day] if fx is not None else 1) / (100 if currency == 'GBp' else 1)
         history.append({'date': day, 'close': _number(close, minimum=1e-12)})
-    return {'history': history, 'currency': 'EUR', 'original_currency': currency,
+    return {'history': history, 'currency': 'EUR', 'original_currency': currency, 'history_supported': True,
         'fx_symbol': fx_symbol, 'symbol': symbol, 'omitted_provider_closes': omitted, 'missing_fx_dates': missing_fx,
         'source': 'Yahoo adjusted daily closes via yfinance; same-date FX',
         'retrieved_at': datetime.now(timezone.utc).isoformat()}
@@ -133,9 +142,14 @@ def fetch_histories(symbols, today):
         cached = _cache.get(key)
         if cached and cached[0] > monotonic():
             return deepcopy(cached[1])
-        futures = { _pool.submit(fetch_eur_history, s, today): s for s in symbols }
+        # Classify broker-only funds up front; never spend a market-data lookup
+        # on a symbol that no public price provider carries.
+        records = {s: {'history': [], 'symbol': s, 'history_supported': False,
+                       'error': BROKER_ONLY_HISTORY}
+                   for s in symbols if s in BROKER_ONLY_SYMBOLS}
+        futures = { _pool.submit(fetch_eur_history, s, today): s
+                    for s in symbols if s not in BROKER_ONLY_SYMBOLS }
         completed, _ = wait(futures, timeout=50)
-        records = {}
         for future, symbol in futures.items():
             try:
                 if future not in completed:
@@ -143,7 +157,8 @@ def fetch_histories(symbols, today):
                     raise TimeoutError()
                 records[symbol] = future.result()
             except Exception:
-                records[symbol] = {'history': [], 'error': 'Public EUR history unavailable or request timed out.'}
+                records[symbol] = {'history': [], 'symbol': symbol, 'history_supported': True,
+                                   'error': 'Public EUR history unavailable or request timed out.'}
         if len(_cache) >= 4:
             _cache.clear()
         _cache[key] = (monotonic()+1800, deepcopy(records))

@@ -24,7 +24,12 @@ def _number(value, minimum=0, maximum=float('inf')):
 
 
 def _recent(value, today, days):
-    return 0 <= (today - date.fromisoformat(str(value)[:10])).days <= days
+    """Missing or unparseable dates are not recent; callers supply their own reason."""
+    try:
+        recorded = date.fromisoformat(str(value)[:10])
+    except (ValueError, TypeError):
+        return False
+    return 0 <= (today - recorded).days <= days
 
 
 def measure_history(points, today, lane):
@@ -140,11 +145,14 @@ def _evaluate(row, c, p, holdings, budget, today, *, require_positive_returns=Tr
             raise ValueError('Market evidence source is required.')
         if row.get('broker_verified') is not True or not row.get('broker_source') or not _recent(row.get('verified_at'), today, 1):
             raise ValueError('Current broker availability is unverified.')
-        if not _recent(row.get('quote_date'), today, 2 if lane == 'crypto' else 7):
+        # A recorded quote issue names the missing, stale or crossed evidence and
+        # the failed reference fallback; prefer it over the generic staleness text.
+        quote_recent = _recent(row.get('quote_date'), today, 2 if lane == 'crypto' else 7)
+        if row.get('quote_issue') and (row.get('spread_pct') is None or not quote_recent):
+            raise ValueError(row['quote_issue'])
+        if not quote_recent:
             raise ValueError('Quote and spread evidence is stale.')
         fee = _number(row.get('fee_pct'), maximum=10)
-        if row.get('spread_pct') is None and row.get('quote_issue'):
-            raise ValueError(row['quote_issue'])
         spread = _number(row.get('spread_pct'), maximum=10)
         if lane == 'etf':
             if row.get('product_type') != 'ETF':

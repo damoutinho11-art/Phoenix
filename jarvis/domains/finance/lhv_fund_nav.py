@@ -1,11 +1,20 @@
 """Official public LHV fund NAVs; no proxy ETF or undated price fallback."""
 from datetime import datetime
-from math import isfinite
+from math import isclose, isfinite
 import httpx
 from jarvis.core import clock
 
 ISINS = {'LHVWORLDA':'EE3600092417','LHVEVF':'EE3600001921'}
 BASE = 'https://www.lhv.ee/b/public/market-data/fund/'
+
+# The headline NAV and the dated price series are formatted independently by the
+# publisher and may carry a different number of decimals for the same valuation.
+# Half a cent is exactly the widest disagreement two-decimal rounding can create,
+# so it absorbs formatting differences while any real pricing disagreement — which
+# would be orders of magnitude larger — still fails closed. The relative bound
+# keeps the same guarantee if a fund is ever quoted at a much larger unit price.
+NAV_ABS_TOLERANCE_EUR = 0.005
+NAV_REL_TOLERANCE = 1e-6
 
 
 def parse_fund_nav(symbol, payload, today):
@@ -25,7 +34,9 @@ def parse_fund_nav(symbol, payload, today):
         nav = float(fund['nav'])
         if not 0 <= (today-day).days <= 7:
             raise ValueError('Official NAV is stale or future dated.')
-        if any(not isfinite(v) or v <= 0 for v in (price,nav)) or abs(price-nav) > .000001:
+        if any(not isfinite(v) or v <= 0 for v in (price,nav)):
+            raise ValueError('Official NAV and dated price do not reconcile.')
+        if not isclose(price, nav, rel_tol=NAV_REL_TOLERANCE, abs_tol=NAV_ABS_TOLERANCE_EUR):
             raise ValueError('Official NAV and dated price do not reconcile.')
         return {'nav_eur':nav,'as_of':day.isoformat(),'isin':ISINS[symbol],
                 'source':BASE + symbol + '?timeSpan=year'}
