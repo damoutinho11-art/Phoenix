@@ -6,6 +6,7 @@ from jarvis.api.buy_recommendation import load_selection_evidence
 from jarvis.data import database
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.market_data import detect_market_regime
+from jarvis.domains.finance.lhv_nav_history import OFFICIAL_NAV_HISTORY_INVALID
 from jarvis.domains.finance.optimizer_evidence import (
     BROKER_ONLY_HISTORY, reconcile_holdings, eligible_candidates, fetch_histories,
     prepare_snapshot, replay_snapshot, snapshot_digest,
@@ -73,13 +74,21 @@ def run_optimizer(constitution, state, profile, authority, today, *, week_closed
             profile.get('risk_profile', {}), provenance))
         snapshot['downside_configuration'] = downside_config(snapshot)
         result = replay_snapshot(snapshot)
-        # Name the unsupported share classes; without this the optimizer reports
+        # Name what actually blocked the run. Without this the optimizer reports
         # only that a completed history is missing, which reads as a fetch failure.
-        unsupported = sorted(s for s, r in records.items()
-                             if r.get('history_supported') is False and holdings.get(s))
+        # A published series that failed validation is a data-quality problem to
+        # investigate; a share class with no source at all is a capability gap.
+        held = {s: r for s, r in records.items() if holdings.get(s)}
+        unsupported = sorted(s for s, r in held.items() if r.get('history_supported') is False)
+        invalid_official = sorted(s for s, r in held.items()
+                                  if r.get('error_code') == OFFICIAL_NAV_HISTORY_INVALID)
         if unsupported:
             result['unsupported_history_symbols'] = unsupported
             result['blockers'] = [f"{', '.join(unsupported)}: {BROKER_ONLY_HISTORY}",
+                                  *result.get('blockers', [])]
+        if invalid_official:
+            result['official_nav_history_invalid_symbols'] = invalid_official
+            result['blockers'] = [*(f"{s}: {held[s]['error']}" for s in invalid_official),
                                   *result.get('blockers', [])]
         result['downside_comparison'] = compare_downside(snapshot,result)
         result['limitations'] = [line for line in result['limitations']

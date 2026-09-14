@@ -10,6 +10,9 @@ from time import monotonic
 
 from .buy_selection import _evaluate, _number
 from .market_data import BROKER_ONLY_SYMBOLS, TICKER_MAP
+from .lhv_nav_history import (
+    NAV_HISTORY_SYMBOLS, OFFICIAL_NAV_HISTORY_INVALID, PUBLIC_MARKET_HISTORY_UNAVAILABLE,
+    NavHistoryError, fetch_nav_history)
 from .positions import validate_positions
 from .portfolio_optimizer import VERSION, SCENARIOS, optimize_portfolio
 
@@ -17,12 +20,14 @@ _pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='optimizer-history'
 _cache, _lock = {}, Lock()
 CASH_ASSETS = {'tactical_reserve', 'lhv_growth_cash_pending_settlement'}
 
-# Broker-only fund share classes are priced from the issuer's official NAV and
-# have no public daily price series. Optimizing them from NAV history is not
-# supported yet, so they are classified as unsupported rather than looked up.
-BROKER_ONLY_HISTORY = ('Broker-only fund share class priced from official issuer NAV. '
-    'No public daily price history exists for it, and NAV-based history is not '
-    'supported for optimization yet.')
+# Broker-only share classes carry no market price series. Those with an official
+# published NAV history are served by that adapter; any other has no dated price
+# source at all and is classified as unsupported rather than looked up.
+BROKER_ONLY_HISTORY = ('Broker-only fund share class with no official NAV history '
+    'adapter. No dated public price source exists for it.')
+MARKET_HISTORY_UNAVAILABLE = 'Public EUR history unavailable or request timed out.'
+OFFICIAL_NAV_HISTORY_UNAVAILABLE = ('Official fund NAV history is unavailable or the '
+    'request timed out.')
 
 
 def reconcile_holdings(state):
@@ -100,7 +105,7 @@ def eligible_candidates(rows, constitution, state, sleeve_holdings, budget, toda
 def fetch_eur_history(symbol, today):
     """Five years of adjusted closes; non-EUR conversion uses same-date FX only."""
     if symbol in BROKER_ONLY_SYMBOLS:
-        raise ValueError(f'{symbol}: {BROKER_ONLY_HISTORY}')
+        raise ValueError(f'{symbol}: no market data provider carries this share class.')
     import yfinance as yf
     start = (today-timedelta(days=5*366)).isoformat()
     ticker = yf.Ticker(symbol)
@@ -142,23 +147,37 @@ def fetch_histories(symbols, today):
         cached = _cache.get(key)
         if cached and cached[0] > monotonic():
             return deepcopy(cached[1])
-        # Classify broker-only funds up front; never spend a market-data lookup
-        # on a symbol that no public price provider carries.
+        # Route each symbol to the only source that speaks for it, and never
+        # spend a market-data lookup on a share class no provider carries.
         records = {s: {'history': [], 'symbol': s, 'history_supported': False,
+                       'error_code': PUBLIC_MARKET_HISTORY_UNAVAILABLE,
                        'error': BROKER_ONLY_HISTORY}
-                   for s in symbols if s in BROKER_ONLY_SYMBOLS}
-        futures = { _pool.submit(fetch_eur_history, s, today): s
-                    for s in symbols if s not in BROKER_ONLY_SYMBOLS }
+                   for s in symbols
+                   if s in BROKER_ONLY_SYMBOLS and s not in NAV_HISTORY_SYMBOLS}
+        futures = {}
+        for symbol in symbols:
+            if symbol in NAV_HISTORY_SYMBOLS:
+                futures[_pool.submit(fetch_nav_history, symbol, today)] = (
+                    symbol, OFFICIAL_NAV_HISTORY_INVALID)
+            elif symbol not in BROKER_ONLY_SYMBOLS:
+                futures[_pool.submit(fetch_eur_history, symbol, today)] = (
+                    symbol, PUBLIC_MARKET_HISTORY_UNAVAILABLE)
         completed, _ = wait(futures, timeout=50)
-        for future, symbol in futures.items():
+        for future, (symbol, code) in futures.items():
             try:
                 if future not in completed:
                     future.cancel()
                     raise TimeoutError()
                 records[symbol] = future.result()
-            except Exception:
+            except Exception as exc:
+                # A published series that failed validation names its own defect;
+                # anything else is an unreachable source, not a data-quality claim.
+                official = code == OFFICIAL_NAV_HISTORY_INVALID
                 records[symbol] = {'history': [], 'symbol': symbol, 'history_supported': True,
-                                   'error': 'Public EUR history unavailable or request timed out.'}
+                    'error_code': code,
+                    'error': (str(exc) if official and isinstance(exc, NavHistoryError)
+                              else OFFICIAL_NAV_HISTORY_UNAVAILABLE if official
+                              else MARKET_HISTORY_UNAVAILABLE)}
         if len(_cache) >= 4:
             _cache.clear()
         _cache[key] = (monotonic()+1800, deepcopy(records))

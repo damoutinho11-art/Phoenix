@@ -17,11 +17,17 @@ NAV_ABS_TOLERANCE_EUR = 0.005
 NAV_REL_TOLERANCE = 1e-6
 
 
+def validate_fund_identity(symbol, fund):
+    """A published document only speaks for the holding whose identity it carries."""
+    if symbol not in ISINS or fund['shortName'] != symbol or fund['isin'] != ISINS[symbol]:
+        raise ValueError('Official fund identity does not match the holding.')
+    return ISINS[symbol]
+
+
 def parse_fund_nav(symbol, payload, today):
     try:
         fund = payload['fundData']
-        if symbol not in ISINS or fund['shortName'] != symbol or fund['isin'] != ISINS[symbol]:
-            raise ValueError('Official fund identity does not match the holding.')
+        validate_fund_identity(symbol, fund)
         rows = payload['priceGraphDetails']
         parsed = []
         for row in rows:
