@@ -58,7 +58,7 @@ def weekly_panel(histories, symbols, today, *, minimum_returns=104):
     return dates, levels, returns
 
 
-def _plans(holdings, rows, budget, symbols):
+def _plans(holdings, rows, budget, symbols, fixed=()):
     etfs = [None] + [r for r in rows if r['lane'] == 'etf']
     crypto = [None] + [r for r in rows if r['lane'] == 'crypto']
     seen = set()
@@ -91,16 +91,27 @@ def _plans(holdings, rows, budget, symbols):
                 total = sum(projected.values())
                 if total <= 0:
                     continue
+                # Fixed sleeves keep their full value in the portfolio and in the
+                # reported weights; only the modeled path holds them constant
+                # alongside cash, because nothing may be estimated from them.
+                constant = (projected.get('CASH',0)+sum(projected.get(s,0) for s in fixed))/total
                 yield {'trades': trades, 'net_value_cents': total, 'estimated_cost_cents': cost,
                        'unspent_contribution_cents': budget-spent,
-                       'weights_pct': {s: round(projected.get(s, 0)/total*100, 8) for s in [*symbols, 'CASH']}}, [projected.get(s,0)/total for s in symbols], projected.get('CASH',0)/total
+                       'weights_pct': {s: round(projected.get(s, 0)/total*100, 8) for s in [*symbols, *fixed, 'CASH']}}, [projected.get(s,0)/total for s in symbols], constant
 
 
 def optimize_portfolio(holdings_cents, candidates, histories, budget_cents, as_of,
-                       *, horizon_years, drawdown_tolerance_pct):
+                       *, horizon_years, drawdown_tolerance_pct, fixed_symbols=None):
+    """Optimize the history-eligible portfolio around any fixed sleeves.
+
+    A held instrument whose history cannot support estimation is not a reason to
+    abandon the whole portfolio. It stays at full value in the portfolio total
+    and in every reported weight, and is held constant in the modeled path, so
+    no return, variance or correlation is ever attributed to it.
+    """
     result = {'model_version': VERSION, 'as_of': as_of.isoformat(), 'status': 'INSUFFICIENT_DATA',
               'promotion_status': 'NOT_VALIDATED', 'selected_plan': None, 'blockers': [],
-              'limitations': list(LIMITATIONS), 'excluded_candidates': []}
+              'limitations': list(LIMITATIONS), 'excluded_candidates': [], 'fixed_sleeves': []}
     try:
         if len(candidates) > 40 or len(holdings_cents) > 60:
             raise ValueError('Instrument limit exceeded; comparison cannot be truncated.')
@@ -132,7 +143,26 @@ def optimize_portfolio(holdings_cents, candidates, histories, budget_cents, as_o
             raise ValueError('Duplicate candidate identity must be reconciled before optimization.')
         if not rows:
             raise ValueError('No candidate has sufficient verified history.')
-        symbols = sorted((set(holdings)-{'CASH'}) | {r['symbol'] for r in rows})
+        fixed = sorted(set(fixed_symbols or ()) & set(holdings))
+        if set(fixed) & {r['symbol'] for r in rows}:
+            raise ValueError('A sleeve excluded from estimation cannot also be a contribution candidate.')
+        symbols = sorted((set(holdings)-{'CASH'}-set(fixed)) | {r['symbol'] for r in rows})
+        if not symbols:
+            raise ValueError('No held instrument has sufficient history to compare.')
+        # Reported against current holdings, so this is the sleeve's share of the
+        # portfolio as it stands. Per-plan weights are shares of that plan's
+        # post-contribution, post-cost total and are therefore slightly larger.
+        held_value = sum(v for k, v in holdings.items())
+        result['fixed_sleeves'] = [
+            {'symbol': s, 'value_cents': holdings[s],
+             'weight_pct_of_holdings': round(holdings[s]/held_value*100, 8) if held_value else None}
+            for s in fixed]
+        if fixed:
+            result['limitations'].append(
+                'Sleeves excluded from estimation (' + ', '.join(fixed) + ') are held at '
+                'constant value in the modeled paths, so the modeled volatility and '
+                'drawdown describe only the estimated part of the portfolio and '
+                'understate whole-portfolio risk by whatever those sleeves may do.')
         dates, levels, returns = weekly_panel(histories, symbols, as_of)
         with np.errstate(over='ignore', invalid='ignore'):
             relative_levels = levels/levels[0]
@@ -140,7 +170,7 @@ def optimize_portfolio(holdings_cents, candidates, histories, budget_cents, as_o
             means = returns.mean(axis=0)*52
         if not all(np.isfinite(v).all() for v in (relative_levels, covariance, means)):
             raise ValueError('History produced invalid risk calculations.')
-        plans, weights, cash_weights = zip(*_plans(holdings, rows, budget, symbols))
+        plans, weights, cash_weights = zip(*_plans(holdings, rows, budget, symbols, fixed))
         weights, cash_weights = np.array(weights), np.array(cash_weights)
         variances = np.einsum('ij,jk,ik->i', weights, covariance, weights)
         mean_proxy = weights @ means

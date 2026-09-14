@@ -6,7 +6,8 @@ from jarvis.api.buy_recommendation import load_selection_evidence
 from jarvis.data import database
 from jarvis.domains.finance import engine
 from jarvis.domains.finance.market_data import detect_market_regime
-from jarvis.domains.finance.lhv_nav_history import OFFICIAL_NAV_HISTORY_INVALID
+from jarvis.domains.finance.lhv_nav_history import (
+    OFFICIAL_NAV_HISTORY_INSUFFICIENT_SINCE_INCEPTION, OFFICIAL_NAV_HISTORY_INVALID)
 from jarvis.domains.finance.optimizer_evidence import (
     BROKER_ONLY_HISTORY, reconcile_holdings, eligible_candidates, fetch_histories,
     prepare_snapshot, replay_snapshot, snapshot_digest,
@@ -70,15 +71,20 @@ def run_optimizer(constitution, state, profile, authority, today, *, week_closed
             'valuation_as_of': state.get('prices_refreshed_at'),
             'eligibility_constitution': c, 'platform_status': state.get('platform_status', {}),
             'eligibility_evidence': evidence.get('candidates', [])}
+        # A holding whose published history is sound but younger than the
+        # statistics need is not a blocker. It keeps its full value, exposure and
+        # policy treatment and is optimized around as a fixed sleeve.
+        held = {s: r for s, r in records.items() if holdings.get(s)}
+        immature = sorted(s for s, r in held.items()
+                          if r.get('error_code') == OFFICIAL_NAV_HISTORY_INSUFFICIENT_SINCE_INCEPTION)
         snapshot = _json_safe(prepare_snapshot(holdings, rows, histories, budget, today,
-            profile.get('risk_profile', {}), provenance))
+            profile.get('risk_profile', {}), provenance, immature))
         snapshot['downside_configuration'] = downside_config(snapshot)
         result = replay_snapshot(snapshot)
         # Name what actually blocked the run. Without this the optimizer reports
         # only that a completed history is missing, which reads as a fetch failure.
         # A published series that failed validation is a data-quality problem to
         # investigate; a share class with no source at all is a capability gap.
-        held = {s: r for s, r in records.items() if holdings.get(s)}
         unsupported = sorted(s for s, r in held.items() if r.get('history_supported') is False)
         invalid_official = sorted(s for s, r in held.items()
                                   if r.get('error_code') == OFFICIAL_NAV_HISTORY_INVALID)
@@ -90,6 +96,14 @@ def run_optimizer(constitution, state, profile, authority, today, *, week_closed
             result['official_nav_history_invalid_symbols'] = invalid_official
             result['blockers'] = [*(f"{s}: {held[s]['error']}" for s in invalid_official),
                                   *result.get('blockers', [])]
+        if immature:
+            # Reported, never blocking: the fund is real and the series is sound.
+            result['excluded_from_estimation'] = [
+                {'symbol': s, 'code': OFFICIAL_NAV_HISTORY_INSUFFICIENT_SINCE_INCEPTION,
+                 'inception': held[s].get('inception'),
+                 'weekly_returns': held[s].get('weekly_returns'),
+                 'value_cents': holdings[s], 'reason': held[s]['error']}
+                for s in immature]
         result['downside_comparison'] = compare_downside(snapshot,result)
         result['limitations'] = [line for line in result['limitations']
             if 'hypothetical crashes and forward-looking macro stress tests' not in line]

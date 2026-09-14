@@ -11,8 +11,9 @@ from time import monotonic
 from .buy_selection import _evaluate, _number
 from .market_data import BROKER_ONLY_SYMBOLS, TICKER_MAP
 from .lhv_nav_history import (
-    NAV_HISTORY_SYMBOLS, OFFICIAL_NAV_HISTORY_INVALID, PUBLIC_MARKET_HISTORY_UNAVAILABLE,
-    NavHistoryError, fetch_nav_history)
+    NAV_HISTORY_SYMBOLS, OFFICIAL_NAV_HISTORY_INSUFFICIENT_SINCE_INCEPTION,
+    OFFICIAL_NAV_HISTORY_INVALID, PUBLIC_MARKET_HISTORY_UNAVAILABLE,
+    NavHistoryError, NavHistoryImmature, fetch_nav_history)
 from .positions import validate_positions
 from .portfolio_optimizer import VERSION, SCENARIOS, optimize_portfolio
 
@@ -173,20 +174,26 @@ def fetch_histories(symbols, today):
                 # A published series that failed validation names its own defect;
                 # anything else is an unreachable source, not a data-quality claim.
                 official = code == OFFICIAL_NAV_HISTORY_INVALID
-                records[symbol] = {'history': [], 'symbol': symbol, 'history_supported': True,
-                    'error_code': code,
-                    'error': (str(exc) if official and isinstance(exc, NavHistoryError)
+                validated = official and isinstance(exc, NavHistoryError)
+                record = {'history': [], 'symbol': symbol, 'history_supported': True,
+                    'error_code': getattr(exc, 'code', code) if validated else code,
+                    'error': (str(exc) if validated
                               else OFFICIAL_NAV_HISTORY_UNAVAILABLE if official
                               else MARKET_HISTORY_UNAVAILABLE)}
+                if isinstance(exc, NavHistoryImmature):
+                    record.update(inception=exc.inception, weekly_returns=exc.weekly_returns)
+                records[symbol] = record
         if len(_cache) >= 4:
             _cache.clear()
         _cache[key] = (monotonic()+1800, deepcopy(records))
         return records
 
 
-def prepare_snapshot(holdings, candidates, histories, budget, today, risk_profile, provenance):
+def prepare_snapshot(holdings, candidates, histories, budget, today, risk_profile, provenance,
+                     fixed_symbols=()):
     return deepcopy({'schema_version': 1, 'model_version': VERSION, 'as_of': today.isoformat(),
         'holdings_cents': holdings, 'candidates': candidates, 'histories': histories, 'budget_cents': budget,
+        'fixed_symbols': sorted(fixed_symbols),
         'horizon_years': risk_profile.get('time_horizon_years'),
         'drawdown_tolerance_pct': risk_profile.get('max_acceptable_drawdown_pct'),
         'scenarios': [list(s) for s in SCENARIOS], 'provenance': provenance})
@@ -199,6 +206,9 @@ def snapshot_digest(snapshot):
 def replay_snapshot(snapshot):
     if snapshot['model_version'] != VERSION or snapshot['scenarios'] != [list(s) for s in SCENARIOS]:
         raise ValueError('Snapshot requires its original optimizer implementation and assumptions.')
+    # Snapshots recorded before fixed sleeves existed carry none, so they replay
+    # exactly as they did when they were taken.
     return optimize_portfolio(snapshot['holdings_cents'], snapshot['candidates'], snapshot['histories'],
         snapshot['budget_cents'], date.fromisoformat(snapshot['as_of']), horizon_years=snapshot['horizon_years'],
-        drawdown_tolerance_pct=snapshot['drawdown_tolerance_pct'])
+        drawdown_tolerance_pct=snapshot['drawdown_tolerance_pct'],
+        fixed_symbols=snapshot.get('fixed_symbols') or ())

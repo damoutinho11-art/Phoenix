@@ -7,8 +7,9 @@ import pytest
 
 from jarvis.domains.finance.lhv_fund_nav import ISINS
 from jarvis.domains.finance.lhv_nav_history import (
-    MAX_NAV_GAP_DAYS, MINIMUM_NAV_OBSERVATIONS, MINIMUM_NAV_SPAN_DAYS, SOURCE_TYPE,
-    NavHistoryError, nav_history_record, parse_nav_history)
+    FUND_INCEPTION, MAX_NAV_GAP_DAYS, MINIMUM_WEEKLY_COVERAGE, MINIMUM_WEEKLY_RETURNS,
+    SOURCE_TYPE, NavHistoryError, NavHistoryImmature, nav_history_record,
+    parse_nav_history, weekly_periods)
 
 TODAY = date(2026, 9, 10)
 SYMBOL = 'LHVWORLDA'
@@ -95,16 +96,16 @@ def test_malformed_or_naive_timestamps_are_rejected(timestamp):
         parse_nav_history(SYMBOL, payload(rows), TODAY)
 
 
-def test_insufficient_observations_are_rejected_with_the_count_received():
-    short = series(count=MINIMUM_NAV_OBSERVATIONS - 1)
-    with pytest.raises(NavHistoryError, match=f'has {MINIMUM_NAV_OBSERVATIONS-1} observations'):
+def test_insufficient_weekly_returns_are_rejected_with_the_count_received():
+    short = series(count=MINIMUM_WEEKLY_RETURNS - 10)
+    with pytest.raises(NavHistoryError, match='completed weekly returns'):
         parse_nav_history(SYMBOL, payload(short), TODAY)
 
 
-def test_a_dense_but_shallow_series_is_rejected_on_span():
+def test_a_dense_but_shallow_series_is_rejected_on_weekly_depth():
     """Enough points is not enough history: a year of daily NAVs is still a year."""
     daily = series(count=300, step_days=1)
-    with pytest.raises(NavHistoryError, match='spans'):
+    with pytest.raises(NavHistoryError, match='completed weekly returns'):
         parse_nav_history(SYMBOL, payload(daily), TODAY)
 
 
@@ -192,7 +193,115 @@ def test_record_history_feeds_weekly_panel_without_lhv_specific_logic():
     assert returns.shape[0] == len(dates) - 1
 
 
-def test_span_and_depth_floors_clear_the_optimizer_minimum():
+def test_depth_floor_clears_the_optimizer_minimum():
     """The adapter must reject anything the optimizer would reject later."""
-    assert MINIMUM_NAV_OBSERVATIONS > 104
-    assert MINIMUM_NAV_SPAN_DAYS >= 2 * 365
+    from jarvis.domains.finance.portfolio_optimizer import weekly_panel
+    import inspect
+    optimizer_floor = inspect.signature(weekly_panel).parameters['minimum_returns'].default
+    assert MINIMUM_WEEKLY_RETURNS > optimizer_floor
+
+
+# --- cadence: downsampled chart data must not satisfy depth ------------------
+
+def test_weekly_periods_counts_weeks_not_chart_points():
+    """Five points inside one week are one weekly period, not five."""
+    monday = date(2026, 8, 31)
+    days = [monday + timedelta(days=i) for i in range(5)]
+    assert len(weekly_periods(days, TODAY)) == 1
+
+
+def test_a_monthly_downsampled_series_is_rejected_despite_many_points():
+    """The 'all' span is drawn for a chart and may thin out older observations."""
+    monthly = series(count=200, step_days=30)
+    with pytest.raises(NavHistoryError) as excinfo:
+        parse_nav_history(SYMBOL, payload(monthly), TODAY)
+    assert 'gap' in str(excinfo.value) or 'calendar weeks' in str(excinfo.value)
+
+
+def test_a_cadence_that_hides_under_the_gap_limit_is_still_rejected():
+    """Nine-day spacing passes every gap check and still starves the weekly panel."""
+    sparse = series(count=200, step_days=9)
+    assert max((date.fromisoformat(b['timestamp'][:10]) - date.fromisoformat(a['timestamp'][:10])).days
+               for a, b in zip(sparse, sparse[1:])) <= MAX_NAV_GAP_DAYS
+    with pytest.raises(NavHistoryError, match='calendar weeks'):
+        parse_nav_history(SYMBOL, payload(sparse), TODAY)
+
+
+def test_a_mixed_cadence_document_is_rejected_on_its_downsampled_tail():
+    """Recent daily data must not paper over a thinned-out history."""
+    old = series(count=60, step_days=30, end=TODAY - timedelta(days=200))
+    recent = series(count=200, step_days=1)
+    with pytest.raises(NavHistoryError):
+        parse_nav_history(SYMBOL, payload([*old, *recent]), TODAY)
+
+
+def test_a_genuine_weekly_series_passes_cadence():
+    _, provenance = parse_nav_history(SYMBOL, payload(), TODAY)
+    assert provenance['weekly_returns'] >= MINIMUM_WEEKLY_RETURNS
+    assert provenance['weekly_periods'] == provenance['weekly_returns'] + 1
+
+
+# --- a young fund is not a broken document -----------------------------------
+
+def young_payload(symbol='LHVEVF', weeks=85):
+    """A complete, sound series that reaches back to the fund's launch."""
+    inception = FUND_INCEPTION[symbol]
+    rows = [{'timestamp': (inception + timedelta(weeks=i)).isoformat() + 'T12:00:00Z',
+             'price': round(10 + 0.01*i, 4)} for i in range(weeks)]
+    return {'fundData': {'shortName': symbol, 'isin': ISINS[symbol],
+                         'nav': rows[-1]['price'], 'currency': 'EUR'},
+            'priceGraphDetails': rows}, inception + timedelta(weeks=weeks-1)
+
+
+def test_a_fund_younger_than_the_requirement_is_immature_not_invalid():
+    document, last = young_payload()
+    today = last + timedelta(days=2)
+    with pytest.raises(NavHistoryImmature) as excinfo:
+        parse_nav_history('LHVEVF', document, today)
+    error = excinfo.value
+    assert error.code == 'official_nav_history_insufficient_since_inception'
+    assert error.inception == '2025-01-28'
+    assert error.weekly_returns < MINIMUM_WEEKLY_RETURNS
+    assert 'valid but insufficient since inception' in str(error)
+    assert 'launched 2025-01-28' in str(error)
+    assert 'constrained fixed sleeve' in str(error)
+
+
+def test_immature_is_a_kind_of_history_error_so_callers_cannot_miss_it():
+    document, last = young_payload()
+    with pytest.raises(NavHistoryError):
+        parse_nav_history('LHVEVF', document, last + timedelta(days=2))
+
+
+def test_a_truncated_series_is_invalid_even_for_a_fund_with_a_known_inception():
+    """Short because the document starts late is a defect, not youth."""
+    document, last = young_payload(weeks=85)
+    document['priceGraphDetails'] = document['priceGraphDetails'][30:]
+    with pytest.raises(NavHistoryError) as excinfo:
+        parse_nav_history('LHVEVF', document, last + timedelta(days=2))
+    assert not isinstance(excinfo.value, NavHistoryImmature)
+
+
+def test_a_short_series_for_a_fund_with_no_recorded_inception_is_invalid():
+    """Nothing proves youth, so the conservative reading is a defect."""
+    assert SYMBOL not in FUND_INCEPTION
+    with pytest.raises(NavHistoryError) as excinfo:
+        parse_nav_history(SYMBOL, payload(series(count=40)), TODAY)
+    assert not isinstance(excinfo.value, NavHistoryImmature)
+
+
+def test_a_young_funds_document_defects_are_still_defects():
+    """Youth never excuses a broken series."""
+    document, last = young_payload()
+    del document['priceGraphDetails'][20:24]
+    with pytest.raises(NavHistoryError) as excinfo:
+        parse_nav_history('LHVEVF', document, last + timedelta(days=2))
+    assert not isinstance(excinfo.value, NavHistoryImmature)
+    assert 'gap' in str(excinfo.value)
+
+
+def test_lhvevf_cannot_meet_the_requirement_before_its_history_exists():
+    """The concrete case: a real holding that simply has not lived long enough."""
+    inception = FUND_INCEPTION['LHVEVF']
+    weeks_available = (date(2026, 9, 14) - inception).days // 7
+    assert weeks_available < MINIMUM_WEEKLY_RETURNS
