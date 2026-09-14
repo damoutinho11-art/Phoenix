@@ -1,0 +1,11 @@
+# Broker holdings reconciliation release
+
+Owner-supplied position screenshots establish the displayed broker symbols and quantities. A bounded issuer registry cross-checks those symbols to fund names and ISINs. The existing correction endpoint now accepts a screenshot hash and broker symbol, records the evidence privately and corrects the position in its original active or legacy section. Screenshot values are observations, not transaction amounts or proof of new spending. No ledger entry or order is created.
+
+The LHV World Equities and Euro Bond funds are now LHVWORLDA and LHVEVF, not SWRD/IEAG proxies. Their valuations use the official LHV public fund feed, checking both symbol and ISIN, matching the reported NAV to its dated price, and rejecting stale/future/nonfinite data. IEMM uses its EUR Amsterdam listing. Price refresh preserves ownership evidence and cannot mark duplicate active/legacy values as complete.
+
+Official identity references are in broker_holdings.FUND_IDENTITIES. The LHV NAV endpoint was discovered in the JavaScript used by https://www.lhv.ee/en/investment-funds and checked against its visible fund ISINs. Public provider checks returned the correct ISINs and dated NAVs for both funds; IEMM.AS returned a usable EUR quote. No unrelated proxy fallback exists.
+
+Verification: full domain/API run had 1738 passing tests and 14 subtests with one old expected proxy-symbol assertion failing; that expectation was corrected. Final all-domain plus affected API routes run: 589 passed and 11 subtests. Security suite separately: 28 passed and 24 subtests. The security tests require a fresh app import with their own CORS fixture; combining suites reproduces the already documented three origin-fixture conflicts. Independent review found duplicate-section refresh and malformed saved-evidence issues; both have reproducing regressions and fixes.
+
+Receipt dates record when evidence was received, not an invented screenshot capture date. Exact economic holdings overlap remains unavailable until dated constituent data is gathered, including the reference exposure rather than collateral for swap ETFs. Recent trades and cash reconciliation remain a separate owner-data question. Deployment and private correction verification pending at commit time.

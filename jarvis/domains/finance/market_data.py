@@ -30,10 +30,10 @@ TICKER_MAP: dict[str, str] = {
     "quality_etf":       "IS3Q.DE",  # iShares Edge MSCI World Quality Factor (Xetra) — matches the ETF actually held
     # Legacy LHV Growth holdings
     "lhv_growth_sxr8":           "SXR8.DE",
-    "lhv_growth_iemm":           "IEEM.L",   # IEMM.L is delisted; IEEM.L is live
+    "lhv_growth_iemm":           "IEMM.AS",  # IEMM EUR listing, not the London GBP listing
     "lhv_growth_xcha":           "XCHA.L",
-    "lhv_growth_world_equities": "SWRD.L",
-    "lhv_growth_euro_bond":      "IEAG.L",
+    "lhv_growth_world_equities": "LHVWORLDA",
+    "lhv_growth_euro_bond":      "LHVEVF",
 }
 
 # Candidate instruments are evaluated separately from TICKER_MAP so existing
@@ -157,6 +157,10 @@ def fetch_current_prices(keys: list[str], *, symbol_map: dict[str, str] | None =
             continue
 
         try:
+            if symbol in {'LHVWORLDA', 'LHVEVF'}:
+                from .lhv_fund_nav import fetch_fund_nav
+                prices_eur[key] = fetch_fund_nav(symbol)['nav_eur']
+                continue
             info = yf.Ticker(symbol).fast_info
             raw_price = float(info.last_price)
             currency = str(getattr(info, "currency", "") or "")
@@ -487,11 +491,13 @@ def update_portfolio_state_prices(
 
     symbol_map = {key: TICKER_MAP[key] for key in all_keys if key in TICKER_MAP and key not in positions}
     position_keys = {}
-    invalid = []
+    invalid = list(set(portfolio_state.get('holdings', {})) & set(portfolio_state.get('legacy_holdings', {})))
     for asset, instruments in positions.items():
+        if asset in invalid:
+            continue
         try:
             validate_positions(instruments)
-            if asset not in portfolio_state.get('holdings', {}):
+            if asset not in portfolio_state.get('holdings', {}) and asset not in portfolio_state.get('legacy_holdings', {}):
                 raise ValueError('Position sleeve is not tracked.')
         except (ValueError, TypeError, AttributeError):
             invalid.append(asset)
@@ -519,11 +525,12 @@ def update_portfolio_state_prices(
         for symbol, p in updated['positions'][asset].items():
             p['value_eur'] = round(p['units'] * prices_eur[f'{asset}:{symbol}'], 2) if p['units'] else 0
             p['unpriced_buys'] = []
-        updated['holdings'][asset] = round(sum(p['value_eur'] for p in updated['positions'][asset].values()), 2)
+        store = 'legacy_holdings' if asset in updated.get('legacy_holdings', {}) else 'holdings'
+        updated[store][asset] = round(sum(p['value_eur'] for p in updated['positions'][asset].values()), 2)
         holdings_updated.append(asset)
 
     for key, eur_price in prices_eur.items():
-        if key in position_keys or key in positions:
+        if key in position_keys or key in positions or key in invalid:
             continue
         unit_count = units.get(key)
         if unit_count is None:
@@ -551,7 +558,8 @@ def update_portfolio_state_prices(
             failed.append(key)
     updated['price_refresh_complete'] = not failed
     if updated['price_refresh_complete']:
-        updated["as_of"] = date.today().isoformat()
+        from jarvis.core import clock
+        updated["as_of"] = clock.today().isoformat()
 
     return updated, {
         "prices_fetched": {k: round(v, 4) for k, v in prices_eur.items()},

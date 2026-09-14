@@ -35,7 +35,10 @@ def validate_positions(positions):
 def _sync(state, asset):
     positions = state['positions'][asset]
     validate_positions(positions)
-    state.setdefault('holdings', {})[asset] = round(sum(p['value_eur'] for p in positions.values()), 2)
+    store = 'legacy_holdings' if asset in state.get('legacy_holdings', {}) else 'holdings'
+    if asset in state.get('legacy_holdings', {}) and asset in state.get('holdings', {}):
+        raise ValueError('A holding cannot appear in both active and legacy sections.')
+    state.setdefault(store, {})[asset] = round(sum(p['value_eur'] for p in positions.values()), 2)
     active = [p for p in positions.values() if p['units'] > 0]
     state.setdefault('units', {})[asset] = active[0]['units'] if len(active) == 1 else (0 if not active else None)
 
@@ -132,8 +135,8 @@ def correct_position_units(state, asset, units, value_eur, *, symbol=None):
             from .market_data import TICKER_MAP
             if value_eur is None:
                 raise ValueError('An explicit instrument correction requires its current EUR value as well as units.')
-            if asset not in result.get('holdings', {}):
-                raise ValueError('Instrument correction requires an active tracked sleeve.')
+            if asset not in result.get('holdings', {}) and asset not in result.get('legacy_holdings', {}):
+                raise ValueError('Instrument correction requires a tracked sleeve.')
             if asset in {'btc', 'eth', 'sol', 'hype', 'tao'} and symbol != TICKER_MAP.get(asset):
                 raise ValueError('Crypto instrument symbol does not match the asset.')
             result.setdefault('positions', {})[asset] = {symbol: {

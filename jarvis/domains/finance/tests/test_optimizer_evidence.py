@@ -8,7 +8,7 @@ from jarvis.domains.finance.tests.test_buy_selection import candidate, inputs, T
 def test_all_legacy_exposures_are_included_and_bonds_are_not_cash():
     values, provenance = reconcile_holdings({'holdings': {'btc': 10, 'tactical_reserve': 2},
         'legacy_holdings': {'lhv_growth_euro_bond': 30, 'lhv_growth_cash_pending_settlement': 4}})
-    assert values == {'CASH': 600, 'BTC-EUR': 1000, 'IEAG.L': 3000}
+    assert values == {'CASH': 600, 'BTC-EUR': 1000, 'LHVEVF': 3000}
     assert provenance
 
 

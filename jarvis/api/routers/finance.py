@@ -707,8 +707,10 @@ def _build_finance_recommendation(
 
     from jarvis.domains.finance.holding_identity import build_identity_review
     response['holding_identity_review'] = build_identity_review(portfolio_state)
-    if response['holding_identity_review']['held_fund_count']:
+    if any(not fund['fund_identity_verified'] for fund in response['holding_identity_review']['funds']):
         response['rationale'] += '\nLegacy fund ownership identities remain unverified; exact issuer overlap is unavailable.'
+    elif response['holding_identity_review']['held_fund_count']:
+        response['rationale'] += '\nFund identities are cross-checked against broker screenshots and issuer records; exact issuer overlap still requires dated constituents.'
     if selection:
         response['buy_selection'] = selection
 
@@ -3162,6 +3164,8 @@ class PatchPortfolioUnitsPayload(BaseModel):
     units: float = Field(ge=0)
     holdings_eur: float | None = Field(default=None, ge=0)
     reason: str = Field(default="Manual data correction", min_length=1)
+    broker_symbol: str | None = None
+    evidence_sha256: str | None = None
 
 
 @router.post("/portfolio-state/patch-units")
@@ -3185,7 +3189,16 @@ def finance_patch_portfolio_units(payload: PatchPortfolioUnitsPayload) -> dict:
     before_legacy = copy.deepcopy(portfolio_state.get("legacy_holdings", {}))
 
     try:
-        new_state = correct_position_units(portfolio_state, payload.asset, payload.units, payload.holdings_eur, symbol=payload.symbol)
+        if payload.broker_symbol is not None or payload.evidence_sha256 is not None:
+            from jarvis.domains.finance.broker_holdings import reconcile_broker_position, FUND_IDENTITIES
+            entry = FUND_IDENTITIES.get(payload.asset, {})
+            if payload.symbol is not None and payload.symbol != entry.get('symbol'):
+                raise ValueError('Instrument symbol conflicts with broker evidence.')
+            new_state = reconcile_broker_position(portfolio_state, payload.asset, payload.units,
+                payload.holdings_eur, broker_symbol=payload.broker_symbol,
+                evidence_sha256=payload.evidence_sha256, received_at=clock.today().isoformat())
+        else:
+            new_state = correct_position_units(portfolio_state, payload.asset, payload.units, payload.holdings_eur, symbol=payload.symbol)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

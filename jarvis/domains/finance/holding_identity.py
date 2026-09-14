@@ -2,6 +2,7 @@
 from math import isfinite
 
 from .market_data import TICKER_MAP
+from .broker_holdings import verified_broker_identity
 
 
 _EXCLUDED = frozenset({'btc', 'eth', 'sol', 'hype', 'tao', 'tactical_reserve',
@@ -21,9 +22,9 @@ def _positive(value):
 def build_identity_review(state):
     """Describe current fund assumptions without changing or verifying holdings.
 
-    The current position schema has no validated broker evidence or dated
-    constituents. Even a manually recorded symbol cannot establish an owned
-    ISIN/share class, so this projection never returns a verified fund identity.
+    Only reviewed broker screenshot evidence matching the bounded issuer
+    registry establishes an owned identity. Symbols alone remain assumptions.
+    Exact overlap additionally requires dated constituent data.
     """
     funds = []
     positions = state.get('positions', {})
@@ -39,11 +40,14 @@ def build_identity_review(state):
         if held_positions:
             for symbol, position in sorted(held_positions):
                 source = position.get('identity_source') or 'missing_provenance'
+                verified = verified_broker_identity(asset, symbol, position)
                 funds.append({
                     'asset': asset, 'symbol': symbol, 'identity_source': source,
-                    'identity_status': ('owner_recorded_symbol' if source in
+                    'identity_status': 'broker_screenshot_crosschecked' if verified else ('owner_recorded_symbol' if source in
                                         _OWNER_RECORDED else 'assumed'),
-                    'fund_identity_verified': False,
+                    'fund_identity_verified': verified,
+                    **({'isin':position['isin'], 'name':position['name'],
+                        'identity_reference':position['identity_reference']} if verified else {}),
                 })
         elif _positive(holdings.get(asset)) or _positive(units.get(asset)):
             symbol = TICKER_MAP.get(asset)
@@ -59,7 +63,7 @@ def build_identity_review(state):
         'funds': funds,
         'exact_issuer_overlap': {
             'available': False,
-            'reason': 'Verified owned fund identities and dated constituent weights are unavailable.',
+            'reason': 'Dated constituent weights are unavailable; any unverified owned fund identities must also be resolved.',
             'required_evidence': [
                 'Broker evidence linking each held fund to its ISIN and share class.',
                 'Dated constituent weights for each verified held fund.',

@@ -10,7 +10,7 @@ def test_positive_legacy_funds_are_flagged_without_exposing_amounts():
         'lhv_growth_euro_bond': 0.15, 'lhv_growth_iemm': 20,
         'lhv_growth_world_equities': 0}})
     assert result['held_fund_count'] == 2
-    assert {r['symbol'] for r in result['funds']} == {'IEAG.L', 'IEEM.L'}
+    assert {r['symbol'] for r in result['funds']} == {'LHVEVF', 'IEMM.AS'}
     assert all(r['identity_status'] == 'assumed' for r in result['funds'])
     assert all(r['fund_identity_verified'] is False for r in result['funds'])
     assert all('value_eur' not in r and 'units' not in r for r in result['funds'])
