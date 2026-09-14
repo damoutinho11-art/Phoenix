@@ -153,16 +153,48 @@ def format_report(report):
     return '\n'.join(lines)
 
 
+def file_diagnostic(symbol, path, today=None, *, time_span=HISTORY_TIME_SPAN):
+    """Describe a response body saved elsewhere, for hosts that cannot fetch it.
+
+    Same analysis, different transport: useful when the machine holding the
+    network is not the machine running this code.
+    """
+    raw = open(path, 'rb').read()
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        payload = None
+    return diagnose_nav_history(symbol, payload, today or clock.today(), time_span=time_span,
+                                document_sha256=hashlib.sha256(raw).hexdigest())
+
+
 def main(argv=None):
+    import argparse
     import sys
-    symbols = list(argv if argv is not None else sys.argv[1:]) or sorted(NAV_HISTORY_SYMBOLS)
+    parser = argparse.ArgumentParser(
+        prog='python -m jarvis.domains.finance.lhv_nav_diagnostic',
+        description='Describe an official LHV NAV series. Diagnostics only: this '
+                    'prices nothing and decides nothing.')
+    parser.add_argument('symbols', nargs='*', default=[], metavar='SYMBOL')
+    parser.add_argument('--file', help='read a saved response body instead of fetching')
+    parser.add_argument('--json', action='store_true', help='emit the report as JSON')
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+
+    symbols = args.symbols or sorted(NAV_HISTORY_SYMBOLS)
+    if args.file and len(symbols) != 1:
+        parser.error('--file describes one saved document, so name exactly one symbol.')
+    failed = False
     for symbol in symbols:
         try:
-            print(format_report(fetch_diagnostic(symbol)))
+            report = (file_diagnostic(symbol, args.file) if args.file
+                      else fetch_diagnostic(symbol))
+            print(json.dumps(report, indent=2, sort_keys=True) if args.json
+                  else format_report(report))
         except Exception as exc:                       # diagnostics never abort a sweep
+            failed = True
             print(f'{symbol}\n  request failed  {type(exc).__name__}: {exc}')
         print()
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == '__main__':

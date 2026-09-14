@@ -103,3 +103,27 @@ def test_the_diagnostic_reports_no_prices():
     """It describes a series; it must never become a pricing path."""
     report = diagnose_nav_history('LHVWORLDA', document('LHVWORLDA', 210, 7), TODAY)
     assert not any('nav_eur' in str(key) or 'price' in str(key) for key in report)
+
+
+def test_a_saved_body_yields_the_same_report_as_the_payload(tmp_path):
+    """Fetching and analysing are separable when one host has the network."""
+    import json
+    from jarvis.domains.finance.lhv_nav_diagnostic import file_diagnostic
+    payload = document('LHVWORLDA', 210, 7)
+    path = tmp_path/'saved.json'
+    path.write_text(json.dumps(payload))
+
+    from_file = file_diagnostic('LHVWORLDA', path, TODAY)
+    in_memory = diagnose_nav_history('LHVWORLDA', payload, TODAY)
+    for field in FIELDS:
+        assert from_file[field] == in_memory[field], field
+    assert from_file['document_sha256'] is not None
+
+
+def test_a_saved_body_that_is_not_json_is_reported_not_raised(tmp_path):
+    from jarvis.domains.finance.lhv_nav_diagnostic import file_diagnostic
+    path = tmp_path/'broken.json'
+    path.write_text('<html>not json</html>')
+    report = file_diagnostic('LHVWORLDA', path, TODAY)
+    assert report['validation_result'] == 'INVALID'
+    assert report['interpretation'] == UNREADABLE
