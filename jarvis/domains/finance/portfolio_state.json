@@ -1,44 +1,44 @@
 {
-  "as_of": "2026-07-08",
+  "as_of": "2026-09-17",
   "currency": "EUR",
   "emergency_fund": {
-    "amount": 3600.07,
+    "amount": 5055.46,
     "excluded_from_allocation": true
   },
   "holdings": {
-    "btc": 66.43,
+    "btc": 158.19,
     "discovery": 0.0,
     "global_core_etf": 0.0,
-    "growth_nasdaq_etf": 0.0,
+    "growth_nasdaq_etf": 69.22,
     "hype": 0.0,
-    "quality_etf": 69.49,
+    "quality_etf": 70.24,
     "tactical_reserve": 4.9,
     "tao": 0.0
   },
   "legacy_holdings": {
     "lhv_growth_cash_pending_settlement": 0.0,
     "lhv_growth_euro_bond": 0.15,
-    "lhv_growth_iemm": 351.28,
-    "lhv_growth_sxr8": 635.43,
-    "lhv_growth_world_equities": 1.52,
-    "lhv_growth_xcha": 121.48
+    "lhv_growth_iemm": 359.1,
+    "lhv_growth_sxr8": 650.41,
+    "lhv_growth_world_equities": 1.54,
+    "lhv_growth_xcha": 121.89
   },
   "units": {
     "_note": "Coin/share counts used by /finance/refresh-prices. Derived from 2026-06-29 prices — verify against your broker.",
-    "btc": 0.001221,
+    "btc": 0.00237082,
     "discovery": 0,
     "global_core_etf": 0,
-    "growth_nasdaq_etf": 0,
+    "growth_nasdaq_etf": 1.163724995,
     "hype": 0,
     "quality_etf": 0.912001053,
     "tactical_reserve": null,
     "tao": 0,
     "lhv_growth_cash_pending_settlement": 0,
-    "lhv_growth_euro_bond": 0.00116,
-    "lhv_growth_iemm": 6.225,
-    "lhv_growth_sxr8": 0.9054,
-    "lhv_growth_world_equities": 0.0335,
-    "lhv_growth_xcha": 6.581
+    "lhv_growth_euro_bond": 0.015,
+    "lhv_growth_iemm": 6.202,
+    "lhv_growth_sxr8": 0.907,
+    "lhv_growth_world_equities": 0.098,
+    "lhv_growth_xcha": 6.776
   },
   "monthly_investment_budget": 500.0,
   "weekly_investment_budget": 115.38,
@@ -48,5 +48,72 @@
     "lightyear_ready": true,
     "trade_republic_ready": true
   },
-  "prices_refreshed_at": "2026-07-08T11:29:11.424993+00:00"
+  "prices_refreshed_at": "2026-09-17T18:47:20.614531+00:00",
+  "positions": {
+    "btc": {
+      "BTC-EUR": {
+        "units": 0.00237082,
+        "value_eur": 158.19,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    },
+    "lhv_growth_iemm": {
+      "IEMM.AS": {
+        "units": 6.202,
+        "value_eur": 359.1,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    },
+    "lhv_growth_xcha": {
+      "XCHA.DE": {
+        "units": 6.776,
+        "value_eur": 121.89,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    },
+    "lhv_growth_sxr8": {
+      "SXR8.DE": {
+        "units": 0.907,
+        "value_eur": 650.41,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    },
+    "lhv_growth_euro_bond": {
+      "LHVEVF": {
+        "units": 0.015,
+        "value_eur": 0.15,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    },
+    "lhv_growth_world_equities": {
+      "LHVWORLDA": {
+        "units": 0.098,
+        "value_eur": 1.54,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    },
+    "growth_nasdaq_etf": {
+      "XNAS.DE": {
+        "units": 1.163724995,
+        "value_eur": 69.22,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    },
+    "quality_etf": {
+      "IS3Q.DE": {
+        "units": 0.912001053,
+        "value_eur": 70.24,
+        "identity_source": "manual_correction",
+        "unpriced_buys": []
+      }
+    }
+  },
+  "price_refresh_complete": true
 }
