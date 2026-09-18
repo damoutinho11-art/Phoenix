@@ -10,7 +10,7 @@ const spokenDate = (_, y, m, d) => `${Number(d)} ${MONTHS[Number(m) - 1] || m}`
 
 export function speakable(text) {
   return String(text || '')
-    .replace(/(20\d{2})-(\d{2})-(\d{2})/g, spokenDate)
+    .replace(/\b(20\d{2})-(\d{2})-(\d{2})\b/g, spokenDate)
     .replace(/€(\d[\d,]*)\.(\d{2})\b/g, '$1 euros $2')
     .replace(/€(\d[\d,]*)/g, '$1 euros')
     .replace(/\bBTC-EUR\b/g, 'Bitcoin').replace(/\bBTC\b/g, 'Bitcoin')
