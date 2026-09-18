@@ -102,8 +102,9 @@ export default function InstallPhoenix({ createController = createPwaInstallCont
           aria-expanded={showInstructions}
           aria-controls="install-phoenix-instructions"
           onClick={requestInstall}
+          aria-label="INSTALL PHOENIX"
         >
-          INSTALL PHOENIX
+          {placement === 'chrome' ? 'Install' : 'INSTALL PHOENIX'}
         </button>
       </div>
     </aside>

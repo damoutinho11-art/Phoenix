@@ -15,6 +15,7 @@ import HoloDock, { DOCK_ORDER } from './HoloDock'
 import FinanceControlRoom from './subs/FinanceControlRoom'
 import TrainingControlRoom from './subs/TrainingControlRoom'
 import TodayProtocol from '../nutrition/TodayProtocol'
+import ShoppingList from '../nutrition/ShoppingList'
 import { LogMealSub, DinnerSub, PlanDaySub, WeighInSub } from './subs/NutritionSubs'
 import { SessionSub, ReadinessSub, SleepSub } from './subs/TrainingSubs'
 import { TodaySub, WeekMapSub, FeedsSub } from './subs/CalendarSubs'
@@ -371,6 +372,7 @@ export default function HoloCommand({ startTab = 'home' }) {
       )}
       {sub === 'training-room' && <TrainingControlRoom {...subProps} />}
       {sub === 'today-protocol' && <TodayProtocol onBack={() => setSub(null)} />}
+      {sub === 'grocery' && <ShoppingList onBack={() => setSub(null)} />}
       {sub === 'logmeal' && (
         <LogMealSub
           {...subProps}

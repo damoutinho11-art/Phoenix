@@ -4,44 +4,40 @@ import test from 'node:test'
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8')
 
-function pixels(source, pattern, message) {
-  const match = source.match(pattern)
-  assert.ok(match, message)
-  return Number(match[1])
+function block(css, selector) {
+  const match = css.match(new RegExp(selector.replace(/[.\-]/g, '\\$&') + '\\s*\\{([^}]*)\\}', 's'))
+  assert.ok(match, `${selector} must be styled`)
+  return match[1]
 }
 
-test('Holo install placement clears the mobile SEND and HOLD controls', async () => {
-  const [app, holo, css] = await Promise.all([
+test('install action lives in the shell chrome beside LOCK, never over screen content', async () => {
+  const [app, css, gate] = await Promise.all([
     read('../App.jsx'),
-    read('./holo/HoloCommand.jsx'),
     read('../index.css'),
+    read('./AccessGate.jsx'),
   ])
 
   assert.match(
     app,
-    /<HoloCommand\s*\/>[\s\S]*<InstallPhoenix placement="holo"\s*\/>/,
-    'the Holo shell must select its reserved install placement',
+    /<HoloCommand\s*\/>[\s\S]*<InstallPhoenix placement="chrome"\s*\/>/,
+    'the Holo shell must select the chrome install placement',
   )
+  assert.doesNotMatch(app, /renderContent|BottomNav/, 'App.jsx is the shell only; Holo Command routes')
 
-  const composerBottom = pixels(
-    holo,
-    /: 'calc\((\d+)px \+ env\(safe-area-inset-bottom\)\)'/,
-    'Holo mobile home composer must declare its bottom edge',
-  )
-  assert.match(
-    holo,
-    /<button[^>]+minHeight: 44[^>]*>SEND<\/button>[\s\S]*<button[^>]+minHeight: 44[^>]*>◉ HOLD<\/button>/,
-    'SEND and HOLD must retain 44px tap targets',
-  )
+  // Both chips share the header row under the clock and never float mid-screen.
+  const chip = block(css, '.holo-chrome-chip')
+  const install = block(css, '.install-phoenix--chrome')
+  for (const source of [chip, install]) {
+    assert.match(source, /top:\s*calc\(30px \+ env\(safe-area-inset-top\)\)/)
+  }
+  assert.match(install, /bottom:\s*auto/)
+  assert.match(block(css, '.holo-chrome-chip--lock'), /right:\s*14px/)
+  assert.match(install, /right:\s*72px/, 'INSTALL sits left of LOCK')
 
-  const installBottom = pixels(
-    css,
-    /\.install-phoenix--holo\s*\{[^}]*bottom:\s*calc\((\d+)px \+ env\(safe-area-inset-bottom\)\)/s,
-    'Holo install placement must declare a separate bottom edge',
-  )
+  // Sign out is the LOCK chip, styled by the shell rather than the browser default.
+  assert.match(gate, /className="holo-chrome-chip holo-chrome-chip--lock"[^>]*aria-label="Sign out of Phoenix"/)
+  assert.doesNotMatch(gate, /borderRadius: 6/)
 
-  assert.ok(
-    installBottom >= composerBottom + 44 + 8,
-    `install chip bottom ${installBottom}px must clear the ${composerBottom + 44}px composer controls with an 8px gap`,
-  )
+  // The manual-instructions panel drops down beneath the chip and stays phone-width safe.
+  assert.match(block(css, '.install-phoenix--chrome .install-phoenix-panel'), /width:\s*min\(300px, calc\(100vw - 28px\)\)/)
 })

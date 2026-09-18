@@ -89,6 +89,7 @@ export function buildDomains(dayPart) {
         { label: 'TODAY PROTOCOL', sub: 'today-protocol', primary: true },
         { label: 'LOG MEAL', sub: 'logmeal' },
         { label: 'WEIGH IN', sub: 'weighin' },
+        { label: 'GROCERY LIST', sub: 'grocery' },
         { label: 'BUILD DINNER', sub: 'dinner' },
       ],
       readout: [

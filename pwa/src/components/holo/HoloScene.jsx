@@ -174,8 +174,10 @@ export function HoloEdgeChrome({ clock }) {
 // typed boot line, top center — remounted (keyed) on domain switch
 export function HoloBootLine({ bootLine, isMobile, isHome }) {
   if (isMobile && !isHome) return null
+  // Phones: the header line and the chrome chips own the top edge; drop below them.
+  const top = isMobile ? 58 : 13
   return (
-    <div style={{ position: 'absolute', top: 13, left: '50%', transform: 'translateX(-50%)', zIndex: 70, display: 'flex', alignItems: 'center', gap: 9, animation: 'holo-inX .4s cubic-bezier(.2,.8,.4,1) both', whiteSpace: 'nowrap' }}>
+    <div style={{ position: 'absolute', top, left: '50%', transform: 'translateX(-50%)', zIndex: 70, display: 'flex', alignItems: 'center', gap: 9, animation: 'holo-inX .4s cubic-bezier(.2,.8,.4,1) both', whiteSpace: 'nowrap' }}>
       <span style={{ width: 5, height: 5, background: ACC, boxShadow: `0 0 8px ${ACC}` }} />
       <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.3em', color: a(ACC, '99') }}>{bootLine}</span>
       <span style={{ display: 'inline-block', width: 5, height: 11, background: ACC, boxShadow: `0 0 8px ${ACC}`, animation: 'holo-cursorBlink 1.4s ease-in-out infinite' }} />

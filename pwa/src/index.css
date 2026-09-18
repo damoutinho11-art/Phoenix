@@ -345,6 +345,48 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 .nav-btn.active .nav-icon,
 .nav-btn.active .nav-label { filter: drop-shadow(0 0 4px currentColor); }
 
+/* ── HOLO CHROME ACTIONS (top-right, under the clock line) ──
+   Small mono controls that belong to the shell, not to a screen:
+   LOCK (sign out) sits flush right; INSTALL sits to its left when installable. */
+.holo-chrome-chip {
+  position: fixed;
+  top: calc(30px + env(safe-area-inset-top));
+  z-index: 10000;
+  min-height: 22px;
+  padding: 0 9px;
+  border: 1px solid rgba(32,216,236,.32);
+  border-radius: 0;
+  background: rgba(2,20,26,.72);
+  color: rgba(201,246,255,.78);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  line-height: 20px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: color .2s, border-color .2s, box-shadow .2s;
+}
+.holo-chrome-chip:hover { color: #eaffff; border-color: rgba(125,240,255,.7); box-shadow: 0 0 12px rgba(32,216,236,.28); }
+.holo-chrome-chip:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.holo-chrome-chip--lock { right: 14px; }
+.holo-chrome-notice {
+  position: fixed;
+  top: calc(58px + env(safe-area-inset-top));
+  right: 14px;
+  z-index: 10000;
+  max-width: min(320px, calc(100vw - 28px));
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid rgba(125,240,255,.52);
+  background: rgba(1,12,16,.96);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: .04em;
+}
+
 /* ── INSTALL PHOENIX ── */
 .install-phoenix {
   position: fixed;
@@ -361,6 +403,39 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 
 .install-phoenix--holo {
   bottom: calc(126px + env(safe-area-inset-bottom));
+}
+
+/* Chrome placement: a chip beside LOCK; instructions drop down beneath it
+   instead of floating over screen content. */
+.install-phoenix--chrome {
+  top: calc(30px + env(safe-area-inset-top));
+  right: 72px;
+  bottom: auto;
+  width: auto;
+  align-items: flex-end;
+  gap: 6px;
+}
+.install-phoenix--chrome .install-phoenix-row { flex-direction: row-reverse; }
+.install-phoenix--chrome .install-phoenix-status { display: none; }
+.install-phoenix--chrome .install-phoenix-button {
+  min-height: 22px;
+  padding: 0 9px;
+  line-height: 20px;
+  background: rgba(2,20,26,.72);
+  border-color: rgba(32,216,236,.32);
+  box-shadow: none;
+  color: rgba(201,246,255,.78);
+  letter-spacing: .22em;
+}
+.install-phoenix--chrome .install-phoenix-button:hover:not(:disabled) {
+  color: #eaffff;
+  border-color: rgba(125,240,255,.7);
+  box-shadow: 0 0 12px rgba(32,216,236,.28);
+  background: rgba(2,20,26,.72);
+}
+.install-phoenix--chrome .install-phoenix-panel {
+  order: 2;
+  width: min(300px, calc(100vw - 28px));
 }
 
 .install-phoenix-row {
@@ -461,3 +536,84 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
     flex: 1;
   }
 }
+
+/* ── ACCESS GATE (unlock screen) — same tokens as the shell ── */
+.access-gate {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 30%, rgba(5,31,38,.9) 0%, rgba(2,16,20,.95) 55%, var(--bg) 100%);
+  color: var(--text);
+  font-family: var(--body, var(--display));
+}
+.access-gate-panel {
+  width: 100%;
+  max-width: 380px;
+  padding: 26px 24px 22px;
+  border: 1px solid rgba(32,216,236,.28);
+  background: var(--panel);
+  box-shadow: 0 0 0 1px rgba(1,6,8,.6), 0 24px 60px rgba(0,0,0,.5), inset 0 0 40px rgba(32,216,236,.05);
+  backdrop-filter: blur(10px);
+}
+.access-gate-kicker {
+  margin-bottom: 14px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: .3em;
+  color: var(--muted);
+}
+.access-gate-kicker span { color: var(--cyan); }
+.access-gate-title {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #eaffff;
+}
+.access-gate-copy { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+.access-gate-copy--small { margin: 14px 0 0; font-size: 12px; }
+.access-gate-label { display: block; font-family: var(--mono); font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cyan-soft); }
+.access-gate-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  margin: 8px 0 14px;
+  padding: 0 14px;
+  border: 1px solid rgba(32,216,236,.32);
+  border-radius: 0;
+  background: rgba(2,20,26,.85);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: .08em;
+  outline: none;
+}
+.access-gate-input:focus-visible { border-color: var(--cyan-br); box-shadow: 0 0 14px rgba(32,216,236,.28); }
+.access-gate-error { margin: 0 0 12px; color: #ffc69d; font-size: 13px; }
+.access-gate-remember { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; font-size: 13px; color: var(--text); }
+.access-gate-remember input { accent-color: var(--cyan); width: 15px; height: 15px; }
+.access-gate-secondary, .access-gate-submit {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: box-shadow .2s, background .2s;
+}
+.access-gate-secondary { margin-bottom: 10px; border: 1px solid rgba(32,216,236,.32); background: transparent; color: var(--text); }
+.access-gate-submit {
+  border: 1px solid var(--cyan-br);
+  background: linear-gradient(135deg, rgba(32,216,236,.34), rgba(4,36,44,.96));
+  color: #eaffff;
+  box-shadow: 0 0 18px rgba(32,216,236,.22), inset 0 0 12px rgba(125,240,255,.08);
+}
+.access-gate-submit:hover:not(:disabled) { box-shadow: 0 0 26px rgba(32,216,236,.36); }
+.access-gate-submit:disabled { opacity: .65; cursor: wait; }

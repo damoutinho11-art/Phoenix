@@ -99,7 +99,7 @@ export default function ShoppingList({ onBack }) {
     load()
   }, [source])
 
-  if (loading) return <div className="phx-scope-nutrition phx-state phx-state-loading" style={{ height: '100%', background: 'var(--phx-bg)' }}><span className="code">SYNC</span><p>Building shopping list…</p></div>
+  if (loading) return <div className="phx-scope-nutrition phx-state phx-state-loading" style={{ position: 'relative', height: '100%', background: 'var(--phx-bg)' }}><span className="code">SYNC</span><p>Building shopping list…</p></div>
 
   const need = data?.need_to_buy || []
   const have = data?.already_have || []
@@ -107,7 +107,7 @@ export default function ShoppingList({ onBack }) {
   const isFourDaySupply = data?.source === 'today_protocol_4_days' && Number(data?.days) === 4
 
   return (
-    <div className="phx-scope-nutrition" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-nutrition) 7%, transparent), transparent 34rem), linear-gradient(180deg, #081208 0%, var(--phx-bg) 42%, #04090e 100%)', color: 'rgba(220,248,236,.94)', fontFamily: 'var(--phx-font-body)' }}>
+    <div className="phx-scope-nutrition" style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 78% 4%, color-mix(in srgb, var(--phx-nutrition) 7%, transparent), transparent 34rem), linear-gradient(180deg, #081208 0%, var(--phx-bg) 42%, #04090e 100%)', color: 'rgba(220,248,236,.94)', fontFamily: 'var(--phx-font-body)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px 11px', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, background: 'rgba(0,0,0,.96)', backdropFilter: 'blur(12px)', zIndex: 5, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>

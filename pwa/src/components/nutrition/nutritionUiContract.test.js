@@ -2,60 +2,9 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-test('nutrition dashboard uses the Finance and Training grade command presentation shell', async () => {
-  const source = await readFile(new URL('./NutritionDashboard.jsx', import.meta.url), 'utf8')
-
-  for (const token of [
-    'CockpitShell',
-    'DataPanel',
-    'StatusChip',
-    'SourceStamp',
-    'phx-command-hero',
-    'NUTRITION',
-    'COMMAND CENTER',
-    'FUEL CORE',
-    'phx-core-card',
-    'phx-nutrition-primary-actions',
-    'phx-nutrition-mode-tabs',
-    'Finished Nutrition Outputs',
-    'Daily Fuel Graph',
-    'Macro Progress',
-    'Week Rhythm',
-    'Choose Next Meal',
-    'MealChoiceDeck',
-    'phx-nutrition-choice-deck',
-    'phx-nutrition-route-grid-clean',
-    'TODAY PROTOCOL',
-    'MEALS',
-    'TRENDS',
-    'MEMORY',
-    'PANTRY',
-    'RECIPES',
-  ]) assert.match(source, new RegExp(token))
-
-  assert.doesNotMatch(source, /Weekly Prep|onWeeklyPlanner/)
-})
-
-test('nutrition cockpit keeps safety language claim-free', async () => {
-  const source = (await readFile(new URL('./NutritionDashboard.jsx', import.meta.url), 'utf8')).toLowerCase()
-
-  for (const forbidden of [
-    'bulletproof',
-    'heal your',
-    'safe for everyone',
-    'guaranteed',
-    'fix pelvic tilt',
-  ]) assert.equal(source.includes(forbidden), false)
-})
-
 test('every nutrition surface uses the green identity palette', async () => {
-  const files = [
-    'NutritionDashboard.jsx', 'TodayProtocol.jsx', 'ShoppingList.jsx',
-    'LogMeal.jsx', 'MealBuilder.jsx', 'NutritionMemory.jsx',
-    'WeightHistory.jsx', 'RecipeList.jsx', 'WeeklyPlanner.jsx',
-    'DayPlanner.jsx', 'CalendarNutritionBridge.jsx',
-    'NutritionAcceptanceGate.jsx', 'nutriHud.jsx',
-  ]
+  // Only the nutrition surfaces reachable from Holo Command.
+  const files = ['TodayProtocol.jsx', 'ShoppingList.jsx']
   const sources = await Promise.all(
     files.map(file => readFile(new URL(`./${file}`, import.meta.url), 'utf8'))
   )
@@ -74,11 +23,10 @@ test('every nutrition surface uses the green identity palette', async () => {
 
 test('today protocol is a routed green operational surface with truthful command boundaries', async () => {
   const base = new URL('.', import.meta.url)
-  const [protocol, flow, model, dashboard, app, holoCommand, holoDomains, client, css] = await Promise.all([
+  const [protocol, flow, model, app, holoCommand, holoDomains, client, css] = await Promise.all([
     readFile(new URL('./TodayProtocol.jsx', base), 'utf8'),
     readFile(new URL('./todayProtocolFlow.js', base), 'utf8'),
     readFile(new URL('./todayProtocolModel.js', base), 'utf8'),
-    readFile(new URL('./NutritionDashboard.jsx', base), 'utf8'),
     readFile(new URL('../../App.jsx', base), 'utf8'),
     readFile(new URL('../holo/HoloCommand.jsx', base), 'utf8'),
     readFile(new URL('../holo/holoDomains.js', base), 'utf8'),
@@ -113,16 +61,17 @@ test('today protocol is a routed green operational surface with truthful command
   }
 
   assert.equal(protocol.includes('LOG FULL PLAN'), false)
-  assert.match(dashboard, /TODAY PROTOCOL/)
-  assert.match(dashboard, /onTodayProtocol/)
-  assert.match(app, /todayProtocol/)
-  assert.match(app, /TodayProtocol/)
+  // Holo Command is the only shell; App.jsx must not grow a second router.
+  assert.match(app, /HoloCommand/)
+  assert.doesNotMatch(app, /renderContent|BottomNav|DayPlanner|NutritionDashboard/)
   assert.match(holoCommand, /TodayProtocol/)
   assert.match(holoCommand, /sub === 'today-protocol'/)
+  assert.match(holoCommand, /ShoppingList/)
+  assert.match(holoCommand, /sub === 'grocery'/)
   assert.match(holoDomains, /TODAY PROTOCOL/)
   assert.match(holoDomains, /sub: 'today-protocol'/)
-  assert.doesNotMatch(dashboard, /PLAN DAY/)
-  assert.doesNotMatch(app, /DayPlanner/)
+  assert.match(holoDomains, /GROCERY LIST/)
+  assert.match(holoDomains, /sub: 'grocery'/)
 
   for (const token of [
     '/nutrition/today-protocol',
