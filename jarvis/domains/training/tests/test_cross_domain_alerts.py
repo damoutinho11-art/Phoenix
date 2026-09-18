@@ -100,28 +100,36 @@ class CrossDomainAlertTests(unittest.TestCase):
 
 
 class CrossDomainRouteTests(unittest.TestCase):
-    def test_alerts_route_returns_200(self):
+    """Route checks authenticate with a synthetic owner key; access control itself is
+    covered by jarvis/api/security_tests."""
+
+    def setUp(self):
+        import hashlib
+        import os
+        from unittest.mock import patch
+
+        key = "synthetic-offline-cross-domain-key"
+        self._env = patch.dict(os.environ, {"PHOENIX_ACCESS_KEY_SHA256": hashlib.sha256(key.encode()).hexdigest()})
+        self._env.start()
+        self.addCleanup(self._env.stop)
+        self._headers = {"Authorization": f"Bearer {key}"}
+
+    def _client(self):
         from fastapi.testclient import TestClient
         from jarvis.api.main import app
 
-        client = TestClient(app)
-        response = client.get("/cross-domain/alerts")
+        return TestClient(app, headers=self._headers)
+
+    def test_alerts_route_returns_200(self):
+        response = self._client().get("/cross-domain/alerts")
         assert response.status_code == 200
 
     def test_alerts_route_shape(self):
-        from fastapi.testclient import TestClient
-        from jarvis.api.main import app
-
-        client = TestClient(app)
-        data = client.get("/cross-domain/alerts").json()
+        data = self._client().get("/cross-domain/alerts").json()
         assert "alerts" in data
         assert "count" in data
         assert isinstance(data["alerts"], list)
 
     def test_count_matches_alerts_length(self):
-        from fastapi.testclient import TestClient
-        from jarvis.api.main import app
-
-        client = TestClient(app)
-        data = client.get("/cross-domain/alerts").json()
+        data = self._client().get("/cross-domain/alerts").json()
         assert data["count"] == len(data["alerts"])
