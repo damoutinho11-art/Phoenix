@@ -4,7 +4,10 @@
     {
       "name": "jarvis-pwa",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173,
       "cwd": "pwa",
       "autoPort": false
@@ -12,8 +15,21 @@
     {
       "name": "jarvis-api",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["run_server.py"],
+      "runtimeArgs": [
+        "run_server.py"
+      ],
       "port": 8000,
+      "autoPort": false
+    },
+    {
+      "name": "jarvis-pwa-railway",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set VITE_API_URL=https://phoenix-production-1fb2.up.railway.app&& npx vite --config vite.http.config.js --port 5174 --strictPort"
+      ],
+      "port": 5174,
+      "cwd": "pwa",
       "autoPort": false
     }
   ]
