@@ -3,7 +3,8 @@ import './holo.css'
 import { ACC, G, Y, W, SCENE, RAISED, PANEL, BG, BODY, INK, FM, FB, HOME_ACCENT, scopeClass, a, mix, deep } from './holoTokens'
 import { buildDomains } from './holoDomains'
 import useHoloData from './useHoloData'
-import { logMeal as apiLogMeal, logSleepDuration } from '../../api/client'
+import { logMeal as apiLogMeal, logSleepDuration, postJarvisChat } from '../../api/client'
+import { createListener, createSpeaker, speechSupport, VOICE_PREF_KEY } from './voiceLink.js'
 import { applyFinance, applyFinanceOffline, applyNutrition, applyCalendar, mapHoldings, mealBudget, mapDinners, mapConnectorLanes, mapTodayRail } from './holoLive'
 import { composeHomeBrief } from './homeBrief.js'
 import { buildTrainingDomain, normalizeTrainingLive } from './trainingLive'
@@ -49,6 +50,10 @@ export default function HoloCommand({ startTab = 'home' }) {
   const [burst, setBurst] = useState(true)   // core "hot" window after a switch
   const [voice, setVoice] = useState('idle')
   const [voiceMsg, setVoiceMsg] = useState(null)
+  const [muted, setMuted] = useState(() => { try { return localStorage.getItem(VOICE_PREF_KEY) === 'off' } catch { return false } })
+  const speakerRef = useRef(null)
+  const listenerRef = useRef(null)
+  const heardRef = useRef(false) // last directive arrived by voice → answer by voice even when muted for typing
   const [chatLog, setChatLog] = useState([])
   // sub-screen state that must survive close / feed back into the main screen
   const [appChecks, setAppChecks] = useState([false, false, false, false])
@@ -136,55 +141,97 @@ export default function HoloCommand({ startTab = 'home' }) {
 
   // ── voice link + directive composer (home) ──
   const clearVoiceTimers = () => { clearTimeout(voiceT1.current); clearTimeout(voiceT2.current) }
+  const support = speechSupport()
+  const say = (text, { force = false } = {}) => {
+    if (!support.speak) return
+    if (muted && !force) return
+    if (!speakerRef.current) speakerRef.current = createSpeaker()
+    speakerRef.current?.speak(text)
+  }
+  const setMute = off => { setMuted(off); try { localStorage.setItem(VOICE_PREF_KEY, off ? 'off' : 'on') } catch { /* storage unavailable */ } if (off) speakerRef.current?.stop() }
+
   const micDown = () => {
     clearVoiceTimers()
+    speakerRef.current?.stop()
+    if (!support.listen) {
+      setVoice('speaking')
+      setVoiceMsg('This browser has no speech recognition. Type the directive below.')
+      voiceT1.current = setTimeout(() => { setVoice('idle'); setVoiceMsg(null) }, 3200)
+      return
+    }
+    if (!listenerRef.current) {
+      listenerRef.current = createListener(globalThis, {
+        onPartial: text => setVoiceMsg(text ? `“${text}”` : 'Listening…'),
+        onError: reason => {
+          const msg = reason === 'not-allowed' ? 'Microphone access is blocked for PHOENIX. Allow it in the browser settings.'
+            : reason === 'no-speech' ? 'No speech detected.' : `Voice input failed (${reason}).`
+          setVoice('speaking'); setVoiceMsg(msg)
+          voiceT1.current = setTimeout(() => { setVoice('idle'); setVoiceMsg(null) }, 3200)
+        },
+        onResult: text => {
+          if (!text) { setVoice('idle'); setVoiceMsg(null); return }
+          heardRef.current = true
+          runDirective(text)
+        },
+      })
+    }
     setVoice('listening')
-    setVoiceMsg('Listening — hold steady and speak your directive.')
+    setVoiceMsg('Listening…')
+    listenerRef.current.start()
   }
   const micUp = () => {
-    setVoice(v => {
-      if (v !== 'listening') return v
-      setVoiceMsg('Analyzing signal…')
-      voiceT1.current = setTimeout(() => {
-        const msg = 'Directive received. Say "open finance" — or type below — to route into a module.'
-        setVoice('speaking')
-        setVoiceMsg(msg)
-        setChatLog(s => s.concat([{ w: 'phx', t: msg }]))
-        voiceT2.current = setTimeout(() => { setVoice('idle'); setVoiceMsg(null) }, 3400)
-      }, 900)
-      return 'processing'
-    })
+    if (listenerRef.current?.active()) { setVoice('processing'); setVoiceMsg('Analyzing signal…'); listenerRef.current.stop() }
   }
+
+  const respond = (raw, msg, { hold = 4200, after = null } = {}) => {
+    setVoice('speaking')
+    setVoiceMsg(msg)
+    setChatLog(s => s.concat([...(raw ? [{ w: 'you', t: raw }] : []), { w: 'phx', t: msg }]))
+    say(msg, { force: heardRef.current })
+    heardRef.current = false
+    voiceT1.current = setTimeout(() => { setVoice('idle'); setVoiceMsg(null); if (after) after() }, hold)
+  }
+
+  const runDirective = async raw => {
+    const t = raw.toLowerCase()
+    const domain = ['finance', 'nutrition', 'training', 'calendar'].find(d => t.includes(d))
+    if (/\b(home|dashboard)\b/.test(t) && !domain) { respond(raw, 'Returning to Home.', { hold: 700, after: () => go('home') }); return }
+    if (domain && /\b(open|go|show|route|switch|take me)\b/.test(t) || (domain && t.trim().split(/\s+/).length <= 2)) {
+      respond(raw, `Routing to ${domain.toUpperCase()} — projecting module…`, { hold: 750, after: () => go(domain) }); return
+    }
+    if (/\b(mute|voice off|quiet|silence)\b/.test(t)) { setMute(true); respond(raw, 'Voice replies muted. Say "voice on" to restore.', { hold: 2600 }); return }
+    if (/\b(unmute|voice on|speak up)\b/.test(t)) { setMute(false); heardRef.current = true; respond(raw, 'Voice replies on.', { hold: 2000 }); return }
+    if (/\b(brief|briefing|morning|my day|today)\b/.test(t) && !/\bnews\b/.test(t)) { respond(raw, D.heroBrief, { hold: 9000 }); return }
+    if (/\b(status|report|nominal)\b/.test(t)) {
+      const parts = ['All modules nominal.']
+      if (live.finance) parts.push(`Invested €${Math.round(live.finance.total_invested).toLocaleString('en-US')}`)
+      if (live.nutrition) parts.push(`${Math.max(0, Math.round(live.nutrition.remaining_calories))} kcal open`)
+      if (live.training?.status?.dunk_goal?.days_to_attempt != null) parts.push(`${live.training.status.dunk_goal.days_to_attempt} days to dunk attempt`)
+      if (live.calendar) parts.push(`${(live.calendar.events || []).length} events in the calendar window`)
+      respond(raw, parts.length > 1 ? parts[0] + ' ' + parts.slice(1).join(' · ') + '.' : 'Live module data is unavailable. Open a module to inspect its source status.', { hold: 5200 })
+      return
+    }
+    // Everything else goes to PHOENIX's brain with the current domain and recent turns.
+    setVoice('processing'); setVoiceMsg('Thinking…')
+    setChatLog(s => s.concat([{ w: 'you', t: raw }]))
+    try {
+      const history = chatLog.slice(-6).map(m => ({ role: m.w === 'you' ? 'user' : 'assistant', content: m.t }))
+      const data = await postJarvisChat({ message: raw, domain: tab === 'home' ? 'home' : tab, history })
+      const reply = String(data?.response || '').trim() || 'No answer came back.'
+      respond(null, reply, { hold: Math.min(12000, 2500 + reply.length * 45) })
+    } catch (error) {
+      respond(null, error?.status === 401 ? 'Session expired — unlock PHOENIX again.' : 'PHOENIX brain is unreachable right now.', { hold: 3600 })
+    }
+  }
+
   const sendDirective = () => {
     const el = composerRef.current
     const raw = ((el && el.value) || '').trim()
     if (!raw) return
     if (el) el.value = ''
     clearVoiceTimers()
-    const t = raw.toLowerCase()
-    const domain = ['finance', 'nutrition', 'training', 'calendar'].find(d => t.includes(d))
-    let msg
-    let hold = 4200
-    let after = null
-    if (domain) {
-      msg = `Routing to ${domain.toUpperCase()} — projecting module…`
-      hold = 750
-      after = () => go(domain)
-    } else if (/status|report|how|nominal/.test(t)) {
-      const parts = ['All modules nominal.']
-      if (live.finance) parts.push(`Invested €${Math.round(live.finance.total_invested).toLocaleString('en-US')}`)
-      if (live.nutrition) parts.push(`${Math.max(0, Math.round(live.nutrition.remaining_calories))} kcal open`)
-      if (live.training?.status?.dunk_goal?.days_to_attempt != null) parts.push(`${live.training.status.dunk_goal.days_to_attempt} days to dunk attempt`)
-      if (live.calendar) parts.push(`${(live.calendar.events || []).length} events in the calendar window`)
-      msg = parts.length > 1 ? parts[0] + ' ' + parts.slice(1).join(' · ') + '.' : 'Live module data is unavailable. Open a module to inspect its source status.'
-      hold = 5200
-    } else {
-      msg = `Directive logged: "${raw}". Try "open training" or "status report".`
-    }
-    setVoice('speaking')
-    setVoiceMsg(msg)
-    setChatLog(s => s.concat([{ w: 'you', t: raw }, { w: 'phx', t: msg }]))
-    voiceT1.current = setTimeout(() => { setVoice('idle'); setVoiceMsg(null); if (after) after() }, hold)
+    heardRef.current = false
+    runDirective(raw)
   }
 
   // ── live data + domain derivation + sub-screen feedback ──
@@ -258,7 +305,7 @@ export default function HoloCommand({ startTab = 'home' }) {
   const showTele = !isMobile && !isShort
   const showChips = !isShort && !isMobile
   const voiceColor = { idle: a(ACC, '99'), listening: G, processing: Y, speaking: W }[voice]
-  const voiceLabel = { idle: 'STANDBY', listening: 'LISTENING', processing: 'PROCESSING', speaking: 'RESPONDING' }[voice]
+  const voiceLabel = { idle: muted ? 'MUTED' : support.listen ? 'STANDBY' : 'TEXT ONLY', listening: 'LISTENING', processing: 'PROCESSING', speaking: 'RESPONDING' }[voice]
   const log = chatLog.slice(-3)
 
   const sceneAnim = warp
