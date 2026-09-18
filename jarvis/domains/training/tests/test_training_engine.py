@@ -373,7 +373,22 @@ class FullCheckTrainingTests(unittest.TestCase):
         result = engine.check_training(CONSTITUTION, today=date(2026, 6, 22))
         assert result.today_session.working_weights is not None
 
-    def test_dunk_goal_on_track_before_attempt_window(self):
-        result = engine.check_training(CONSTITUTION, today=date(2026, 6, 22))
+    def test_dunk_goal_on_track_needs_recent_logged_sessions(self):
+        result = engine.check_training(CONSTITUTION, today=date(2026, 6, 22), recent_session_count=2)
         assert result.dunk_goal.on_track is True
         assert result.dunk_goal.days_to_attempt > 0
+        assert "2 sessions" in result.dunk_goal.on_track_reason
+
+    def test_dunk_goal_is_not_on_track_without_training_evidence(self):
+        # Being inside the planned block is a calendar fact, not progress.
+        result = engine.check_training(CONSTITUTION, today=date(2026, 6, 22), recent_session_count=0)
+        assert result.dunk_goal.on_track is False
+        assert "No sessions logged" in result.dunk_goal.on_track_reason
+        unknown = engine.check_training(CONSTITUTION, today=date(2026, 6, 22))
+        assert unknown.dunk_goal.on_track is False
+        assert "unavailable" in unknown.dunk_goal.on_track_reason
+
+    def test_dunk_goal_is_not_on_track_once_attempt_window_has_passed(self):
+        deadline = date.fromisoformat(CONSTITUTION["dunk_deadline"])
+        result = engine.check_training(CONSTITUTION, today=deadline + timedelta(days=1), recent_session_count=3)
+        assert result.dunk_goal.on_track is False

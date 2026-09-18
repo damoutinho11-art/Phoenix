@@ -318,13 +318,39 @@ def get_fatigue_warning(week_of_mesocycle: int) -> str | None:
     return _WARNINGS.get(week_of_mesocycle)
 
 
-def get_dunk_goal(constitution: dict, today: date) -> DunkGoal:
+ON_TRACK_EVIDENCE_WINDOW_DAYS = 7
+
+
+def get_dunk_goal(
+    constitution: dict,
+    today: date,
+    recent_session_count: int | None = None,
+) -> DunkGoal:
+    """Programme position plus an evidence-backed on-track flag.
+
+    Being inside the planned block is a calendar fact. "On track" additionally
+    requires logged training within the last ON_TRACK_EVIDENCE_WINDOW_DAYS;
+    unknown evidence is reported as not on track, never assumed.
+    """
     deadline = date.fromisoformat(constitution["dunk_deadline"])
     attempt_start = date.fromisoformat(constitution["dunk_attempt_window_start"])
     phase, week = get_current_phase(constitution, today)
 
     days_to_attempt = (attempt_start - today).days
     days_to_deadline = (deadline - today).days
+
+    if days_to_attempt < 0:
+        on_track, reason = False, "Attempt window has started; programme progression is complete."
+    elif recent_session_count is None:
+        on_track, reason = False, "Training evidence unavailable; cannot confirm progress."
+    elif recent_session_count <= 0:
+        on_track, reason = False, (
+            f"No sessions logged in the last {ON_TRACK_EVIDENCE_WINDOW_DAYS} days."
+        )
+    else:
+        on_track, reason = True, (
+            f"{recent_session_count} sessions logged in the last {ON_TRACK_EVIDENCE_WINDOW_DAYS} days."
+        )
 
     return DunkGoal(
         deadline=deadline,
@@ -334,7 +360,8 @@ def get_dunk_goal(constitution: dict, today: date) -> DunkGoal:
         weeks_to_attempt=max(0.0, days_to_attempt / 7),
         current_phase=phase,
         current_mesocycle_week=week,
-        on_track=days_to_attempt >= 0,
+        on_track=on_track,
+        on_track_reason=reason,
     )
 
 
@@ -366,8 +393,13 @@ def check_training(
     constitution: dict,
     today: date | None = None,
     opera_snapshot_raw: dict | None = None,
+    recent_session_count: int | None = None,
 ) -> TrainingStatus:
-    """Top-level entry point. Assembles full TrainingStatus."""
+    """Top-level entry point. Assembles full TrainingStatus.
+
+    ``recent_session_count`` is the number of sessions logged in the last
+    ON_TRACK_EVIDENCE_WINDOW_DAYS; the engine stays free of storage access.
+    """
     if today is None:
         today = date.today()
 
@@ -385,7 +417,7 @@ def check_training(
 
     return TrainingStatus(
         as_of=today,
-        dunk_goal=get_dunk_goal(constitution, today),
+        dunk_goal=get_dunk_goal(constitution, today, recent_session_count),
         cut_status=get_cut_status(constitution, today),
         today_session=today_session,
         week_sessions=tuple(week_sessions),

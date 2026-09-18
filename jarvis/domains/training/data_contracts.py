@@ -128,6 +128,7 @@ class DunkGoal:
     current_phase: Phase
     current_mesocycle_week: int
     on_track: bool
+    on_track_reason: str = ""
 
 
 @dataclass(frozen=True)

@@ -207,7 +207,7 @@ export function buildTrainingDomain(base, model) {
       { code: 'MISSION', meta: `ATTEMPT · ${attempt}`, type: 'rows', rows: [
         { title: 'Phase', sub: 'ACTIVE CONSTITUTION', value: upper(goal.current_phase) || '—', valueColor: W },
         { title: 'Plan day', sub: status.plan_provenance?.date || 'DATE UNAVAILABLE', value: hybridIdentity?.label || upper(session.objective), valueColor: ACC },
-        { title: 'Projection', sub: 'CURRENT MISSION STATUS', value: goal.on_track ? 'ON TRACK' : 'REVIEW', valueColor: goal.on_track ? G : Y },
+        { title: 'Projection', sub: upper(goal.on_track_reason) || 'CURRENT MISSION STATUS', value: goal.on_track ? 'ON TRACK' : 'REVIEW', valueColor: goal.on_track ? G : Y },
       ] },
     ],
   }

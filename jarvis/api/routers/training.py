@@ -453,6 +453,7 @@ def _serialize_status(status: TrainingStatus) -> dict:
             "current_phase": g.current_phase.value,
             "current_mesocycle_week": g.current_mesocycle_week,
             "on_track": g.on_track,
+            "on_track_reason": g.on_track_reason,
         },
         "cut_status": {
             "active": c.active,
@@ -520,12 +521,28 @@ def _current_status(constitution: dict) -> tuple[TrainingStatus, dict, dict]:
         {**constitution, "current_bodyweight_kg": latest_kg} if latest_kg else constitution
     )
     opera_raw, evidence = resolve_opera_calendar()
+    today = clock.today()
     status = engine.check_training(
         effective,
-        today=clock.today(),
+        today=today,
         opera_snapshot_raw=opera_raw,
+        recent_session_count=_recent_session_count(today),
     )
     return status, effective, evidence
+
+
+def _recent_session_count(today: date) -> int:
+    """Sessions logged inside the on-track evidence window, ending today."""
+    since = today - timedelta(days=engine.ON_TRACK_EVIDENCE_WINDOW_DAYS)
+    count = 0
+    for session in database.get_sessions():
+        try:
+            logged = date.fromisoformat(str(session.get("date"))[:10])
+        except ValueError:
+            continue
+        if since < logged <= today:
+            count += 1
+    return count
 
 
 def _planning_horizon(today: date | None = None) -> tuple[date, date]:
