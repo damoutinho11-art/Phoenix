@@ -13,7 +13,9 @@ def current_week_lifecycle(today: date) -> dict:
     iso = today.isocalendar()
     week_label = f"W{iso[1]} {iso[0]}"
     applied_transactions = database.get_applied_transactions_for_iso_week(week_label)
-    latest_brief = database.get_latest_brief_for_week(week_label, "finance")
+    # An approved brief is the week's decision even if a newer undecided brief exists.
+    latest_brief = (database.get_approved_brief_for_week(week_label, "finance")
+                    or database.get_latest_brief_for_week(week_label, "finance"))
     brief_state = str((latest_brief or {}).get("status") or "").lower()
     brief_action = str((latest_brief or {}).get("user_action") or "").lower()
     return {

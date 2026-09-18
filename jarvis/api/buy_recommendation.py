@@ -9,14 +9,43 @@ from jarvis.domains.finance.buy_evidence import fetch_evidence
 from jarvis.domains.finance.investment_review import validated_investment_review, review_digest
 
 
+# Decision-defining candidate fields. Live quotes, spreads, fetch timestamps,
+# price-derived scores and projected valuations are evidence *context*: they
+# move every refresh without changing what is bought, and must not spawn briefs.
+_DECISION_CANDIDATE_KEYS = (
+    'asset', 'symbol', 'isin', 'lane', 'route', 'platform', 'currency', 'product_type',
+    'fee_pct', 'fund_fee_pct', 'principal_eur', 'estimated_cost_eur', 'amount_eur',
+    'eligible', 'policy_eligible', 'mandate_approved', 'broker_verified',
+    'research_verdict', 'research_status', 'research_memo_id', 'research_as_of',
+)
+
+
+def _decision_candidate(row):
+    if not isinstance(row, dict):
+        return row
+    return {key: row[key] for key in _DECISION_CANDIDATE_KEYS if key in row}
+
+
+def _decision_lane(lane):
+    if not isinstance(lane, dict):
+        return lane
+    return {'status': lane.get('status'), 'amount_eur': lane.get('amount_eur'),
+            'selected': _decision_candidate(lane.get('selected')),
+            'alternatives': [_decision_candidate(row) for row in lane.get('alternatives') or []]}
+
+
 def decision_signature(response):
-    """Bind a manual approval to dated choices, amounts and evidence, not a week."""
+    """Bind a manual approval to dated choices, amounts and evidence identity, not a week.
+
+    Only decision-defining fields participate; refreshed quotes or timestamps
+    for the same choice keep the same signature and therefore the same brief.
+    """
     selection = response.get('buy_selection')
     if not selection:
         return None
     snapshot = {'week_budget': response.get('week_budget'),
                 'policy_version': selection['policy_version'], 'as_of': selection['as_of'],
-                'lanes': selection['lanes'], 'projection': selection.get('projection')}
+                'lanes': {lane: _decision_lane(decision) for lane, decision in selection['lanes'].items()}}
     if selection.get('recurring_contribution'):
         snapshot['recurring_contribution'] = selection['recurring_contribution']
     if selection.get('investment_policy'):

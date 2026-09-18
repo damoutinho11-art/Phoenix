@@ -3,9 +3,9 @@ import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTok
 import { getFinanceBriefHistory, postBriefAction, deleteBrief } from '../../../api/client'
 import { financeBody, financeButton, financeLabel, financeMicro } from './financeReadability'
 
-const STATUS_COLOR = { approved: G, pending: ACC, deferred: a(ACC, '66'), rejected: R }
-const STATUS_LABEL = { approved: 'APPROVED', pending: 'PENDING', deferred: 'DEFERRED', rejected: 'REJECTED' }
-const FILTERS = ['all', 'approved', 'pending', 'deferred', 'rejected']
+const STATUS_COLOR = { approved: G, pending: ACC, deferred: a(ACC, '66'), rejected: R, superseded: a(ACC, '44') }
+const STATUS_LABEL = { approved: 'APPROVED', pending: 'PENDING', deferred: 'DEFERRED', rejected: 'REJECTED', superseded: 'REPLACED' }
+const FILTERS = ['all', 'approved', 'pending', 'deferred', 'rejected', 'superseded']
 
 const eur = v => {
   const n = Number(v)
@@ -145,7 +145,7 @@ export function BriefHistoryContent() {
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         {FILTERS.map(k => (
-          <button key={k} onClick={() => setFilter(k)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: filter === k ? INK : a(ACC, 'cc'), background: filter === k ? ACC : deep(58), border: `1px solid ${a(ACC, filter === k ? '99' : '30')}`, cursor: 'pointer' }}>{k.toUpperCase()}</button>
+          <button key={k} onClick={() => setFilter(k)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: filter === k ? INK : a(ACC, 'cc'), background: filter === k ? ACC : deep(58), border: `1px solid ${a(ACC, filter === k ? '99' : '30')}`, cursor: 'pointer' }}>{(STATUS_LABEL[k] || k).toUpperCase()}</button>
         ))}
       </div>
 

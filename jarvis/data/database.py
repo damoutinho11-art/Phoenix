@@ -2387,6 +2387,47 @@ def save_brief(
         connection.close()
 
 
+def supersede_open_briefs(week_label: str, keep_id: int, domain: str = "finance") -> int:
+    """Mark other still-open (pending/deferred) briefs of one week as superseded.
+
+    A week has one live decision. Once a newer decision brief exists or one brief
+    is approved, older undecided briefs must not keep offering approval.
+    """
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE brief_history
+            SET status = 'superseded', user_action = 'superseded', user_action_at = ?
+            WHERE week_label = ? AND domain = ? AND id != ?
+              AND status IN ('pending', 'deferred')
+            """,
+            (_utc_now(), week_label, domain, keep_id),
+        )
+        connection.commit()
+        return int(cursor.rowcount)
+    finally:
+        connection.close()
+
+
+def get_approved_brief_for_week(week_label: str, domain: str = "finance") -> dict[str, Any] | None:
+    """Return the newest approved brief for one week, if any."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            """
+            SELECT * FROM brief_history
+            WHERE week_label = ? AND domain = ? AND status = 'approved'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (week_label, domain),
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        connection.close()
+
+
 def brief_exists_for_week(week_label: str, domain: str = "finance") -> bool:
     """Return True if a brief for this week + domain has already been saved."""
     connection = get_db()
@@ -3515,6 +3556,18 @@ def run_quality_gate_for_all() -> list[dict[str, Any]]:
         connection.close()
 
     return [evaluate_research_memo_quality(mid) for mid in memo_ids]
+
+
+def get_brief_by_id(brief_id: int) -> dict[str, Any] | None:
+    """Return one brief row by id, regardless of status or domain."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT * FROM brief_history WHERE id = ? LIMIT 1", (brief_id,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        connection.close()
 
 
 def brief_exists_by_id(brief_id: int) -> bool:

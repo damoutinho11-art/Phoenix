@@ -789,7 +789,7 @@ def _build_finance_recommendation(
             "safety": safety,
         }
         primary = recommendations[0] if recommendations else None
-        database.save_brief(
+        new_brief_id = database.save_brief(
             week_label=week_label,
             domain="finance",
             action="BUY" if recommendations else "HOLD",
@@ -800,6 +800,8 @@ def _build_finance_recommendation(
             full_brief_json=json.dumps({**response, **({'decision_replay_snapshot': result['decision_replay_snapshot']}
                 if selection else {})}, allow_nan=False),
         )
+        # The newer decision replaces older undecided briefs; they must not stay approvable.
+        database.supersede_open_briefs(week_label, new_brief_id)
 
     latest_brief = database.get_latest_brief_for_week(week_label, "finance")
     if selection and not brief_matches_decision(latest_brief, response):
@@ -1789,6 +1791,10 @@ def _brief_action(brief_id: int, status: str, user_action: str) -> dict:
     found = database.update_brief_status(brief_id, status, user_action)
     if not found:
         raise HTTPException(status_code=404, detail=f"Brief {brief_id} not found")
+    if status == "approved":
+        approved = database.get_brief_by_id(brief_id)
+        if approved:
+            database.supersede_open_briefs(approved["week_label"], brief_id, approved.get("domain") or "finance")
     week = _iso_week_label()
     return {
         "status": status,
