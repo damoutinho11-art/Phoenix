@@ -10,7 +10,7 @@ export const FINANCE_TEXT_SYSTEM = {
   micro: {
     ...smoothText,
     fontFamily: FM,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: '.12em',
     lineHeight: 1.45,
     color: a(ACC, '99'),
@@ -50,7 +50,7 @@ export const FINANCE_TEXT_SYSTEM = {
   button: {
     ...smoothText,
     fontFamily: FM,
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontWeight: 700,
     letterSpacing: '.14em',
     lineHeight: 1.2,

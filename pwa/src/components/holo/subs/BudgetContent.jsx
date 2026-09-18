@@ -70,7 +70,7 @@ function BreakdownGroup({ title, subtitle, rows, color }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-        <span style={financeLabel({ fontSize: 9, letterSpacing: '.16em', color: a(color, 'cc') })}>{title}</span>
+        <span style={financeLabel({ fontSize: 10, letterSpacing: '.16em', color: a(color, 'cc') })}>{title}</span>
         <span style={financeMicro({ color: a(ACC, '77'), textAlign: 'right' })}>{subtitle}</span>
       </div>
       <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(76) }}>
@@ -242,8 +242,8 @@ export function BudgetContent() {
       {/* month picker */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
-          <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ CASH POLICY</button>
+          <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, 'cc') }}>MONTHLY LEDGER</span>
+          <button onClick={() => setMode('memory')} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>⚙ CASH POLICY</button>
           {reviewState.status === 'ready' && reviewState.unresolvedCount > 0 && (
             <button type="button" onClick={() => setMode('reviewOther')} style={reviewOtherButtonStyle}>
               REVIEW OTHER · {reviewState.unresolvedCount} · {formatReviewMoney(reviewState.unresolvedAmountEur)}
@@ -255,7 +255,7 @@ export function BudgetContent() {
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <button aria-label="Previous budget month" onClick={prev} disabled={idx >= months.length - 1} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx >= months.length - 1 ? 'not-allowed' : 'pointer' }}>‹</button>
-          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, 'cc'), minWidth: 118, textAlign: 'center' }}>{fmtMonth(month)}</span>
+          <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.12em', color: a(ACC, 'cc'), minWidth: 118, textAlign: 'center' }}>{fmtMonth(month)}</span>
           <button aria-label="Next budget month" onClick={next} disabled={idx <= 0} style={{ minWidth: 30, minHeight: 30, fontFamily: FD, fontSize: 16, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: idx <= 0 ? 'not-allowed' : 'pointer' }}>›</button>
         </span>
       </div>
@@ -289,13 +289,13 @@ export function BudgetContent() {
       )}
 
       {loading && (
-        <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING LEDGER…</div>
+        <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING LEDGER…</div>
       )}
 
       {!loading && !hasData && (
         <div style={{ padding: '40px 18px', textAlign: 'center', border: `1px dashed ${a(ACC, '30')}`, background: deep(60) }}>
           <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: ACC, marginBottom: 8 }}>No transactions for {fmtMonth(month)}</div>
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), lineHeight: 1.7, marginBottom: 18 }}>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99'), lineHeight: 1.7, marginBottom: 18 }}>
             UPLOAD A STATEMENT TO POPULATE THIS MONTH.
           </div>
           <AddButton onClick={() => setMode('upload')} label="+ ADD TRANSACTIONS" />
@@ -306,8 +306,8 @@ export function BudgetContent() {
         <>
           <div style={{ textAlign: 'center', padding: '6px 0 4px' }}>
             <div style={{ fontFamily: FD, fontSize: 58, fontWeight: 700, lineHeight: 1, color: ACC, textShadow: `0 0 40px ${mix(ACC, 33)}` }}>{rate}%</div>
-            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 7 }}>SAVINGS RATE · TARGET 25%</div>
-            {!savingsGood && <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.15em', color: Y, marginTop: 4 }}>BELOW TARGET</div>}
+            <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 7 }}>SAVINGS RATE · TARGET 25%</div>
+            {!savingsGood && <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.15em', color: Y, marginTop: 4 }}>BELOW TARGET</div>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
@@ -323,7 +323,7 @@ export function BudgetContent() {
 
           {summary.insight && (
             <div style={{ marginTop: 16, padding: '12px 14px', background: deep(76), border: `1px solid ${a(ACC, '20')}`, borderLeft: `3px solid ${a(ACC, '99')}` }}>
-              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99'), marginBottom: 6 }}>PHOENIX ASSESSMENT</div>
+              <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99'), marginBottom: 6 }}>PHOENIX ASSESSMENT</div>
               <div style={{ fontFamily: FB, fontSize: 13, lineHeight: 1.6, color: mix(BODY, 90) }}>{summary.insight}</div>
             </div>
           )}
@@ -398,17 +398,17 @@ function UploadStage({ onDone, onCancel }) {
   }
 
   const inputTab = (id, label) => (
-    <button key={id} onClick={() => { setInput(id); setError(''); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
+    <button key={id} onClick={() => { setInput(id); setError(''); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: 1, minHeight: 40, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.18em', cursor: 'pointer', border: `1px solid ${input === id ? ACC : a(ACC, '30')}`, color: input === id ? INK : a(ACC, 'cc'), background: input === id ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(58) }}>{label}</button>
   )
-  const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
+  const parseBtnStyle = enabled => ({ width: '100%', marginTop: 12, minHeight: 44, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.16em', color: enabled ? INK : a(ACC, '77'), background: enabled ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${enabled ? ACC : a(ACC, '30')}`, cursor: enabled ? 'pointer' : 'not-allowed' })
   const reconciliation = useMemo(() => reconciliationView(quality, statementReceiptId), [quality, statementReceiptId])
   const saveBlocked = input === 'pdf' && (!reconciliation.canActivate || reuploadRequired)
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>{transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}</span>
-        <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
+        <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, 'cc') }}>{transactions ? 'REVIEW TRANSACTIONS' : 'ADD TRANSACTIONS'}</span>
+        <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
       </div>
 
       {!transactions ? (
@@ -420,18 +420,18 @@ function UploadStage({ onDone, onCancel }) {
 
           {input === 'pdf' ? (
             <>
-              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>UPLOAD A TEXT-BASED BANK PDF</div>
+              <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>UPLOAD A TEXT-BASED BANK PDF</div>
               <label htmlFor="holo-budget-pdf" style={{ display: 'block', padding: '26px 14px', textAlign: 'center', cursor: 'pointer', border: `1px ${pdfFile ? 'solid' : 'dashed'} ${a(ACC, pdfFile ? '60' : '30')}`, background: deep(pdfFile ? 66 : 55) }}>
                 <input id="holo-budget-pdf" type="file" accept="application/pdf,.pdf" onChange={e => { setPdfFile(e.target.files?.[0] || null); setError(''); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ display: 'none' }} />
                 <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, letterSpacing: '.14em', color: pdfFile ? W : a(ACC, '99'), marginBottom: 6 }}>{pdfFile ? pdfFile.name : 'TAP TO SELECT PDF'}</div>
-                <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.06em', color: a(ACC, '77'), lineHeight: 1.6 }}>Text-based PDFs only · max 8 MB · parsed, not stored</div>
+                <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.06em', color: a(ACC, '77'), lineHeight: 1.6 }}>Text-based PDFs only · max 8 MB · parsed, not stored</div>
               </label>
               {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginTop: 8 }}>{error}</div>}
               <button onClick={parsePdf} disabled={!pdfFile || parsing} style={parseBtnStyle(!!pdfFile && !parsing)}>{parsing ? 'EXTRACTING PDF…' : 'PARSE PDF TRANSACTIONS'}</button>
             </>
           ) : (
             <>
-              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>PASTE BANK TRANSACTIONS</div>
+              <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 8 }}>PASTE BANK TRANSACTIONS</div>
               <textarea value={raw} onChange={e => setRaw(e.target.value)} placeholder="Paste your statement text here…" className="phx-input" style={{ width: '100%', minHeight: 200, fontFamily: FM, fontSize: 12, padding: 12, resize: 'vertical', boxSizing: 'border-box' }} />
               {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginTop: 8 }}>{error}</div>}
               <button onClick={parseText} disabled={!raw.trim() || parsing} style={parseBtnStyle(!!raw.trim() && !parsing)}>{parsing ? 'PARSING…' : 'PARSE TRANSACTIONS'}</button>
@@ -440,7 +440,7 @@ function UploadStage({ onDone, onCancel }) {
         </>
       ) : (
         <>
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 10 }}>{transactions.length} TRANSACTIONS FOUND · REVIEW CATEGORY, FLOW, AND MONTH</div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 10 }}>{transactions.length} TRANSACTIONS FOUND · REVIEW CATEGORY, FLOW, AND MONTH</div>
           {quality && (
             <div style={{ padding: '11px 14px', marginBottom: 12, borderTop: `1px solid ${saveBlocked ? R : ACC}`, borderBottom: `1px solid ${a(saveBlocked ? R : ACC, '44')}`, background: deep(66) }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
@@ -467,7 +467,7 @@ function UploadStage({ onDone, onCancel }) {
                   <div style={financeLabel({ color: R })}>UNMATCHED STATEMENT ROWS</div>
                   <div style={{ maxHeight: 148, overflowY: 'auto', marginTop: 6 }}>
                     {reconciliation.unmatchedRows.map((row, index) => (
-                      <div key={`${row}-${index}`} style={{ padding: '6px 0', borderBottom: index < reconciliation.unmatchedRows.length - 1 ? `1px solid ${a(ACC, '12')}` : 'none', fontFamily: FM, fontSize: 9, lineHeight: 1.5, color: mix(BODY, 82), overflowWrap: 'anywhere' }}>{row}</div>
+                      <div key={`${row}-${index}`} style={{ padding: '6px 0', borderBottom: index < reconciliation.unmatchedRows.length - 1 ? `1px solid ${a(ACC, '12')}` : 'none', fontFamily: FM, fontSize: 10, lineHeight: 1.5, color: mix(BODY, 82), overflowWrap: 'anywhere' }}>{row}</div>
                     ))}
                   </div>
                 </div>
@@ -493,10 +493,10 @@ function UploadStage({ onDone, onCancel }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))', gap: 8, alignItems: 'end', marginTop: 10, paddingTop: 9, borderTop: `1px solid ${a(ACC, '10')}` }}>
                   <MemField label="CATEGORY · EDITABLE">
-                    <button aria-label={`Category for transaction ${i + 1}, ${t.merchant || 'unknown merchant'}, ${t.date || 'unknown date'}`} onClick={() => setPickerIdx(i)} style={{ width: '100%', minHeight: 34, padding: '5px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 9, letterSpacing: '.06em', cursor: 'pointer', overflowWrap: 'anywhere' }}>{t.category}</button>
+                    <button aria-label={`Category for transaction ${i + 1}, ${t.merchant || 'unknown merchant'}, ${t.date || 'unknown date'}`} onClick={() => setPickerIdx(i)} style={{ width: '100%', minHeight: 34, padding: '5px 8px', background: mix(catColor(t.category), 13), border: `1px solid ${mix(catColor(t.category), 33)}`, color: catColor(t.category), fontFamily: FM, fontSize: 10, letterSpacing: '.06em', cursor: 'pointer', overflowWrap: 'anywhere' }}>{t.category}</button>
                   </MemField>
                   <MemField label="FLOW · EDITABLE">
-                    <select aria-label={`Flow for transaction ${i + 1}, ${t.merchant || 'unknown merchant'}, ${t.date || 'unknown date'}`} className="phx-input" value={t.is_income ? '1' : '0'} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, is_income: Number(e.target.value) } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', fontFamily: FM, fontSize: 9 }}>
+                    <select aria-label={`Flow for transaction ${i + 1}, ${t.merchant || 'unknown merchant'}, ${t.date || 'unknown date'}`} className="phx-input" value={t.is_income ? '1' : '0'} onChange={e => setTransactions(prev => prev.map((item, row) => row === i ? { ...item, is_income: Number(e.target.value) } : item))} style={{ width: '100%', minWidth: 0, minHeight: 34, padding: '6px 8px', fontFamily: FM, fontSize: 10 }}>
                       <option value="0">OUTFLOW</option>
                       <option value="1">INFLOW</option>
                     </select>
@@ -510,8 +510,8 @@ function UploadStage({ onDone, onCancel }) {
           </div>
           {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginBottom: 10 }}>{error}</div>}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            <button onClick={() => { setTransactions(null); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: '1 1 120px', minHeight: 44, fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>{input === 'pdf' ? '← RE-PARSE PDF' : '← EDIT TEXT'}</button>
-            <button onClick={save} disabled={saving || saveBlocked} style={{ flex: '2 1 210px', minHeight: 44, padding: '0 10px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.14em', color: saveBlocked ? a(ACC, '66') : INK, background: saveBlocked ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${saveBlocked ? a(ACC, '30') : ACC}`, cursor: saving ? 'wait' : saveBlocked ? 'not-allowed' : 'pointer', boxShadow: saveBlocked ? 'none' : `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : input === 'pdf' ? reconciliation.canActivate ? 'SAVE & ACTIVATE AUTHORITY' : 'AUTHORITY BLOCKED' : 'SAVE LEDGER TRANSACTIONS'}</button>
+            <button onClick={() => { setTransactions(null); setQuality(null); setStatementReceiptId(null); setReuploadRequired(false) }} style={{ flex: '1 1 120px', minHeight: 44, fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, 'cc'), background: deep(58), border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>{input === 'pdf' ? '← RE-PARSE PDF' : '← EDIT TEXT'}</button>
+            <button onClick={save} disabled={saving || saveBlocked} style={{ flex: '2 1 210px', minHeight: 44, padding: '0 10px', fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.14em', color: saveBlocked ? a(ACC, '66') : INK, background: saveBlocked ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${saveBlocked ? a(ACC, '30') : ACC}`, cursor: saving ? 'wait' : saveBlocked ? 'not-allowed' : 'pointer', boxShadow: saveBlocked ? 'none' : `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING…' : input === 'pdf' ? reconciliation.canActivate ? 'SAVE & ACTIVATE AUTHORITY' : 'AUTHORITY BLOCKED' : 'SAVE LEDGER TRANSACTIONS'}</button>
           </div>
         </>
       )}
@@ -542,7 +542,7 @@ const withoutAuthorityPolicy = profile => Object.fromEntries(
 function MemField({ label, children }) {
   return (
     <label style={{ display: 'block' }}>
-      <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '88'), marginBottom: 6 }}>{label}</div>
+      <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '88'), marginBottom: 6 }}>{label}</div>
       {children}
     </label>
   )
@@ -553,7 +553,7 @@ function ChipRow({ items }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
       {items.map(c => (
-        <span key={c} style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 8px', border: `1px solid ${mix(catColor(c), 33)}`, color: catColor(c), background: mix(catColor(c), 10), fontFamily: FM, fontSize: 9, letterSpacing: '.06em' }}>{c}</span>
+        <span key={c} style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 8px', border: `1px solid ${mix(catColor(c), 33)}`, color: catColor(c), background: mix(catColor(c), 10), fontFamily: FM, fontSize: 10, letterSpacing: '.06em' }}>{c}</span>
       ))}
     </div>
   )
@@ -643,18 +643,18 @@ function MemoryStage({ onDone, onCancel }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, 'cc') }}>CASH POLICY</span>
+        <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, 'cc') }}>CASH POLICY</span>
         <span style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
-          <button onClick={save} disabled={saving || loading} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'SAVING…' : saveLabel}</button>
+          <button onClick={onCancel} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>← LEDGER</button>
+          <button onClick={save} disabled={saving || loading} style={{ minHeight: 30, padding: '0 12px', fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'SAVING…' : saveLabel}</button>
         </span>
       </div>
 
-      {loading && <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING CASH POLICY…</div>}
+      {loading && <div style={{ padding: '48px 0', textAlign: 'center', fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99') }}>LOADING CASH POLICY…</div>}
 
       {!loading && profile && (
         <>
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), marginBottom: 10 }}>CORE RULES</div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), marginBottom: 10 }}>CORE RULES</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
             <MemField label="SAVINGS TARGET %">
               <input className="phx-input" type="number" min="0" max="100" style={inputStyle} value={profile.savings_target_pct ?? 25} onChange={e => update({ savings_target_pct: Number(e.target.value || 0) })} />
@@ -672,7 +672,7 @@ function MemoryStage({ onDone, onCancel }) {
             </div>
           )}
 
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>AUTHORITY LIMITS</div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>AUTHORITY LIMITS</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(144px, 1fr))', gap: 10 }}>
             {AUTHORITY_NUMERIC_FIELDS.map(([key, label]) => (
               <MemField key={key} label={label}>
@@ -682,14 +682,14 @@ function MemoryStage({ onDone, onCancel }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', margin: '18px 0 9px' }}>
-            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc') }}>RECURRING BILL RESERVES</div>
-            <button type="button" onClick={addBill} style={{ minHeight: 32, padding: '0 11px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: a(ACC, 'dd'), background: deep(58), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>+ ADD BILL</button>
+            <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc') }}>RECURRING BILL RESERVES</div>
+            <button type="button" onClick={addBill} style={{ minHeight: 32, padding: '0 11px', fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: a(ACC, 'dd'), background: deep(58), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>+ ADD BILL</button>
           </div>
           <div style={{ borderTop: `1px solid ${a(ACC, '20')}` }}>
             {billDrafts.map((bill, index) => (
               <div key={index} style={{ padding: '11px 0', borderBottom: `1px solid ${a(ACC, '16')}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 9 }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 30, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: bill.enabled ? ACC : a(ACC, '77'), cursor: 'pointer' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 30, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: bill.enabled ? ACC : a(ACC, '77'), cursor: 'pointer' }}>
                     <input type="checkbox" checked={bill.enabled} onChange={e => updateBill(index, { enabled: e.target.checked })} style={{ width: 17, height: 17, accentColor: ACC }} />
                     {bill.enabled ? 'ENABLED' : 'DISABLED'}
                   </label>
@@ -711,7 +711,7 @@ function MemoryStage({ onDone, onCancel }) {
             {!billDrafts.length && <div style={{ padding: '12px 0', ...financeBody({ color: a(ACC, '88') }) }}>No recurring bill reserves configured.</div>}
           </div>
 
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CATEGORY LANES</div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>CATEGORY LANES</div>
           <div style={{ display: 'grid', gap: 12 }}>
             <MemField label="FIXED CATEGORIES">
               <input className="phx-input" style={inputStyle} value={fixed.join(', ')} onChange={e => updateList('fixed_categories', e.target.value)} />
@@ -729,29 +729,29 @@ function MemoryStage({ onDone, onCancel }) {
 
           {rules.length > 0 && (
             <>
-              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>MERCHANT MEMORY <span style={{ color: a(ACC, '77') }}>· {rules.length} RULES · READ ONLY</span></div>
+              <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 10px' }}>MERCHANT MEMORY <span style={{ color: a(ACC, '77') }}>· {rules.length} RULES · READ ONLY</span></div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {rules.map((rule, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '9px 11px', border: `1px solid ${a(ACC, '14')}`, background: deep(58) }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 5 }}>
-                        {(rule.contains || []).map(tok => <span key={tok} style={{ padding: '3px 7px', border: `1px solid ${a(ACC, '22')}`, color: mix(BODY, 80), fontFamily: FM, fontSize: 9 }}>{tok}</span>)}
+                        {(rule.contains || []).map(tok => <span key={tok} style={{ padding: '3px 7px', border: `1px solid ${a(ACC, '22')}`, color: mix(BODY, 80), fontFamily: FM, fontSize: 10 }}>{tok}</span>)}
                       </div>
-                      <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.12em', color: a(ACC, '77') }}>
+                      <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.12em', color: a(ACC, '77') }}>
                         {rule.is_income ? 'INCOME' : 'OUTFLOW'}{rule.fixed ? ' · FIXED' : ''}{rule.budget_month ? ' · ' + String(rule.budget_month).replace(/_/g, ' ').toUpperCase() : ''}
                       </div>
                     </div>
-                    <span style={{ flexShrink: 0, padding: '4px 8px', border: `1px solid ${mix(catColor(rule.category), 33)}`, color: catColor(rule.category), background: mix(catColor(rule.category), 10), fontFamily: FM, fontSize: 9 }}>{rule.category || 'Other'}</span>
+                    <span style={{ flexShrink: 0, padding: '4px 8px', border: `1px solid ${mix(catColor(rule.category), 33)}`, color: catColor(rule.category), background: mix(catColor(rule.category), 10), fontFamily: FM, fontSize: 10 }}>{rule.category || 'Other'}</span>
                   </div>
                 ))}
               </div>
             </>
           )}
 
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 8px' }}>ADVANCED NON-AUTHORITY MEMORY JSON <span style={{ color: a(ACC, '77') }}>· EDIT CAREFULLY</span></div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc'), margin: '16px 0 8px' }}>ADVANCED NON-AUTHORITY MEMORY JSON <span style={{ color: a(ACC, '77') }}>· EDIT CAREFULLY</span></div>
           <textarea className="phx-input" value={advancedDraft} spellCheck={false} onChange={e => { setAdvancedDraft(e.target.value); setError('') }} style={{ width: '100%', boxSizing: 'border-box', minHeight: 200, resize: 'vertical', fontFamily: FM, fontSize: 10, lineHeight: 1.55, padding: 11 }} />
           {error && <div style={{ marginTop: 10, color: R, fontFamily: FB, fontSize: 12 }}>{error}</div>}
-          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: '100%', minHeight: 44, padding: '0 12px', fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.14em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING CASH POLICY…' : saveLabel}</button>
+          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: '100%', minHeight: 44, padding: '0 12px', fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.14em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: saving ? 'wait' : 'pointer', boxShadow: `0 0 22px ${a(ACC, '33')}` }}>{saving ? 'SAVING CASH POLICY…' : saveLabel}</button>
         </>
       )}
     </div>
@@ -763,7 +763,7 @@ function CategoryPicker({ current, onChange, onClose }) {
     <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 82%, transparent)', backdropFilter: 'blur(6px)', zIndex: 120, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'holo-fadeIn .2s ease both' }}>
       <div style={{ width: '100%', maxWidth: 480, maxHeight: '70vh', overflowY: 'auto', padding: '18px 16px 28px', background: deep(94), borderTop: `1px solid ${a(ACC, '44')}` }}>
         <div style={{ width: 36, height: 3, background: a(ACC, '30'), margin: '0 auto 16px' }} />
-        <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99'), marginBottom: 12 }}>SELECT CATEGORY</div>
+        <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99'), marginBottom: 12 }}>SELECT CATEGORY</div>
         {ALL_CATEGORIES.map(cat => (
           <button key={cat} onClick={() => { onChange(cat); onClose() }} style={{ display: 'block', width: '100%', textAlign: 'left', minHeight: 42, padding: '10px 12px', background: cat === current ? a(ACC, '10') : 'transparent', border: 'none', borderBottom: `1px solid ${a(ACC, '10')}`, color: catColor(cat), fontSize: 14, fontFamily: FB, cursor: 'pointer' }}>{cat}</button>
         ))}

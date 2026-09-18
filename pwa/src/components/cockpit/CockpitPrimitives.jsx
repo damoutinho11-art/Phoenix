@@ -29,8 +29,7 @@ function HoloOverlay() {
     <>
       <div aria-hidden="true" style={{
         position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 60,
-        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 3px)',
-        animation: 'phCkScanDrift 1.4s linear infinite', mixBlendMode: 'screen',
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 3px)', mixBlendMode: 'screen',
       }} />
       <div aria-hidden="true" style={{
         position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 61,
@@ -39,7 +38,6 @@ function HoloOverlay() {
       <div aria-hidden="true" style={{
         position: 'absolute', left: 0, right: 0, height: '9%', top: '-12%', pointerEvents: 'none', zIndex: 62,
         background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--phx-accent) 6%, transparent), transparent)',
-        animation: 'phCkHoloSweep 7s linear infinite',
       }} />
     </>
   )
@@ -55,7 +53,7 @@ export function CockpitShell({
   return (
     <main
       className={classes('phx-cockpit-shell', className)}
-      style={{ '--phx-accent': accent, position: 'relative', animation: 'phCkFlicker 9s linear infinite', ...style }}
+      style={{ '--phx-accent': accent, position: 'relative', ...style }}
       {...props}
     >
       <div className="phx-cockpit-ambient" aria-hidden="true" />

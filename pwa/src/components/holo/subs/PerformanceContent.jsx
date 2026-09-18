@@ -171,10 +171,10 @@ export function PerformanceContent() {
   }, [])
 
   if (error) {
-    return <div style={{ padding: '20px 0', ...financeLabel({ fontSize: 9, color: R }) }}>UNABLE TO LOAD PERFORMANCE HISTORY</div>
+    return <div style={{ padding: '20px 0', ...financeLabel({ fontSize: 10, color: R }) }}>UNABLE TO LOAD PERFORMANCE HISTORY</div>
   }
   if (snaps === null) {
-    return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING REAL HISTORY…</div>
+    return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING REAL HISTORY…</div>
   }
 
   // snapshots are ordered newest-first by the API; chart wants oldest→newest.
@@ -188,7 +188,7 @@ export function PerformanceContent() {
         {ordered.length === 1 && (
           <div style={{ marginBottom: 22 }}>
             <div style={{ fontFamily: FD, fontSize: 44, fontWeight: 700, color: ACC, lineHeight: 1, textShadow: `0 0 34px ${a(ACC, '33')}` }}>{eurFull(ordered[0].total_value_eur)}</div>
-            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 8 }}>FIRST SNAPSHOT · {shortDate(ordered[0].created_at)}</div>
+            <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 8 }}>FIRST SNAPSHOT · {shortDate(ordered[0].created_at)}</div>
           </div>
         )}
         <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: ACC, marginBottom: 10 }}>
@@ -197,13 +197,13 @@ export function PerformanceContent() {
         <div style={{ maxWidth: 340, margin: '0 auto 20px', display: 'grid', gap: 7, textAlign: 'left' }}>
           {HOW_STEPS.map((step, i) => (
             <div key={i} style={{ display: 'flex', gap: 10, padding: '9px 12px', border: `1px solid ${a(ACC, '18')}`, background: deep(58) }}>
-              <span style={{ fontFamily: FM, fontSize: 9, color: ACC, flexShrink: 0 }}>{i + 1}.</span>
+              <span style={{ fontFamily: FM, fontSize: 10, color: ACC, flexShrink: 0 }}>{i + 1}.</span>
               <span style={financeBody({ fontSize: 13, color: mix(BODY, 84), lineHeight: 1.5 })}>{step}</span>
             </div>
           ))}
         </div>
         <div style={{ maxWidth: 340, margin: '0 auto', padding: '11px 14px', border: `1px solid ${mix(G, 24)}`, background: mix(G, 4), textAlign: 'left' }}>
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: G, marginBottom: 5 }}>REAL DATA ONLY</div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: G, marginBottom: 5 }}>REAL DATA ONLY</div>
           <div style={{ fontFamily: FB, fontSize: 12, fontWeight: 300, lineHeight: 1.55, color: mix(BODY, 80) }}>
             No trades executed, no simulated returns. The curve reflects only your recorded transactions.
           </div>
@@ -226,11 +226,11 @@ export function PerformanceContent() {
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontFamily: FD, fontSize: 40, fontWeight: 700, color: W, lineHeight: 1, textShadow: `0 0 30px ${a(ACC, '33')}` }}>{eurFull(last.total_value_eur)}</div>
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 6 }}>{isLiveLast ? 'TOTAL VALUE · LIVE PORTFOLIO STATE' : 'TOTAL VALUE · LATEST SNAPSHOT'}</div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99'), marginTop: 6 }}>{isLiveLast ? 'TOTAL VALUE · LIVE PORTFOLIO STATE' : 'TOTAL VALUE · LATEST SNAPSHOT'}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: deltaColor }}>{up ? '+' : '−'}{eurFull(Math.abs(delta)).replace('€', '€')}</div>
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: deltaColor }}>{up ? '+' : '−'}{Math.abs(pct).toFixed(2)}% · SINCE {shortDate(first.created_at)}</div>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: deltaColor }}>{up ? '+' : '−'}{Math.abs(pct).toFixed(2)}% · SINCE {shortDate(first.created_at)}</div>
         </div>
       </div>
 
@@ -242,7 +242,7 @@ export function PerformanceContent() {
         <StatTile label="SNAPSHOTS" value={String(recordedCount)} color={W} />
       </div>
 
-      <div style={{ marginTop: 12, fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '77'), textAlign: 'center' }}>
+      <div style={{ marginTop: 12, fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '77'), textAlign: 'center' }}>
         REAL RECORDED SNAPSHOTS + LIVE PORTFOLIO STATE · NO SIMULATED RETURNS
       </div>
     </div>

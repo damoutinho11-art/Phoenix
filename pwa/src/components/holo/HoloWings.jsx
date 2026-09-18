@@ -52,7 +52,7 @@ function AllocationOrbitPanel({ panel, big, mobile }) {
           ))}
         </defs>
         {/* faint counter-rotating guide ring for depth + motion */}
-        <circle cx={CX} cy={CY} r={R + THICK / 2 + 6} fill="none" stroke={a(ACC, '16')} strokeWidth="1" strokeDasharray="1.5 7" style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'holo-ringSpinRev 44s linear infinite' }} />
+        <circle cx={CX} cy={CY} r={R + THICK / 2 + 6} fill="none" stroke={a(ACC, '16')} strokeWidth="1" strokeDasharray="1.5 7" style={{ transformBox: 'fill-box', transformOrigin: 'center' }} />
         {/* machined bezel hairlines for depth */}
         <circle cx={CX} cy={CY} r={R + THICK / 2} fill="none" stroke={a(ACC, '20')} strokeWidth="1" />
         <circle cx={CX} cy={CY} r={R - THICK / 2} fill="none" stroke={a(ACC, '20')} strokeWidth="1" />
@@ -75,7 +75,7 @@ function AllocationOrbitPanel({ panel, big, mobile }) {
           />
         ))}
         {/* premium sheen — a soft light sweep orbiting the ring */}
-        <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'holo-ringSpin 7s linear infinite' }}>
+        <g style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
           <circle cx={CX} cy={CY} r={R} fill="none" stroke={a(W, '99')} strokeWidth={THICK * 0.86} strokeLinecap="round" strokeDasharray={`${(CIRC * 0.05).toFixed(1)} ${(CIRC * 0.95).toFixed(1)}`} style={{ filter: 'blur(3px)', mixBlendMode: 'screen' }} opacity={big ? 0.5 : 0.4} />
         </g>
         {/* hub */}
@@ -138,7 +138,7 @@ function ValueSeedPanel({ panel, big, mobile }) {
         <line x1="20" x2="30" y1="26" y2="26" stroke={ACC} strokeWidth="2" strokeLinecap="round" />
         <line x1="30" x2="140" y1="26" y2="26" stroke={`url(#${gid}-proj)`} strokeWidth="1.4" strokeDasharray="2 6" />
         {/* the one recorded point */}
-        <circle cx="24" cy="26" r={readable ? 4.4 : 3.4} fill={`url(#${gid}-core)`} style={{ filter: `drop-shadow(0 0 9px ${ACC})`, animation: 'holo-corePulse 2.1s ease-in-out infinite' }} />
+        <circle cx="24" cy="26" r={readable ? 4.4 : 3.4} fill={`url(#${gid}-core)`} style={{ filter: `drop-shadow(0 0 9px ${ACC})` }} />
         {/* where snapshot 2 will land */}
         <circle cx="140" cy="26" r={readable ? 3 : 2.4} fill="none" stroke={a(ACC, '55')} strokeWidth="1.2" strokeDasharray="2 2" />
         <text x="140" y={readable ? 16 : 15} textAnchor="end" fontFamily={FM} fontSize={readable ? 7.5 : 6.5} letterSpacing=".1em" fill={a(ACC, '77')}>NEXT</text>
@@ -260,17 +260,17 @@ function WingPanel({ panel, tilt, float, delay, mobile, onFocus }) {
     <section style={{ minWidth: mobile ? 'min(74vw, 300px)' : 'auto', scrollSnapAlign: mobile ? 'center' : 'none', animation: 'holo-in .6s cubic-bezier(.2,.8,.4,1) both', animationDelay: delay }}>
       <div className="holo-wing-tilt" style={{ '--tilt': tilt }} onClick={onFocus}>
         <div style={{ position: 'relative', overflow: 'hidden', textRendering: 'geometricPrecision', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', border: `1px solid ${a(ACC, '30')}`, background: `linear-gradient(180deg, ${a(ACC, '14')}, ${deep(62)})`, backdropFilter: 'blur(6px)', boxShadow: `0 0 34px ${a(ACC, '1f')}, inset 0 0 26px ${a(ACC, '0a')}`, padding: '11px 13px 10px', clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)', animation: `${float} 7.5s ease-in-out infinite` }}>
-          <div style={{ position: 'absolute', left: 0, right: 0, height: '26%', background: `linear-gradient(180deg, transparent, ${a(ACC, '12')}, transparent)`, animation: 'holo-panelSweep 5.5s linear infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, height: '26%', background: `linear-gradient(180deg, transparent, ${a(ACC, '12')}, transparent)`, pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', top: 3, right: 3, width: 17, height: 1, background: ACC, transform: 'rotate(-45deg)', transformOrigin: '100% 0' }} />
           <div style={{ position: 'absolute', top: -1, left: -1, width: 9, height: 9, borderTop: `1px solid ${ACC}`, borderLeft: `1px solid ${ACC}` }} />
           <div style={{ position: 'absolute', bottom: -1, left: -1, width: 9, height: 9, borderBottom: `1px solid ${ACC}`, borderLeft: `1px solid ${ACC}` }} />
           <div style={{ position: 'absolute', bottom: -1, right: -1, width: 9, height: 9, borderBottom: `1px solid ${ACC}`, borderRight: `1px solid ${ACC}` }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingRight: 10 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '8.5px', letterSpacing: '.26em', color: ACC, textShadow: `0 0 9px ${a(ACC, '66')}` }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '10px', letterSpacing: '.26em', color: ACC, textShadow: `0 0 9px ${a(ACC, '66')}` }}>
               <i style={{ width: 4, height: 4, background: 'currentColor', boxShadow: '0 0 6px currentColor' }} />
               {panel.code}
             </span>
-            <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.12em', color: a(ACC, '99') }}>{panel.meta}</span>
+            <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.12em', color: a(ACC, '99') }}>{panel.meta}</span>
           </div>
           <div style={{ height: 1, background: `linear-gradient(90deg, ${a(ACC, '77')}, transparent)`, marginBottom: 4 }} />
           <PanelBody panel={panel} />
@@ -283,10 +283,10 @@ function WingPanel({ panel, tilt, float, delay, mobile, onFocus }) {
 function Readout({ list }) {
   return (
     <div style={{ width: '100%', maxWidth: 176, animation: 'holo-in .5s cubic-bezier(.2,.8,.4,1) .42s both' }}>
-      <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.3em', color: a(ACC, 'cc'), marginBottom: 8, textShadow: `0 0 8px ${a(ACC, '66')}` }}>SYS.READOUT</div>
+      <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.3em', color: a(ACC, 'cc'), marginBottom: 8, textShadow: `0 0 8px ${a(ACC, '66')}` }}>SYS.READOUT</div>
       {list.map((ro, i) => (
         <div key={i} style={{ marginBottom: 7 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: mix(BODY, 55), marginBottom: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: mix(BODY, 55), marginBottom: 2 }}>
             <span>{ro.k}</span><span style={{ color: TEXT }}>{ro.v}</span>
           </div>
           <div style={{ height: 2, background: a(ACC, '1a') }}>
@@ -301,11 +301,11 @@ function Readout({ list }) {
 function Feed({ list }) {
   return (
     <div style={{ width: '100%', maxWidth: 196, alignSelf: 'flex-end', animation: 'holo-in .5s cubic-bezier(.2,.8,.4,1) .48s both' }}>
-      <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.3em', color: a(ACC, 'cc'), marginBottom: 8, textAlign: 'right', textShadow: `0 0 8px ${a(ACC, '66')}` }}>EVENT.FEED</div>
+      <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.3em', color: a(ACC, 'cc'), marginBottom: 8, textAlign: 'right', textShadow: `0 0 8px ${a(ACC, '66')}` }}>EVENT.FEED</div>
       {list.map((fd, i) => (
         <div key={i} style={{ display: 'flex', gap: 7, alignItems: 'baseline', justifyContent: 'flex-end', padding: '3.5px 0', borderBottom: `1px solid ${a(ACC, '12')}` }}>
-          <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.06em', color: feedColor(fd.tone), textAlign: 'right' }}>{fd.msg}</span>
-          <span style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), flexShrink: 0 }}>{fd.t}</span>
+          <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.06em', color: feedColor(fd.tone), textAlign: 'right' }}>{fd.msg}</span>
+          <span style={{ fontFamily: FM, fontSize: 10, color: a(ACC, '99'), flexShrink: 0 }}>{fd.t}</span>
         </div>
       ))}
     </div>

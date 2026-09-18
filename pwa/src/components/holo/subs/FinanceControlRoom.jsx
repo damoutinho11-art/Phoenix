@@ -264,7 +264,7 @@ function RoomStage({ label, color = ACC, immersive = false, children }) {
     <div style={{ position: 'relative', minHeight: immersive ? 'min(560px, 62vh)' : 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ width: 36, height: 1, background: `linear-gradient(90deg, transparent, ${a(color, '88')})` }} />
-        <span style={financeLabel({ fontSize: 9, letterSpacing: '.18em', color: a(color, 'cc') })}>{label}</span>
+        <span style={financeLabel({ fontSize: 10, letterSpacing: '.18em', color: a(color, 'cc') })}>{label}</span>
         <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${a(color, '66')}, transparent)` }} />
       </div>
       <div style={{ position: 'relative', border: immersive ? 'none' : `1px solid ${a(color, '20')}`, background: immersive ? 'transparent' : `linear-gradient(180deg, ${a(color, '06')}, ${deep(76)})`, padding: immersive ? 0 : 12, boxShadow: immersive ? 'none' : `inset 0 0 34px ${a(color, '06')}` }}>

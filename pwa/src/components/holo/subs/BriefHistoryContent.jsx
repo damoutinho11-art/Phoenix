@@ -59,7 +59,7 @@ function Detail({ brief, onActed, onDeleted }) {
       </div>
       {recs.length > 0 && (
         <div style={{ padding: '9px 11px', border: `1px solid ${a(ACC, '18')}`, marginBottom: 10 }}>
-          <div style={{ ...financeLabel({ fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 7 }}>RECOMMENDATION LINES</div>
+          <div style={{ ...financeLabel({ fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 7 }}>RECOMMENDATION LINES</div>
           {recs.map((r, i) => (
             <div key={i} style={{ padding: '6px 0', borderTop: i ? `1px solid ${a(ACC, '10')}` : 'none', fontFamily: FM, fontSize: 10, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
               <span style={{ color: W }}>{String(r.asset).toUpperCase()}</span>
@@ -72,7 +72,7 @@ function Detail({ brief, onActed, onDeleted }) {
       )}
       {(brief.outcome_pct != null || brief.outcome_note) && (
         <div style={{ padding: '9px 11px', border: `1px solid ${a(ACC, '18')}`, marginBottom: 10 }}>
-          <div style={{ ...financeLabel({ fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 5 }}>OUTCOME</div>
+          <div style={{ ...financeLabel({ fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 5 }}>OUTCOME</div>
           {brief.outcome_pct != null && (
             <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 700, color: brief.outcome_pct >= 0 ? G : R, marginBottom: 4 }}>{brief.outcome_pct >= 0 ? '+' : ''}{Number(brief.outcome_pct).toFixed(2)}%</div>
           )}
@@ -81,11 +81,11 @@ function Detail({ brief, onActed, onDeleted }) {
       )}
       {brief.thesis && (
         <div style={{ border: `1px solid ${a(ACC, '18')}`, borderLeft: `3px solid ${a(ACC, '99')}`, padding: '11px 12px', marginBottom: 10 }}>
-          <div style={{ ...financeLabel({ fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 6 }}>THESIS</div>
+          <div style={{ ...financeLabel({ fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 6 }}>THESIS</div>
           <div style={financeBody({ fontSize: 13, lineHeight: 1.65, color: mix(BODY, 88) })}>{brief.thesis}</div>
         </div>
       )}
-      {err && <div style={{ color: R, fontFamily: FM, fontSize: 9, marginBottom: 8 }}>{err}</div>}
+      {err && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginBottom: 8 }}>{err}</div>}
       {canAct && (
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => act('defer')} disabled={busy} style={{ flex: 1, minHeight: 38, ...financeButton({ fontWeight: 400, color: mix(BODY, 80) }), background: deep(50), border: `1px solid ${a(ACC, '30')}`, cursor: busy ? 'wait' : 'pointer' }}>DEFER</button>
@@ -123,8 +123,8 @@ export function BriefHistoryContent() {
     return () => { alive = false }
   }, [])
 
-  if (error) return <div style={{ padding: '20px 0', ...financeLabel({ fontSize: 9, color: R }) }}>UNABLE TO LOAD BRIEF HISTORY</div>
-  if (briefs === null) return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING…</div>
+  if (error) return <div style={{ padding: '20px 0', ...financeLabel({ fontSize: 10, color: R }) }}>UNABLE TO LOAD BRIEF HISTORY</div>
+  if (briefs === null) return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING…</div>
 
   const list = briefs
   const filtered = filter === 'all' ? list : list.filter(b => b.status === filter)
@@ -137,7 +137,7 @@ export function BriefHistoryContent() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
         {[['TOTAL', total, ACC], ['APPROVED', approved, G], ['REJECTED', rejected, Y]].map(([l, v, c]) => (
           <div key={l} style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(58), padding: '10px 12px', textAlign: 'center' }}>
-            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 4 }}>{l}</div>
+            <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99'), marginBottom: 4 }}>{l}</div>
             <div style={{ fontFamily: FD, fontSize: 18, fontWeight: 700, color: c }}>{v}</div>
           </div>
         ))}
@@ -145,12 +145,12 @@ export function BriefHistoryContent() {
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         {FILTERS.map(k => (
-          <button key={k} onClick={() => setFilter(k)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: filter === k ? INK : a(ACC, 'cc'), background: filter === k ? ACC : deep(58), border: `1px solid ${a(ACC, filter === k ? '99' : '30')}`, cursor: 'pointer' }}>{(STATUS_LABEL[k] || k).toUpperCase()}</button>
+          <button key={k} onClick={() => setFilter(k)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: filter === k ? INK : a(ACC, 'cc'), background: filter === k ? ACC : deep(58), border: `1px solid ${a(ACC, filter === k ? '99' : '30')}`, cursor: 'pointer' }}>{(STATUS_LABEL[k] || k).toUpperCase()}</button>
         ))}
       </div>
 
-      {list.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99') }}>NO REAL BRIEF HISTORY YET</div>}
-      {list.length > 0 && filtered.length === 0 && <div style={{ padding: '30px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99') }}>NO BRIEFS IN THIS CATEGORY</div>}
+      {list.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }}>NO REAL BRIEF HISTORY YET</div>}
+      {list.length > 0 && filtered.length === 0 && <div style={{ padding: '30px 0', textAlign: 'center', fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }}>NO BRIEFS IN THIS CATEGORY</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.map(b => {
@@ -162,18 +162,18 @@ export function BriefHistoryContent() {
               <div onClick={() => setOpen(isOpen ? null : b.id)} style={{ padding: '11px 13px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-                    <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99') }}>{b.week_label}</span>
-                    <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: '.16em', padding: '2px 7px', border: `1px solid ${mix(G, 35)}`, color: G, background: mix(G, 7) }}>{b.action || '—'}</span>
+                    <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99') }}>{b.week_label}</span>
+                    <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: '.16em', padding: '2px 7px', border: `1px solid ${mix(G, 35)}`, color: G, background: mix(G, 7) }}>{b.action || '—'}</span>
                     <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, lineHeight: 1, overflowWrap: 'anywhere' }}>{label}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                     {b.outcome_pct != null
                       ? <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 600, color: b.outcome_pct >= 0 ? G : R }}>{b.outcome_pct >= 0 ? '+' : ''}{Number(b.outcome_pct).toFixed(2)}%</span>
                       : <span style={{ fontFamily: FM, fontSize: 12, color: a(ACC, '99') }}>—</span>}
-                    <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', padding: '2px 6px', border: `1px solid ${a(ACC, '18')}`, color: sc }}>{STATUS_LABEL[b.status] || b.status}</span>
+                    <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', padding: '2px 6px', border: `1px solid ${a(ACC, '18')}`, color: sc }}>{STATUS_LABEL[b.status] || b.status}</span>
                   </div>
                 </div>
-                <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '55'), letterSpacing: '.1em', marginTop: 5 }}>{day(b.created_at)}</div>
+                <div style={{ fontFamily: FM, fontSize: 10, color: a(ACC, '55'), letterSpacing: '.1em', marginTop: 5 }}>{day(b.created_at)}</div>
               </div>
               {isOpen && (
                 <Detail

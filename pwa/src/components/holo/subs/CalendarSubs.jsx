@@ -33,11 +33,11 @@ export function TodaySub({ onClose, clock, rail }) {
           {ticks.map((tk, i) => (
             <div key={i}>
               <div style={{ position: 'absolute', left: 44, right: 0, top: tk.top, height: 1, background: tk.bg }} />
-              <div style={{ position: 'absolute', left: 0, top: tk.top, transform: 'translateY(-50%)', fontFamily: FM, fontSize: 7, letterSpacing: '.1em', color: tk.c }}>{tk.label}</div>
+              <div style={{ position: 'absolute', left: 0, top: tk.top, transform: 'translateY(-50%)', fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: tk.c }}>{tk.label}</div>
             </div>
           ))}
           {isLive && rail.empty && (
-            <div style={{ position: 'absolute', left: 56, right: 8, top: '42%', border: `1px dashed ${a(ACC, '30')}`, padding: '14px 0', textAlign: 'center', fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: a(ACC, '99') }}>
+            <div style={{ position: 'absolute', left: 56, right: 8, top: '42%', border: `1px dashed ${a(ACC, '30')}`, padding: '14px 0', textAlign: 'center', fontFamily: FM, fontSize: 10, letterSpacing: '.22em', color: a(ACC, '99') }}>
               {rail.verified ? 'NO EVENTS TODAY - VERIFIED WINDOW' : 'SCHEDULE UNCONFIRMED - CHECK PLAAN'}
             </div>
           )}
@@ -45,20 +45,20 @@ export function TodaySub({ onClose, clock, rail }) {
             <div key={i} className="phx-tap" style={{ position: 'absolute', left: 56, right: 8, top: (((bl.s - 7) / 15) * 100).toFixed(1) + '%', height: (((bl.e - bl.s) / 15) * 100).toFixed(1) + '%', borderLeft: `2px solid ${bl.c}`, background: `linear-gradient(90deg, ${mix(bl.c, 11)}, ${mix(bl.c, 3)})`, padding: '7px 11px', overflow: 'hidden', boxShadow: `inset 0 0 24px ${mix(bl.c, 4)}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                 <span style={{ fontFamily: FB, fontSize: '16.5px', fontWeight: 400, color: W, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bl.n}</span>
-                <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.1em', color: bl.c, whiteSpace: 'nowrap' }}>{bl.time}</span>
+                <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: bl.c, whiteSpace: 'nowrap' }}>{bl.time}</span>
               </div>
-              <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.12em', color: a(ACC, '99'), marginTop: 2 }}>{bl.m}</div>
+              <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.12em', color: a(ACC, '99'), marginTop: 2 }}>{bl.m}</div>
             </div>
           ))}
           {!isLive && (
             <div style={{ position: 'absolute', left: 56, right: 8, top: (((17 - 7) / 15) * 100).toFixed(1) + '%', height: (((18.5 - 17) / 15) * 100).toFixed(1) + '%', border: `1px dashed ${mix(Y, 33)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: Y, background: deep(80), padding: '2px 8px' }}>TRANSIT 60M + WARM-UP — 30M SLACK · TIGHT</span>
+              <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: Y, background: deep(80), padding: '2px 8px' }}>TRANSIT 60M + WARM-UP — 30M SLACK · TIGHT</span>
             </div>
           )}
           {nowVisible && (
             <div style={{ position: 'absolute', left: 40, right: 0, top: nowTop, zIndex: 3 }}>
               <div style={{ height: 1, background: G, boxShadow: `0 0 10px ${G}` }} />
-              <span style={{ position: 'absolute', right: 0, top: -16, fontFamily: FM, fontSize: '6.5px', letterSpacing: '.16em', color: G }}>NOW {clock}</span>
+              <span style={{ position: 'absolute', right: 0, top: -16, fontFamily: FM, fontSize: '10px', letterSpacing: '.16em', color: G }}>NOW {clock}</span>
               <i style={{ position: 'absolute', left: -3, top: -2.5, width: 6, height: 6, borderRadius: '50%', background: G, boxShadow: `0 0 8px ${G}` }} />
             </div>
           )}
@@ -66,19 +66,19 @@ export function TodaySub({ onClose, clock, rail }) {
         <div style={{ flex: 1, minWidth: 240 }}>
           {stats.map((ds, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '9px 0', borderBottom: `1px solid ${a(ACC, '14')}` }}>
-              <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: a(ACC, '99') }}>{ds.k}</span>
+              <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }}>{ds.k}</span>
               <span style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, color: ds.c }}>{ds.v}</span>
             </div>
           ))}
           {!isLive && (
             <div style={{ marginTop: 14, border: `1px solid ${mix(R, 27)}`, background: mix(R, 5), padding: '12px 14px' }}>
-              <div style={{ fontFamily: FM, fontSize: '8.5px', letterSpacing: '.22em', color: R, marginBottom: 6 }}>⚠ PRESSURE POINT</div>
+              <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.22em', color: R, marginBottom: 6 }}>⚠ PRESSURE POINT</div>
               <div style={{ fontFamily: FB, fontSize: 15, fontWeight: 300, lineHeight: 1.5, color: mix(BODY, 84) }}>
                 Training ends 17:00; evening rehearsal calls at 18:30 across town. After transit and warm-up you hold 30 minutes of slack — pack the concert bag before the gym.
               </div>
             </div>
           )}
-          <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.14em', color: a(ACC, '99'), marginTop: 12, lineHeight: 1.8 }}>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99'), marginTop: 12, lineHeight: 1.8 }}>
             READ ONLY — MIRRORS PLAAN SNAPSHOT{isLive ? '' : ' · JUL 10 08:12'}<br />PHOENIX NEVER EDITS YOUR CALENDARS
           </div>
         </div>
@@ -114,12 +114,12 @@ export function WeekMapSub({ onClose, calendar }) {
       <div style={{ display: 'flex', gap: 9 }}>
         <div style={{ width: 30, flexShrink: 0, paddingTop: 24 }}>
           {hours.map((label, i) => (
-            <div key={i} style={{ height: 16, marginBottom: 3, fontFamily: FM, fontSize: '6.5px', letterSpacing: '.08em', color: a(ACC, '99'), display: 'flex', alignItems: 'center' }}>{label}</div>
+            <div key={i} style={{ height: 16, marginBottom: 3, fontFamily: FM, fontSize: '10px', letterSpacing: '.08em', color: a(ACC, '99'), display: 'flex', alignItems: 'center' }}>{label}</div>
           ))}
         </div>
         {days.map(dy => (
           <div key={dy.name} style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ textAlign: 'center', fontFamily: FM, fontSize: 8, letterSpacing: '.18em', color: dy.hColor, marginBottom: 8, height: 16 }}>{dy.name}</div>
+            <div style={{ textAlign: 'center', fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: dy.hColor, marginBottom: 8, height: 16 }}>{dy.name}</div>
             {dy.cells.map((cl, i) => (
               <div key={i} style={{ height: 16, marginBottom: 3, background: cl.bg, border: `1px solid ${cl.bd}`, boxShadow: cl.sh }} />
             ))}
@@ -129,12 +129,12 @@ export function WeekMapSub({ onClose, calendar }) {
       </div>
       <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 16, borderTop: `1px solid ${a(ACC, '1a')}`, paddingTop: 12, flexWrap: 'wrap' }}>
         {legend.map(([label, c]) => (
-          <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '7.5px', letterSpacing: '.16em', color: a(ACC, '99') }}>
+          <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '10px', letterSpacing: '.16em', color: a(ACC, '99') }}>
             <i style={{ width: 10, height: 10, background: c, boxShadow: `0 0 8px ${c}` }} />
             {label}
           </span>
         ))}
-        <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.16em', color: Y }}>PLAAN WINDOW - EUROPE/TALLINN</span>
+        <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.16em', color: Y }}>PLAAN WINDOW - EUROPE/TALLINN</span>
       </div>
     </SubShell>
   )
@@ -148,9 +148,9 @@ export function FeedsSub({ onClose, lanes }) {
     <SubShell subKey="feeds" onClose={onClose} meta={lanes ? `${lanes.length} SOURCES · READ ONLY` : undefined}>
       <div style={{ display: 'flex', gap: 18, alignItems: 'stretch', flexWrap: 'wrap' }}>
         <div style={{ width: 180, flexShrink: 0, alignSelf: 'center', border: `1px solid ${a(ACC, '55')}`, background: `linear-gradient(180deg, ${a(ACC, '16')}, ${deep(70)})`, padding: '16px 15px', textAlign: 'center', boxShadow: `0 0 34px ${a(ACC, '1f')}`, clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)', margin: '0 auto' }}>
-          <div style={{ width: 40, height: 40, margin: '0 auto 9px', borderRadius: '50%', border: `1px solid ${a(ACC, '66')}`, background: `radial-gradient(circle, ${a(ACC, '44')} 0%, transparent 70%)`, boxShadow: `0 0 22px ${a(ACC, '66')}`, animation: 'holo-corePulse 3.6s ease-in-out infinite' }} />
-          <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.22em', color: ACC, textShadow: `0 0 10px ${a(ACC, '66')}` }}>PHOENIX<br />CAL CORE</div>
-          <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.14em', color: a(ACC, '99'), marginTop: 7 }}>READ ONLY<br />SOURCE STATUS</div>
+          <div style={{ width: 40, height: 40, margin: '0 auto 9px', borderRadius: '50%', border: `1px solid ${a(ACC, '66')}`, background: `radial-gradient(circle, ${a(ACC, '44')} 0%, transparent 70%)`, boxShadow: `0 0 22px ${a(ACC, '66')}` }} />
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.22em', color: ACC, textShadow: `0 0 10px ${a(ACC, '66')}` }}>PHOENIX<br />CAL CORE</div>
+          <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: a(ACC, '99'), marginTop: 7 }}>READ ONLY<br />SOURCE STATUS</div>
         </div>
         <div style={{ flex: 1, minWidth: 300, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 12 }}>
           {LANES.map((ln, i) => {
@@ -162,14 +162,14 @@ export function FeedsSub({ onClose, lanes }) {
                 </div>
                 <div style={{ width: 230, flexShrink: 0, border: `1px solid ${bd}`, background: deep(60), padding: '11px 13px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '8.5px', letterSpacing: '.18em', color: ln.c }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '10px', letterSpacing: '.18em', color: ln.c }}>
                       <i style={{ width: 4, height: 4, background: 'currentColor', boxShadow: '0 0 6px currentColor' }} />
                       {ln.name}
                     </span>
-                    <span style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.16em', color: ln.c, border: `1px solid ${bd}`, padding: '2px 7px' }}>{ln.st}</span>
+                    <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: ln.c, border: `1px solid ${bd}`, padding: '2px 7px' }}>{ln.st}</span>
                   </div>
                   {[['LAST SYNC', ln.sync], ...(ln.checked ? [['CHECKED', ln.checked]] : []), ['SCOPE', ln.scope]].map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FM, fontSize: 7, letterSpacing: '.08em', color: a(ACC, '99'), padding: '3px 0', borderTop: `1px solid ${a(ACC, '12')}` }}>
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FM, fontSize: 10, letterSpacing: '.08em', color: a(ACC, '99'), padding: '3px 0', borderTop: `1px solid ${a(ACC, '12')}` }}>
                       <span>{k}</span><span style={{ color: W }}>{v}</span>
                     </div>
                   ))}
@@ -181,7 +181,7 @@ export function FeedsSub({ onClose, lanes }) {
           })}
         </div>
       </div>
-      <div style={{ textAlign: 'center', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.18em', color: a(ACC, '99'), marginTop: 16, borderTop: `1px solid ${a(ACC, '1a')}`, paddingTop: 12 }}>
+      <div style={{ textAlign: 'center', fontFamily: FM, fontSize: '10px', letterSpacing: '.18em', color: a(ACC, '99'), marginTop: 16, borderTop: `1px solid ${a(ACC, '1a')}`, paddingTop: 12 }}>
         NO WRITE CLIENT SHIPPED — PHOENIX READS, NEVER EDITS YOUR CALENDARS
       </div>
     </SubShell>

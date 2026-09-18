@@ -20,8 +20,8 @@ export default function SubShell({ subKey, onClose, meta: metaOverride, children
               {crumb}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '99'), whiteSpace: 'nowrap' }}>{meta}</span>
-              <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: a(ACC, '99'), border: `1px solid ${a(ACC, '30')}`, padding: '3px 7px' }}>ESC</span>
+              <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99'), whiteSpace: 'nowrap' }}>{meta}</span>
+              <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: a(ACC, '99'), border: `1px solid ${a(ACC, '30')}`, padding: '3px 7px' }}>ESC</span>
               <button onClick={onClose} style={{ minWidth: 34, minHeight: 30, fontFamily: FM, fontSize: 11, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>✕</button>
             </span>
           </div>
@@ -37,7 +37,7 @@ export default function SubShell({ subKey, onClose, meta: metaOverride, children
 
 // shared mono section label ("PRE-FLIGHT CHECKS — TAP TO VERIFY")
 export function SubLabel({ children, style }) {
-  return <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.3em', color: a(ACC, '99'), marginBottom: 10, ...style }}>{children}</div>
+  return <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.3em', color: a(ACC, '99'), marginBottom: 10, ...style }}>{children}</div>
 }
 
 // shared progress-ring + centered value (approval / meal / session / sleep)
@@ -51,7 +51,7 @@ export function RingGauge({ r, box, size, stroke, strokeW, offset, dash, big, bi
       </svg>
       <div style={{ marginTop: pullUp[0], marginBottom: pullUp[1] }}>
         <div style={{ fontFamily: 'var(--phx-font-display)', fontWeight: 700, color: 'var(--phx-text)', ...bigStyle }}>{big}</div>
-        <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.26em', color: subColor || a(ACC, '99'), marginTop: 2, ...subStyle }}>{sub}</div>
+        <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.26em', color: subColor || a(ACC, '99'), marginTop: 2, ...subStyle }}>{sub}</div>
       </div>
     </>
   )

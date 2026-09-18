@@ -168,7 +168,7 @@ export function LogMealSub({ onClose, onLog, budget }) {
   ]
 
   const tabStyle = on => ({
-    flex: 1, minHeight: 34, fontFamily: FM, fontSize: 8, letterSpacing: '.18em',
+    flex: 1, minHeight: 34, fontFamily: FM, fontSize: 10, letterSpacing: '.18em',
     color: on ? INK : a(ACC, '99'), background: on ? ACC : deep(55),
     border: `1px solid ${a(ACC, on ? 'aa' : '2a')}`, cursor: 'pointer',
   })
@@ -202,13 +202,13 @@ export function LogMealSub({ onClose, onLog, budget }) {
                 </SubLabel>
                 <button
                   onClick={() => { setScannerOpen(o => !o); setScanState('') }}
-                  style={{ minHeight: 28, padding: '0 11px', fontFamily: FM, fontSize: 8, letterSpacing: '.18em', color: scannerOpen ? INK : ACC, background: scannerOpen ? ACC : deep(55), border: `1px solid ${a(ACC, '55')}`, cursor: 'pointer', marginBottom: 10, whiteSpace: 'nowrap' }}
+                  style={{ minHeight: 28, padding: '0 11px', fontFamily: FM, fontSize: 10, letterSpacing: '.18em', color: scannerOpen ? INK : ACC, background: scannerOpen ? ACC : deep(55), border: `1px solid ${a(ACC, '55')}`, cursor: 'pointer', marginBottom: 10, whiteSpace: 'nowrap' }}
                 >
                   ▣ SCAN
                 </button>
               </div>
               {scanState && (
-                <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: Y, marginBottom: 8 }}>{scanState}</div>
+                <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: Y, marginBottom: 8 }}>{scanState}</div>
               )}
               {scannerOpen && (
                 <div style={{ marginBottom: 10 }}>
@@ -222,7 +222,7 @@ export function LogMealSub({ onClose, onLog, budget }) {
                 style={{ ...fieldStyle, fontSize: 15, marginBottom: 10 }}
               />
               {linkDown && (
-                <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: R, marginBottom: 8 }}>
+                <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: R, marginBottom: 8 }}>
                   FOOD BRAIN UNREACHABLE — USE CUSTOM
                 </div>
               )}
@@ -231,9 +231,9 @@ export function LogMealSub({ onClose, onLog, budget }) {
                   <div style={rowStyle(true)}>
                     <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
                       <span style={{ fontFamily: FB, fontSize: 15, color: 'var(--phx-text)' }}>{selected.name}</span>
-                      <span style={{ fontFamily: FM, fontSize: '7px', letterSpacing: '.1em', color: a(ACC, '77') }}>SCANNED</span>
+                      <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: a(ACC, '77') }}>SCANNED</span>
                     </span>
-                    <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
+                    <span style={{ display: 'block', fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
                       {Math.round(selected.calories)} KCAL · {+selected.protein_g.toFixed(1)}P · {selected.unit ? `PER ${selected.unit}` : 'PER SERVING · NO WEIGHT GIVEN'}
                     </span>
                   </div>
@@ -245,16 +245,16 @@ export function LogMealSub({ onClose, onLog, budget }) {
                     <button key={`${f.kind}-${f.id}`} onClick={() => selectFood(f)} style={rowStyle(on)}>
                       <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
                         <span style={{ fontFamily: FB, fontSize: 15, color: 'var(--phx-text)', lineHeight: 1.15 }}>{f.name}</span>
-                        <span style={{ fontFamily: FM, fontSize: '7px', letterSpacing: '.1em', color: a(ACC, '77'), whiteSpace: 'nowrap' }}>{f.kind === 'recipe' ? 'RECIPE' : 'STAPLE'}</span>
+                        <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: a(ACC, '77'), whiteSpace: 'nowrap' }}>{f.kind === 'recipe' ? 'RECIPE' : 'STAPLE'}</span>
                       </span>
-                      <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
+                      <span style={{ display: 'block', fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
                         {Math.round(f.calories || 0)} KCAL · {+(f.protein_g || 0).toFixed(1)}P · {per}
                       </span>
                     </button>
                   )
                 })}
                 {!loading && !results.length && (
-                  <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '77'), padding: '10px 2px' }}>
+                  <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '77'), padding: '10px 2px' }}>
                     NO MATCH — SCAN IT OR USE CUSTOM
                   </div>
                 )}
@@ -273,7 +273,7 @@ export function LogMealSub({ onClose, onLog, budget }) {
                       inputMode="decimal"
                       style={{ ...fieldStyle, textAlign: 'center' }}
                     />
-                    <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: a(ACC, '99'), minWidth: 26 }}>{byGrams ? 'G' : '×'}</span>
+                    <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99'), minWidth: 26 }}>{byGrams ? 'G' : '×'}</span>
                     <button onClick={() => nudge(byGrams ? 10 : 0.5)} style={{ minWidth: 38, minHeight: 38, fontFamily: FM, fontSize: 13, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>+</button>
                   </div>
                 </div>
@@ -291,16 +291,16 @@ export function LogMealSub({ onClose, onLog, budget }) {
                     <button key={m.id} onClick={() => { setRepeatMeal(m); setError('') }} style={rowStyle(on)}>
                       <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
                         <span style={{ fontFamily: FB, fontSize: 15, color: 'var(--phx-text)', lineHeight: 1.15 }}>{m.name}</span>
-                        <span style={{ fontFamily: FM, fontSize: '7px', letterSpacing: '.1em', color: a(ACC, '77'), whiteSpace: 'nowrap' }}>{(m.log_date || '').slice(5)}</span>
+                        <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: a(ACC, '77'), whiteSpace: 'nowrap' }}>{(m.log_date || '').slice(5)}</span>
                       </span>
-                      <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
+                      <span style={{ display: 'block', fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: a(ACC, '99'), marginTop: 4 }}>
                         {Math.round(m.calories || 0)} KCAL · {+(m.protein_g || 0).toFixed(1)}P
                       </span>
                     </button>
                   )
                 })}
                 {!loading && !recent.length && (
-                  <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '77'), padding: '10px 2px' }}>
+                  <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '77'), padding: '10px 2px' }}>
                     NOTHING LOGGED YET — START IN FOOD BRAIN
                   </div>
                 )}
@@ -320,7 +320,7 @@ export function LogMealSub({ onClose, onLog, budget }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                 {MACRO_FIELDS.map(([key, label]) => (
                   <label key={key} style={{ display: 'block' }}>
-                    <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.2em', color: a(ACC, '99'), marginBottom: 4 }}>{label}</span>
+                    <span style={{ display: 'block', fontFamily: FM, fontSize: '10px', letterSpacing: '.2em', color: a(ACC, '99'), marginBottom: 4 }}>{label}</span>
                     <input
                       value={custom[key]}
                       onChange={e => setCustom(c => ({ ...c, [key]: e.target.value.replace(/[^\d.,]/g, '') }))}
@@ -343,12 +343,12 @@ export function LogMealSub({ onClose, onLog, budget }) {
           </svg>
           <div style={{ marginTop: -92, marginBottom: 52 }}>
             <div style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W, textShadow: `0 0 14px ${a(ACC, '66')}` }}>{mk}</div>
-            <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.26em', color: a(ACC, '99') }}>KCAL COMPOSED</div>
+            <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.26em', color: a(ACC, '99') }}>KCAL COMPOSED</div>
           </div>
           {bars.map((mb, i) => (
             <div key={i} style={{ padding: '5px 0 7px', textAlign: 'left' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: mix(BODY, 72) }}>{mb.l}</span>
+                <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: mix(BODY, 72) }}>{mb.l}</span>
                 <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 600, color: mb.c }}>{mb.v}</span>
               </div>
               <div style={{ height: 5, background: a(ACC, '14'), border: `1px solid ${a(ACC, '20')}`, overflow: 'hidden' }}>
@@ -356,14 +356,14 @@ export function LogMealSub({ onClose, onLog, budget }) {
               </div>
             </div>
           ))}
-          <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: mk > kcalOpen ? R : G, margin: '10px 0 12px' }}>
+          <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: mk > kcalOpen ? R : G, margin: '10px 0 12px' }}>
             {mk > kcalOpen ? `OVER TARGET BY ${mk - kcalOpen} KCAL` : `AFTER LOG → ${kcalOpen - mk} KCAL OPEN`}
           </div>
           <button onClick={confirm} disabled={!ready || posting} style={{ minHeight: 46, width: '100%', fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: !ready ? a(ACC, '77') : INK, background: !ready ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${!ready ? a(ACC, '30') : ACC}`, cursor: !ready || posting ? 'not-allowed' : 'pointer', boxShadow: !ready ? 'none' : `0 0 26px ${a(ACC, '55')}` }}>
             {!ready ? 'PICK A FOOD OR ENTER MACROS' : posting ? 'TRANSMITTING…' : `CONFIRM LOG · ${mk} KCAL`}
           </button>
           {error && (
-            <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: R, marginTop: 9 }}>
+            <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: R, marginTop: 9 }}>
               {error}
             </div>
           )}
@@ -387,26 +387,26 @@ export function DinnerSub({ onClose, sel, locked, onPick, onLock, dinners, budge
           const isSel = i === sel
           return (
             <button key={i} onClick={() => onPick(i)} style={{ flex: 1, minWidth: 216, padding: '14px 15px', background: isSel ? `linear-gradient(180deg, ${a(ACC, '1c')}, ${deep(72)})` : `linear-gradient(180deg, ${a(ACC, '0a')}, ${deep(55)})`, border: `1px solid ${isSel ? ACC : a(ACC, '26')}`, cursor: 'pointer', textAlign: 'left', transform: isSel ? 'translateY(-4px)' : 'none', transition: 'transform .3s ease, border-color .3s ease', boxShadow: isSel ? `0 0 34px ${a(ACC, '33')}` : 'none' }}>
-              <span style={{ display: 'block', fontFamily: FM, fontSize: '7.5px', letterSpacing: '.26em', color: dn.tc, marginBottom: 7 }}>▸ {dn.tag}</span>
+              <span style={{ display: 'block', fontFamily: FM, fontSize: '10px', letterSpacing: '.26em', color: dn.tc, marginBottom: 7 }}>▸ {dn.tag}</span>
               <span style={{ display: 'block', fontFamily: FB, fontSize: 21, fontWeight: 400, color: W, lineHeight: 1.15 }}>{dn.n}</span>
               <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '8px 0 10px' }}>
                 <span style={{ fontFamily: FD, fontSize: 32, fontWeight: 700, color: W, textShadow: `0 0 12px ${a(ACC, '66')}` }}>{dn.k}</span>
-                <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '99') }}>KCAL · {dn.p}G PROTEIN</span>
+                <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '99') }}>KCAL · {dn.p}G PROTEIN</span>
               </span>
               <span style={{ display: 'block', height: 5, background: a(ACC, '14'), border: `1px solid ${a(ACC, '20')}`, overflow: 'hidden', marginBottom: 4 }}>
                 <span style={{ display: 'block', height: '100%', width: Math.min(100, (dn.p / proteinGap) * 100).toFixed(0) + '%', background: `linear-gradient(90deg, ${a(ACC, '88')}, ${ACC})`, boxShadow: `0 0 8px ${a(ACC, '66')}` }} />
               </span>
-              <span style={{ display: 'block', fontFamily: FM, fontSize: 7, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 9 }}>CLOSES {Math.min(100, Math.round((dn.p / proteinGap) * 100))}% OF PROTEIN GAP</span>
+              <span style={{ display: 'block', fontFamily: FM, fontSize: 10, letterSpacing: '.12em', color: a(ACC, '99'), marginBottom: 9 }}>CLOSES {Math.min(100, Math.round((dn.p / proteinGap) * 100))}% OF PROTEIN GAP</span>
               <span style={{ display: 'block', fontFamily: FB, fontSize: '14.5px', fontWeight: 300, lineHeight: 1.45, color: mix(BODY, 78) }}>{dn.note}</span>
             </button>
           )
         })}
       </div>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: 16, borderTop: `1px solid ${a(ACC, '1a')}`, paddingTop: 13 }}>
-        <span style={{ fontFamily: FM, fontSize: '8.5px', letterSpacing: '.16em', color: a(ACC, '99') }}>
+        <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.16em', color: a(ACC, '99') }}>
           AFTER DINNER → <span style={{ color: W }}>{Math.max(0, kcalOpen - d.k)} KCAL OPEN</span> · PROTEIN GAP <span style={{ color: W }}>{Math.max(0, proteinGap - d.p)}G</span>
         </span>
-        <button onClick={onLock} style={{ minHeight: 44, padding: '0 26px', fontFamily: FM, fontSize: '9.5px', letterSpacing: '.22em', color: INK, background: locked ? `linear-gradient(135deg, ${G}, ${mix(G, 73)})` : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${locked ? G : ACC}`, cursor: 'pointer', boxShadow: `0 0 26px ${locked ? mix(G, 33) : a(ACC, '55')}` }}>
+        <button onClick={onLock} style={{ minHeight: 44, padding: '0 26px', fontFamily: FM, fontSize: '10.5px', letterSpacing: '.22em', color: INK, background: locked ? `linear-gradient(135deg, ${G}, ${mix(G, 73)})` : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${locked ? G : ACC}`, cursor: 'pointer', boxShadow: `0 0 26px ${locked ? mix(G, 33) : a(ACC, '55')}` }}>
           {locked ? '✓ DINNER LOCKED · 19:30' : 'LOCK IN SELECTION'}
         </button>
       </div>
@@ -432,12 +432,12 @@ export function PlanDaySub({ onClose }) {
         {ticks.map((tk, i) => (
           <div key={i}>
             <div style={{ position: 'absolute', left: tk.left, top: 0, bottom: 0, width: 1, background: a(ACC, '12') }} />
-            <div style={{ position: 'absolute', left: tk.left, bottom: -18, transform: 'translateX(-50%)', fontFamily: FM, fontSize: 7, letterSpacing: '.1em', color: a(ACC, '99') }}>{tk.label}</div>
+            <div style={{ position: 'absolute', left: tk.left, bottom: -18, transform: 'translateX(-50%)', fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: a(ACC, '99') }}>{tk.label}</div>
           </div>
         ))}
         <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: `linear-gradient(90deg, ${a(ACC, '66')}, ${a(ACC, '22')})` }} />
-        <div style={{ position: 'absolute', left: nowLeft, top: '6%', bottom: '6%', width: 1, background: G, boxShadow: `0 0 10px ${G}`, animation: 'holo-beamPulse 2.4s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', left: nowLeft, top: -4, transform: 'translateX(-50%)', fontFamily: FM, fontSize: '6.5px', letterSpacing: '.2em', color: G }}>NOW</div>
+        <div style={{ position: 'absolute', left: nowLeft, top: '6%', bottom: '6%', width: 1, background: G, boxShadow: `0 0 10px ${G}` }} />
+        <div style={{ position: 'absolute', left: nowLeft, top: -4, transform: 'translateX(-50%)', fontFamily: FM, fontSize: '10px', letterSpacing: '.2em', color: G }}>NOW</div>
         {FUEL_NODES.map((nd, i) => {
           const left = (((nd.h - 6) / 18) * 100).toFixed(1) + '%'
           const op = nd.st === 'opt' ? 0.5 : 1
@@ -448,7 +448,7 @@ export function PlanDaySub({ onClose }) {
               </div>
               <div style={{ position: 'absolute', left, top: '50%', transform: 'translateX(-50%)', marginTop: nd.up ? -56 : 16, textAlign: 'center', whiteSpace: 'nowrap', opacity: op }}>
                 <div style={{ fontFamily: FB, fontSize: '14.5px', fontWeight: 400, color: 'var(--phx-text)', lineHeight: 1.15 }}>{nd.n}</div>
-                <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.1em', color: a(ACC, '99') }}>{nd.t} · {nd.k} KCAL</div>
+                <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: a(ACC, '99') }}>{nd.t} · {nd.k} KCAL</div>
               </div>
             </div>
           )
@@ -456,8 +456,8 @@ export function PlanDaySub({ onClose }) {
       </div>
       <div style={{ margin: '30px 6px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-          <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.26em', color: a(ACC, '99') }}>CUMULATIVE FUEL CURVE</span>
-          <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: a(ACC, 'cc') }}>TARGET 2,100</span>
+          <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.26em', color: a(ACC, '99') }}>CUMULATIVE FUEL CURVE</span>
+          <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: a(ACC, 'cc') }}>TARGET 2,100</span>
         </div>
         <svg viewBox="0 0 640 64" preserveAspectRatio="none" style={{ width: '100%', height: 76, display: 'block' }}>
           <line x1="0" y1="8" x2="640" y2="8" stroke={a(ACC, '44')} strokeWidth="1" strokeDasharray="5 5" />
@@ -467,7 +467,7 @@ export function PlanDaySub({ onClose }) {
       </div>
       <div style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
         {legend.map((lg, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: a(ACC, '99') }}>
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: a(ACC, '99') }}>
             <i style={{ width: 9, height: 9, borderRadius: '50%', ...lg.dot }} />
             {lg.label}
           </span>
@@ -527,7 +527,7 @@ export function WeighInSub({ onClose, onLogged }) {
 
   const stat = (label, value, color) => (
     <div style={{ flex: 1, minWidth: 96 }}>
-      <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.24em', color: a(ACC, '99'), marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.24em', color: a(ACC, '99'), marginBottom: 4 }}>{label}</div>
       <div style={{ fontFamily: FD, fontSize: 21, fontWeight: 700, color: color || 'var(--phx-text)' }}>{value}</div>
     </div>
   )
@@ -549,13 +549,13 @@ export function WeighInSub({ onClose, onLogged }) {
             <button
               onClick={submit}
               disabled={parsed === null || posting}
-              style={{ minHeight: 46, padding: '0 18px', fontFamily: FM, fontSize: 9, letterSpacing: '.2em', color: parsed === null ? a(ACC, '77') : INK, background: parsed === null ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${parsed === null ? a(ACC, '30') : ACC}`, cursor: parsed === null || posting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+              style={{ minHeight: 46, padding: '0 18px', fontFamily: FM, fontSize: 10, letterSpacing: '.2em', color: parsed === null ? a(ACC, '77') : INK, background: parsed === null ? deep(50) : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${parsed === null ? a(ACC, '30') : ACC}`, cursor: parsed === null || posting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
             >
               {posting ? 'SAVING…' : 'LOG'}
             </button>
           </div>
           {error && (
-            <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em', color: R, marginTop: 9 }}>{error}</div>
+            <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em', color: R, marginTop: 9 }}>{error}</div>
           )}
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
@@ -564,7 +564,7 @@ export function WeighInSub({ onClose, onLogged }) {
             {stat('OVER WINDOW', formatDelta(trend.sinceFirst), trend.sinceFirst > 0 ? Y : trend.sinceFirst < 0 ? G : undefined)}
           </div>
 
-          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.12em', color: a(ACC, '99'), marginTop: 16, lineHeight: 1.7 }}>
+          <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.12em', color: a(ACC, '99'), marginTop: 16, lineHeight: 1.7 }}>
             {loading ? 'LOADING LOG…' : trend.count === 0 ? 'NO WEIGH-INS YET' : (
               <>
                 {trend.count} ENTRIES{trend.spanDays ? ` · ${trend.spanDays} DAYS` : ''}
@@ -587,14 +587,14 @@ export function WeighInSub({ onClose, onLogged }) {
               ))}
             </svg>
           ) : (
-            <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.14em', color: a(ACC, '77'), padding: '18px 2px' }}>
+            <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: a(ACC, '77'), padding: '18px 2px' }}>
               {points.length === 1 ? 'ONE ENTRY — LOG AGAIN TOMORROW FOR A TREND' : 'NO DATA TO PLOT'}
             </div>
           )}
           <div style={{ maxHeight: 168, overflowY: 'auto', display: 'grid', gap: 4, marginTop: 12 }}>
             {[...history].reverse().map(w => (
               <div key={w.id ?? w.log_date} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 9px', background: deep(56), border: `1px solid ${a(ACC, '20')}` }}>
-                <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.12em', color: a(ACC, '99') }}>{w.log_date}</span>
+                <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.12em', color: a(ACC, '99') }}>{w.log_date}</span>
                 <span style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: 'var(--phx-text)' }}>{w.weight_kg} KG</span>
               </div>
             ))}

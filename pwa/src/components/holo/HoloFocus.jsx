@@ -15,7 +15,7 @@ export default function HoloFocus({ panel, onClose }) {
               {panel.code}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontFamily: FM, fontSize: '8.5px', letterSpacing: '.12em', color: a(ACC, '99') }}>{panel.meta}</span>
+              <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.12em', color: a(ACC, '99') }}>{panel.meta}</span>
               <button onClick={onClose} style={{ minWidth: 34, minHeight: 30, fontFamily: FM, fontSize: 11, color: ACC, background: deep(60), border: `1px solid ${a(ACC, '44')}`, cursor: 'pointer' }}>✕</button>
             </span>
           </div>

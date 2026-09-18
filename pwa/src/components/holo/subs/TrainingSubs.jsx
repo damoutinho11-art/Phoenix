@@ -33,7 +33,7 @@ function ClosedState({ message }) {
     <div style={{ minHeight: 260, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
       <div>
         <div style={{ fontFamily: FD, fontSize: 28, color: Y, letterSpacing: '.08em' }}>{message}</div>
-        <div style={{ marginTop: 12, fontFamily: FM, fontSize: 9, color: a(ACC, '88'), letterSpacing: '.16em' }}>
+        <div style={{ marginTop: 12, fontFamily: FM, fontSize: 10, color: a(ACC, '88'), letterSpacing: '.16em' }}>
           PHOENIX WILL NOT INFER A SESSION WITHOUT VERIFIED PLAN DATA
         </div>
       </div>
@@ -192,10 +192,10 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
               <div key={i} style={{ padding: '10px 12px', marginBottom: 9, background: deep(55), border: `1px solid ${a(ACC, live ? '66' : '22')}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                   <span style={{ fontFamily: FB, fontSize: 17, fontWeight: 400, color: live ? W : exDone ? G : a(ACC, '77'), lineHeight: 1.2 }}>
-                    <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.1em', color: a(ACC, '99') }}>{'0' + (i + 1)} </span>
+                    <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: a(ACC, '99') }}>{'0' + (i + 1)} </span>
                     {ex.name}
                   </span>
-                  <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.12em', color: stColor, whiteSpace: 'nowrap' }}>{st}</span>
+                  <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.12em', color: stColor, whiteSpace: 'nowrap' }}>{st}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }}>
                   <span style={{ display: 'inline-flex', gap: 4 }}>
@@ -203,11 +203,11 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
                       <i key={j} style={{ width: 8, height: 8, border: `1px solid ${a(ACC, '44')}`, background: j < done[i] ? ACC : 'transparent', boxShadow: j < done[i] ? `0 0 7px ${a(ACC, '88')}` : 'none' }} />
                     ))}
                   </span>
-                    <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.1em', color: a(ACC, '99') }}>
+                    <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: a(ACC, '99') }}>
                       {ex.sets} x {ex.reps}{ex.loadKg != null ? ` @ ${ex.loadKg}KG` : ''}
                     </span>
                 </div>
-                {lastResult && <div style={{ marginTop: 6, fontFamily: FM, fontSize: 7, letterSpacing: '.1em', color: G, textAlign: 'right' }}>LAST ACTUAL · {lastResult.weightKg}KG x {lastResult.reps}</div>}
+                {lastResult && <div style={{ marginTop: 6, fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: G, textAlign: 'right' }}>LAST ACTUAL · {lastResult.weightKg}KG x {lastResult.reps}</div>}
               </div>
             )
           })}
@@ -216,27 +216,27 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
           <svg viewBox="0 0 140 140" style={{ width: 168, height: 168, display: 'block', margin: '0 auto' }}>
             <circle cx="70" cy="70" r="62" fill="none" stroke={a(ACC, '1a')} strokeWidth="5" />
             <circle cx="70" cy="70" r="62" fill="none" stroke={ringColor} strokeWidth="5" strokeLinecap="round" strokeDasharray="389.6" strokeDashoffset={ringOffset} transform="rotate(-90 70 70)" style={{ filter: `drop-shadow(0 0 7px ${ringColor})`, transition: 'stroke-dashoffset .9s linear, stroke .4s ease' }} />
-            <circle cx="70" cy="70" r="52" fill="none" stroke={a(ACC, '22')} strokeWidth="1" strokeDasharray="2 4" style={{ transformOrigin: '50% 50%', animation: 'holo-ringSpin 24s linear infinite' }} />
+            <circle cx="70" cy="70" r="52" fill="none" stroke={a(ACC, '22')} strokeWidth="1" strokeDasharray="2 4" style={{ transformOrigin: '50% 50%' }} />
           </svg>
           <div style={{ marginTop: -118, marginBottom: 62 }}>
             <div style={{ fontFamily: FD, fontSize: 34, fontWeight: 700, color: W, textShadow: `0 0 16px ${a(ACC, '66')}`, lineHeight: 1 }}>{big}</div>
-            <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: '.22em', color: subColor, marginTop: 5, maxWidth: 130, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>{sub}</div>
+            <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.22em', color: subColor, marginTop: 5, maxWidth: 130, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>{sub}</div>
           </div>
           {!allDone && !rest && <div style={{ marginBottom: 10, padding: 10, border: `1px solid ${a(ACC, '33')}`, background: deep(55), textAlign: 'left' }}>
-            <div style={{ fontFamily: FM, fontSize: 7, color: a(ACC, '99'), letterSpacing: '.16em', marginBottom: 8 }}>SET {done[idx] + 1} · PRESCRIBED {cur.loadKg ?? 0}KG x {cur.reps}</div>
+            <div style={{ fontFamily: FM, fontSize: 10, color: a(ACC, '99'), letterSpacing: '.16em', marginBottom: 8 }}>SET {done[idx] + 1} · PRESCRIBED {cur.loadKg ?? 0}KG x {cur.reps}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-              <label style={{ fontFamily: FM, fontSize: 7, color: W, letterSpacing: '.12em' }}>ACTUAL LOAD · KG
+              <label style={{ fontFamily: FM, fontSize: 10, color: W, letterSpacing: '.12em' }}>ACTUAL LOAD · KG
                 <input aria-label="Actual load" type="number" min="0" step="0.5" value={actualLoad} onChange={event => setActualLoad(event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
               </label>
-              <label style={{ fontFamily: FM, fontSize: 7, color: W, letterSpacing: '.12em' }}>ACTUAL REPS
+              <label style={{ fontFamily: FM, fontSize: 10, color: W, letterSpacing: '.12em' }}>ACTUAL REPS
                 <input aria-label="Actual reps" type="number" min="0" step="1" value={actualReps} onChange={event => setActualReps(event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
               </label>
             </div>
-            {setLogError && <div role="alert" style={{ marginTop: 7, fontFamily: FM, fontSize: 7, color: R }}>{setLogError}</div>}
+            {setLogError && <div role="alert" style={{ marginTop: 7, fontFamily: FM, fontSize: 10, color: R }}>{setLogError}</div>}
           </div>}
           {!allDone && <button onClick={mainAction} disabled={!rest && !validActual} style={actionStyle(!rest && !validActual)}>{rest ? 'SKIP REST' : 'LOG ACTUAL SET'}</button>}
           <div style={{ marginTop: 9 }}>
-            <button onClick={onClose} style={{ minHeight: 36, padding: '0 18px', fontFamily: FM, fontSize: '8.5px', letterSpacing: '.2em', color: a(ACC, '99'), background: 'none', border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>END SESSION</button>
+            <button onClick={onClose} style={{ minHeight: 36, padding: '0 18px', fontFamily: FM, fontSize: '10px', letterSpacing: '.2em', color: a(ACC, '99'), background: 'none', border: `1px solid ${a(ACC, '30')}`, cursor: 'pointer' }}>END SESSION</button>
           </div>
         </div>
         <div className="training-session-evidence">
@@ -250,16 +250,16 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
             ['SEQUENCE', hybridIdentity ? `${String(hybridIdentity.position).padStart(2, '0')} / ${String(hybridIdentity.length).padStart(2, '0')}` : 'LEGACY', hybridIdentity ? ACC : a(ACC, '99')],
             ['ROUTE', String(routed.readiness_status || 'clear').toUpperCase(), G],
           ].map(([k, v, c], i, arr) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < arr.length - 1 ? `1px solid ${a(ACC, '14')}` : 'none', fontFamily: FM, fontSize: 8, letterSpacing: '.12em' }}>
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < arr.length - 1 ? `1px solid ${a(ACC, '14')}` : 'none', fontFamily: FM, fontSize: 10, letterSpacing: '.12em' }}>
               <span style={{ color: a(ACC, '99') }}>{k}</span><span style={{ color: c }}>{v}</span>
             </div>
           ))}
           {allDone && !saved && (
             <div style={{ marginTop: 14, borderTop: `1px solid ${a(ACC, '33')}`, paddingTop: 12, textAlign: 'left' }}>
               <SubLabel>COMPLETION EVIDENCE</SubLabel>
-              <label style={{ fontFamily: FM, fontSize: 8, color: a(ACC, 'aa'), letterSpacing: '.14em' }}>SESSION RPE - 1 TO 10</label>
+              <label style={{ fontFamily: FM, fontSize: 10, color: a(ACC, 'aa'), letterSpacing: '.14em' }}>SESSION RPE - 1 TO 10</label>
               <input aria-label="Session RPE" type="number" min="1" max="10" value={rpe} onChange={event => setRpe(event.target.value)} style={{ ...fieldStyle, margin: '6px 0 12px' }} />
-              <div style={{ fontFamily: FM, fontSize: 8, color: a(ACC, 'aa'), letterSpacing: '.14em', marginBottom: 7 }}>ANY PAIN DURING SESSION?</div>
+              <div style={{ fontFamily: FM, fontSize: 10, color: a(ACC, 'aa'), letterSpacing: '.14em', marginBottom: 7 }}>ANY PAIN DURING SESSION?</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 {[[false, 'NO'], [true, 'YES']].map(([value, label]) => (
                   <button key={label} onClick={() => { setPainAnswered(true); setPainConfirmed(value); if (!value) setPainBodyAreas([]) }} style={{ ...actionStyle(false), minHeight: 38, color: painAnswered && painConfirmed === value ? INK : W, background: painAnswered && painConfirmed === value ? ACC : deep(65), boxShadow: 'none' }}>{label}</button>
@@ -267,12 +267,12 @@ export function SessionSub({ onClose, training, refreshTraining, meta }) {
               </div>
               {painConfirmed && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 10 }}>
                 {['knee', 'ankle', 'hip', 'hamstring', 'calf_achilles', 'lower_back_pelvic'].map(area => (
-                  <label key={area} style={{ fontFamily: FM, fontSize: 8, color: W, letterSpacing: '.08em' }}><input type="checkbox" checked={painBodyAreas.includes(area)} onChange={() => togglePainArea(area)} /> {area.replaceAll('_', ' ').toUpperCase()}</label>
+                  <label key={area} style={{ fontFamily: FM, fontSize: 10, color: W, letterSpacing: '.08em' }}><input type="checkbox" checked={painBodyAreas.includes(area)} onChange={() => togglePainArea(area)} /> {area.replaceAll('_', ' ').toUpperCase()}</label>
                 ))}
               </div>}
               <textarea aria-label="Session notes" value={notes} onChange={event => setNotes(event.target.value)} placeholder="OPTIONAL SESSION NOTES" style={{ ...fieldStyle, minHeight: 68, paddingTop: 10, resize: 'vertical', marginBottom: 10 }} />
               <button onClick={submit} disabled={!canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas }) || posting} style={actionStyle(!canCompleteSession({ allSetsDone: allDone, rpe: Number(rpe), painAnswered, painConfirmed, painBodyAreas }) || posting)}>{posting ? 'VERIFYING...' : 'COMMIT SESSION'}</button>
-              {completionError && <div role="alert" style={{ marginTop: 8, fontFamily: FM, fontSize: 8, color: R }}>{completionError}</div>}
+              {completionError && <div role="alert" style={{ marginTop: 8, fontFamily: FM, fontSize: 10, color: R }}>{completionError}</div>}
             </div>
           )}
           {saved && <button onClick={onClose} style={{ ...actionStyle(false), marginTop: 16 }}>SESSION VERIFIED - CLOSE</button>}
@@ -318,7 +318,7 @@ export function ReadinessSub({ onClose, training, refreshTraining }) {
         <div>
           <SubLabel>DISCOMFORT - 0 NONE / 10 SEVERE</SubLabel>
           {READINESS_FIELDS.map(([key, label]) => (
-            <label key={key} style={{ display: 'grid', gridTemplateColumns: '1fr minmax(120px, 1.4fr) 34px', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${a(ACC, '18')}`, fontFamily: FM, fontSize: 8, color: W, letterSpacing: '.12em' }}>
+            <label key={key} style={{ display: 'grid', gridTemplateColumns: '1fr minmax(120px, 1.4fr) 34px', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${a(ACC, '18')}`, fontFamily: FM, fontSize: 10, color: W, letterSpacing: '.12em' }}>
               {label}
               <input type="range" min="0" max="10" value={form[key]} onChange={event => update(key, Number(event.target.value))} style={{ accentColor: ACC }} />
               <span style={{ fontFamily: FD, fontSize: 20, color: Number(form[key]) >= 5 ? R : Number(form[key]) >= 3 ? Y : G }}>{form[key]}</span>
@@ -328,7 +328,7 @@ export function ReadinessSub({ onClose, training, refreshTraining }) {
         <div>
           <SubLabel>SAFETY SIGNALS</SubLabel>
           {[['sharp_pain', 'SHARP PAIN'], ['limping', 'LIMPING'], ['next_day_worsening', 'WORSE THAN YESTERDAY']].map(([key, label]) => (
-            <label key={key} style={{ display: 'flex', gap: 10, alignItems: 'center', minHeight: 40, fontFamily: FM, fontSize: 9, color: form[key] ? R : W, letterSpacing: '.14em' }}>
+            <label key={key} style={{ display: 'flex', gap: 10, alignItems: 'center', minHeight: 40, fontFamily: FM, fontSize: 10, color: form[key] ? R : W, letterSpacing: '.14em' }}>
               <input type="checkbox" checked={form[key]} onChange={event => update(key, event.target.checked)} /> {label}
             </label>
           ))}
@@ -338,8 +338,8 @@ export function ReadinessSub({ onClose, training, refreshTraining }) {
             <div style={{ fontFamily: FM, fontSize: 10, color: G, letterSpacing: '.2em' }}>ROUTE RECORDED - {String(result.readiness_status).toUpperCase()}</div>
             <div style={{ marginTop: 7, fontFamily: FB, fontSize: 14, color: BODY }}>Phoenix has recalculated today from the submitted body check.</div>
           </div>}
-          {error && <div role="alert" style={{ marginTop: 9, fontFamily: FM, fontSize: 8, color: R }}>{error}</div>}
-          {!result && training?.routed?.readiness_scan && <div style={{ marginTop: 12, fontFamily: FM, fontSize: 8, color: a(ACC, '77'), letterSpacing: '.12em' }}>A SCAN EXISTS FOR TODAY. SUBMIT AGAIN ONLY TO REPLACE THE CURRENT ROUTE.</div>}
+          {error && <div role="alert" style={{ marginTop: 9, fontFamily: FM, fontSize: 10, color: R }}>{error}</div>}
+          {!result && training?.routed?.readiness_scan && <div style={{ marginTop: 12, fontFamily: FM, fontSize: 10, color: a(ACC, '77'), letterSpacing: '.12em' }}>A SCAN EXISTS FOR TODAY. SUBMIT AGAIN ONLY TO REPLACE THE CURRENT ROUTE.</div>}
         </div>
       </div>
     </SubShell>
@@ -383,14 +383,14 @@ export function SleepSub({ onClose, min, logged, onAdjust, onLog }) {
           </svg>
           <div style={{ marginTop: -122, marginBottom: 66 }}>
             <div style={{ fontFamily: FD, fontSize: 38, fontWeight: 700, color: W, textShadow: `0 0 16px ${mix(G, 33)}` }}>{Math.floor(min / 60) + ':' + pad2(min % 60)}</div>
-            <div style={{ fontFamily: FM, fontSize: '6.5px', letterSpacing: '.26em', color: a(ACC, '99') }}>HOURS ASLEEP</div>
+            <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.26em', color: a(ACC, '99') }}>HOURS ASLEEP</div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
             <button onClick={() => onAdjust(-15)} style={adjBtn}>−</button>
-            <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: a(ACC, '99') }}>± 15 MIN</span>
+            <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }}>± 15 MIN</span>
             <button onClick={() => onAdjust(15)} style={adjBtn}>+</button>
           </div>
-          <div style={{ fontFamily: FM, fontSize: '8.5px', letterSpacing: '.18em', color: a(ACC, '99'), marginTop: 12 }}>
+          <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.18em', color: a(ACC, '99'), marginTop: 12 }}>
             23:40 <span style={{ color: ACC }}>→</span> {pad2(Math.floor(wake / 60)) + ':' + pad2(wake % 60)}
           </div>
         </div>
@@ -399,7 +399,7 @@ export function SleepSub({ onClose, min, logged, onAdjust, onLog }) {
           {stages.map((sg, i) => (
             <div key={i} style={{ padding: '6px 0 8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.16em', color: mix(BODY, 72) }}>{sg.l}</span>
+                <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: mix(BODY, 72) }}>{sg.l}</span>
                 <span style={{ fontFamily: FD, fontSize: 17, fontWeight: 600, color: sg.c }}>{sg.v}</span>
               </div>
               <div style={{ height: 5, background: a(ACC, '14'), border: `1px solid ${a(ACC, '20')}`, overflow: 'hidden' }}>
@@ -410,7 +410,7 @@ export function SleepSub({ onClose, min, logged, onAdjust, onLog }) {
           <button onClick={submit} disabled={posting} style={{ minHeight: 46, width: '100%', marginTop: 12, fontFamily: FM, fontSize: 10, letterSpacing: '.24em', color: INK, background: logged ? `linear-gradient(135deg, ${G}, ${mix(G, 73)})` : `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${logged ? G : ACC}`, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: `0 0 26px ${logged ? mix(G, 33) : a(ACC, '55')}` }}>
             {logged ? '✓ LOGGED' : posting ? 'TRANSMITTING…' : 'LOG SLEEP'}
           </button>
-          <div style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.12em', color: error ? R : logged ? G : a(ACC, '77'), marginTop: 9, textAlign: 'center' }}>
+          <div style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.12em', color: error ? R : logged ? G : a(ACC, '77'), marginTop: 9, textAlign: 'center' }}>
             {error ? 'LOG FAILED — LINK DOWN · TAP TO RETRY' : logged ? '✓ SYNCED TO RECOVERY MODEL — READINESS RECALCULATED' : "FEEDS TOMORROW'S READINESS GATE"}
           </div>
         </div>

@@ -31,9 +31,9 @@ export default function HoloDock({ tab, onGo, accent }) {
                       <span style={{ position: 'absolute', top: 0, left: '18%', right: '18%', height: 1, background: `linear-gradient(90deg, transparent, ${mix(c, 53)}, transparent)` }} />
                     </>
                   )}
-                  <span style={{ position: 'absolute', top: 4, right: 6, fontFamily: FM, fontSize: '6.5px', letterSpacing: '.1em', color: active ? mix(c, 67) : mix(BODY, 20) }}>{'0' + (i + 1)}</span>
+                  <span style={{ position: 'absolute', top: 4, right: 6, fontFamily: FM, fontSize: '10px', letterSpacing: '.1em', color: active ? mix(c, 67) : mix(BODY, 20) }}>{'0' + (i + 1)}</span>
                   <span style={{ fontSize: 15, lineHeight: 1 }}>{ICONS[id]}</span>
-                  <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.14em' }}>{id.toUpperCase()}</span>
+                  <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.14em' }}>{id.toUpperCase()}</span>
                 </button>
               )
             })}

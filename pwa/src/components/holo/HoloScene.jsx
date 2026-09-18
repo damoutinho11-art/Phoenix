@@ -89,29 +89,29 @@ export default function HoloScene({ tab, isMobile, blips, atmosphere }) {
 
       {/* atmosphere haze */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', left: '8%', top: '16%', width: '44vmin', height: '34vmin', borderRadius: '50%', background: `radial-gradient(circle, ${a(SCENE, '14')} 0%, transparent 68%)`, filter: 'blur(30px)', animation: 'holo-floatB 13s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', right: '6%', bottom: '20%', width: '50vmin', height: '36vmin', borderRadius: '50%', background: `radial-gradient(circle, ${mix(RAISED, 18)} 0%, transparent 70%)`, filter: 'blur(34px)', animation: 'holo-floatA 16s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', left: '8%', top: '16%', width: '44vmin', height: '34vmin', borderRadius: '50%', background: `radial-gradient(circle, ${a(SCENE, '14')} 0%, transparent 68%)`, filter: 'blur(30px)' }} />
+        <div style={{ position: 'absolute', right: '6%', bottom: '20%', width: '50vmin', height: '36vmin', borderRadius: '50%', background: `radial-gradient(circle, ${mix(RAISED, 18)} 0%, transparent 70%)`, filter: 'blur(34px)' }} />
       </div>
 
       {/* god-ray + lens streak */}
       <div data-plx="0.016" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '-8%', left: '50%', transform: 'translateX(-50%)', width: '58vmin', height: '72vmin', background: `radial-gradient(ellipse 50% 100% at 50% 0%, ${a(SCENE, '1f')} 0%, transparent 70%)`, animation: 'holo-beamPulse 5.5s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', top: '-8%', left: '50%', transform: 'translateX(-50%)', width: '58vmin', height: '72vmin', background: `radial-gradient(ellipse 50% 100% at 50% 0%, ${a(SCENE, '1f')} 0%, transparent 70%)` }} />
         <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 2, height: '30vh', background: `linear-gradient(180deg, ${a(SCENE, '66')}, transparent)`, filter: 'blur(1px)' }} />
-        <div style={{ position: 'absolute', top: '9%', left: '50%', transform: 'translateX(-50%)', width: '44vmin', height: 2, background: `linear-gradient(90deg, transparent, ${mix('white', 33)} 46%, ${a(SCENE, 'aa')} 50%, ${mix('white', 33)} 54%, transparent)`, filter: 'blur(1.4px)', animation: 'holo-beamPulse 5.5s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', top: '9%', left: '50%', transform: 'translateX(-50%)', width: '44vmin', height: 2, background: `linear-gradient(90deg, transparent, ${mix('white', 33)} 46%, ${a(SCENE, 'aa')} 50%, ${mix('white', 33)} 54%, transparent)`, filter: 'blur(1.4px)' }} />
       </div>
 
       {/* floor: grid + radar + rings + blips */}
       <div data-plx="0.022" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', left: '-22%', right: '-22%', bottom: '-5%', height: '46%', transform: 'perspective(520px) rotateX(63deg)', transformOrigin: '50% 100%', backgroundImage: `linear-gradient(${sceneEdge} 1px, transparent 1px), linear-gradient(90deg, ${sceneEdge} 1px, transparent 1px)`, backgroundSize: '44px 44px', animation: 'holo-gridFlow 3s linear infinite', maskImage: 'radial-gradient(ellipse 62% 92% at 50% 100%, black 22%, transparent 76%)', WebkitMaskImage: 'radial-gradient(ellipse 62% 92% at 50% 100%, black 22%, transparent 76%)' }} />
+        <div style={{ position: 'absolute', left: '-22%', right: '-22%', bottom: '-5%', height: '46%', transform: 'perspective(520px) rotateX(63deg)', transformOrigin: '50% 100%', backgroundImage: `linear-gradient(${sceneEdge} 1px, transparent 1px), linear-gradient(90deg, ${sceneEdge} 1px, transparent 1px)`, backgroundSize: '44px 44px', maskImage: 'radial-gradient(ellipse 62% 92% at 50% 100%, black 22%, transparent 76%)', WebkitMaskImage: 'radial-gradient(ellipse 62% 92% at 50% 100%, black 22%, transparent 76%)' }} />
         <div style={{ position: 'absolute', left: '50%', top: '82%', width: '72vmin', height: '72vmin', transform: 'translate(-50%,-50%) perspective(560px) rotateX(72deg)', borderRadius: '50%', border: `1px solid ${sceneEdge}` }}>
           <div style={{ position: 'absolute', inset: '11%', borderRadius: '50%', border: `1px solid ${sceneEdge}` }} />
-          <div style={{ position: 'absolute', inset: '24%', borderRadius: '50%', border: `1px dashed ${sceneSoft}`, animation: 'holo-ringSpin 26s linear infinite' }} />
+          <div style={{ position: 'absolute', inset: '24%', borderRadius: '50%', border: `1px dashed ${sceneSoft}` }} />
           <div style={{ position: 'absolute', inset: '38%', borderRadius: '50%', border: `1px solid ${a(SCENE, '55')}`, boxShadow: `0 0 26px ${a(SCENE, '66')}, inset 0 0 26px ${a(SCENE, '1f')}` }} />
           {blips.map((bp, i) => (
-            <i key={i} style={{ position: 'absolute', left: bp.x, top: bp.y, width: 5, height: 5, borderRadius: '50%', background: bp.c, color: bp.c, animation: 'holo-blipPing 3.4s ease-out infinite', animationDelay: bp.delay }} />
+            <i key={i} style={{ position: 'absolute', left: bp.x, top: bp.y, width: 5, height: 5, borderRadius: '50%', background: bp.c, color: bp.c, animationDelay: bp.delay }} />
           ))}
         </div>
-        <div style={{ position: 'absolute', left: '50%', top: '82%', width: '72vmin', height: '72vmin', transform: 'translate(-50%,-50%) perspective(560px) rotateX(72deg)', borderRadius: '50%', overflow: 'hidden', animation: 'holo-radarSpin 7s linear infinite', background: `conic-gradient(from 0deg, ${a(SCENE, '3d')} 0deg, transparent 68deg)`, maskImage: 'radial-gradient(circle, black 0 62%, transparent 63%)', WebkitMaskImage: 'radial-gradient(circle, black 0 62%, transparent 63%)' }} />
+        <div style={{ position: 'absolute', left: '50%', top: '82%', width: '72vmin', height: '72vmin', transform: 'translate(-50%,-50%) perspective(560px) rotateX(72deg)', borderRadius: '50%', overflow: 'hidden', background: `conic-gradient(from 0deg, ${a(SCENE, '3d')} 0deg, transparent 68deg)`, maskImage: 'radial-gradient(circle, black 0 62%, transparent 63%)', WebkitMaskImage: 'radial-gradient(circle, black 0 62%, transparent 63%)' }} />
       </div>
 
       {/* rising particles */}
@@ -134,7 +134,7 @@ export default function HoloScene({ tab, isMobile, blips, atmosphere }) {
       </div>
 
       {/* scanlines + grain + vignette */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 62, backgroundImage: `repeating-linear-gradient(0deg, ${mix('white', 1.6)} 0 1px, transparent 1px 3px)`, animation: 'holo-scanDrift 1.4s linear infinite', mixBlendMode: 'screen' }} />
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 62, backgroundImage: `repeating-linear-gradient(0deg, ${mix('white', 1.6)} 0 1px, transparent 1px 3px)`, mixBlendMode: 'screen' }} />
       {!isMobile && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 62, opacity: 0.05, mixBlendMode: 'overlay', backgroundImage: GRAIN_URI }} />
       )}
@@ -179,8 +179,8 @@ export function HoloBootLine({ bootLine, isMobile, isHome }) {
   return (
     <div style={{ position: 'absolute', top, left: '50%', transform: 'translateX(-50%)', zIndex: 70, display: 'flex', alignItems: 'center', gap: 9, animation: 'holo-inX .4s cubic-bezier(.2,.8,.4,1) both', whiteSpace: 'nowrap' }}>
       <span style={{ width: 5, height: 5, background: ACC, boxShadow: `0 0 8px ${ACC}` }} />
-      <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.3em', color: a(ACC, '99') }}>{bootLine}</span>
-      <span style={{ display: 'inline-block', width: 5, height: 11, background: ACC, boxShadow: `0 0 8px ${ACC}`, animation: 'holo-cursorBlink 1.4s ease-in-out infinite' }} />
+      <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.3em', color: a(ACC, '99') }}>{bootLine}</span>
+      <span style={{ display: 'inline-block', width: 5, height: 11, background: ACC, boxShadow: `0 0 8px ${ACC}` }} />
     </div>
   )
 }
@@ -201,14 +201,14 @@ export function HoloBeams() {
           <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={a(SCENE, '66')} strokeWidth=".13" strokeDasharray="1.3 1" style={{ animation: `holo-dashFlow ${dur} linear infinite` }} />
         ))}
         <g fill={SCENE}>
-          <circle cx="22" cy="26" r=".35" style={{ animation: 'holo-twinkle 2.6s ease-in-out infinite' }} />
-          <circle cx="22" cy="64" r=".35" style={{ animation: 'holo-twinkle 3.1s ease-in-out infinite .4s' }} />
-          <circle cx="78" cy="26" r=".35" style={{ animation: 'holo-twinkle 2.8s ease-in-out infinite .8s' }} />
-          <circle cx="78" cy="64" r=".35" style={{ animation: 'holo-twinkle 3.4s ease-in-out infinite .2s' }} />
+          <circle cx="22" cy="26" r=".35" style={{ }} />
+          <circle cx="22" cy="64" r=".35" style={{ }} />
+          <circle cx="78" cy="26" r=".35" style={{ }} />
+          <circle cx="78" cy="64" r=".35" style={{ }} />
         </g>
       </svg>
-      <div style={{ position: 'absolute', left: '6%', top: '18%', bottom: '22%', width: '38%', zIndex: 19, pointerEvents: 'none', clipPath: 'polygon(100% 42%, 100% 52%, 0% 100%, 0% 0%)', background: `linear-gradient(270deg, ${a(ACC, '10')}, transparent 72%)`, filter: 'blur(4px)', animation: 'holo-beamPulse 6.5s ease-in-out infinite' }} />
-      <div style={{ position: 'absolute', right: '6%', top: '18%', bottom: '22%', width: '38%', zIndex: 19, pointerEvents: 'none', clipPath: 'polygon(0% 42%, 0% 52%, 100% 100%, 100% 0%)', background: `linear-gradient(90deg, ${a(ACC, '10')}, transparent 72%)`, filter: 'blur(4px)', animation: 'holo-beamPulse 6.5s ease-in-out infinite' }} />
+      <div style={{ position: 'absolute', left: '6%', top: '18%', bottom: '22%', width: '38%', zIndex: 19, pointerEvents: 'none', clipPath: 'polygon(100% 42%, 100% 52%, 0% 100%, 0% 0%)', background: `linear-gradient(270deg, ${a(ACC, '10')}, transparent 72%)`, filter: 'blur(4px)' }} />
+      <div style={{ position: 'absolute', right: '6%', top: '18%', bottom: '22%', width: '38%', zIndex: 19, pointerEvents: 'none', clipPath: 'polygon(0% 42%, 0% 52%, 100% 100%, 100% 0%)', background: `linear-gradient(90deg, ${a(ACC, '10')}, transparent 72%)`, filter: 'blur(4px)' }} />
     </>
   )
 }

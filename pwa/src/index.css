@@ -63,7 +63,6 @@ body::before {
       transparent 118deg, rgba(32,216,236,.07) 126deg, transparent 138deg,
       transparent 220deg, rgba(32,216,236,.05) 231deg, transparent 244deg,
       transparent 308deg, rgba(32,216,236,.06) 319deg, transparent 331deg);
-  animation: spaceDrift 36s linear infinite;
 }
 
 body::after {
@@ -132,7 +131,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 }
 .metric .label {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .16em;
   color: var(--muted);
   text-transform: uppercase;
@@ -149,7 +148,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 /* ── BADGE ── */
 .badge {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .12em;
   padding: 4px 7px;
   border: 1px solid var(--line);
@@ -195,7 +194,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 }
 .row-sub {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .06em;
   color: var(--muted);
   margin-top: 2px;
@@ -206,7 +205,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
   border: 1px solid rgba(125,240,255,.42);
   color: var(--cyan-br);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .15em;
   text-transform: uppercase;
   padding: 8px 10px;
@@ -233,7 +232,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 }
 .eyebrow {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .24em;
   color: var(--cyan-soft);
   text-transform: uppercase;
@@ -288,14 +287,14 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 }
 .brand-sub {
   font-family: var(--mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .12em;
   color: var(--muted);
   margin-top: 2px;
 }
 .hud-chip {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .14em;
   padding: 4px 8px;
   border: 1px solid rgba(125,255,207,.34);
@@ -339,7 +338,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 .nav-btn .nav-icon { font-size: 14px; line-height: 1; }
 .nav-btn .nav-label {
   font-family: var(--mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .12em;
 }
 .nav-btn.active .nav-icon,
@@ -359,7 +358,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
   background: rgba(2,20,26,.72);
   color: rgba(201,246,255,.78);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .22em;
   text-transform: uppercase;
   line-height: 20px;
@@ -382,7 +381,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
   background: rgba(1,12,16,.96);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.5;
   letter-spacing: .04em;
 }
@@ -449,7 +448,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 .install-phoenix-status {
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.35;
   text-align: right;
 }
@@ -477,7 +476,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
   box-shadow: 0 0 18px rgba(32,216,236,.22), inset 0 0 12px rgba(125,240,255,.08);
   color: #eaffff;
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .17em;
   text-transform: uppercase;
   transition: background .2s, box-shadow .2s, opacity .2s;
@@ -508,7 +507,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
   box-shadow: 0 12px 30px rgba(0,0,0,.42), 0 0 18px rgba(32,216,236,.14);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.55;
   letter-spacing: .04em;
   pointer-events: auto;
@@ -560,7 +559,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 .access-gate-kicker {
   margin-bottom: 14px;
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: .3em;
   color: var(--muted);
 }
@@ -576,7 +575,7 @@ button { background: none; color: inherit; border: 0; cursor: pointer; }
 }
 .access-gate-copy { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
 .access-gate-copy--small { margin: 14px 0 0; font-size: 12px; }
-.access-gate-label { display: block; font-family: var(--mono); font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--cyan-soft); }
+.access-gate-label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--cyan-soft); }
 .access-gate-input {
   display: block;
   box-sizing: border-box;

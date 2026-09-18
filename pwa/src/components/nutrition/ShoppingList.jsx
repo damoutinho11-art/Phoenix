@@ -34,7 +34,7 @@ function Quantity({ item }) {
 function SummaryCard({ label, value, tone = LIME_BR }) {
   return (
     <div style={{ border: `1px solid ${BORDER}`, background: 'rgba(157,255,111,.025)', padding: '10px 11px' }}>
-      <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.16em', color: MUTED }}>{label}</div>
+      <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.16em', color: MUTED }}>{label}</div>
       <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 20, fontWeight: 700, color: tone, marginTop: 3 }}>{value}</div>
     </div>
   )
@@ -48,13 +48,13 @@ function ItemRow({ item, mode = 'buy' }) {
       <div>
         <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '.04em' }}>{item.name}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
-          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: mode === 'have' ? CYAN : LIME, border: `1px solid ${border}`, background: bg, padding: '3px 6px' }}>{String(item.category || 'other').toUpperCase()}</span>
-          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: TEXT_DIM, border: `1px solid rgba(157,255,111,.12)`, padding: '3px 6px' }}><Quantity item={item} /></span>
-          {item.source_label && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: LIME_BR, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.04)', padding: '3px 6px' }}>{item.source_label}</span>}
-          {item.already_have && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.04)', padding: '3px 6px' }}>PANTRY</span>}
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.12em', color: mode === 'have' ? CYAN : LIME, border: `1px solid ${border}`, background: bg, padding: '3px 6px' }}>{String(item.category || 'other').toUpperCase()}</span>
+          <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.12em', color: TEXT_DIM, border: `1px solid rgba(157,255,111,.12)`, padding: '3px 6px' }}><Quantity item={item} /></span>
+          {item.source_label && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.12em', color: LIME_BR, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.04)', padding: '3px 6px' }}>{item.source_label}</span>}
+          {item.already_have && <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.12em', color: CYAN, border: `1px solid rgba(157,255,111,.24)`, background: 'rgba(157,255,111,.04)', padding: '3px 6px' }}>PANTRY</span>}
         </div>
       </div>
-      <div style={{ textAlign: 'right', fontFamily: 'var(--phx-font-mono)', fontSize: 8, color: TEXT_DIM }}>
+      <div style={{ textAlign: 'right', fontFamily: 'var(--phx-font-mono)', fontSize: 10, color: TEXT_DIM }}>
         <div style={{ color: mode === 'have' ? CYAN : LIME_BR, fontSize: 12 }}><Money value={item.estimated_cost_eur} /></div>
         <div>{fmt(item.calories)} kcal</div>
         <div>{fmt(item.protein_g, 'g')} P</div>
@@ -68,7 +68,7 @@ function Section({ title, subtitle, children, accent = LIME }) {
     <div style={{ margin: '14px 18px 0', border: `1px solid rgba(157,255,111,.14)`, background: 'rgba(0,0,0,.16)' }}>
       <div style={{ padding: '12px 13px', borderBottom: `1px solid rgba(157,255,111,.10)`, display: 'flex', justifyContent: 'space-between', gap: 10 }}>
         <div>
-          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7.5, letterSpacing: '.18em', color: accent }}>{title}</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.18em', color: accent }}>{title}</div>
           {subtitle && <div style={{ fontSize: 12, lineHeight: 1.45, color: TEXT_DIM, marginTop: 4 }}>{subtitle}</div>}
         </div>
       </div>
@@ -113,18 +113,18 @@ export default function ShoppingList({ onBack }) {
           <span onClick={onBack} style={{ color: CYAN, fontSize: 16, marginRight: 10, cursor: 'pointer' }}>←</span>
           <span style={{ fontFamily: 'var(--phx-font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.28em', color: LIME_BR, filter: 'drop-shadow(0 0 8px rgba(157,255,111,.22))' }}>SHOPPING LIST</span>
         </div>
-        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>LIDL · PANTRY AWARE</span>
+        <span style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.14em', color: LIME, border: `1px solid rgba(157,255,111,.32)`, background: 'rgba(157,255,111,.055)', padding: '2px 8px' }}>LIDL · PANTRY AWARE</span>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 130 }}>
         <div style={{ padding: '18px', borderBottom: `1px solid ${BORDER}`, background: 'linear-gradient(180deg,rgba(157,255,111,.045),transparent)' }}>
           <div style={{ fontFamily: 'var(--phx-font-display)', fontSize: 32, fontWeight: 700, letterSpacing: '.08em', color: '#fff' }}>GROCERY MODE</div>
-          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 7 }}>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.12em', color: TEXT_DIM, marginTop: 7 }}>
             Phoenix converts meal plans into a shopping list. Pantry items are separated from missing ingredients. No ordering, no purchasing.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-            <button onClick={() => setSource('today_protocol_4_days')} style={{ padding: '11px 0', border: `1px solid ${source === 'today_protocol_4_days' ? 'rgba(157,255,111,.45)' : BORDER}`, background: source === 'today_protocol_4_days' ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: source === 'today_protocol_4_days' ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>4 DAYS · CURRENT PROTOCOL</button>
-            <button onClick={() => setSource('meal_builder')} style={{ padding: '11px 0', border: `1px solid ${source === 'meal_builder' ? 'rgba(157,255,111,.45)' : BORDER}`, background: source === 'meal_builder' ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: source === 'meal_builder' ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.16em', cursor: 'pointer' }}>FROM NEXT MEAL</button>
+            <button onClick={() => setSource('today_protocol_4_days')} style={{ padding: '11px 0', border: `1px solid ${source === 'today_protocol_4_days' ? 'rgba(157,255,111,.45)' : BORDER}`, background: source === 'today_protocol_4_days' ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: source === 'today_protocol_4_days' ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.16em', cursor: 'pointer' }}>4 DAYS · CURRENT PROTOCOL</button>
+            <button onClick={() => setSource('meal_builder')} style={{ padding: '11px 0', border: `1px solid ${source === 'meal_builder' ? 'rgba(157,255,111,.45)' : BORDER}`, background: source === 'meal_builder' ? 'rgba(157,255,111,.09)' : 'rgba(0,0,0,.18)', color: source === 'meal_builder' ? LIME : MUTED, fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.16em', cursor: 'pointer' }}>FROM NEXT MEAL</button>
           </div>
           {data?.source_title && <div style={{ marginTop: 11, fontSize: 13, lineHeight: 1.6, color: 'rgba(220,248,236,.78)' }}>{data.source_title} · {data.principle}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isFourDaySupply ? 5 : 4},1fr)`, gap: 7, marginTop: 12 }}>
@@ -149,9 +149,9 @@ export default function ShoppingList({ onBack }) {
         {Object.keys(categories).length > 0 && <Section title="LIDL CATEGORIES" subtitle="Same missing ingredients grouped for shopping speed.">
           {Object.entries(categories).map(([category, items]) => (
             <div key={category} style={{ padding: '10px 0', borderBottom: `1px solid rgba(157,255,111,.08)` }}>
-              <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 8, letterSpacing: '.14em', color: LIME, marginBottom: 6 }}>{category.toUpperCase()}</div>
+              <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.14em', color: LIME, marginBottom: 6 }}>{category.toUpperCase()}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {items.map(item => <span key={`${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(157,255,111,.12)`, padding: '4px 7px' }}>{item.name} · <Money value={item.estimated_cost_eur} /></span>)}
+                {items.map(item => <span key={`${item.item_id}-${item.name}`} style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.1em', color: TEXT_DIM, border: `1px solid rgba(157,255,111,.12)`, padding: '4px 7px' }}>{item.name} · <Money value={item.estimated_cost_eur} /></span>)}
               </div>
             </div>
           ))}
@@ -166,7 +166,7 @@ export default function ShoppingList({ onBack }) {
         </Section>}
 
         <div style={{ margin: '14px 18px 16px', padding: '11px 13px', border: `1px solid rgba(157,255,111,.16)`, background: 'rgba(157,255,111,.025)' }}>
-          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 7, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
+          <div style={{ fontFamily: 'var(--phx-font-mono)', fontSize: 10, letterSpacing: '.2em', color: 'rgba(157,255,111,.48)', marginBottom: 6 }}>PHOENIX SAFETY</div>
           <div style={{ fontSize: '12.5px', lineHeight: 1.65, color: 'rgba(220,248,236,.78)' }}>
             Grocery mode is a checklist only. Prices are estimates from the local Lidl staple database, and recipes may need manual ingredient review. Phoenix never purchases anything.
           </div>

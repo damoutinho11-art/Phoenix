@@ -298,7 +298,7 @@
   gap: 8px;
   color: var(--training-accent);
   font-family: var(--phx-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: .16em;
   text-shadow: 0 0 10px color-mix(in srgb, var(--training-accent) 50%, transparent);
 }
@@ -326,7 +326,7 @@
   margin: 6px 0 0;
   color: color-mix(in srgb, var(--training-accent) 60%, var(--phx-muted) 40%);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .12em;
 }
 
@@ -349,7 +349,7 @@
   color: color-mix(in srgb, var(--training-accent) 82%, white 8%);
   background: color-mix(in srgb, var(--training-accent) 6%, var(--phx-bg) 72%);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .12em;
 }
 
@@ -417,7 +417,7 @@
   cursor: pointer;
 }
 
-.training-control-tab span { color: color-mix(in srgb, var(--training-accent) 38%, var(--phx-muted) 62%); font-size: 7px; }
+.training-control-tab span { color: color-mix(in srgb, var(--training-accent) 38%, var(--phx-muted) 62%); font-size: 10px; }
 
 .training-control-tab.active {
   color: var(--phx-bg);
@@ -443,7 +443,7 @@
   color: color-mix(in srgb, var(--training-accent) 78%, var(--phx-body) 22%);
   background: color-mix(in srgb, var(--training-accent) 6%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: .1em;
 }
 
@@ -476,7 +476,7 @@
 .training-view-count {
   color: color-mix(in srgb, var(--training-accent) 65%, var(--phx-muted) 35%);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .14em;
 }
 
@@ -522,7 +522,7 @@
   display: block;
   color: var(--phx-muted);
   font-family: var(--phx-font-mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .12em;
 }
 
@@ -549,7 +549,7 @@
   overflow-wrap: anywhere;
   color: var(--phx-body);
   font-family: var(--phx-font-mono);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .training-plan-metadata dd.active,
@@ -562,7 +562,7 @@
   color: var(--phx-muted);
   background: color-mix(in srgb, var(--training-accent) 3%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: .12em;
   text-align: center;
 }
@@ -618,7 +618,7 @@
   display: block;
   color: color-mix(in srgb, var(--training-accent) 74%, var(--phx-body) 26%);
   font-family: var(--phx-font-mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .1em;
 }
 
@@ -631,7 +631,7 @@
   font-weight: 600;
 }
 
-.training-change-marker { color: var(--training-accent); font-size: 6px; }
+.training-change-marker { color: var(--training-accent); font-size: 10px; }
 
 .training-session-type { margin-top: 10px; color: var(--training-accent); }
 
@@ -660,7 +660,7 @@
 .training-day-duration strong {
   color: var(--phx-body);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 400;
   white-space: nowrap;
 }
@@ -677,7 +677,7 @@
   overflow: hidden;
   color: color-mix(in srgb, var(--phx-body) 82%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .04em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -691,7 +691,7 @@
   border-top: 1px solid color-mix(in srgb, var(--training-accent) 22%, transparent);
   color: color-mix(in srgb, var(--training-accent) 72%, var(--phx-body) 28%);
   font-family: var(--phx-font-body);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.35;
 }
 
@@ -710,7 +710,7 @@
   place-items: center;
   color: color-mix(in srgb, var(--phx-muted) 70%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .1em;
   text-align: center;
 }
@@ -780,7 +780,7 @@
   margin: 4px 0 0;
   color: var(--phx-muted);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .08em;
   line-height: 1.55;
 }
@@ -799,7 +799,7 @@
 
 .training-hybrid-mission .training-day-exercises li::before { display: none; }
 .training-hybrid-mission .training-day-exercises b { color: var(--training-accent); font-weight: 400; }
-.training-hybrid-mission .training-day-exercises strong { color: var(--phx-muted); font-size: 7px; font-weight: 400; text-align: right; }
+.training-hybrid-mission .training-day-exercises strong { color: var(--phx-muted); font-size: 10px; font-weight: 400; text-align: right; }
 
 .training-hybrid-decisions dl { margin: 8px 0 0; }
 .training-hybrid-decisions dl div {
@@ -807,7 +807,7 @@
   border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 9%, transparent);
 }
 .training-hybrid-decisions dt { color: var(--phx-body); font-family: var(--phx-font-body); font-size: 11px; }
-.training-hybrid-decisions dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .07em; }
+.training-hybrid-decisions dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .07em; }
 
 .training-session-identity {
   display: flex;
@@ -823,7 +823,7 @@
   display: block;
   color: var(--training-accent);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .16em;
 }
 
@@ -841,7 +841,7 @@
   flex: 0 0 auto;
   color: var(--training-accent);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 400;
   letter-spacing: .13em;
 }
@@ -899,7 +899,7 @@
 
 .training-validation-list i { width: 5px; height: 5px; margin-top: 2px; background: currentColor; box-shadow: 0 0 6px currentColor; }
 .training-validation-list span,
-.training-validation-list strong { overflow-wrap: anywhere; font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .05em; }
+.training-validation-list strong { overflow-wrap: anywhere; font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .05em; }
 .training-validation-list strong { color: var(--phx-body); font-weight: 400; }
 .training-validation-list .passed { color: var(--phx-positive); }
 .training-validation-list .warning { color: var(--phx-caution); }
@@ -926,7 +926,7 @@
 }
 
 .training-history-version { min-width: 0; }
-.training-history-version span { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .12em; }
+.training-history-version span { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .12em; }
 .training-history-version strong { display: block; margin-top: 4px; overflow-wrap: anywhere; color: var(--phx-text); font-family: var(--phx-font-mono); font-size: 10px; font-weight: 400; }
 
 .training-lifecycle-status {
@@ -935,7 +935,7 @@
   border: 1px solid currentColor;
   color: var(--phx-muted);
   font-family: var(--phx-font-mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .1em;
 }
 
@@ -971,7 +971,7 @@
   margin-top: 8px;
   color: var(--phx-muted);
   font-family: var(--phx-font-mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .1em;
 }
 
@@ -992,7 +992,7 @@
 }
 
 .training-rules-objective span,
-.training-rules-objective p { margin: 0; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .11em; }
+.training-rules-objective p { margin: 0; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .11em; }
 .training-rules-objective strong { color: var(--phx-text); font-family: var(--phx-font-display); font-size: 20px; font-weight: 600; }
 .training-rules-objective p { text-align: right; overflow-wrap: anywhere; }
 
@@ -1016,7 +1016,7 @@
   margin: 0 0 9px;
   color: var(--training-accent);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 400;
   letter-spacing: .14em;
 }
@@ -1036,20 +1036,20 @@
 }
 
 .training-rule-metrics dt,
-.training-movement-families dt { color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .06em; }
+.training-movement-families dt { color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .06em; }
 .training-rule-metrics dd,
-.training-movement-families dd { margin: 0; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; text-align: right; }
+.training-movement-families dd { margin: 0; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 10px; text-align: right; }
 
 .training-constraint-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .training-constraint-list li { padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--training-accent) 10%, transparent); }
 .training-constraint-list li:last-child { border-bottom: 0; }
 .training-constraint-list div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .training-constraint-list strong,
-.training-constraint-list span { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 7px; font-weight: 400; letter-spacing: .08em; }
+.training-constraint-list span { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 10px; font-weight: 400; letter-spacing: .08em; }
 .training-constraint-list span { color: var(--phx-muted); }
 .training-constraint-list p { margin: 5px 0 0; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-body); font-size: 10px; line-height: 1.4; }
 
-.training-rule-empty { margin: 0; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 8px; letter-spacing: .08em; }
+.training-rule-empty { margin: 0; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .08em; }
 
 .training-adapt-view { min-width: 0; }
 
@@ -1068,7 +1068,7 @@
 .training-adapt-generate p {
   margin: 0;
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .18em;
   color: color-mix(in srgb, var(--training-accent) 70%, transparent);
 }
@@ -1076,7 +1076,7 @@
 .training-adapt-generate button {
   min-height: 42px;
   font-family: var(--phx-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: .22em;
   color: var(--phx-bg);
   background: var(--training-accent);
@@ -1108,7 +1108,7 @@
   color: var(--training-accent);
   background: color-mix(in srgb, var(--phx-bg) 90%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .12em;
   cursor: pointer;
 }
@@ -1142,7 +1142,7 @@
   gap: 5px;
   color: var(--phx-muted);
   font-family: var(--phx-font-mono);
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: .1em;
 }
 
@@ -1158,7 +1158,7 @@
   color: var(--phx-text);
   background: color-mix(in srgb, var(--phx-bg) 88%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .training-adapt-quick-form select { cursor: pointer; }
@@ -1171,7 +1171,7 @@
   color: var(--phx-muted);
   background: color-mix(in srgb, var(--training-accent) 5%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.6;
   letter-spacing: .08em;
 }
@@ -1188,13 +1188,13 @@
   color: var(--phx-muted);
   background: color-mix(in srgb, var(--training-accent) 5%, transparent);
   font-family: var(--phx-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: .08em;
   line-height: 1.45;
 }
 
 .training-adapt-preview { margin-top: 14px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--training-accent) 28%, transparent); }
-.training-adapt-status { flex: 0 0 auto; padding: 5px 7px; border: 1px solid currentColor; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .1em; }
+.training-adapt-status { flex: 0 0 auto; padding: 5px 7px; border: 1px solid currentColor; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .1em; }
 .training-adapt-status.passed { color: var(--phx-positive); }
 .training-adapt-status.warning { color: var(--phx-caution); }
 
@@ -1207,24 +1207,24 @@
 }
 
 .training-adapt-summary div { min-width: 0; padding: 9px 10px; background: color-mix(in srgb, var(--phx-bg) 90%, transparent); }
-.training-adapt-summary span { display: block; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .1em; }
-.training-adapt-summary strong { display: block; margin-top: 4px; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; font-weight: 400; }
+.training-adapt-summary span { display: block; color: var(--phx-muted); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .1em; }
+.training-adapt-summary strong { display: block; margin-top: 4px; overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 10px; font-weight: 400; }
 
 .training-adapt-constraints,
 .training-adapt-diff,
 .training-adapt-validations { margin-top: 12px; }
 .training-adapt-constraint-list { display: grid; gap: 1px; margin: 8px 0 0; padding: 0; list-style: none; background: color-mix(in srgb, var(--training-accent) 12%, transparent); }
 .training-adapt-constraint-list li { display: grid; min-width: 0; grid-template-columns: minmax(120px, .65fr) minmax(0, 2fr); gap: 8px; padding: 8px 9px; background: color-mix(in srgb, var(--phx-bg) 92%, transparent); }
-.training-adapt-constraint-list strong { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 7px; font-weight: 400; letter-spacing: .08em; }
-.training-adapt-constraint-list span { overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 8px; letter-spacing: .04em; }
+.training-adapt-constraint-list strong { color: var(--training-accent); font-family: var(--phx-font-mono); font-size: 10px; font-weight: 400; letter-spacing: .08em; }
+.training-adapt-constraint-list span { overflow-wrap: anywhere; color: var(--phx-body); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .04em; }
 
 .training-adapt-diff-scroll { margin-top: 8px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--training-accent) 48%, transparent) transparent; }
 .training-adapt-diff-grid { min-width: 760px; border: 1px solid color-mix(in srgb, var(--training-accent) 18%, transparent); }
 .training-adapt-diff-head,
 .training-adapt-diff-row { display: grid; grid-template-columns: 104px minmax(150px, 1fr) minmax(150px, 1fr) minmax(170px, 1.2fr) 100px; gap: 1px; background: color-mix(in srgb, var(--training-accent) 12%, transparent); }
-.training-adapt-diff-head span { padding: 7px 8px; color: var(--training-accent); background: color-mix(in srgb, var(--phx-bg) 90%, transparent); font-family: var(--phx-font-mono); font-size: 7px; letter-spacing: .09em; }
-.training-adapt-diff-row > * { min-width: 0; padding: 8px; overflow-wrap: anywhere; color: var(--phx-body); background: color-mix(in srgb, var(--phx-bg) 94%, transparent); font-family: var(--phx-font-mono); font-size: 8px; line-height: 1.4; }
-.training-adapt-diff-row b { display: block; margin-bottom: 3px; color: var(--phx-muted); font-size: 6px; font-weight: 400; letter-spacing: .08em; }
+.training-adapt-diff-head span { padding: 7px 8px; color: var(--training-accent); background: color-mix(in srgb, var(--phx-bg) 90%, transparent); font-family: var(--phx-font-mono); font-size: 10px; letter-spacing: .09em; }
+.training-adapt-diff-row > * { min-width: 0; padding: 8px; overflow-wrap: anywhere; color: var(--phx-body); background: color-mix(in srgb, var(--phx-bg) 94%, transparent); font-family: var(--phx-font-mono); font-size: 10px; line-height: 1.4; }
+.training-adapt-diff-row b { display: block; margin-bottom: 3px; color: var(--phx-muted); font-size: 10px; font-weight: 400; letter-spacing: .08em; }
 .training-adapt-day-status { color: var(--phx-muted) !important; }
 .training-adapt-day-status.passed { color: var(--phx-positive) !important; }
 .training-adapt-day-status.warning { color: var(--phx-caution) !important; }

@@ -5,6 +5,7 @@ import { buildDomains } from './holoDomains'
 import useHoloData from './useHoloData'
 import { logMeal as apiLogMeal, logSleepDuration } from '../../api/client'
 import { applyFinance, applyFinanceOffline, applyNutrition, applyCalendar, mapHoldings, mealBudget, mapDinners, mapConnectorLanes, mapTodayRail } from './holoLive'
+import { composeHomeBrief } from './homeBrief.js'
 import { buildTrainingDomain, normalizeTrainingLive } from './trainingLive'
 import HoloScene, { useHoloAtmosphere, HoloEdgeChrome, HoloBootLine, HoloDomainFlash, HoloBeams } from './HoloScene'
 import HoloCore from './HoloCore'
@@ -33,36 +34,6 @@ function useMedia(query) {
 
 // mouse parallax: [data-plx] nodes translate by depth factor, lerped per frame.
 // Fine pointers only; disabled under prefers-reduced-motion.
-function useParallax(rootRef, deps) {
-  useEffect(() => {
-    if (!window.matchMedia('(pointer: fine)').matches) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let nodes = Array.from(rootRef.current?.querySelectorAll('[data-plx]') ?? [])
-    const target = { x: 0, y: 0 }
-    const cur = { x: 0, y: 0 }
-    const onMouse = e => {
-      target.x = (e.clientX / window.innerWidth - 0.5) * 2
-      target.y = (e.clientY / window.innerHeight - 0.5) * 2
-    }
-    window.addEventListener('mousemove', onMouse)
-    let raf
-    const loop = () => {
-      cur.x += (target.x - cur.x) * 0.055
-      cur.y += (target.y - cur.y) * 0.055
-      for (const n of nodes) {
-        const d = parseFloat(n.getAttribute('data-plx')) || 0
-        n.style.translate = cur.x * d * -420 + 'px ' + cur.y * d * -300 + 'px'
-      }
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => {
-      window.removeEventListener('mousemove', onMouse)
-      cancelAnimationFrame(raf)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
-}
 
 const pad = x => String(x).padStart(2, '0')
 
@@ -90,6 +61,8 @@ export default function HoloCommand({ startTab = 'home' }) {
 
   const isMobile = useMedia('(max-width: 780px)')
   const isShort = useMedia('(max-height: 720px)')
+  // Home carries a three-line brief under the reactor; below ~960px the two collide unless the core rides high.
+  const tightHome = useMedia('(max-height: 960px)')
   const composerRef = useRef(null)
   const voiceT1 = useRef(null)
   const voiceT2 = useRef(null)
@@ -160,7 +133,6 @@ export default function HoloCommand({ startTab = 'home' }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [go, sub, focus])
 
-  useParallax(rootRef, [tab, sub, focus, isMobile])
 
   // ── voice link + directive composer (home) ──
   const clearVoiceTimers = () => { clearTimeout(voiceT1.current); clearTimeout(voiceT2.current) }
@@ -234,6 +206,9 @@ export default function HoloCommand({ startTab = 'home' }) {
     if (tab === 'nutrition') d = applyNutrition(d, live.nutrition)
     if (tab === 'training') d = buildTrainingDomain(d, trainingLive)
     if (tab === 'calendar') d = applyCalendar(d, live.calendar, live.connectors)
+    if (tab === 'home') d.heroBrief = composeHomeBrief({
+      dayPart, finance: live.finance, nutrition: live.nutrition, training: trainingLive, calendar: live.calendar,
+    })
     if (tab === 'finance' && appStamped) {
       d.heroChips = [d.heroChips[0], d.heroChips[1], { text: 'W28 APPROVED ✓', color: G }]
       // fixture panel has an "Approval" row; the live panel's equivalent is "Weekly deploy"
@@ -276,6 +251,7 @@ export default function HoloCommand({ startTab = 'home' }) {
   }, [D, tab])
 
   const isHome = tab === 'home'
+  const coreShort = isShort || (isHome && !isMobile && tightHome)
   const voiceHot = isHome && voice !== 'idle'
   const hot = voiceHot || burst
   const focusPanel = focus ? D.panels.find(p => p.code === focus) : null
@@ -304,14 +280,22 @@ export default function HoloCommand({ startTab = 'home' }) {
         {fx > 0 && !warped && <HoloDomainFlash />}
         <HoloEdgeChrome clock={clock} />
         <HoloBootLine bootLine={D.bootLine} isMobile={isMobile} isHome={isHome} />
-        <HoloCore domain={D} hot={hot} dimmed={!!focusPanel} isShort={isShort} isMobile={isMobile} sparks={atmosphere.sparks} showChips={showChips} isHome={isHome} />
+        <HoloCore domain={D} hot={hot} dimmed={!!focusPanel} isShort={coreShort} isMobile={isMobile} sparks={atmosphere.sparks} showChips={showChips} isHome={isHome} />
         {!isHome && !isMobile && <HoloBeams />}
         {!isHome && isMobile && <HoloMobileDomain domain={D} onFocus={setFocus} onAction={setSub} />}
         {!isHome && !isMobile && <HoloWings domain={D} showTele={showTele} onFocus={setFocus} />}
 
+        {/* ── phone home: the day brief owns the band between the reactor and the composer ── */}
+        {isHome && isMobile && !isShort && (
+          <div data-phx-home-brief style={{ position: 'absolute', left: '50%', top: '47%', width: 'calc(100vw - 36px)', transform: 'translateX(-50%)', zIndex: 45, textAlign: 'center', animation: 'holo-inX .6s cubic-bezier(.2,.8,.4,1) .55s both' }}>
+            <p style={{ margin: 0, fontFamily: FB, fontSize: '18px', fontWeight: 300, lineHeight: 1.5, color: mix(BODY, 92), textShadow: '0 1px 10px rgba(0,0,0,.8)' }}>
+              {voiceMsg || D.heroBrief}
+            </p>
+          </div>
+        )}
         {/* ── brief + actions / home composer ── */}
         <div style={{ position: 'absolute', left: '50%', bottom: isMobile && !isHome ? 'calc(126px + env(safe-area-inset-bottom))' : 'calc(70px + env(safe-area-inset-bottom))', transform: 'translateX(-50%)', width: isMobile ? 'calc(100vw - 24px)' : isShort ? 'min(400px, 40vw)' : 'min(560px, 46vw)', zIndex: 45, textAlign: 'center', animation: 'holo-inX .6s cubic-bezier(.2,.8,.4,1) .55s both' }}>
-          {(isHome || (!isShort && !isMobile)) && (
+          {((isHome && (!isMobile || isShort)) || (!isShort && !isMobile)) && (
             <p style={{ margin: '0 0 11px', fontFamily: FB, fontSize: '15.5px', fontWeight: 300, lineHeight: 1.5, color: mix(BODY, 90), textShadow: '0 1px 10px rgba(0,0,0,.8)' }}>
               {isHome && voiceMsg ? voiceMsg : D.heroBrief}
             </p>
@@ -322,7 +306,7 @@ export default function HoloCommand({ startTab = 'home' }) {
                 const approved = act.approved
                 const primary = act.primary && !approved
                 return (
-                  <button key={act.label} onClick={() => setSub(act.sub)} style={{ minHeight: 42, padding: '0 20px', fontFamily: FM, fontSize: '9.5px', letterSpacing: '.2em', color: approved ? G : primary ? INK : a(ACC, 'cc'), background: primary ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${approved ? mix(G, 40) : primary ? ACC : a(ACC, '44')}`, cursor: 'pointer', textTransform: 'uppercase', boxShadow: primary ? `0 0 24px ${a(ACC, '55')}` : 'none' }}>
+                  <button key={act.label} onClick={() => setSub(act.sub)} style={{ minHeight: 42, padding: '0 20px', fontFamily: FM, fontSize: '10.5px', letterSpacing: '.2em', color: approved ? G : primary ? INK : a(ACC, 'cc'), background: primary ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${approved ? mix(G, 40) : primary ? ACC : a(ACC, '44')}`, cursor: 'pointer', textTransform: 'uppercase', boxShadow: primary ? `0 0 24px ${a(ACC, '55')}` : 'none' }}>
                     {act.label}
                   </button>
                 )
@@ -335,7 +319,7 @@ export default function HoloCommand({ startTab = 'home' }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12, animation: 'holo-fadeIn .4s ease both' }}>
                   {log.map((m, i) => (
                     <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'baseline', justifyContent: 'center' }}>
-                      <span style={{ fontFamily: FM, fontSize: '7.5px', letterSpacing: '.16em', color: m.w === 'you' ? a(SCENE, '99') : G, flexShrink: 0 }}>{m.w === 'you' ? 'YOU ▸' : 'PHX ▸'}</span>
+                      <span style={{ fontFamily: FM, fontSize: '10px', letterSpacing: '.16em', color: m.w === 'you' ? a(SCENE, '99') : G, flexShrink: 0 }}>{m.w === 'you' ? 'YOU ▸' : 'PHX ▸'}</span>
                       <span style={{ fontFamily: FB, fontSize: '13.5px', fontWeight: 300, color: mix(BODY, 78), lineHeight: 1.35, textShadow: '0 1px 8px rgba(0,0,0,.8)' }}>{m.t}</span>
                     </div>
                   ))}
@@ -343,12 +327,12 @@ export default function HoloCommand({ startTab = 'home' }) {
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 9, whiteSpace: 'nowrap' }}>
                 <span style={{ flexShrink: 0, width: 5, height: 5, borderRadius: 99, background: voiceColor, boxShadow: `0 0 8px ${voiceColor}` }} />
-                <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '.22em', color: voiceColor }}>VOICE.LINK · {voiceLabel}</span>
+                <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.22em', color: voiceColor }}>VOICE.LINK · {voiceLabel}</span>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
                 <input ref={composerRef} className="holo-composer" onKeyDown={e => { if (e.key === 'Enter') sendDirective() }} placeholder="TYPE A DIRECTIVE — 'OPEN FINANCE', 'STATUS REPORT'…" style={{ flex: 1, minWidth: 0, minHeight: 44, padding: '0 14px', fontFamily: FM, fontSize: 10, letterSpacing: '.1em', color: W, background: deep(66), border: `1px solid ${a(ACC, '30')}`, outline: 'none', backdropFilter: 'blur(8px)' }} />
-                <button onClick={sendDirective} style={{ minHeight: 44, padding: '0 18px', fontFamily: FM, fontSize: '9.5px', letterSpacing: '.2em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: 'pointer', boxShadow: `0 0 22px ${a(ACC, '1f')}` }}>SEND</button>
-                <button onPointerDown={micDown} onPointerUp={micUp} onPointerLeave={micUp} title="Hold to talk" style={{ minHeight: 44, minWidth: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: FM, fontSize: '9.5px', letterSpacing: '.14em', color: voiceColor, background: deep(60), border: `1px solid ${voiceColor}`, cursor: 'pointer', boxShadow: `0 0 16px ${a(ACC, '1f')}`, userSelect: 'none', touchAction: 'none' }}>◉ HOLD</button>
+                <button onClick={sendDirective} style={{ minHeight: 44, padding: '0 18px', fontFamily: FM, fontSize: '10.5px', letterSpacing: '.2em', color: INK, background: `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})`, border: `1px solid ${ACC}`, cursor: 'pointer', boxShadow: `0 0 22px ${a(ACC, '1f')}` }}>SEND</button>
+                <button onPointerDown={micDown} onPointerUp={micUp} onPointerLeave={micUp} title="Hold to talk" style={{ minHeight: 44, minWidth: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: FM, fontSize: '10.5px', letterSpacing: '.14em', color: voiceColor, background: deep(60), border: `1px solid ${voiceColor}`, cursor: 'pointer', boxShadow: `0 0 16px ${a(ACC, '1f')}`, userSelect: 'none', touchAction: 'none' }}>◉ HOLD</button>
               </div>
             </>
           )}

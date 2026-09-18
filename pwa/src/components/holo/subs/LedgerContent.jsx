@@ -60,7 +60,7 @@ function RecordForm({ assets, onSaved }) {
 
   return (
     <div style={{ border: `1px solid ${a(ACC, '20')}`, background: deep(60), padding: 13, marginBottom: 14 }}>
-      <div style={{ ...financeLabel({ fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc') }), marginBottom: 11 }}>RECORD A BUY YOU PLACED</div>
+      <div style={{ ...financeLabel({ fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc') }), marginBottom: 11 }}>RECORD A BUY YOU PLACED</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
         <Field label="ASSET">
           <select className="phx-input" style={inputStyle} value={form.asset} onChange={e => set('asset', e.target.value)}>
@@ -77,7 +77,7 @@ function RecordForm({ assets, onSaved }) {
         <Field label="CURRENCY"><input className="phx-input" style={inputStyle} value={form.currency} onChange={e => set('currency', e.target.value)} /></Field>
       </div>
       <Field label="NOTE (OPTIONAL)"><input className="phx-input" style={{ ...inputStyle, marginTop: 10 }} value={form.notes} onChange={e => set('notes', e.target.value)} /></Field>
-      {error && <div style={{ color: R, fontFamily: FM, fontSize: 9, marginTop: 9 }}>{error}</div>}
+      {error && <div style={{ color: R, fontFamily: FM, fontSize: 10, marginTop: 9 }}>{error}</div>}
       <button onClick={submit} disabled={!valid || saving} style={{ width: '100%', minHeight: 42, marginTop: 12, ...financeButton({ color: valid ? INK : a(ACC, '77') }), background: valid ? `linear-gradient(135deg, ${ACC}, ${a(ACC, 'bb')})` : deep(50), border: `1px solid ${valid ? ACC : a(ACC, '30')}`, cursor: valid && !saving ? 'pointer' : 'not-allowed' }}>
         {saving ? 'SAVING RECORD…' : 'SAVE MANUAL RECORD'}
       </button>
@@ -104,20 +104,20 @@ function ApplyPreview({ txId, onApplied, onCancel }) {
     catch (e) { setError(e?.message || 'Apply failed.'); setApplying(false) }
   }
 
-  if (error) return <div style={{ marginTop: 8, fontFamily: FM, fontSize: 9, color: R }}>{error}</div>
-  if (!preview) return <div style={{ marginTop: 8, fontFamily: FM, fontSize: 9, color: a(ACC, '99') }}>LOADING PREVIEW…</div>
+  if (error) return <div style={{ marginTop: 8, fontFamily: FM, fontSize: 10, color: R }}>{error}</div>
+  if (!preview) return <div style={{ marginTop: 8, fontFamily: FM, fontSize: 10, color: a(ACC, '99') }}>LOADING PREVIEW…</div>
 
   const asset = preview.asset
   const beforeH = preview.before?.holdings?.[asset]
   const afterH = preview.after?.holdings?.[asset]
   return (
     <div style={{ marginTop: 9, padding: '10px 12px', border: `1px solid ${a(ACC, '26')}`, background: deep(66) }}>
-      <div style={{ ...financeLabel({ fontSize: 9, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 7 }}>APPLY TO PORTFOLIO STATE — PREVIEW</div>
+      <div style={{ ...financeLabel({ fontSize: 10, letterSpacing: '.16em', color: a(ACC, '99') }), marginBottom: 7 }}>APPLY TO PORTFOLIO STATE — PREVIEW</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontFamily: FD, fontSize: 18, fontWeight: 700, color: W }}>
         <span>{eur(beforeH ?? 0)}</span>
         <span style={{ color: ACC, fontSize: 14 }}>→</span>
         <span style={{ color: G }}>{eur(afterH ?? 0)}</span>
-        <span style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99'), letterSpacing: '.1em' }}>+{preview.units_delta} UNITS</span>
+        <span style={{ fontFamily: FM, fontSize: 10, color: a(ACC, '99'), letterSpacing: '.1em' }}>+{preview.units_delta} UNITS</span>
       </div>
       <div style={{ marginTop: 7, ...financeBody({ fontSize: 13, lineHeight: 1.6, color: a(ACC, '88') }) }}>
         Updates your tracked portfolio state and records a performance snapshot. No broker action, no order placed.
@@ -149,17 +149,17 @@ function TxRow({ tx, onChanged, onApplyOpen, applyOpen, onApplied }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: FD, fontSize: 17, fontWeight: 700, color: W }}>{String(tx.asset).replace(/_/g, ' ').toUpperCase()}</span>
-            <span style={{ fontFamily: FM, fontSize: 9, color: ACC }}>{eur(tx.amount_eur)}</span>
-            <span style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '99') }}>{tx.units} U · {tx.platform}</span>
+            <span style={{ fontFamily: FM, fontSize: 10, color: ACC }}>{eur(tx.amount_eur)}</span>
+            <span style={{ fontFamily: FM, fontSize: 10, color: a(ACC, '99') }}>{tx.units} U · {tx.platform}</span>
           </div>
-          <div style={{ fontFamily: FM, fontSize: 9, color: a(ACC, '77'), letterSpacing: '.1em', marginTop: 4 }}>EXECUTED {String(tx.executed_at).slice(0, 10)}{tx.fee_eur ? ` · FEE ${eur(tx.fee_eur)}` : ''}</div>
+          <div style={{ fontFamily: FM, fontSize: 10, color: a(ACC, '77'), letterSpacing: '.1em', marginTop: 4 }}>EXECUTED {String(tx.executed_at).slice(0, 10)}{tx.fee_eur ? ` · FEE ${eur(tx.fee_eur)}` : ''}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.14em', padding: '2px 7px', border: `1px solid ${mix(color, 40)}`, color }}>{label}</span>
+          <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', padding: '2px 7px', border: `1px solid ${mix(color, 40)}`, color }}>{label}</span>
           {!applied && !voided && (
             <span style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => onApplyOpen(applyOpen ? null : tx.id)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 9, letterSpacing: '.14em', color: G, background: mix(G, 8), border: `1px solid ${mix(G, 36)}`, cursor: 'pointer' }}>{applyOpen ? 'CLOSE' : 'APPLY'}</button>
-              <button onClick={voidTx} disabled={voiding} title="Void record" style={{ minHeight: 28, padding: '0 8px', fontFamily: FM, fontSize: 9, color: mix(R, 55), background: 'none', border: `1px solid ${mix(R, 26)}`, cursor: 'pointer' }}>{voiding ? '…' : '✕'}</button>
+              <button onClick={() => onApplyOpen(applyOpen ? null : tx.id)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: G, background: mix(G, 8), border: `1px solid ${mix(G, 36)}`, cursor: 'pointer' }}>{applyOpen ? 'CLOSE' : 'APPLY'}</button>
+              <button onClick={voidTx} disabled={voiding} title="Void record" style={{ minHeight: 28, padding: '0 8px', fontFamily: FM, fontSize: 10, color: mix(R, 55), background: 'none', border: `1px solid ${mix(R, 26)}`, cursor: 'pointer' }}>{voiding ? '…' : '✕'}</button>
             </span>
           )}
         </div>
@@ -189,8 +189,8 @@ export function LedgerContent({ assets }) {
   }
   useEffect(() => { load() }, [])
 
-  if (error) return <div style={{ padding: '20px 0', ...financeLabel({ fontSize: 9, color: R }) }}>UNABLE TO LOAD LEDGER</div>
-  if (ledger === null) return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING LEDGER…</div>
+  if (error) return <div style={{ padding: '20px 0', ...financeLabel({ fontSize: 10, color: R }) }}>UNABLE TO LOAD LEDGER</div>
+  if (ledger === null) return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING LEDGER…</div>
 
   const pending = ledger.filter(t => !isApplied(t) && !t.voided_at).length
 
@@ -203,8 +203,8 @@ export function LedgerContent({ assets }) {
       <RecordForm assets={assetOptions} onSaved={load} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '.16em', color: a(ACC, 'cc') }}>RECORDED BUYS</span>
-        <span style={{ fontFamily: FM, fontSize: 9, color: pending ? Y : a(ACC, '99') }}>{ledger.length} · {pending} PENDING</span>
+        <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.16em', color: a(ACC, 'cc') }}>RECORDED BUYS</span>
+        <span style={{ fontFamily: FM, fontSize: 10, color: pending ? Y : a(ACC, '99') }}>{ledger.length} · {pending} PENDING</span>
       </div>
 
       {ledger.length === 0 && (

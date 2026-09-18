@@ -111,13 +111,13 @@ export function HoldingsContent({ sel = 0, onSel = () => {}, live }) {
           {/* tilted orbit plane */}
           <div style={{ position: 'absolute', left: '50%', top: '55%', width: '88%', aspectRatio: '1', transform: 'translate(-50%,-50%) scaleY(.42)' }}>
             <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `1px dashed ${a(ACC, '30')}` }} />
-            <div style={{ position: 'absolute', inset: 0, animation: 'holo-ringSpin 22s linear infinite' }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
               <i style={{ position: 'absolute', left: '50%', top: 0, width: 5, height: 5, margin: -2.5, borderRadius: '50%', background: W, transform: 'scaleY(2.38)', boxShadow: `0 0 10px ${ACC}, 0 0 20px ${ACC}` }} />
             </div>
           </div>
           <div style={{ position: 'absolute', left: '50%', top: '55%', width: '58%', aspectRatio: '1', transform: 'translate(-50%,-50%) scaleY(.42)' }}>
             <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `1px solid ${a(ACC, '2a')}`, boxShadow: `inset 0 0 34px ${a(ACC, '12')}` }} />
-            <div style={{ position: 'absolute', inset: 0, animation: 'holo-ringSpinRev 30s linear infinite' }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
               <i style={{ position: 'absolute', left: '50%', top: 0, width: 4, height: 4, margin: -2, borderRadius: '50%', background: G, transform: 'scaleY(2.38)', boxShadow: `0 0 9px ${G}` }} />
             </div>
           </div>
@@ -125,15 +125,15 @@ export function HoldingsContent({ sel = 0, onSel = () => {}, live }) {
           {/* floor glow */}
           <div style={{ position: 'absolute', left: '50%', top: '57%', transform: 'translate(-50%,-50%)', width: '76%', height: '32%', background: `radial-gradient(ellipse, ${a(ACC, '1c')} 0%, transparent 66%)`, filter: 'blur(12px)', pointerEvents: 'none' }} />
           {/* emitter beam: plane → sun */}
-          <div style={{ position: 'absolute', left: '50%', top: '32%', transform: 'translateX(-50%)', width: 2, height: '23%', background: `linear-gradient(180deg, ${a(ACC, '88')}, transparent)`, filter: 'blur(.5px)', animation: 'holo-beamPulse 4.5s ease-in-out infinite', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', left: '50%', top: '55%', transform: 'translate(-50%,-50%)', width: '12%', height: '5%', borderRadius: '50%', border: `1px solid ${a(ACC, '55')}`, boxShadow: `0 0 16px ${a(ACC, '1f')}`, animation: 'holo-padRipple 3.4s ease-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: '50%', top: '32%', transform: 'translateX(-50%)', width: 2, height: '23%', background: `linear-gradient(180deg, ${a(ACC, '88')}, transparent)`, filter: 'blur(.5px)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: '50%', top: '55%', transform: 'translate(-50%,-50%)', width: '12%', height: '5%', borderRadius: '50%', border: `1px solid ${a(ACC, '55')}`, boxShadow: `0 0 16px ${a(ACC, '1f')}`, pointerEvents: 'none' }} />
           {/* portfolio-core sun */}
           <div style={{ position: 'absolute', left: '50%', top: '29%', transform: 'translate(-50%,-50%)', textAlign: 'center', zIndex: 11, pointerEvents: 'none' }}>
-            <div style={{ animation: 'holo-floatA 7s ease-in-out infinite' }}>
+            <div style={{ }}>
               <span style={{ position: 'relative', display: 'block', width: 54, height: 54, margin: '0 auto 8px' }}>
-                <i style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, white 0%, ${mix('white', 85)} 20%, ${ACC} 54%, color-mix(in srgb, ${ACC} 32%, var(--phx-bg)) 86%)`, boxShadow: `0 0 34px ${a(ACC, '66')}, 0 0 90px ${a(ACC, '1f')}, inset -8px -9px 14px ${deep(62)}, inset 3px 4px 8px ${mix('white', 30)}`, animation: 'holo-corePulse 4.2s ease-in-out infinite' }} />
+                <i style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, white 0%, ${mix('white', 85)} 20%, ${ACC} 54%, color-mix(in srgb, ${ACC} 32%, var(--phx-bg)) 86%)`, boxShadow: `0 0 34px ${a(ACC, '66')}, 0 0 90px ${a(ACC, '1f')}, inset -8px -9px 14px ${deep(62)}, inset 3px 4px 8px ${mix('white', 30)}` }} />
                 <i style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `repeating-linear-gradient(172deg, transparent 0 4px, ${mix('white', 6)} 4px 5px)`, mixBlendMode: 'screen' }} />
-                <i style={{ position: 'absolute', inset: '-30% -22%', borderRadius: '50%', border: `1px dashed ${a(ACC, '4d')}`, transform: 'rotate(-16deg) scaleY(.4)', animation: 'holo-ringSpin 18s linear infinite' }} />
+                <i style={{ position: 'absolute', inset: '-30% -22%', borderRadius: '50%', border: `1px dashed ${a(ACC, '4d')}`, transform: 'rotate(-16deg) scaleY(.4)' }} />
               </span>
               <div style={financeMicro({ letterSpacing: '.16em', color: a(ACC, '99') })}>{coreLabel}</div>
             </div>
@@ -326,7 +326,7 @@ export function BriefContent() {
   }, [])
 
   if (loading) {
-    return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 9, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING REAL BRIEF…</div>
+    return <div style={{ padding: '48px 0', textAlign: 'center', ...financeLabel({ fontSize: 10, letterSpacing: '.18em', color: a(ACC, '99') }) }}>LOADING REAL BRIEF…</div>
   }
 
   if (error) {
@@ -351,7 +351,7 @@ export function BriefContent() {
       </div>
       <div style={{ background: deep(82), border: `1px solid ${a(ACC, '22')}`, padding: '20px 22px', minHeight: 320, ...financeMonoBody({ fontSize: '14.5px', lineHeight: 1.78 }), whiteSpace: 'pre-wrap', boxShadow: `inset 0 0 40px ${a(ACC, '08')}` }}>
         {briefText.slice(0, n)}
-        <span style={{ display: 'inline-block', width: 7, height: 14, background: ACC, boxShadow: `0 0 8px ${ACC}`, verticalAlign: -2, animation: 'holo-cursorBlink 1.1s ease-in-out infinite' }} />
+        <span style={{ display: 'inline-block', width: 7, height: 14, background: ACC, boxShadow: `0 0 8px ${ACC}`, verticalAlign: -2 }} />
       </div>
       <OptimizerSummary />
       {done && (

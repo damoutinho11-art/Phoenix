@@ -225,13 +225,15 @@ test('finance room uses one readable text system across every finance surface', 
   assert.match(readability, /financeMicro/)
   assert.match(readability, /financeBody/)
   assert.match(readability, /financeMonoBody/)
-  assert.match(readability, /fontSize:\s*9/)
+  // 10px is the readable floor for mono labels; the header kicker lines are the only smaller type.
+  assert.match(readability, /fontSize:\s*10/)
+  assert.doesNotMatch(readability, /fontSize:\s*(?:[6-9](?:\.5)?)/)
   assert.match(readability, /fontSize:\s*14/)
 
   for (const file of financeFiles) {
     const source = await src(file)
     assert.match(source, /finance(Micro|Label|Body|MonoBody|Value)|FINANCE_TEXT_SYSTEM/, `${file} should use the shared finance text system`)
-    assert.doesNotMatch(source, /fontSize:\s*['"]?(?:6(?:\.5)?|7(?:\.5)?)(?:px)?['"]?/, `${file} should not render sub-8px finance text`)
+    assert.doesNotMatch(source, /fontSize:\s*['"]?(?:[6-9](?:\.5)?)(?:px)?['"]?/, `${file} should not render finance text below the 10px floor`)
     assert.doesNotMatch(source, /letterSpacing:\s*'\.3em'/, `${file} should avoid hard-to-read extreme tracking`)
   }
 
