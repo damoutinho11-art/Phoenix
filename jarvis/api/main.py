@@ -28,6 +28,7 @@ from jarvis.api.routers import (
     news,
     nutrition,
     training,
+    voice,
 )
 from jarvis.core import clock
 from jarvis.data import database
@@ -197,6 +198,7 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(google_auth.router, prefix="/auth/google", tags=["google-auth"])
 app.include_router(gmail.router, prefix="/gmail", tags=["gmail"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
+app.include_router(voice.router, prefix="/voice", tags=["voice"])
 
 
 @app.get("/health", tags=["meta"])

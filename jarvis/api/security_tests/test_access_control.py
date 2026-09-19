@@ -38,7 +38,7 @@ class AccessControlTests(unittest.TestCase):
 
     def test_all_private_routes_deny_without_credentials_before_dispatch(self):
         for path in ['/finance/holdings', '/finance/data-coverage', '/budget/status',
-                     '/jarvis/chat', '/admin', '/docs', '/openapi.json', '/health/details']:
+                     '/jarvis/chat', '/voice/speak', '/voice/status', '/admin', '/docs', '/openapi.json', '/health/details']:
             for method in ['GET', 'POST', 'DELETE']:
                 with self.subTest(path=path, method=method):
                     r = self.client.request(method, path)

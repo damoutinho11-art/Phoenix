@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { speakable, pickVoice, speechSupport, createSpeaker, createListener } from './voiceLink.js'
+import { speakable, pickVoice, speechSupport, createSpeaker, createListener, createServerSpeaker } from './voiceLink.js'
 
 test('speakable turns PHOENIX text into something a voice reads naturally', () => {
   assert.equal(speakable('W38 2026 is deployed. BTC-EUR €28.14, XNAS.DE €178.91 — 2,000 kcal open at 19:00.'),
@@ -52,4 +52,27 @@ test('speaker cancels current speech and applies the chosen voice', () => {
   assert.equal(spoken[0], 'cancel')
   assert.equal(spoken[1].text, '5 euros test')
   assert.equal(spoken[1].voice.lang, 'en-GB')
+})
+
+test('server speaker uses ElevenLabs when configured and caches repeated lines', async () => {
+  const played = []; let synthCalls = 0
+  class Audio { constructor(url) { this.url = url; played.push(url) } play() { this.onended?.(); return Promise.resolve() } pause() {} }
+  const win = { Audio, URL: { createObjectURL: () => `blob:${++synthCalls}`, revokeObjectURL() {} } }
+  const speaker = createServerSpeaker({ status: async () => ({ configured: true }), synthesize: async () => new Uint8Array([1]), fallback: null, win })
+  await speaker.speak('Week 38 is deployed.')
+  await speaker.speak('Week 38 is deployed.')
+  assert.deepEqual(played, ['blob:1', 'blob:1'])
+  assert.equal(speaker.provider(), 'elevenlabs')
+})
+
+test('server speaker falls back to the browser voice when unconfigured or failing', async () => {
+  const fallbackSpoken = []
+  const fallback = { speak: t => fallbackSpoken.push(t), stop() {} }
+  const unconfigured = createServerSpeaker({ status: async () => ({ configured: false }), synthesize: async () => { throw new Error('no') }, fallback, win: {} })
+  await unconfigured.speak('hello')
+  assert.deepEqual(fallbackSpoken, ['hello'])
+  assert.equal(unconfigured.provider(), 'browser')
+  const failing = createServerSpeaker({ status: async () => ({ configured: true }), synthesize: async () => { throw Object.assign(new Error('502'), { status: 502 }) }, fallback, win: { URL: { createObjectURL() {}, revokeObjectURL() {} } } })
+  await failing.speak('again')
+  assert.deepEqual(fallbackSpoken, ['hello', 'again'])
 })

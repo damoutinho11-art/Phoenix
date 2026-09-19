@@ -634,3 +634,13 @@ export async function saveBudgetMemory(profile) {
     body: JSON.stringify({ profile }),
   })
 }
+
+export function getVoiceStatus() { return apiFetch('/voice/status') }
+// Returns an audio Blob; the ElevenLabs key never leaves the server.
+export async function synthesizeSpeech(text) {
+  const response = await privateFetch(`${BASE_URL}/voice/speak`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
+  })
+  if (!response.ok) { const error = new Error(`voice ${response.status}`); error.status = response.status; throw error }
+  return response.blob()
+}

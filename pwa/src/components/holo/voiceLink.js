@@ -100,3 +100,48 @@ export function createListener(win = globalThis, { lang = 'en-GB', onResult, onE
     active() { return rec !== null },
   }
 }
+
+// Server voice (ElevenLabs via /voice/speak) with the browser voice as fallback.
+// `synthesize(text) -> Blob` and `status() -> {configured}` are injected so the
+// module stays testable; audio playback goes through a single <audio> element.
+export function createServerSpeaker({ synthesize, status, fallback, win = globalThis, onProvider } = {}) {
+  let configured = null
+  let audio = null
+  let current = 0
+  const cache = new Map()
+  async function ready() {
+    if (configured !== null) return configured
+    try { configured = Boolean((await status())?.configured) } catch { configured = false }
+    onProvider?.(configured ? 'elevenlabs' : (fallback ? 'browser' : 'none'))
+    return configured
+  }
+  ready()
+  return {
+    async speak(text, opts = {}) {
+      const clean = speakable(text)
+      if (!clean) { opts.onEnd?.(); return }
+      const id = ++current
+      this.stop()
+      if (!(await ready())) { fallback ? fallback.speak(text, opts) : opts.onEnd?.(); return }
+      try {
+        let url = cache.get(clean)
+        if (!url) {
+          const blob = await synthesize(clean.slice(0, 1200))
+          url = win.URL.createObjectURL(blob)
+          if (cache.size > 12) { const first = cache.keys().next().value; win.URL.revokeObjectURL(cache.get(first)); cache.delete(first) }
+          cache.set(clean, url)
+        }
+        if (id !== current) return
+        audio = new win.Audio(url)
+        audio.onended = () => opts.onEnd?.()
+        audio.onerror = () => { fallback ? fallback.speak(text, opts) : opts.onEnd?.() }
+        await audio.play()
+      } catch (error) {
+        if (error?.status === 401) { opts.onEnd?.(); return }
+        if (fallback) fallback.speak(text, opts); else opts.onEnd?.()
+      }
+    },
+    stop() { if (audio) { try { audio.pause() } catch { /* already stopped */ } audio = null } fallback?.stop() },
+    provider() { return configured === null ? 'pending' : configured ? 'elevenlabs' : (fallback ? 'browser' : 'none') },
+  }
+}

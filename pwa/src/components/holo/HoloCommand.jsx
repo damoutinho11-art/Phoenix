@@ -3,8 +3,8 @@ import './holo.css'
 import { ACC, G, Y, W, SCENE, RAISED, PANEL, BG, BODY, INK, FM, FB, HOME_ACCENT, scopeClass, a, mix, deep } from './holoTokens'
 import { buildDomains } from './holoDomains'
 import useHoloData from './useHoloData'
-import { logMeal as apiLogMeal, logSleepDuration, postJarvisChat } from '../../api/client'
-import { createListener, createSpeaker, speechSupport, VOICE_PREF_KEY } from './voiceLink.js'
+import { logMeal as apiLogMeal, logSleepDuration, postJarvisChat, getVoiceStatus, synthesizeSpeech } from '../../api/client'
+import { createListener, createSpeaker, createServerSpeaker, speechSupport, VOICE_PREF_KEY } from './voiceLink.js'
 import { applyFinance, applyFinanceOffline, applyNutrition, applyCalendar, mapHoldings, mealBudget, mapDinners, mapConnectorLanes, mapTodayRail } from './holoLive'
 import { composeHomeBrief } from './homeBrief.js'
 import { buildTrainingDomain, normalizeTrainingLive } from './trainingLive'
@@ -54,6 +54,7 @@ export default function HoloCommand({ startTab = 'home' }) {
   const speakerRef = useRef(null)
   const listenerRef = useRef(null)
   const heardRef = useRef(false) // last directive arrived by voice → answer by voice even when muted for typing
+  const [voiceProvider, setVoiceProvider] = useState('pending')
   const [chatLog, setChatLog] = useState([])
   // sub-screen state that must survive close / feed back into the main screen
   const [appChecks, setAppChecks] = useState([false, false, false, false])
@@ -142,11 +143,19 @@ export default function HoloCommand({ startTab = 'home' }) {
   // ── voice link + directive composer (home) ──
   const clearVoiceTimers = () => { clearTimeout(voiceT1.current); clearTimeout(voiceT2.current) }
   const support = speechSupport()
+  const speaker = () => {
+    if (!speakerRef.current) {
+      speakerRef.current = createServerSpeaker({
+        synthesize: synthesizeSpeech, status: getVoiceStatus,
+        fallback: support.speak ? createSpeaker() : null, onProvider: setVoiceProvider,
+      })
+    }
+    return speakerRef.current
+  }
+  useEffect(() => { speaker() }, []) // resolve the provider early so the voice line is truthful
   const say = (text, { force = false } = {}) => {
-    if (!support.speak) return
     if (muted && !force) return
-    if (!speakerRef.current) speakerRef.current = createSpeaker()
-    speakerRef.current?.speak(text)
+    speaker().speak(text)
   }
   const setMute = off => { setMuted(off); try { localStorage.setItem(VOICE_PREF_KEY, off ? 'off' : 'on') } catch { /* storage unavailable */ } if (off) speakerRef.current?.stop() }
 
@@ -305,7 +314,7 @@ export default function HoloCommand({ startTab = 'home' }) {
   const showTele = !isMobile && !isShort
   const showChips = !isShort && !isMobile
   const voiceColor = { idle: a(ACC, '99'), listening: G, processing: Y, speaking: W }[voice]
-  const voiceLabel = { idle: muted ? 'MUTED' : support.listen ? 'STANDBY' : 'TEXT ONLY', listening: 'LISTENING', processing: 'PROCESSING', speaking: 'RESPONDING' }[voice]
+  const voiceLabel = { idle: muted ? 'MUTED' : voiceProvider === 'elevenlabs' ? 'STANDBY' : voiceProvider === 'browser' ? 'STANDBY · BROWSER VOICE' : voiceProvider === 'none' ? 'TEXT ONLY' : 'LINKING', listening: 'LISTENING', processing: 'PROCESSING', speaking: 'RESPONDING' }[voice]
   const log = chatLog.slice(-3)
 
   const sceneAnim = warp
