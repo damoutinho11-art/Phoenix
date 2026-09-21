@@ -115,7 +115,8 @@ class EvidenceRecommendationTests(unittest.TestCase):
                 stack.enter_context(patch.object(finance.database, 'get_latest_brief_for_week', return_value={'id': 42, 'status': 'pending', 'full_brief_json': '{}'}))
                 saved = stack.enter_context(patch.object(finance.database, 'save_brief', return_value=43))
                 # A new decision brief retires older open briefs through this single write.
-                stack.enter_context(patch.object(finance.database, 'supersede_open_briefs', return_value=0))
+                stack.enter_context(patch.object(finance.database, 'list_open_briefs_for_week', return_value=[]))
+                stack.enter_context(patch.object(finance.database, 'supersede_briefs', return_value=0))
                 stack.enter_context(patch.object(finance.database, 'supersede_open_briefs_before_week', return_value=0))
                 stack.enter_context(patch.object(finance.database, 'find_active_research_memo_for_leg', return_value=research_memo))
                 stack.enter_context(patch.object(finance.database, 'get_research_memo_evidence_summary', return_value={'evidence_status': 'EVIDENCE_STRONG'}))

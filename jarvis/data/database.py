@@ -2387,6 +2387,44 @@ def save_brief(
         connection.close()
 
 
+def list_open_briefs_for_week(week_label: str, domain: str = "finance") -> list[dict[str, Any]]:
+    """Pending/deferred briefs of one week, newest first."""
+    connection = get_db()
+    try:
+        rows = connection.execute(
+            """
+            SELECT * FROM brief_history
+            WHERE week_label = ? AND domain = ? AND status IN ('pending', 'deferred')
+            ORDER BY created_at DESC, id DESC
+            """,
+            (week_label, domain),
+        ).fetchall()
+        return [_row_to_dict(row) for row in rows]
+    finally:
+        connection.close()
+
+
+def supersede_briefs(brief_ids: list[int]) -> int:
+    """Mark the given still-open briefs superseded."""
+    ids = [int(i) for i in brief_ids]
+    if not ids:
+        return 0
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            f"""
+            UPDATE brief_history
+            SET status = 'superseded', user_action = 'superseded', user_action_at = ?
+            WHERE id IN ({','.join('?' for _ in ids)}) AND status IN ('pending', 'deferred')
+            """,
+            (_utc_now(), *ids),
+        )
+        connection.commit()
+        return int(cursor.rowcount)
+    finally:
+        connection.close()
+
+
 def supersede_open_briefs(week_label: str, keep_id: int, domain: str = "finance") -> int:
     """Mark other still-open (pending/deferred) briefs of one week as superseded.
 

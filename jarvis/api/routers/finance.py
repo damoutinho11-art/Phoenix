@@ -743,8 +743,13 @@ def _build_finance_recommendation(
     # a changed choice must never inherit a previous choice's approval ID.
     response["week_label"] = week_label
     latest_brief = database.get_latest_brief_for_week(week_label, "finance") if selection else None
-    needs_brief = (not brief_matches_decision(latest_brief, response) if selection
-                   else not database.brief_exists_for_week(week_label, "finance"))
+    if selection:
+        # A week needs an open brief for the live decision. A matching brief that was
+        # retired (never approved or rejected) leaves the week unapprovable → re-issue.
+        needs_brief = (not brief_matches_decision(latest_brief, response)
+                       or latest_brief.get("status") == "superseded")
+    else:
+        needs_brief = not database.brief_exists_for_week(week_label, "finance")
     if persist_brief and needs_brief:
         coverage = _build_data_coverage_from_recommendation(response, etf_universe)
         checklist = _build_manual_buy_checklist(response)
@@ -800,8 +805,11 @@ def _build_finance_recommendation(
             full_brief_json=json.dumps({**response, **({'decision_replay_snapshot': result['decision_replay_snapshot']}
                 if selection else {})}, allow_nan=False),
         )
-        # The newer decision replaces older undecided briefs; they must not stay approvable.
-        database.supersede_open_briefs(week_label, new_brief_id)
+        # A *different* decision retires older undecided briefs; identical decisions
+        # (concurrent reads) are duplicates and must never retire each other.
+        stale = [b["id"] for b in database.list_open_briefs_for_week(week_label)
+                 if b["id"] != new_brief_id and not brief_matches_decision(b, response)]
+        database.supersede_briefs(stale)
         database.supersede_open_briefs_before_week(week_label)
 
     latest_brief = database.get_latest_brief_for_week(week_label, "finance")

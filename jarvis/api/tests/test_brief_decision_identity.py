@@ -126,3 +126,27 @@ def test_a_new_week_retires_open_briefs_of_earlier_weeks(tmp_path, monkeypatch):
     assert statuses[old_a] == statuses[old_b] == 'superseded'
     assert statuses[approved] == 'approved'
     assert statuses[new] == 'pending'
+
+
+def test_identical_decisions_never_retire_each_other_and_a_retired_match_is_reissued(tmp_path, monkeypatch):
+    database = _isolated_db(tmp_path, monkeypatch)
+    import json
+    from jarvis.api.buy_recommendation import brief_matches_decision
+    same = json.dumps(_response())
+    other = json.dumps({**_response(), 'week_budget': 100})
+    a = database.save_brief(week_label='W39 2026', domain='finance', action='BUY', asset='btc', amount_eur=1, route='r', thesis='t', full_brief_json=same)
+    b = database.save_brief(week_label='W39 2026', domain='finance', action='BUY', asset='btc', amount_eur=1, route='r', thesis='t', full_brief_json=same)
+    c = database.save_brief(week_label='W39 2026', domain='finance', action='BUY', asset='btc', amount_eur=1, route='r', thesis='t', full_brief_json=other)
+    live = _response()
+    stale = [x['id'] for x in database.list_open_briefs_for_week('W39 2026') if x['id'] != b and not brief_matches_decision(x, live)]
+    assert stale == [c]
+    database.supersede_briefs(stale)
+    statuses = {x['id']: x['status'] for x in database.get_brief_history(limit=10)}
+    assert statuses[a] == 'pending' and statuses[b] == 'pending' and statuses[c] == 'superseded'
+    # If every matching brief was retired by a race, the week must get a fresh open brief:
+    # the persist rule re-issues whenever the newest brief is retired or no longer matches.
+    database.supersede_briefs([a, b])
+    latest = database.get_latest_brief_for_week('W39 2026', 'finance')
+    needs_brief = not brief_matches_decision(latest, live) or latest.get('status') == 'superseded'
+    assert needs_brief is True
+    assert database.list_open_briefs_for_week('W39 2026') == []
