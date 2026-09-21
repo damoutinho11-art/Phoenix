@@ -575,6 +575,10 @@ def _build_finance_recommendation(
     )
     # Closure is historical fact and must not be reopened by a stale current statement.
     if applied_this_week:
+        if persist_brief and (latest_brief or {}).get("status") in {"pending", "deferred"}:
+            # Purchases were recorded without an in-app approval: say so in the log.
+            database.close_open_briefs_for_week(week_label)
+            latest_brief = database.get_latest_brief_for_week(week_label, "finance")
         return _closed_finance_recommendation(
             week_label=week_label,
             authority=authority,
@@ -744,10 +748,14 @@ def _build_finance_recommendation(
     response["week_label"] = week_label
     latest_brief = database.get_latest_brief_for_week(week_label, "finance") if selection else None
     if selection:
-        # A week needs an open brief for the live decision. A matching brief that was
-        # retired (never approved or rejected) leaves the week unapprovable → re-issue.
-        needs_brief = (not brief_matches_decision(latest_brief, response)
-                       or latest_brief.get("status") == "superseded")
+        # A week needs exactly one open brief for the live decision. If any open brief
+        # already carries this decision, reuse it; only when none does (changed choice,
+        # or the matching brief was retired by a race) is a new one issued.
+        open_match = next((b for b in database.list_open_briefs_for_week(week_label)
+                           if brief_matches_decision(b, response)), None)
+        needs_brief = open_match is None
+        if open_match is not None:
+            latest_brief = open_match
     else:
         needs_brief = not database.brief_exists_for_week(week_label, "finance")
     if persist_brief and needs_brief:
@@ -813,8 +821,10 @@ def _build_finance_recommendation(
         database.supersede_open_briefs_before_week(week_label)
 
     latest_brief = database.get_latest_brief_for_week(week_label, "finance")
-    if selection and not brief_matches_decision(latest_brief, response):
-        latest_brief = None
+    if selection:
+        latest_brief = next((b for b in database.list_open_briefs_for_week(week_label)
+                             if brief_matches_decision(b, response)), None) or (
+            latest_brief if brief_matches_decision(latest_brief, response) else None)
     response["brief_id"] = latest_brief["id"] if latest_brief else None
     response["brief_status"] = latest_brief["status"] if latest_brief else None
     if latest_brief and latest_brief.get("user_action") is not None:

@@ -2404,6 +2404,28 @@ def list_open_briefs_for_week(week_label: str, domain: str = "finance") -> list[
         connection.close()
 
 
+def close_open_briefs_for_week(week_label: str, domain: str = "finance") -> int:
+    """Mark a week's pending/deferred briefs closed once recorded purchases closed the week.
+
+    The owner executed without approving in-app; the log must say so rather than
+    leave a brief approvable for a week that is already done.
+    """
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE brief_history
+            SET status = 'closed', user_action = 'closed_by_recorded_purchases', user_action_at = ?
+            WHERE week_label = ? AND domain = ? AND status IN ('pending', 'deferred')
+            """,
+            (_utc_now(), week_label, domain),
+        )
+        connection.commit()
+        return int(cursor.rowcount)
+    finally:
+        connection.close()
+
+
 def supersede_briefs(brief_ids: list[int]) -> int:
     """Mark the given still-open briefs superseded."""
     ids = [int(i) for i in brief_ids]

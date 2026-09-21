@@ -3,9 +3,9 @@ import { ACC, G, Y, R, W, BODY, INK, FM, FD, FB, a, mix, deep } from '../holoTok
 import { getFinanceBriefHistory, postBriefAction, deleteBrief } from '../../../api/client'
 import { financeBody, financeButton, financeLabel, financeMicro } from './financeReadability'
 
-const STATUS_COLOR = { approved: G, pending: ACC, deferred: a(ACC, '66'), rejected: R, superseded: a(ACC, '44') }
-const STATUS_LABEL = { approved: 'APPROVED', pending: 'PENDING', deferred: 'DEFERRED', rejected: 'REJECTED', superseded: 'REPLACED' }
-const FILTERS = ['all', 'approved', 'pending', 'deferred', 'rejected', 'superseded']
+const STATUS_COLOR = { approved: G, pending: ACC, deferred: a(ACC, '66'), rejected: R, superseded: a(ACC, '44'), closed: a(ACC, '77') }
+const STATUS_LABEL = { approved: 'APPROVED', pending: 'PENDING', deferred: 'DEFERRED', rejected: 'REJECTED', superseded: 'REPLACED', closed: 'CLOSED' }
+const FILTERS = ['all', 'approved', 'pending', 'closed', 'rejected', 'superseded']
 
 const eur = v => {
   const n = Number(v)

@@ -150,3 +150,16 @@ def test_identical_decisions_never_retire_each_other_and_a_retired_match_is_reis
     needs_brief = not brief_matches_decision(latest, live) or latest.get('status') == 'superseded'
     assert needs_brief is True
     assert database.list_open_briefs_for_week('W39 2026') == []
+
+
+def test_executed_week_closes_its_open_briefs_without_claiming_approval(tmp_path, monkeypatch):
+    database = _isolated_db(tmp_path, monkeypatch)
+    a, b = _brief(database, week='W39 2026'), _brief(database, week='W39 2026')
+    approved = _brief(database, week='W39 2026')
+    database.update_brief_status(approved, 'approved', 'approved')
+    assert database.close_open_briefs_for_week('W39 2026') == 2
+    rows = {x['id']: x for x in database.get_brief_history(limit=10)}
+    assert rows[a]['status'] == rows[b]['status'] == 'closed'
+    assert rows[a]['user_action'] == 'closed_by_recorded_purchases'
+    assert rows[approved]['status'] == 'approved'
+    assert database.list_open_briefs_for_week('W39 2026') == []
