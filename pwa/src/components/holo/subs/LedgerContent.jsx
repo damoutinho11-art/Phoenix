@@ -138,8 +138,10 @@ function TxRow({ tx, onChanged, onApplyOpen, applyOpen, onApplied }) {
   const label = voided ? 'VOIDED' : applied ? 'APPLIED' : 'PENDING'
 
   const voidTx = async () => {
+    // Voiding an applied record reverses its portfolio effect; make that explicit.
+    if (applied && !window.confirm(`Void this applied ${String(tx.asset).replace(/_/g, ' ')} record? Its units and value will be removed from the portfolio state. Record it again afterwards if it was a data correction.`)) return
     setVoiding(true)
-    try { await postFinanceTransactionVoid(tx.id, 'Voided from ledger'); onChanged() }
+    try { await postFinanceTransactionVoid(tx.id, applied ? 'Voided applied record from ledger (correction)' : 'Voided from ledger'); onChanged() }
     catch { setVoiding(false) }
   }
 
@@ -156,9 +158,9 @@ function TxRow({ tx, onChanged, onApplyOpen, applyOpen, onApplied }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
           <span style={{ fontFamily: FM, fontSize: 10, letterSpacing: '.14em', padding: '2px 7px', border: `1px solid ${mix(color, 40)}`, color }}>{label}</span>
-          {!applied && !voided && (
+          {!voided && (
             <span style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => onApplyOpen(applyOpen ? null : tx.id)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: G, background: mix(G, 8), border: `1px solid ${mix(G, 36)}`, cursor: 'pointer' }}>{applyOpen ? 'CLOSE' : 'APPLY'}</button>
+              {!applied && <button onClick={() => onApplyOpen(applyOpen ? null : tx.id)} style={{ minHeight: 28, padding: '0 10px', fontFamily: FM, fontSize: 10, letterSpacing: '.14em', color: G, background: mix(G, 8), border: `1px solid ${mix(G, 36)}`, cursor: 'pointer' }}>{applyOpen ? 'CLOSE' : 'APPLY'}</button>}
               <button onClick={voidTx} disabled={voiding} title="Void record" style={{ minHeight: 28, padding: '0 8px', fontFamily: FM, fontSize: 10, color: mix(R, 55), background: 'none', border: `1px solid ${mix(R, 26)}`, cursor: 'pointer' }}>{voiding ? '…' : '✕'}</button>
             </span>
           )}
