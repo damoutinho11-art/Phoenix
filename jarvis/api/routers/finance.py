@@ -2861,6 +2861,16 @@ def _run_research_autopilot_internal(
     }
 
 
+@router.post("/research/renew-reviews")
+def finance_renew_reviews(force: bool = False) -> dict:
+    """Renew expiring crypto investment reviews by re-verifying their premises. Research only."""
+    from jarvis.api.review_renewal_runner import run_review_renewals  # noqa: PLC0415
+    report = run_review_renewals(force=force)
+    report["trades_executed"] = False
+    report["portfolio_state_updated"] = False
+    return report
+
+
 @router.post("/research/autopilot/run")
 def finance_research_autopilot_run(
     constitution: dict = Depends(get_finance_constitution),

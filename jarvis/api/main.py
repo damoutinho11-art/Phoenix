@@ -108,6 +108,13 @@ async def _auto_research_autopilot():
             _log.info("Auto research autopilot: %s leg(s) processed", result.get("total_legs", 0))
         except Exception:
             _log.exception("Auto research autopilot failed — will retry in 24 h")
+        try:
+            from jarvis.api.review_renewal_runner import run_review_renewals  # noqa: PLC0415
+            report = await asyncio.to_thread(run_review_renewals)
+            for row in report.get("results", []):
+                _log.info("Review renewal %s: %s — %s", row.get("asset"), row.get("action"), row.get("reason") or row.get("valid_until"))
+        except Exception:
+            _log.exception("Scheduled review renewal failed — will retry in 24 h")
         await asyncio.sleep(24 * 60 * 60)
 
 

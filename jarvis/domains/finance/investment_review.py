@@ -6,6 +6,8 @@ import json
 import re
 from urllib.parse import urlsplit
 
+RENEWAL_CHAIN_DAYS = 56
+
 
 def review_digest(review):
     return hashlib.sha256(json.dumps(review, sort_keys=True, separators=(',', ':'),
@@ -28,8 +30,15 @@ def validated_investment_review(memo, records, today):
         end = date.fromisoformat(review['valid_until'])
         if not start <= today <= end or not 0 <= (end-start).days <= 7:
             raise ValueError('Investment review is expired or has invalid dates.')
-        if review.get('strategy') != 'long_term_spot_contribution' or review.get('reviewer_type') != 'assistant_research':
+        if review.get('strategy') != 'long_term_spot_contribution' or review.get('reviewer_type') not in {'assistant_research', 'phoenix_renewal'}:
             raise ValueError('Unsupported investment review scope.')
+        if review.get('reviewer_type') == 'phoenix_renewal':
+            # A renewal must chain to a human-authored review and stay within the chain age.
+            if not re.fullmatch(r'[0-9a-f]{64}', str(review.get('renews_review_sha256', ''))):
+                raise ValueError('Renewal is not chained to a prior review.')
+            origin = date.fromisoformat(review['origin_reviewed_at'])
+            if not 0 <= (start - origin).days <= RENEWAL_CHAIN_DAYS:
+                raise ValueError('Renewal chain is too old; a fresh assistant review is required.')
         if review.get('verdict') not in {'BUY_CANDIDATE', 'WATCH', 'REJECT'}:
             raise ValueError('Investment review verdict is invalid.')
         strategic_fields = {'decision_basis', 'role', 'investment_policy_sha256'}
