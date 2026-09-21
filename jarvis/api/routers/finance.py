@@ -802,6 +802,7 @@ def _build_finance_recommendation(
         )
         # The newer decision replaces older undecided briefs; they must not stay approvable.
         database.supersede_open_briefs(week_label, new_brief_id)
+        database.supersede_open_briefs_before_week(week_label)
 
     latest_brief = database.get_latest_brief_for_week(week_label, "finance")
     if selection and not brief_matches_decision(latest_brief, response):

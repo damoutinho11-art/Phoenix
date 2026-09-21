@@ -2410,6 +2410,30 @@ def supersede_open_briefs(week_label: str, keep_id: int, domain: str = "finance"
         connection.close()
 
 
+def supersede_open_briefs_before_week(week_label: str, domain: str = "finance") -> int:
+    """Retire pending/deferred briefs of earlier weeks once a newer week has a brief.
+
+    An undecided brief for a week that has passed can no longer be acted on;
+    leaving it PENDING only clutters the decision log.
+    """
+    connection = get_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE brief_history
+            SET status = 'superseded', user_action = 'superseded', user_action_at = ?
+            WHERE domain = ? AND week_label != ?
+              AND status IN ('pending', 'deferred')
+              AND created_at < (SELECT MIN(created_at) FROM brief_history WHERE week_label = ? AND domain = ?)
+            """,
+            (_utc_now(), domain, week_label, week_label, domain),
+        )
+        connection.commit()
+        return int(cursor.rowcount)
+    finally:
+        connection.close()
+
+
 def get_approved_brief_for_week(week_label: str, domain: str = "finance") -> dict[str, Any] | None:
     """Return the newest approved brief for one week, if any."""
     connection = get_db()

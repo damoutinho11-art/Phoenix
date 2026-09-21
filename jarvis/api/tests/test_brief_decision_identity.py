@@ -112,3 +112,17 @@ def test_approval_supersedes_other_open_briefs_and_wins_the_week(tmp_path, monke
     lifecycle = current_week_lifecycle(date(2026, 9, 18))
     assert lifecycle['latest_brief']['id'] == approved
     assert lifecycle['week_closed'] is True
+
+
+def test_a_new_week_retires_open_briefs_of_earlier_weeks(tmp_path, monkeypatch):
+    database = _isolated_db(tmp_path, monkeypatch)
+    old_a, old_b = _brief(database, week='W38 2026'), _brief(database, week='W38 2026')
+    approved = _brief(database, week='W37 2026')
+    database.update_brief_status(approved, 'approved', 'approved')
+    new = _brief(database, week='W39 2026')
+
+    assert database.supersede_open_briefs_before_week('W39 2026') == 2
+    statuses = {b['id']: b['status'] for b in database.get_brief_history(limit=10)}
+    assert statuses[old_a] == statuses[old_b] == 'superseded'
+    assert statuses[approved] == 'approved'
+    assert statuses[new] == 'pending'
