@@ -19,6 +19,45 @@ POLICY = {
     "recurring_obligations": [],
 }
 
+
+@pytest.mark.parametrize('invested,balance,expected', [
+    (38.80, 2912.66, 2292.97),
+    (1294.26, 1657.20, 1037.51),
+    (2538.80, 412.66, 0),
+])
+def test_one_time_capital_preserves_income_and_deducts_purchases(invested, balance, expected):
+    summary = {'income_total': 2173.96, 'expenses_total': 500,
+               'invested_total': invested, 'emergency_fund_total': 0,
+               'by_category': {'Food & Groceries': {'total': 54.62}}}
+    result = calculate_cashflow_authority(
+        policy={**POLICY, 'emergency_fund_floor_eur': 3800, 'emergency_fund_balance_eur': 3800},
+        snapshot={'closing_balance_eur': balance, 'statement_end_date': '2026-10-04', 'quality_status': 'reconciled'},
+        month_summary=summary, unpaid_bills_eur=174.31, today=date(2026, 10, 4),
+        week_closed=False, approved_capital_cents=125546)
+    assert result['deployable_capacity_eur'] == expected
+    assert summary['income_total'] == 2173.96
+    assert round(result['regular_deployable_eur'] + result['one_time_deployable_eur'], 2) == expected
+    assert result['approved_one_time_capital_eur'] == 1255.46
+
+
+def test_one_time_capital_first_covers_monthly_deficit():
+    result = calculate_cashflow_authority(
+        policy=POLICY,
+        snapshot={**VALID_SNAPSHOT, 'closing_balance_eur': 5000},
+        month_summary={**VALID_MONTH_SUMMARY, 'income_total': 100, 'expenses_total': 950,
+                       'invested_total': 0, 'emergency_fund_total': 0},
+        unpaid_bills_eur=0, today=date(2026, 8, 11), week_closed=False,
+        approved_capital_cents=125546)
+    assert result['deployable_capacity_eur'] == 205.46
+
+
+@pytest.mark.parametrize('capital', [-1, True, 1.5, '125546'])
+def test_invalid_capital_amount_fails_closed(capital):
+    result = calculate_cashflow_authority(policy=POLICY, snapshot=VALID_SNAPSHOT,
+        month_summary=VALID_MONTH_SUMMARY, unpaid_bills_eur=0,
+        today=date(2026, 8, 11), week_closed=False, approved_capital_cents=capital)
+    assert result['data_ready'] is False
+
 VALID_SNAPSHOT = {
     "closing_balance_eur": 760,
     "statement_end_date": "2026-08-11",

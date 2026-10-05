@@ -425,7 +425,9 @@ def remaining_weekly_windows(today: date, cutoff: int, week_closed: bool) -> int
     return max(1, len(labels))
 
 
-def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary: dict, unpaid_bills_eur: float | None, today: date, week_closed: bool) -> dict:
+def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary: dict, unpaid_bills_eur: float | None, today: date, week_closed: bool, approved_capital_cents: int = 0) -> dict:
+    if type(approved_capital_cents) is not int or not 0 <= approved_capital_cents <= 1_200_000_000:
+        return {'data_ready': False, 'blockers': ['Approved one-time capital is invalid.'], 'weekly_budget_eur': 0.0}
     blockers = cashflow_authority_input_blockers(
         policy=policy,
         snapshot=snapshot,
@@ -446,8 +448,11 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
     cash_capacity = max(0, balance - buffer_cents - food_remaining - bills - emergency_shortfall)
     projected_spending = _cents(month_summary.get("expenses_total")) + bills + food_remaining
     spending_guardrail = max(_cents(policy["essential_spending_ceiling_eur"]), projected_spending)
-    sustainable = max(0, _cents(month_summary.get("income_total")) - spending_guardrail - _cents(month_summary.get("emergency_fund_total")) - _cents(month_summary.get("invested_total")) - emergency_shortfall)
-    deployable = min(cash_capacity, sustainable)
+    monthly_surplus = _cents(month_summary.get("income_total")) - spending_guardrail - _cents(month_summary.get("emergency_fund_total")) - _cents(month_summary.get("invested_total")) - emergency_shortfall
+    sustainable = max(0, monthly_surplus)
+    # Add capital before clamping: a monthly deficit must be funded first.
+    deployable = min(cash_capacity, max(0, monthly_surplus + approved_capital_cents))
+    regular_deployable = min(cash_capacity, sustainable)
     windows = remaining_weekly_windows(today, int(policy["salary_day_cutoff"]), week_closed)
     weekly = int((Decimal(deployable) / windows).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     weekly_is_positive = weekly > 0
@@ -464,6 +469,9 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
         ),
         "cash_capacity_eur": _euros(cash_capacity),
         "sustainable_capacity_eur": _euros(sustainable),
+        "approved_one_time_capital_eur": _euros(approved_capital_cents),
+        "regular_deployable_eur": _euros(regular_deployable),
+        "one_time_deployable_eur": _euros(deployable - regular_deployable),
         "deployable_capacity_eur": _euros(deployable),
         "weekly_budget_eur": _euros(weekly) if weekly_is_positive else 0.0,
         "remaining_weekly_windows": windows,

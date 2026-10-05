@@ -14,6 +14,7 @@ import {
 } from '../../../api/client'
 import { financeBody, financeButton, financeLabel, financeMicro } from './financeReadability'
 import { BudgetCategoryReview, formatReviewMoney } from './BudgetCategoryReview'
+import { CapitalAllocationBreakdown } from './CapitalAllocationBreakdown'
 import { createCategoryReviewLoading, normalizeCategoryReview } from './budgetCategoryReviewModel'
 import {
   AUTHORITY_NUMERIC_FIELDS,
@@ -279,6 +280,7 @@ export function BudgetContent() {
               </div>
             ))}
           </div>
+          {!authorityLoading && <CapitalAllocationBreakdown authority={authority} />}
           <div style={{ ...financeMicro({ marginTop: 10, color: a(ACC, '99') }), overflowWrap: 'anywhere' }}>
             STATEMENT {authority?.source?.statement_end_date || 'UNKNOWN'} · PROTECTED {protectedCashLabel(authority?.protected_cash)}
           </div>

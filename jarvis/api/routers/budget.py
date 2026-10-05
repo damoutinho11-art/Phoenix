@@ -28,6 +28,8 @@ from jarvis.domains.finance.cashflow_authority import (
     valid_recurring_obligations,
 )
 
+from jarvis.domains.finance.capital_releases import approved_capital_cents, validate_capital_releases
+
 router = APIRouter()
 
 MAX_PDF_BYTES = 8 * 1024 * 1024
@@ -44,6 +46,7 @@ NON_SPENDING_CATEGORIES = {"Income", "Investment", "Emergency Fund", "Transfers"
 FIXED_COST_CATEGORIES = {"Housing"}
 
 DEFAULT_BUDGET_MEMORY = {
+    "one_time_capital_releases": [],
     "version": 2,
     "savings_target_pct": 25,
     "salary_day_cutoff": 25,
@@ -247,6 +250,7 @@ def _validated_budget_memory_for_save(profile: object) -> dict:
 
     canonical = _deepcopy_default_budget_memory()
     canonical.update(profile)
+    validate_capital_releases(canonical["one_time_capital_releases"])
     for field in _AUTHORITY_MONEY_FIELDS:
         if not _is_valid_authority_money(canonical.get(field)):
             raise ValueError(
@@ -682,6 +686,13 @@ def _build_cashflow_authority(
             "blockers": ["Cash-flow authority inputs are not JSON-safe."],
             "weekly_budget_eur": 0.0,
         }
+    try:
+        capital_cents = approved_capital_cents(
+            profile.get('one_time_capital_releases', []), imported_transactions, decision_today
+        )
+    except ValueError as exc:
+        return {'data_ready': False, 'weekly_budget_eur': 0.0,
+                'blockers': [f'One-time capital verification failed: {exc}']}
     result = calculate_cashflow_authority(
         policy=profile,
         snapshot=snapshot,
@@ -689,6 +700,7 @@ def _build_cashflow_authority(
         unpaid_bills_eur=unpaid_bills_eur,
         today=decision_today,
         week_closed=week_closed,
+        approved_capital_cents=capital_cents,
     )
     source = dict(snapshot)
     source["receipt_verified"] = True
@@ -1366,6 +1378,11 @@ def budget_memory() -> dict:
 def save_budget_memory(request: BudgetMemoryRequest) -> dict:
     try:
         profile = _validated_budget_memory_for_save(request.profile)
+        if profile['one_time_capital_releases']:
+            source = database.get_latest_reconciled_budget_statement() or {}
+            rows = (database.get_effective_budget_statement_transactions(source['statement_import_id'])
+                    if source.get('receipt_verified') and source.get('statement_import_id') else [])
+            approved_capital_cents(profile['one_time_capital_releases'], rows, clock.today())
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     saved = database.save_budget_memory_profile(profile)

@@ -14,6 +14,53 @@ from jarvis.data import database
 client = TestClient(app)
 
 
+def test_one_time_capital_memory_and_verified_statement_integration(monkeypatch, tmp_path):
+    monkeypatch.setattr(database, 'DB_PATH', tmp_path / 'capital.db')
+    database.init_db()
+    release = {'date': '2026-08-11', 'merchant': 'Owner',
+               'description': '', 'amount_eur': 1255.46}
+    # Parser-generated identity is used, not a manually fabricated statement receipt.
+    profile = {**budget_router.DEFAULT_BUDGET_MEMORY,
+               'merchant_rules': [{'contains': ['Owner'], 'category': 'Transfers', 'is_income': 0}],
+               'recurring_obligations': []}
+    assert client.post('/budget/memory', json={'profile': profile}).status_code == 200
+    parsed = _parse_reconciled_statement_receipt('''
+11.08.2026 Starting balance 1000.00
+11.08.2026 Owner
+1500000001 1255.46 2255.46
+11.08.2026 Final balance 2255.46
+''')
+    row = parsed['transactions'][0]
+    release = {key: row[key] for key in ('date', 'merchant', 'description', 'amount_eur')}
+    release['owner_confirmed_incoming'] = True
+    assert client.post('/budget/save', json={'transactions': parsed['transactions'],
+        'statement_receipt_id': parsed['receipt_id']}).status_code == 200
+    profile['one_time_capital_releases'] = [release]
+    response = client.post('/budget/memory', json={'profile': profile})
+    assert response.status_code == 200, response.text
+    assert client.get('/budget/memory').json()['profile']['one_time_capital_releases'] == [release]
+    result = budget_router._build_cashflow_authority('2026-08', today=date(2026, 8, 11))
+    assert result['approved_one_time_capital_eur'] == 1255.46
+    assert result['sustainable_capacity_eur'] == 0
+    assert result['deployable_capacity_eur'] == 305.46
+    profile['one_time_capital_releases'] = [{**release, 'amount_eur': 1255.45}]
+    assert client.post('/budget/memory', json={'profile': profile}).status_code == 422
+
+
+def test_capital_approval_missing_from_new_statement_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setattr(database, 'DB_PATH', tmp_path / 'missing-capital.db')
+    database.init_db()
+    _save_authoritative_statement_for_investment_capacity()
+    database.save_budget_memory_profile({**budget_router.DEFAULT_BUDGET_MEMORY,
+        'one_time_capital_releases': [{'date': '2026-08-11', 'merchant': 'Owner',
+        'description': 'Emergency withdrawal', 'amount_eur': 1255.46,
+        'owner_confirmed_incoming': True}]})
+    result = budget_router._build_cashflow_authority('2026-08', today=date(2026, 8, 11))
+    assert result['data_ready'] is False
+    assert result['weekly_budget_eur'] == 0
+    assert any('capital' in text.lower() for text in result['blockers'])
+
+
 @pytest.fixture(autouse=True)
 def fixed_budget_decision_date(monkeypatch):
     # These statement fixtures describe August. Individual boundary tests override it.
