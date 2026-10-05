@@ -43,6 +43,14 @@ def test_one_time_capital_memory_and_verified_statement_integration(monkeypatch,
     assert result['approved_one_time_capital_eur'] == 1255.46
     assert result['sustainable_capacity_eur'] == 0
     assert result['deployable_capacity_eur'] == 305.46
+    from jarvis.domains.finance.cashflow_authority import validate_cashflow_authority
+    assert validate_cashflow_authority(result, today=date(2026, 8, 11))['data_ready'] is True
+    for key in ('approved_one_time_capital_eur', 'regular_deployable_eur',
+                'one_time_deployable_eur', 'monthly_surplus_eur'):
+        missing = {k: v for k, v in result.items() if k != key}
+        assert validate_cashflow_authority(missing, today=date(2026, 8, 11))['data_ready'] is False
+        changed = {**result, key: round(result[key] + 0.01, 2)}
+        assert validate_cashflow_authority(changed, today=date(2026, 8, 11))['data_ready'] is False
     profile['one_time_capital_releases'] = [{**release, 'amount_eur': 1255.45}]
     assert client.post('/budget/memory', json={'profile': profile}).status_code == 422
 

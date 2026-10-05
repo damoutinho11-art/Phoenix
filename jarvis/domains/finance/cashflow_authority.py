@@ -193,7 +193,24 @@ def _valid_ready_provenance(authority: dict, *, today: date) -> bool:
     cash_capacity, sustainable_capacity, deployable_capacity = (
         _cents(value) for value in capacities
     )
-    if deployable_capacity != min(cash_capacity, sustainable_capacity):
+    capital_fields = ('approved_one_time_capital_eur', 'regular_deployable_eur',
+                      'one_time_deployable_eur', 'monthly_surplus_eur')
+    combined_capacity = sustainable_capacity
+    if any(key in authority for key in capital_fields):
+        if not all(_valid_exact_cent_json_number(authority.get(key),
+                    nonnegative=key != 'monthly_surplus_eur') for key in capital_fields):
+            return False
+        surplus = _cents(authority['monthly_surplus_eur'])
+        approved = _cents(authority['approved_one_time_capital_eur'])
+        if approved > 1_200_000_000:
+            return False
+        combined_capacity = max(0, surplus + approved)
+        regular = min(cash_capacity, sustainable_capacity)
+        if (sustainable_capacity != max(0, surplus)
+                or _cents(authority['regular_deployable_eur']) != regular
+                or _cents(authority['one_time_deployable_eur']) != deployable_capacity - regular):
+            return False
+    if deployable_capacity != min(cash_capacity, combined_capacity):
         return False
     expected_weekly = int(
         (Decimal(deployable_capacity) / windows).quantize(
@@ -469,6 +486,7 @@ def calculate_cashflow_authority(*, policy: dict, snapshot: dict, month_summary:
         ),
         "cash_capacity_eur": _euros(cash_capacity),
         "sustainable_capacity_eur": _euros(sustainable),
+        "monthly_surplus_eur": _euros(monthly_surplus),
         "approved_one_time_capital_eur": _euros(approved_capital_cents),
         "regular_deployable_eur": _euros(regular_deployable),
         "one_time_deployable_eur": _euros(deployable - regular_deployable),

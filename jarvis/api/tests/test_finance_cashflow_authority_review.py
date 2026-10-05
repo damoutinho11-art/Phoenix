@@ -48,6 +48,14 @@ _READY_AUTHORITY = {
 client = TestClient(app)
 
 
+def test_cash_capped_authority_rejects_capital_above_producer_limit():
+    from jarvis.domains.finance.cashflow_authority import validate_cashflow_authority
+    authority = {**_READY_AUTHORITY, 'monthly_surplus_eur': 260,
+                 'approved_one_time_capital_eur': 12000000.01,
+                 'regular_deployable_eur': 260, 'one_time_deployable_eur': 0}
+    assert validate_cashflow_authority(authority, today=_DECISION_DATE)['data_ready'] is False
+
+
 @pytest.mark.parametrize(
     "authority",
     [
