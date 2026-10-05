@@ -6,6 +6,9 @@ from .positions import correct_position_units
 
 
 FUND_IDENTITIES = {
+    'global_core_etf': {'broker_symbol':'VWCE','symbol':'VWCE.DE',
+        'isin':'IE00BK5BQT80','name':'Vanguard FTSE All-World UCITS ETF (USD) Accumulating',
+        'source':'https://www.vanguard.co.uk/professional/product/etf/equity/9679/ftse-all-world-ucits-etf-usd-accumulating'},
     'lhv_growth_world_equities': {'broker_symbol':'LHVWORLDA','symbol':'LHVWORLDA',
         'isin':'EE3600092417','name':'LHV World Equities Fund',
         'source':'https://www.lhv.ee/en/investment-funds'},

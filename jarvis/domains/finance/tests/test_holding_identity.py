@@ -5,6 +5,17 @@ import pytest
 from jarvis.domains.finance.holding_identity import build_identity_review
 
 
+def test_report_names_only_unverified_fund_and_separates_overlap():
+    from jarvis.domains.finance.holding_identity import identity_review_disclosure
+    review = {'held_fund_count': 2, 'funds': [
+        {'symbol': 'VWCE.DE', 'fund_identity_verified': False},
+        {'symbol': 'SXR8.DE', 'fund_identity_verified': True}]}
+    text = identity_review_disclosure(review)
+    assert '1/2' in text and 'VWCE.DE' in text
+    assert 'Legacy' not in text and 'SXR8.DE' not in text
+    assert 'exact issuer overlap is unavailable' in text
+
+
 def test_positive_legacy_funds_are_flagged_without_exposing_amounts():
     result = build_identity_review({'legacy_holdings': {
         'lhv_growth_euro_bond': 0.15, 'lhv_growth_iemm': 20,

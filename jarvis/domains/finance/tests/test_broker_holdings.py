@@ -14,6 +14,18 @@ def legacy():
             'units': {'lhv_growth_world_equities': .02}}
 
 
+def test_vwce_screenshot_verifies_owned_share_class_without_creating_a_trade():
+    state = {'holdings': {'global_core_etf': 212.69},
+             'units': {'global_core_etf': 1.233580508}}
+    result = reconcile_broker_position(state, 'global_core_etf', 1.233580508, 212.51,
+        broker_symbol='VWCE', evidence_sha256='a'*64, received_at='2026-10-05')
+    review = build_identity_review(result)
+    assert review['funds'][0]['fund_identity_verified'] is True
+    assert review['funds'][0]['isin'] == 'IE00BK5BQT80'
+    assert result['units']['global_core_etf'] == state['units']['global_core_etf']
+    assert review['exact_issuer_overlap']['available'] is False
+
+
 def test_screenshot_correction_preserves_legacy_section_and_attaches_crosscheck():
     state = legacy(); before = deepcopy(state)
     result = reconcile_broker_position(state, 'lhv_growth_world_equities', .1, 1.6,

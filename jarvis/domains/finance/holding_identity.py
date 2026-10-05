@@ -19,6 +19,19 @@ def _positive(value):
         return False
 
 
+def identity_review_disclosure(review):
+    funds = review['funds']
+    if not funds:
+        return ''
+    missing = [fund for fund in funds if not fund['fund_identity_verified']]
+    if missing:
+        symbols = ', '.join(fund.get('symbol') or fund.get('asset', 'unknown fund') for fund in missing)
+        return (f"Fund identities verified: {len(funds) - len(missing)}/{len(funds)}. "
+                f"Broker identity evidence is still needed for: {symbols}; exact issuer overlap is unavailable without dated constituents.")
+    return ('Fund identities are cross-checked against broker screenshots and issuer records; '
+            'exact issuer overlap still requires dated constituents.')
+
+
 def build_identity_review(state):
     """Describe current fund assumptions without changing or verifying holdings.
 
